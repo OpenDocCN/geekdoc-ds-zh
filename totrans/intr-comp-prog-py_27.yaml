@@ -1,0 +1,946 @@
+- en: '26'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CLASSIFICATION METHODS
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most common application of supervised machine learning is building classification
+    models. A **classification model**, or classifier, is used to label an example
+    as belonging to one of a finite set of categories. Deciding whether an email message
+    is spam, for example, is a classification problem. In the literature, these categories
+    are typically called **classes** (hence the name classification). Equivalently,
+    we can describe an example as belonging to a class or as having a **label**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In **one-class** **learning**, the training set contains examples drawn from
+    only one class. The goal is to learn a model that predicts whether an example
+    belongs to that class. One-class learning is useful when it is difficult to find
+    training examples that lie outside the class. One-class learning is frequently
+    used for building anomaly detectors, e.g., detecting previously unseen kinds of
+    attacks on a computer network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In **two-class learning** (often called **binary classification**), the training
+    set contains examples drawn from exactly two classes (typically called positive
+    and negative), and the objective is to find a boundary that separates the two
+    classes. **Multi-class learning** involves finding boundaries that separate more
+    than two classes from each other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we look at two widely used supervised learning methods for
+    solving classification problems: k-nearest neighbors and regression. Before we
+    do, we address the question of how to evaluate the classifiers produced by these
+    methods.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in this chapter assumes the import statements
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 26.1 Evaluating Classifiers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Those of you who read Chapter 20 might recall that part of that chapter addressed
+    the question of choosing a degree for a linear regression that would 1) provide
+    a reasonably good fit for the available data, and 2) have a reasonable chance
+    of making good predictions about as yet unseen data. The same issues arise when
+    using supervised machine learning to train a classifier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We start by dividing our data into two sets, a training set and a **test set**.
+    The training set is used to learn a model, and the test set is used to evaluate
+    that model. When we train the classifier, we attempt to minimize **training error**,
+    i.e., errors in classifying the examples in the training set, subject to certain
+    constraints. The constraints are designed to increase the probability that the
+    model will perform reasonably well on as yet unseen data. Let's look at this pictorially.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The chart on the left of [Figure 26-1](#c26-fig-0001) shows a representation
+    of voting patterns for 60 (simulated) American citizens. The x-axis is the distance
+    of the voter's home from Boston, Massachusetts. The y-axis is the age of the voter.
+    The stars indicate voters who usually vote Democratic, and the triangles voters
+    who usually vote Republican. The chart on the right in [Figure 26-1](#c26-fig-0001)
+    shows a training set containing a randomly chosen sample of 30 of those voters.
+    The solid and dashed lines show two possible boundaries between the two populations.
+    For the model based on the solid line, points below the line are classified as
+    Democratic voters. For the model based on the dotted line, points to the left
+    of the line are classified as Democratic voters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0001.jpg](../images/c26-fig-0001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-1](#c26-fig-0001a) Plots of voter preferences'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Neither boundary separates the training data perfectly. The training errors
+    for the two models are shown in the **confusion matrices** in [Figure 26-2](#c26-fig-0002).
+    The top-left corner of each shows the number of examples classified as Democratic
+    that are actually Democratic, i.e., the true positives. The bottom-left corner
+    shows the number of examples classified as Democratic that are actually Republican,
+    i.e., the false positives. The righthand column shows the number of false negatives
+    on the top and the number of true negatives on the bottom.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0002.jpg](../images/c26-fig-0002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-2](#c26-fig-0002a) Confusion matrices'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **accuracy** of each classifier on the training data can be calculated as
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-5001.jpg](../images/c26-fig-5001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: In this case, each classifier has an accuracy of `0.7`. Which does a better
+    job of fitting the training data? It depends upon whether we are more concerned
+    about misclassifying Republicans as Democrats, or vice versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we are willing to draw a more complex boundary, we can get a classifier that
+    does a more accurate job of classifying the training data. The classifier pictured
+    in [Figure 26-3](#c26-fig-0004), for example, has an accuracy of about 0.83 on
+    the training data, as depicted in the left plot of the figure. However, as we
+    saw in our discussion of linear regression in Chapter 20, the more complicated
+    the model, the higher the probability that it has been overfit to the training
+    data. The righthand plot in [Figure 26-3](#c26-fig-0004) depicts what happens
+    if we apply the complex model to the holdout set—the accuracy drops to `0.6`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0003.jpg](../images/c26-fig-0003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-3](#c26-fig-0004a) A more complex model'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accuracy is a reasonable way to evaluate a classifier when the two classes are
+    of roughly equal size. It is a terrible way to evaluate a classifier when there
+    is a large **class imbalance**. Imagine that you are charged with evaluating a
+    classifier that predicts whether a person has a potentially fatal disease occurring
+    in about `0.1%` of the population to be tested. Accuracy is not a particularly
+    useful statistic, since `99.9%` accuracy can be attained by merely declaring all
+    patients disease-free. That classifier might seem great to those charged with
+    paying for the treatment (nobody would get treated!), but it might not seem so
+    great to those worried that they might have the disease.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fortunately, there are statistics about classifiers that shed light when classes
+    are imbalanced:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-5002.jpg](../images/c26-fig-5002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![c26-fig-5003.jpg](../images/c26-fig-5003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![c26-fig-5004.jpg](../images/c26-fig-5004.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![c26-fig-5005.jpg](../images/c26-fig-5005.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Sensitivity** (called **recall** in some fields) is the true positive rate,
+    i.e., the proportion of positives that are correctly identified as such. **Specificity**
+    is the true negative rate, i.e., the proportion of negatives that are correctly
+    identified as such. **Positive predictive** **value** is the probability that
+    an example classified as positive is truly positive. **Negative predictive** **value**
+    is the probability that an example classified as negative is truly negative.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementations of these statistical measures and a function that uses them
+    to generate some statistics are in [Figure 26-4](#c26-fig-0009). We will use these
+    functions later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0004.jpg](../images/c26-fig-0004.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-4](#c26-fig-0009a) Functions for evaluating classifiers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 26.2 Predicting the Gender of Runners
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Earlier in this book, we used data from the Boston Marathon to illustrate a
+    number of statistical concepts. We will now use the same data to illustrate the
+    application of various classification methods. The task is to predict the gender
+    of a runner given the runner's age and finishing time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The function `build_marathon_examples` in [Figure 26-6](#c26-fig-0011) reads
+    in the data from a CSV file of the form shown in [Figure 26-5](#c26-fig-0010),
+    and then builds a set of examples. Each example is an instance of class `Runner`.
+    Each runner has a label (gender) and a feature vector (age and finishing time).
+    The only interesting method in `Runner` is `feature_dist`. It returns the Euclidean
+    distance between the feature vectors of two runners.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0005.jpg](../images/c26-fig-0005.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: "[Figure 26-5](#c26-fig-0010a) First few lines of `\uFEFFbm_results2012.csv`"
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next step is to split the examples into a training set and a held-out test
+    set. As is frequently done, we use `80%` of the data for training and test on
+    the remaining `20%`. This is done using the function `divide_80_20` at the bottom
+    of [Figure 26-6](#c26-fig-0011). Notice that we select the training data at random.
+    It would have taken less code to simply select the first `80%` of the data, but
+    that runs the risk of not being representative of the set as a whole. If the file
+    had been sorted by finishing time, for example, we would get a training set biased
+    towards the better runners.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are now ready to look at different ways of using the training set to build
+    a classifier that predicts the gender of a runner. Inspection reveals that `58%`
+    of the runners in the training set are male. So, if we guess male all the time,
+    we should expect an accuracy of `58%`. Keep this baseline in mind when looking
+    at the performance of more sophisticated classification algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0006.jpg](../images/c26-fig-0006.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-6](#c26-fig-0011a) Build examples and divide data into training
+    and test sets'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 26.3 K-nearest Neighbors
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**K-nearest neighbors** (KNN) is probably the simplest of all classification
+    algorithms. The “learned” model is simply the training examples themselves. New
+    examples are assigned a label based on how similar they are to examples in the
+    training data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Imagine that you and a friend are strolling through the park and spot a bird.
+    You believe that it is a yellow-throated woodpecker, but your friend is pretty
+    sure that it is a golden-green woodpecker. You rush home and dig out your cache
+    of bird books (or, if you are under `35,` go to your favorite search engine) and
+    start looking at labeled pictures of birds. Think of these labeled pictures as
+    the training set. None of the pictures is an exact match for the bird you saw,
+    so you settle for selecting the five that look the most like the bird you saw
+    (the five “nearest neighbors”). The majority of them are photos of a yellow-throated
+    woodpecker—you declare victory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A weakness of KNN (and other) classifiers is that they often give poor results
+    when the distribution of examples in the training data is different from that
+    in the test data. If the frequency of pictures of bird species in the book is
+    the same as the frequency of that species in your neighborhood, KNN will probably
+    work well. Suppose, however, that despite the species being equally common in
+    your neighborhood, your books contain 30 pictures of yellow-throated woodpeckers
+    and only one of a golden-green woodpecker. If a simple majority vote is used to
+    determine the classification, the yellow-throated woodpecker will be chosen even
+    if the photos don't look much like the bird you saw. This problem can be partially
+    mitigated by using a more complicated voting scheme in which the k-nearest neighbors
+    are weighted based on their similarity to the example being classified.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The functions in [Figure 26-7](#c26-fig-0012) implement a k-nearest neighbors
+    classifier that predicts the gender of a runner based on the runner's age and
+    finishing time. The implementation is brute force. The function `find_k_nearest`
+    is linear in the number of examples in `example_set`, since it computes the feature
+    distance between `example` and each element in `example_set`. The function `k_nearest_classify`
+    uses a simple majority-voting scheme to do the classification. The complexity
+    of `k_nearest_classify` is `O(len(training)*len(test_set))`, since it calls the
+    function `find_k_nearest` a total of `len(test_set)` times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0007.jpg](../images/c26-fig-0007.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-7](#c26-fig-0012a) Finding the k-nearest neighbors'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the code
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: was run, it printed
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Should we be pleased that we can predict gender with `65%` accuracy given age
+    and finishing time? One way to evaluate a classifier is to compare it to a classifier
+    that doesn't even look at age and finishing time. The classifier in [Figure 26-8](#c26-fig-0013)
+    first uses the examples in `training` to estimate the probability of a randomly
+    chosen example in `test_set` being from class `label`. Using this prior probability,
+    it then randomly assigns a label to each example in `test_set`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0008.jpg](../images/c26-fig-0008.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-8](#c26-fig-0013a) Prevalence-based classifier'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we test `prevalence_classify` on the same Boston Marathon data on which
+    we tested KNN, it prints
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: indicating that we are reaping a considerable advantage from considering age
+    and finishing time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That advantage has a cost. If you run the code in [Figure 26-7](#c26-fig-0012),
+    you will notice that it takes a rather long time to finish. There are `17,233`
+    training examples and `4,308` test examples, so there are nearly `75` million
+    distances calculated. This raises the question of whether we really need to use
+    all of the training examples. Let's see what happens if we simply **downsample**
+    the training data by a factor of `10`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we run
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'it completes in one-tenth the time, with little change in classification performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: In practice, when people apply KNN to large data sets, they often downsample
+    the training data. An even more common alternative is to use some sort of fast
+    approximate-KNN algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the above experiments, we set `k` to `9`. We did not choose this number for
+    its role in science (the number of planets in our solar system),[^(198)](#c26-fn-0001)
+    its religious significance (the number of forms of the Hindu goddess Durga), or
+    its sociological importance (the number of hitters in a baseball lineup). Instead,
+    we learned `k` from the training data by using the code in [Figure 26-9](#c26-fig-0014)
+    to search for a good `k`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The outer loop tests a sequence of values for `k`. We test only odd values to
+    ensure that when the vote is taken in `k_nearest_classify`, there will always
+    be a majority for one gender or the other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The inner loop tests each value of k using **n-fold cross validation**. In each
+    of the `num_folds` iterations of the loop, the original training set is split
+    into a new training set/test set pair. We then compute the accuracy of classifying
+    the new test set using k-nearest neighbors and the new training set. When we exit
+    the inner loop, we calculate the average accuracy of the `num_folds` folds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we ran the code, it produced the plot in [Figure 26-10](#c26-fig-0015).
+    As we can see, `17` was the value of `k` that led to the best accuracy across
+    5 folds. Of course, there is no guarantee that some value larger than `21` might
+    not have been even better. However, once `k` reached `9`, the accuracy fluctuated
+    over a reasonably narrow range, so we chose to use `9`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0009.jpg](../images/c26-fig-0009.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-9](#c26-fig-0014a) Searching for a good k'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0010.jpg](../images/c26-fig-0010.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-10](#c26-fig-0015a) Choosing a value for k'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 26.4 Regression-based Classifiers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In Chapter 20 we used linear regression to build models of data. We can try
+    the same thing here and use the training data to build separate models for the
+    men and the women. The plot in [Figure 25-11](#c26-fig-0016) was produced by the
+    code in [Figure 26-12](#c26-fig-0017).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0011.jpg](../images/c26-fig-0011.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-11](#c26-fig-0016a) Linear regression models for men and women'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0012.jpg](../images/c26-fig-0012.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-12](#c26-fig-0017a) Produce and plot linear regression models'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A quick glance at [Figure 26-11](#c26-fig-0016) is enough to see that the linear
+    regression models explain only a small amount of the variance in the data.[^(199)](#c26-fn-0002)
+    Nevertheless, it is possible to use these models to build a classifier. Each model
+    attempts to capture the relationship between age and finishing time. This relationship
+    is different for men and women, a fact we can exploit in building a classifier.
+    Given an example, we ask whether the relationship between age and finishing time
+    is closer to the relationship predicted by the model for male runners (the solid
+    line) or to the model for female runners (the dashed line). This idea is implemented
+    in [Figure 26-13](#c26-fig-0018).
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the code is run, it prints
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The results are better than random, but worse than for KNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0013.jpg](../images/c26-fig-0013.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-13](#c26-fig-0018a) Using linear regression to build a classifier'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You might be wondering why we took this indirect approach to using linear regression,
+    rather than explicitly building a model using some function of age and time as
+    the dependent variable and real numbers (say `0` for female and `1` for male)
+    as the dependent variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could easily build such a model using `polyfit` to map a function of age
+    and time to a real number. However, what would it mean to predict that some runner
+    is halfway between male and female? Were there some hermaphrodites in the race?
+    Perhaps we can interpret the y-axis as the probability that a runner is male.
+    Not really. There is not even a guarantee that applying `polyval` to the model
+    will return a value between `0` and `1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fortunately, there is a form of regression, **logistic regression**,[^(200)](#c26-fn-0003)
+    designed explicitly for predicting the probability of an event. The Python library
+    `sklearn`[^(201)](#c26-fn-0004) provides a good implementation of logistic regression—and
+    many other useful functions and classes related to machine learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The module `sklearn.linear_model` contains the class `LogisticRegression`. The
+    `__init__` method of this class has a large number of parameters that control
+    things such as the optimization algorithm used to solve the regression equation.
+    They all have default values, and on most occasions, it is fine to stick with
+    those.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The central method of class `LogisticRegression` is `fit`. The method takes
+    as arguments two sequences (tuples, lists, or arrays) of the same length. The
+    first is a sequence of feature vectors and the second a sequence of the corresponding
+    labels. In the literature, these labels are typically called **outcomes**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `fit` method returns an object of type `LogisticRegression` for which coefficients
+    have been learned for each feature in the feature vector. These coefficients,
+    often called **feature weights**, capture the relationship between the feature
+    and the outcome. A positive feature weight suggests a positive correlation between
+    the feature and the outcome, and a negative feature weight suggests a negative
+    correlation. The absolute magnitude of the weight is related to the strength of
+    the correlation.[^(202)](#c26-fn-0005) The values of these weights can be accessed
+    using the `coef_` attribute of `LogisticRegression`. Since it is possible to train
+    a `LogisticRegression` object on multiple outcomes (called classes in the documentation
+    for the package), the value of `coef_` is a sequence in which each element contains
+    the sequence of weights associated with a single outcome. So, for example, the
+    expression `model.coef_[1][0]` denotes the value of the coefficient of the first
+    feature for the second outcome.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the coefficients have been learned, the method `predict_proba` of the `LogisticRegression`
+    class can be used to predict the outcome associated with a feature vector. The
+    method `predict_proba` takes a single argument (in addition to `self`), a sequence
+    of feature vectors. It returns an array of arrays, one per feature vector. Each
+    element in the returned array contains a prediction for the corresponding feature
+    vector. The reason that the prediction is an array is that it contains a probability
+    for each label used in building `model`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in [Figure 26-14](#c26-fig-0019) contains a simple illustration of
+    how this all works. It first creates a list of `100,000` examples, each of which
+    has a feature vector of length `3` and is labeled either `'A'`, `'B'`, `'C'`,
+    or `‘D'`.The first two feature values for each example are drawn from a Gaussian
+    with a standard deviation of `0.5`, but the means vary depending upon the label.
+    The value of the third feature is chosen at random, and therefore should not be
+    useful in predicting the label. After creating the examples, the code generates
+    a logistic regression model, prints the feature weights, and finally the probabilities
+    associated with four examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0014.jpg](../images/c26-fig-0014.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-14](#c26-fig-0019a) Using `sklearn` to do multi-class logistic regression'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we ran the code in [Figure 26-14](#c26-fig-0019), it printed
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let's look first at the feature weights. The first line tells us that the first
+    two features have roughly the same weight and are negatively correlated with the
+    probability of an example having label `'A'`.[^(203)](#c26-fn-0006) That is, the
+    larger the value of the first two features, the less likely that the example is
+    of type `'A'`. The third feature, which we expect to have little value in predicting
+    the label, has a small value relative to the other two values, indicating that
+    it is relatively unimportant. The second line tells us that the probability of
+    an example having the label `'B'` is negatively correlated with value of the first
+    feature, but positively with the second feature. Again, the third feature has
+    a relatively small value. The third and fourth lines are mirror images of the
+    first two lines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let's look at the probabilities associated with the four examples. The
+    order of the probabilities corresponds to the order of the outcomes in the attribute
+    `model.classes_`. As you would hope, when we predict the label associated with
+    the feature vector `[0, 0]`, `'A'` has a very high probability and `'D'` a very
+    low probability. Similarly, `[2, 2]` has a very high probability for `'D'` and
+    a very low one for `'A'`. The probabilities associated with the middle two examples
+    are also as expected.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The example in [Figure 26-15](#c26-fig-0020) is similar to the one in [Figure
+    26-14](#c26-fig-0019), except that we create examples of only two classes, `'A'`
+    and `'D'`, and don't include the irrelevant third feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0015.jpg](../images/c26-fig-0015.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-15](#c26-fig-0020a) Example of two-class logistic regression'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we run the code in [Figure 26-15](#c26-fig-0020), it prints
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that there is only one set of weights in `coef_`. When `fit` is used
+    to produce a model for a binary classifier, it only produces weights for one label.
+    This is sufficient because once `proba` has calculated the probability of an example
+    being in either of the classes, the probability of it being in the other class
+    is determined—since the probabilities must add up to `1`. To which of the two
+    labels do the weights in `coef_` correspond? Since the weights are positive, they
+    must correspond to `'D'`, since we know that the larger the values in the feature
+    vector, the more likely the example is of class `'D'`. Traditionally, binary classification
+    uses the labels `0` and `1`, and the classifier uses the weights for `1`. In this
+    case, `coef_` contains the weights associated with the largest label, as defined
+    by the `>` operator for type `str`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s return to the Boston Marathon example. The code in [Figure 26-16](#c26-fig-0021)
+    uses the `LogisticRegression` class to build and test a model for our Boston Marathon
+    data. The function `apply_model` takes four arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`model`: an object of type `LogisticRegression` for which a fit has been constructed'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`test_set`: a sequence of examples. The examples have the same kinds of features
+    and labels used in constructing the fit for `model`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`label`: The label of the positive class. The confusion matrix information
+    returned by `apply_model` is relative to this label.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`prob`: the probability threshold to use in deciding which label to assign
+    to an example in `test_set`. The default value is `0.5`. Because it is not a constant,
+    `apply_model` can be used to investigate the tradeoff between false positives
+    and false negatives.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The implementation of `apply_model` first uses a list comprehension (Section
+    5.3.2) to build a list whose elements are the feature vectors of the examples
+    in `test_set`. It then calls `model.predict_proba` to get an array of pairs corresponding
+    to the prediction for each feature vector. Finally, it compares the prediction
+    against the label associated with the example with that feature vector, and keeps
+    track of and returns the number of true positives, false positives, true negatives,
+    and false negatives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we ran the code, it printed
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s compare these results to what we got when we used KNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The accuracies and positive predictive values are similar, but logistic regression
+    has a much higher sensitivity and a much lower specificity. That makes the two
+    methods hard to compare. We can address this problem by adjusting the probability
+    threshold used by `apply_model` so that it has approximately the same sensitivity
+    as KNN. We can find that probability by iterating over values of `prob` until
+    we get a sensitivity close to that we got using KNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we call `apply_model` with `prob = 0.578` instead of `0.5`, we get the results
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: In other words, the models have similar performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0016.jpg](../images/c26-fig-0016.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-16](#c26-fig-0021a) Use logistic regression to predict gender'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since it can be complicated to explore the ramifications of changing the decision
+    threshold for a logistic regression model, people often use something called the
+    **receiver operating characteristic curve**,[^(204)](#c26-fn-0007) or **ROC curve**,
+    to visualize the tradeoff between sensitivity and specificity. The curve plots
+    the true positive rate (sensitivity) against the false positive rate (`1` – specificity)
+    for multiple decision thresholds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ROC curves are often compared to one another by computing the area under the
+    curve (**AUROC**, often abbreviated as **AUC**). This area is equal to the probability
+    that the model will assign a higher probability of being positive to a randomly
+    chosen positive example than to a randomly chosen negative example. This is known
+    as the **discrimination** of the model. Keep in mind that discrimination says
+    nothing about the accuracy, often called the **calibration**, of the probabilities.
+    We could, for example, divide all of the estimated probabilities by `2` without
+    changing the discrimination—but it would certainly change the accuracy of the
+    estimates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in [Figure 26-17](#c26-fig-0022) plots the ROC curve for the logistic
+    regression classifier as a solid line, [Figure 26-18](#c26-fig-0023). The dotted
+    line is the ROC for a random classifier—a classifier that chooses the label randomly.
+    We could have computed the AUROC by first interpolating (because we have only
+    a discrete number of points) and then integrating the ROC curve, but we got lazy
+    and simply called the function `sklearn.metrics.auc`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0017.jpg](../images/c26-fig-0017.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-17](#c26-fig-0022a) Construct ROC curve and find AUROC'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0018.jpg](../images/c26-fig-0018.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-18](#c26-fig-0023a) ROC curve and AUROC'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Finger exercise**: Write code to plot the ROC curve and compute the AUROC
+    when the model built in [Figure 26-16](#c26-fig-0021) is tested on 200 randomly
+    chosen competitors. Use that code to investigate the impact of the number of training
+    examples (try varying it from `10` to `1010` in increments of `50`) on the AUROC.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 26.5 Surviving the *Titanic*
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: On the morning of April 15, 1912, the RMS *Titanic* hit an iceberg and sank
+    in the North Atlantic. Of the roughly `1,300` passengers on board, `832` perished
+    in the disaster. Many factors contributed to the disaster, including navigational
+    error, inadequate lifeboats, and the slow response of a nearby ship. Whether individual
+    passengers survived had an element of randomness, but was far from completely
+    random. One interesting question is whether it is possible to build a reasonably
+    good model for predicting survival using only information from the ship's passenger
+    manifest.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we build a classification model from a CSV file containing
+    information for `1046` passengers.[^(205)](#c26-fn-0008) Each line of the file
+    contains information about a single passenger: cabin class (1st, 2nd, or 3rd),
+    age, gender, whether the passenger survived the disaster, and the passenger''s
+    name. The first few lines of the CSV file are'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Before building a model, it's probably a good idea take a quick look at the
+    data with Pandas. Doing this often provides useful insights into the role various
+    features might play in a model. Executing the code
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: produces the correlation table
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Why doesn't `Gender` appear in this table? Because it is not encoded as a number
+    in the CSV file. Let's deal with that and see what the correlations look like.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: produces
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: The negative correlations of `class` and `Gender` with `Survived` suggest that
+    it might indeed be possible to build a predictive model using information in the
+    manifest. (Because we have coded males as 1 and females as 0, the negative correlation
+    of `Survived` and `Gender` tells us that women are more likely to have survived
+    than men. Similarly, the negative correlation with `Class` tells us that it was
+    safer to have been in first class.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let's build a model using logistic regression. We chose to use logistic
+    regression because
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is the most commonly used classification method.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: By examining the weights produced by logistic regression, we can gain some insight
+    into why some passengers were more likely to have survived than others.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Figure 26-19](#c26-fig-0024) defines class `Passenger`. The only thing of
+    interest in this code is the encoding of cabin class. Though the CSV file encodes
+    the cabin class as an integer, it is really shorthand for a category. Cabin classes
+    do not behave like numbers, e.g., a first-class cabin plus a second-class cabin
+    does not equal a third-class cabin. We encode cabin class using three binary features
+    (one per possible cabin class). For each passenger, exactly one of these variables
+    is set to `1`, and the other two are set to `0`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is an example of an issue that frequently arises in machine learning. **Categorical**
+    (sometimes called nominal) features are the natural way to describe many things,
+    e.g., the home country of a runner. It's easy to replace these by integers, e.g.,
+    we could choose a representation for countries based on their ISO 3166-1 numeric
+    code,[^(206)](#c26-fn-0009) e.g., 076 for Brazil, 826 for the United Kingdom,
+    and 862 for Venezuela. The problem with doing this is that the regression will
+    treat these as numerical variables, thus using a nonsensical ordering on the countries
+    in which Venezuela would be closer to the UK than it is to Brazil.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This problem can be avoided by converting categorical variables to binary variables,
+    as we did with cabin class. One potential problem with doing this is that it can
+    lead to very long and sparse feature vectors. For example, if a hospital dispenses
+    `2000` different drugs, we would convert one categorical variable into `2000`
+    binary variables, one for each drug.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Figure 26-20](#c26-fig-0025) contains code that uses Pandas to read the data
+    from a file and build a set of examples from the data about the *Titanic*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have the data, we can build a logistic regression model using the
+    same code we used to build a model of the Boston Marathon data. However, because
+    the data set has a relatively small number of examples, we need to be concerned
+    about using the evaluation method we employed earlier. It is entirely possible
+    to get an unrepresentative `80-20` split of the data, and then generate misleading
+    results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To ameliorate the risk, we create many `80-20` splits (each split is created
+    using the `divide_80_20` function defined in [Figure 26-6](#c26-fig-0011)), build
+    and evaluate a classifier for each, and then report mean values and `95%` confidence
+    intervals, using the code in [Figure 26-21](#c26-fig-0026) and [Figure 26-22](#c26-fig-0027).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0019.jpg](../images/c26-fig-0019.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-19](#c26-fig-0024a) Class `Passenger`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0020.jpg](../images/c26-fig-0020.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-20](#c26-fig-0025a) Read *Titanic* data and build list of examples[^(207)](#c26-fn-0010)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0021.jpg](../images/c26-fig-0021.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-21](#c26-fig-0026a) Test models for *Titanic* survival'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c26-fig-0022.jpg](../images/c26-fig-0022.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 26-22](#c26-fig-0027a) Print statistics about classifiers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: "The \uFEFFcall `test_models(build_Titanic_examples(), 100, True, False)` printed"
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: It appears that this small set of features is sufficient to do a reasonably
+    good job of predicting survival. To see why, let's take a look at the weights
+    of the various features. We can do that with the call `test_models(build_Titanic_examples(),
+    100, False, True)`, which printed
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: When it comes to surviving a shipwreck, it seems useful to be rich (a first-class
+    cabin on the *Titanic* cost the equivalent of more than $70,000 in today's U.S.
+    dollars), young, and female.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 26.6 Wrapping Up
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the last three chapters, we've barely scratched the surface of machine learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The same could be said about many of the other topics presented in the second
+    part of this book. I've tried to give you a taste of the kind of thinking involved
+    in using computation to better understand the world—in the hope that you will
+    find ways to pursue the topic on your own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 26.7 Terms Introduced in Chapter
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: classification model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: class
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: label
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: one-class learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: two-class learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: binary classification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: multi-class learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: test set
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: training error
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: confusion matrix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: accuracy
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: class imbalance
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: sensitivity (recall)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: specificity (precision)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: positive predictive value (PPV)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: k-nearest neighbors (KNN)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: downsample
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: negative predictive value
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: n-fold cross validation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: logistic regression
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: outcome
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: feature weight
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ROC curve
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: AUROC
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: model discrimination
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: calibration
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: categorical feature
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

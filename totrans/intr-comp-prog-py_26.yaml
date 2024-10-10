@@ -1,0 +1,500 @@
+- en: '25'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CLUSTERING
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unsupervised learning involves finding hidden structure in unlabeled data. The
+    most commonly used unsupervised machine learning technique is clustering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clustering can be defined as the process of organizing objects into groups whose
+    members are similar in some way. A key issue is defining the meaning of “similar.”
+    Consider the plot in [Figure 25-1](#c25-fig-0001), which shows the height, weight,
+    and shirt color for 13 people.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0001.jpg](../images/c25-fig-0001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-1](#c25-fig-0001a) Height, weight, and shirt color'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we cluster people by height, there are two obvious clusters—delimited by
+    the dotted horizontal line. If we cluster people by weight, there are two different
+    obvious clusters—delimited by the solid vertical line. If we cluster people based
+    on their shirts, there is yet a third clustering—delimited by the angled dashed
+    lines. Notice, by the way, that this last division is not linear since we cannot
+    separate the people by shirt color using a single straight line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clustering is an optimization problem. The goal is to find a set of clusters
+    that optimizes an objective function, subject to some set of constraints. Given
+    a distance metric that can be used to decide how close two examples are to each
+    other, we need to define an objective function that minimizes the dissimilarity
+    of the examples within a cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One measure, which we call variability (often called inertia in the literature),
+    of how different the examples within a single cluster, *c*, are from each other
+    is
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-5001.jpg](../images/c25-fig-5001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: where *mean*(*c*) is the mean of the feature vectors of all the examples in
+    the cluster. The mean of a set of vectors is computed component-wise. The corresponding
+    elements are added, and the result divided by the number of vectors. If `v1` and
+    `v2` are `arrays` of numbers, the value of the expression `(v1+v2)/2` is their
+    **Euclidean mean**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What we are calling variability is similar to the notion of variance presented
+    in Chapter 17\. The difference is that variability is not normalized by the size
+    of the cluster, so clusters with more points are likely to look less cohesive
+    according to this measure. If we want to compare the coherence of two clusters
+    of different sizes, we need to divide the variability of each cluster by the size
+    of the cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The definition of variability within a single cluster, *c*, can be extended
+    to define a dissimilarity metric for a set of clusters, *C*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-5002.jpg](../images/c25-fig-5002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Notice that since we don't divide the variability by the size of the cluster,
+    a large incoherent cluster increases the value of *dissimilarity(C)* more than
+    a small incoherent cluster does. This is by design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, is the optimization problem to find a set of clusters, *C*, such that *dissimilarity(C)*
+    is minimized? Not exactly. It can easily be minimized by putting each example
+    in its own cluster. We need to add some constraint. For example, we could put
+    a constraint on the minimum distance between clusters or require that the maximum
+    number of clusters be some constant *k*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, solving this optimization problem is computationally prohibitive
+    for most interesting problems. Consequently, people rely on greedy algorithms
+    that provide approximate solutions. In Section 25.2, we present one such algorithm,
+    k-means clustering. But first we will introduce some abstractions that are useful
+    for implementing that algorithm (and other clustering algorithms as well).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 25.1 Class Cluster
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Class `Example` ([Figure 25-2](#c25-fig-0004)) will be used to build the samples
+    to be clustered. Associated with each example is a name, a feature vector, and
+    an optional label. The `distance` method returns the Euclidean distance between
+    two examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0002.jpg](../images/c25-fig-0002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-2](#c25-fig-0004a) Class `Example`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Class `Cluster` ([Figure 25-3](#c25-fig-0005)) is slightly more complex. A cluster
+    is a set of examples. The two interesting methods in `Cluster` are `compute_centroid`
+    and `variability`. Think of the **centroid** of a cluster as its center of mass.
+    The method `compute_centroid` returns an example with a feature vector equal to
+    the Euclidean mean of the feature vectors of the examples in the cluster. The
+    method `variability` provides a measure of the coherence of the cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0003.jpg](../images/c25-fig-0003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-3](#c25-fig-0005a) Class `Cluster`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Finger exercise**: Is the centroid of a cluster always one of the examples
+    in the cluster?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 25.2 K-means Clustering
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**K-means clustering** is probably the most widely used clustering method.[^(191)](#c25-fn-0001)
+    Its goal is to partition a set of examples into `k` clusters such that'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each example is in the cluster whose centroid is the closest centroid to that
+    example.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The dissimilarity of the set of clusters is minimized.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Unfortunately, finding an optimal solution to this problem on a large data set
+    is computationally intractable. Fortunately, there is an efficient greedy algorithm[^(192)](#c25-fn-0002)
+    that can be used to find a useful approximation. It is described by the pseudocode
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The complexity of step 1 is order *θ*`(k*n*d)`, where `k` is the number of clusters,
+    `n` is the number of examples, and `d` the time required to compute the distance
+    between a pair of examples. The complexity of step 2 is *θ*`(n)`, and the complexity
+    of step 3 is *θ*`(k)`. Hence, the complexity of a single iteration is *θ*`(k*n*d).`
+    If the examples are compared using the Minkowski distance, `d` is linear in the
+    length of the feature vector.[^(193)](#c25-fn-0003) Of course, the complexity
+    of the entire algorithm depends upon the number of iterations. That is not easy
+    to characterize, but suffice it to say that it is usually small.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Figure 25-4](#c25-fig-0006) contains a translation into Python of the pseudocode
+    describing k-means. The only wrinkle is that it raises an exception if any iteration
+    creates a cluster with no members. Generating an empty cluster is rare. It can''t
+    occur on the first iteration, but it can occur on subsequent iterations. It usually
+    results from choosing too large a `k` or an unlucky choice of initial centroids.
+    Treating an empty cluster as an error is one of the options used by MATLAB. Another
+    is creating a new cluster containing a single point—the point furthest from the
+    centroid in the other clusters. We chose to treat it as an error to simplify the
+    implementation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One problem with the k-means algorithm is that the value returned depends upon
+    the initial set of randomly chosen centroids. If a particularly unfortunate set
+    of initial centroids is chosen, the algorithm might settle into a local optimum
+    that is far from the global optimum. In practice, this problem is typically addressed
+    by running k-means multiple times with randomly chosen initial centroids. We then
+    choose the solution with the minimum dissimilarity of clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Figure 25-5](#c25-fig-0007) contains a function, `try_k_means`, that calls
+    `k_means` `(`[Figure 25-4](#c25-fig-0006)`)` multiple times and selects the result
+    with the lowest dissimilarity. If a trial fails because `k_means` generated an
+    empty cluster and therefore raised an exception, `try_k_means` merely tries again—assuming
+    that eventually `k_means` will choose an initial set of centroids that successfully
+    converges.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0004.jpg](../images/c25-fig-0004.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-4](#c25-fig-0006a) K-means clustering'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0005.jpg](../images/c25-fig-0005.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-5](#c25-fig-0007a) Finding the best k-means clustering'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 25.3 A Contrived Example
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '[Figure 25-6](#c25-fig-0008) contains code that generates, plots, and clusters
+    examples drawn from two distributions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The function `gen_distributions` generates a list of `n` examples with two-dimensional
+    feature vectors. The values of the elements of these feature vectors are drawn
+    from normal distributions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The function `plot_samples` plots the feature vectors of a set of examples.
+    It uses `plt.annotate` to place text next to points on the plot. The first argument
+    is the text, the second argument the point with which the text is associated,
+    and the third argument the location of the text relative to the point with which
+    it is associated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The function `contrived_test` uses `gen_distributions` to create two distributions
+    of 10 examples (each with the same standard deviation but different means), plots
+    the examples using `plot_samples`, and then clusters them using `try_k_means`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0006.jpg](../images/c25-fig-0006.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-6](#c25-fig-0008a) A test of k-means'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The call `contrived_test(1, 2, True)` produced the plot in [Figure 25-7](#c25-fig-0009)
+    and printed the lines in [Figure 25-8](#c25-fig-0010). Notice that the initial
+    (randomly chosen) centroids led to a highly skewed clustering in which a single
+    cluster contained all but one of the points. By the fourth iteration, however,
+    the centroids had moved to places such that the points from the two distributions
+    were reasonably well separated into two clusters. The only “mistakes” were made
+    on `A0` and `A8`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0007.jpg](../images/c25-fig-0007.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-7](#c25-fig-0009a) Examples from two distributions'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0008.jpg](../images/c25-fig-0008.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-8](#c25-fig-0010a) Lines printed by a call to `contrived_test(1,
+    2, True)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we tried `50` trials rather than `1,` by calling `contrived_test(50, 2,
+    False)`, it printed
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`A0` is still mixed in with the `B`''s, but `A8` is not. If we try `1000` trials,
+    we get the same result. That might surprise you, since a glance at [Figure 25-7](#c25-fig-0009)
+    reveals that if `A0` and `B0` are chosen as the initial centroids (which would
+    probably happen with `1000` trials), the first iteration will yield clusters that
+    perfectly separate the `A`''s and `B`''s. However, in the second iteration new
+    centroids will be computed, and `A0` will be assigned to a cluster with the `B`''s.
+    Is this bad? Recall that clustering is a form of unsupervised learning that looks
+    for structure in unlabeled data. Grouping `A0` with the `B`''s is not unreasonable.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the key issues in using k-means clustering is choosing `k`. The function
+    `contrived_test_2` in [Figure 25-9](#c25-fig-0011) generates, plots, and clusters
+    points from three overlapping Gaussian distributions. We will use it to look at
+    the results of clustering this data for various values of `k`. The data points
+    are shown in [Figure 25-10](#c25-fig-0012).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0009.jpg](../images/c25-fig-0009.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-9](#c25-fig-0011a) Generating points from three distributions'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0010.jpg](../images/c25-fig-0010.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-10](#c25-fig-0012a) Points from three overlapping Gaussians'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The invocation `contrived_test2(40, 2)` prints
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The invocation `contrived_test2(40, 3)` prints
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: And the invocation `contrived_test2(40, 6)` prints
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The last clustering is the tightest fit, i.e., the clustering has the lowest
+    dissimilarity (`11.441`). Does this mean that it is the “best” clustering? Not
+    necessarily. Recall that when we looked at linear regression in Section 20.1.1,
+    we observed that by increasing the degree of the polynomial we got a more complex
+    model that provided a tighter fit to the data. We also observed that when we increased
+    the degree of the polynomial, we ran the risk of finding a model with poor predictive
+    value—because it overfit the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choosing the right value for `k` is exactly analogous to choosing the right
+    degree polynomial for a linear regression. By increasing `k`, we can decrease
+    dissimilarity, at the risk of overfitting. (When `k` is equal to the number of
+    examples to be clustered, the dissimilarity is 0!) If we have information about
+    how the examples to be clustered were generated, e.g., chosen from `m` distributions,
+    we can use that information to choose `k`. Absent such information, there are
+    a variety of heuristic procedures for choosing `k`. Going into them is beyond
+    the scope of this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 25.4 A Less Contrived Example
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Different species of mammals have different eating habits. Some species (e.g.,
+    elephants and beavers) eat only plants, others (e.g., lions and tigers) eat only
+    meat, and some (e.g., pigs and humans) eat anything they can get into their mouths.
+    The vegetarian species are called herbivores, the meat eaters are called carnivores,
+    and those species that eat both plants and animals are called omnivores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Over the millennia, evolution (or, if you prefer, some other mysterious process)
+    has equipped species with teeth suitable for consumption of their preferred foods.[^(194)](#c25-fn-0004)
+    That raises the question of whether clustering mammals based on their dentition
+    produces clusters that have some relation to their diets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Figure 25-11](#c25-fig-0013) shows the contents of a file listing some species
+    of mammals, their dental formulas (the first `8` numbers), and their average adult
+    weight in pounds.[^(195)](#c25-fn-0005) The comments at the top describe the items
+    associated with each mammal, e.g., the first item following the name is the number
+    of top incisors.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0011.jpg](../images/c25-fig-0011.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-11](#c25-fig-0013a) Mammal dentition in `dentalFormulas.csv`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Figure 25-12](#c25-fig-0014) contains three functions. The function `read_mammal_data`
+    first reads a CSV file, formatted like the one in [Figure 25-11](#c25-fig-0013),
+    to create a DataFrame. The keyword argument `comment` is used to instruct `read_csv`
+    to ignore lines starting with `#`. If the parameter `scale_method` is not equal
+    to `None`, it then scales each column in the DataFrame using `scale_method`. Finally,
+    it creates and returns a dictionary mapping species names to feature vectors.
+    The function `build_mammal_examples` uses the dictionary returned by `read_mammal_data`
+    to produce and return a set of examples. The function `test_teeth` produces and
+    prints a clustering.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0012.jpg](../images/c25-fig-0012.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-12](#c25-fig-0014a) Read and process CSV file'
+  prefs: []
+  type: TYPE_NORMAL
+- en: "The call `\uFEFFtest_teeth('dentalFormulas.csv', 3, 40)` prints"
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: A cursory inspection suggests that we have a clustering totally dominated by
+    the weights of the animals. The problem is that the range of weights is much larger
+    than the range of any of the other features. Therefore, when the Euclidean distance
+    between examples is computed, the only feature that truly matters is weight.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We encountered a similar problem in Section 24.2 when we found that the distance
+    between animals was dominated by the number of legs. We solved the problem there
+    by turning the number of legs into a binary feature (legged or legless). That
+    was fine for that data set, because all of the animals happened to have either
+    zero or four legs. Here, however, there is no obvious way to turn weight into
+    a single binary feature without losing a great deal of information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a common problem, which is often addressed by scaling the features so
+    that each feature has a mean of `0` and a standard deviation of `1`,[^(196)](#c25-fn-0006)
+    as done by the function `z_scale` in [Figure 25-13](#c25-fig-0015). It's easy
+    to see why the statement `result = result - mean` ensures that the mean of the
+    returned array will always be close to `0`.[^(197)](#c25-fn-0007) That the standard
+    deviation will always be `1` is not obvious. It can be shown by a long and tedious
+    chain of algebraic manipulations, which we will not bore you with. This kind of
+    scaling is often called **z-scaling** because the standard normal distribution
+    is sometimes referred to as the Z-distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another common approach to scaling is to map the minimum feature value to `0`,
+    map the maximum feature value to `1`, and use **linear scaling** in between, as
+    done by the function `linear_scale` in [Figure 25-13](#c25-fig-0015). This is
+    often called **min-max scaling**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0013.jpg](../images/c25-fig-0013.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-13](#c25-fig-0015a) Scaling attributes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: "The call \uFEFF`test_teeth('dentalFormulas.csv', 3, 40, z_scale)` prints"
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: It's not immediately obvious how this clustering relates to the features associated
+    with each of these mammals, but at least it is not merely grouping the mammals
+    by weight.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recall that we started this section by hypothesizing that there was a relationship
+    between a mammal's dentition and its diet. [Figure 25-14](#c25-fig-0016) contains
+    an excerpt of a CSV file, `diet.csv`, that associates mammals with their dietary
+    preference.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0014.jpg](../images/c25-fig-0014.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-14](#c25-fig-0016a) Start of CSV file classifying mammals by diet'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can use information in `diet.csv` to see to what extent the clusterings we
+    have produced are related to diet. The code in [Figure 25-15](#c25-fig-0017) does
+    exactly that.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![c25-fig-0015.jpg](../images/c25-fig-0015.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Figure 25-15](#c25-fig-0017a) Relating clustering to labels'
+  prefs: []
+  type: TYPE_NORMAL
+- en: "When `\uFEFFtest_teeth_diet('dentalFormulas.csv', ‘diet.csv', 3, 40, z_scale)`\
+    \ was run, it printed"
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The clustering with z-scaling (linear scaling yields the same clusters) does
+    not perfectly partition the animals based upon their eating habits, but it is
+    certainly correlated with what they eat. It does a good job of separating the
+    carnivores from the herbivores, but there is no obvious pattern in where the omnivores
+    appear. This suggests that perhaps features other than dentition and weight might
+    be needed to separate omnivores from herbivores and carnivores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 25.5 Terms Introduced in Chapter
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Euclidean mean
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: dissimilarity
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: centroid
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: k-means clustering
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: standard normal distribution
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: z-scaling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: linear scaling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: min-max scaling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: linear interpolation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
