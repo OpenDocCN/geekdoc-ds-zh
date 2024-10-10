@@ -1,6 +1,4 @@
-# 第一章
-
-前言
+# 前言
 
 本书基于自 2006 年起在 MIT 开设的课程，并自 2012 年起通过 edX 和 MITx 作为“大规模在线开放课程”（MOOCs）提供。第一版基于一个学期的课程。然而，随着时间的推移，我无法抗拒添加超出一个学期内容的材料。目前版本适合两学期或三学季的计算机科学导论课程。
 
@@ -57,3 +55,14 @@
 ```py
 `[`ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-0002-introduction-to-computational-thinking-and-data-science-fall-2016/`](https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-0002-introduction-to-computational-thinking-and-data-science-fall-2016/).`
 ```
+
+# 致谢
+
+本书的第一版源于我在麻省理工学院教授本科课程时准备的一套讲义。这个课程，因此本书，受益于来自教职员工（特别是**Ana Bell**、**Eric Grimson**、**Srinivas Devadas**、**Fredo Durand**、**Ron Rivest**和**Chris Terman**）的建议、助教和选修该课程的学生们的反馈。**David Guttag**克服了他对计算机科学的厌恶，并校对了第一版的多个章节。
+
+像所有成功的教授一样，我非常感谢我的研究生们。除了进行出色的研究（并让我为此获得一些功劳）外，**Guha Balakrishnan**、**Davis Blalock**、**Joel Brooks**、**Ganeshapillai Gartheeban**、**Jen Gong**、**Katie Lewis**、**Yun Liu**、**Jose Javier Gonzalez Ortiz**、**Anima Singh**、**Divya Shanmugam**、**Jenna Wiens**和**Amy Zhao**都对本手稿的不同版本提供了有用的意见。
+
+我特别感谢**Julie Sussman**（P.P.A.），她编辑了本书的前两版，以及**Lisa Ruffolo**，她编辑了本版。**Julie**和**Lisa**都是以学生的视角阅读本书的合作者，告诉我需要做什么、应该做什么以及如果我有时间和精力可以做什么。他们给我提供了太多不容忽视的“建议”。
+
+最后，感谢我的妻子**奥尔加**，感谢她鼓励我完成这本书，并免除我承担各种家务，以便我能够专心写作。
+
