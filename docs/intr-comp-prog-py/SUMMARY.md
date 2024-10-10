@@ -1,4 +1,4 @@
-+   [Python 计算和编程入门](README.md)
++   [MIT 6.0001：Python 计算和编程入门第三版](README.md)
 +   [前言](intr-comp-prog-py_00.md)
 +   [第一章：开始](intr-comp-prog-py_02.md)
 +   [第二章：**Python 简介**](intr-comp-prog-py_03.md)

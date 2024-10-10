@@ -1,4 +1,4 @@
-# Python 计算和编程入门
+# MIT 6.0001：Python 计算和编程入门第三版
 
 > 原文：[`zh.z-lib.gs/md5/b81f9400901fb07c6e4e456605c4cd1f`](https://zh.z-lib.gs/md5/b81f9400901fb07c6e4e456605c4cd1f)
 > 
