@@ -23,12 +23,22 @@
     L1 cache and importance for register spilling, global memory accesses, recursion,
     and divide-and-conquer algorithms.■ Important memory-related profiler measurements.■
     Limitations on hardware memory design.
+  id: totrans-0
   prefs: []
   type: TYPE_NORMAL
+  zh: 第五章 CUDA 内存 高性能 GPGPU 应用程序需要在 SM 内部重用数据。原因是板载的*全局内存*速度根本不足以满足 GPU 上所有流式多处理器的需求。来自主机和其他
+    GPGPU 的数据传输进一步加剧了这个问题，因为所有的 DMA（直接内存访问）操作都必须经过全局内存，这会消耗额外的内存带宽。CUDA 显露了 SM 内部的内存空间，并提供了可配置的缓存，以便开发人员有更多机会进行数据重用。管理板载内存和片上内存之间显著的性能差异，以达到高性能需求，对于
+    CUDA 程序员来说至关重要。**关键词** 内存，全局内存，寄存器内存，共享内存，纹理内存，常量内存，L2 缓存 高性能 GPGPU 应用程序需要在 SM
+    内部重用数据。原因是板载的*全局内存*速度根本不足以满足 GPU 上所有流式多处理器的需求。来自主机和其他 GPGPU 的数据传输进一步加剧了这个问题，因为所有的
+    DMA（直接内存访问）操作都必须经过全局内存，这会消耗额外的内存带宽。CUDA 显露了 SM 内部的内存空间，并提供了可配置的缓存，以便开发人员有更多机会进行数据重用。管理板载内存和片上内存之间显著的性能差异，以达到高性能需求，对于
+    CUDA 程序员来说至关重要。 在本章结束时，读者将基本了解： ■ 为什么内存带宽是应用程序性能的关键瓶颈因素。 ■ 不同的 CUDA 内存类型以及 CUDA
+    如何暴露 SM 上的内存。 ■ L1 缓存及其在寄存器溢出、全局内存访问、递归和分治算法中的重要性。 ■ 重要的与内存相关的性能分析测量。 ■ 硬件内存设计的局限性。
 - en: The CUDA Memory Hierarchy
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: CUDA 内存层次结构
 - en: The CUDA programming model assumes that the all threads execute on a physically
     separate device from the host running the application. Implicit is the assumption
     that the host and all the devices maintain their own separate memory spaces, referred
@@ -50,19 +60,33 @@
     appropriate source and destination devices are used in the transfer. The method
     **cudaHostUnregister(ptr)** terminates the use of UVA data transfers for that
     region of memory. See [Figure 5.1](#f0010).
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: CUDA 编程模型假设所有线程在与运行应用程序的主机物理上分离的设备上执行。隐含的假设是主机和所有设备各自维持独立的内存空间，分别称为主机内存和设备内存，[¹](#fn0010)，并且某种形式的大规模传输是数据传输的机制¹。一些低端设备实际上与主机共享相同的内存，但这并不会改变编程模型。当主机内存映射到
+    GPU 的地址空间时，主机和设备内存之间的界限变得有些模糊。通过这种方式，设备或主机的修改将反映在映射该内存区域的所有设备的内存空间中。页面会在主机和 GPU
+    之间异步透明地传输。经验丰富的程序员会意识到，映射内存类似于 **mmap()** 系统调用。统一虚拟寻址（UVA）是 CUDA 4.0 的一个特性，它通过使运行时能够根据指针地址确定某个内存区域驻留在哪个设备上，从而简化了多
+    GPU 编程。从语义上讲，UVA 使 CUDA 开发者能够使用 **cudaMemcpy()** 执行直接的 GPU 到 GPU 数据传输。要使用它，只需使用
+    **cudaHostRegister()** 注册内存区域。然后，通过调用 **cudaMemcpy()**，设备之间可以发生大规模数据传输。运行时将确保在传输中使用适当的源设备和目标设备。方法
+    **cudaHostUnregister(ptr)** 终止该内存区域的 UVA 数据传输。参见 [图 5.1](#f0010)。
 - en: '| ![B9780123884268000057/f05-01-9780123884268.jpg is missing](B9780123884268000057/f05-01-9780123884268.jpg)
     |'
+  id: totrans-3
   prefs: []
   type: TYPE_TB
+  zh: '| ![B9780123884268000057/f05-01-9780123884268.jpg is missing](B9780123884268000057/f05-01-9780123884268.jpg)
+    |'
 - en: '| **Figure 5.1**The CUDA memory hierarchy. |'
+  id: totrans-4
   prefs: []
   type: TYPE_TB
+  zh: '| **图 5.1** CUDA 内存层次结构。 |'
 - en: GPU Memory
+  id: totrans-5
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: GPU 内存
 - en: CUDA-enabled GPGPUs have both on-chip and on-board memory. The fastest and most
     scalable is the highly desirable on-chip SM memory. These are limited memory stores
     measured in kilobytes (KB) of storage. The on-board global memory is a shared
@@ -74,23 +98,36 @@
     stalls) to achieve peak performance. Although the bandwidth of shared memory can
     greatly accelerate applications, it is still too slow to achieve peak performance
     ([Volkov, 2010](B978012388426800015X.xhtml#ref139)).
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 启用了CUDA的GPGPU同时具有片上和板载内存。最快且最具可扩展性的是备受推崇的片上SM内存。这些是以千字节（KB）为单位的有限内存存储。板载全局内存是一个共享内存系统，所有SM都可以访问它。它的存储以千兆字节（GB）为单位，这是GPU上最大、最常用且最慢的内存存储。基准测试已经显示出片上内存和片外内存系统之间的带宽差异（见[表5.1](#t0010)）。只有SM内部的寄存器才具有保持SM完全加载（没有停顿）所需的带宽，以实现峰值性能。尽管共享内存的带宽可以大大加速应用程序，但它仍然太慢，无法达到峰值性能（[Volkov,
+    2010](B978012388426800015X.xhtml#ref139)）。
 - en: '**Table 5.1** Bandwidth of Various GPU Memory'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表5.1** 各种GPU内存的带宽'
 - en: '| Register memory | ≈8,000 GB/s |'
+  id: totrans-8
   prefs: []
   type: TYPE_TB
+  zh: '| 寄存器内存 | ≈8,000 GB/s |'
 - en: '| Shared memory | ≈1,600 GB/s |'
+  id: totrans-9
   prefs: []
   type: TYPE_TB
+  zh: '| 共享内存 | ≈1,600 GB/s |'
 - en: '| Global memory | 177 GB/s |'
+  id: totrans-10
   prefs: []
   type: TYPE_TB
+  zh: '| 全局内存 | 177 GB/s |'
 - en: '| Mapped memory | ≈8 GB/s one-way |'
+  id: totrans-11
   prefs: []
   type: TYPE_TB
+  zh: '| 映射内存 | ≈8 GB/s 单向 |'
 - en: 'Managing the significant performance difference between on-board and on-chip
     memory is the primary concern of a CUDA programmer. To put the performance implications
     in perspective, consider how memory bandwidth limits the performance of the following
@@ -125,23 +162,39 @@
     2010](B978012388426800015X.xhtml#ref56)). However, the texture cache is relatively
     small—on the order of 8 KB. Of course, visualization is the intended usage and
     greatest value for texture memory across all compute device generations.'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 管理板载内存和片上内存之间的显著性能差异是CUDA程序员的主要关注点。为了更好地理解性能影响，考虑当内存带宽限制下的以下简单计算在全局内存中运行时的表现，在[示例5.1](#tb0010)《一个简单的内存带宽限制计算》中：`for(i=0;
+    i < N; i++) c[i] = a[i] * b[i];` 每次浮点乘法运算需要两个内存读取和一个写入。假设使用的是单精度（32位或4字节）浮点值，一台每秒万亿次浮点运算（teraflop，TFLOP）的GPU在此计算运行时需要12
+    TB/s的内存带宽才能达到满速运行。换句话说，一台内存带宽为177 GB/s的GPU只能提供14 Gflop的性能，即大约只有万亿次GPU性能的1.4%。当需要额外的64位（8字节）浮点精度时，读者可以将有效计算速率减半。[²](#fn0015)²数据重用在传统处理器中同样重要。当应用程序变得受限于内存时，影响往往没有那么显著，因为传统系统的处理核心较少。显然，为了实现高性能，必须在SM中重用数据。只有通过利用数据*局部性*，程序员才能最大限度减少全局内存访问，并将数据保持在高速内存中。GPGPU支持两种局部性，因为它们加速计算和渲染应用程序：■
+    时间局部性：假设最近访问的数据项在不久的将来很可能会再次使用。许多计算应用程序表现出这种LRU（最近最少使用）行为。■ 空间局部性：邻近数据被缓存，假设空间相邻的内存位置将在不久的将来被使用。渲染操作通常具有较高的二维空间局部性。如[图5.2](#f0015)所示，SM还包含常量内存（图中标为Uniform缓存）和纹理内存缓存。尽管这种缓存是理想的，但计算2.0设备中的L1和L2缓存已经涵盖了这些内存空间的大部分功能。在编程计算1.x设备时，当数据需要高效广播到所有线程时，必须使用常量内存。纹理内存可以作为一种缓存形式，避免全局内存带宽限制并处理一些小的、不规则的内存访问（[Haixiang,
+    Schmidt, Weiguo, & Müller-Wittig, 2010](B978012388426800015X.xhtml#ref56)）。然而，纹理缓存相对较小——大约8
+    KB。当然，纹理内存在所有计算设备代际中，最主要的用途和最大价值是可视化。
 - en: '| ![B9780123884268000057/f05-02-9780123884268.jpg is missing](B9780123884268000057/f05-02-9780123884268.jpg)
     |'
+  id: totrans-13
   prefs: []
   type: TYPE_TB
+  zh: '| ![B9780123884268000057/f05-02-9780123884268.jpg 文件缺失](B9780123884268000057/f05-02-9780123884268.jpg)
+    |'
 - en: '| **Figure 5.2**A GF100 streaming multiprocessor. |'
+  id: totrans-14
   prefs: []
   type: TYPE_TB
+  zh: '| **图 5.2** 一个 GF100 流处理器。 |'
 - en: Compute 2.0 devices added an L1 cache to each SM and a unified L2 cache that
     fits between all the SM and global memory, as shown in [Figure 5.1](#f0010).
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算 2.0 设备为每个 SM 增加了一个 L1 缓存，以及一个统一的 L2 缓存，位于所有 SM 和全局内存之间，如[图 5.1](#f0010)所示。
 - en: L2 Cache
+  id: totrans-16
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: L2 缓存
 - en: The unified L2 (Level 2) cache is a tremendous labor-saving device that works
     as a fast data store accessible by all the SM on the GPU. A great many applications
     will suddenly run faster on compute 2.0 devices because of the L2 cache. Two reasons
@@ -167,57 +220,84 @@
     copies*, emphasized to stress that host data transfers might unexpectedly affect
     cache hits and thus application performance. Similarly, asynchronous kernel execution
     can also pollute the cache.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
 - en: Relevant computeprof Values for the L2 Cache
+  id: totrans-18
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: L2 缓存的相关 computeprof 值
 - en: '**Table 5.2\.** Visual Profiler Values for the L2 Cache'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.2** L2 缓存的 Visual Profiler 值'
 - en: '|  |'
+  id: totrans-20
   prefs: []
   type: TYPE_TB
+  zh: '|  |'
 - en: '| L2 cache texture memory read throughput (GB/s) | This value gives the throughput
     achieved while reading data from L2 cache when a request for data residing in
     texture memory is made. This is calculated as (l2 read tex requests * 32)/(gpu
     time * 1000) |'
+  id: totrans-21
   prefs: []
   type: TYPE_TB
+  zh: '| L2 缓存纹理内存读取吞吐量 (GB/s) | 该值表示在从 L2 缓存读取数据时，当 L1 发出对存储在纹理内存中的数据请求时所达到的吞吐量。计算公式为
+    (l2 读取纹理请求 * 32)/(gpu 时间 * 1000) |'
 - en: '| L2 cache global memory read throughput (GB/s) | This value gives the throughput
     achieved while reading data from L2 cache when a request for data residing in
     global memory is made by L1\. This is calculated as (l2 read requests * 32)/(gpu
     time * 1000) |'
+  id: totrans-22
   prefs: []
   type: TYPE_TB
+  zh: '| L2 缓存全局内存读取吞吐量 (GB/s) | 该值表示在从 L2 缓存读取数据时，当 L1 发出对存储在全局内存中的数据请求时所达到的吞吐量。计算公式为
+    (l2 读取请求 * 32)/(gpu 时间 * 1000) |'
 - en: '| L2 cache global memory write throughput (GB/s) | This value gives the throughput
     achieved while writing data to L2 cache when a request to store data in global
     memory is made by L1\. This is calculated as (l2 write requests * 32)/(gpu time
     * 1000) |'
+  id: totrans-23
   prefs: []
   type: TYPE_TB
+  zh: '| L2 缓存全局内存写入吞吐量 (GB/s) | 该值表示在向 L2 缓存写入数据时，当 L1 发出将数据存储到全局内存的请求时所达到的吞吐量。计算公式为
+    (l2 写请求 * 32)/(gpu 时间 * 1000) |'
 - en: '| L2 cache global memory throughput (GB/s) | This value is the combined L2
     cache read and write memory throughput. This is calculated as (L2 cache global
     memory read throughput + L2 cache global memory write throughput) |'
+  id: totrans-24
   prefs: []
   type: TYPE_TB
+  zh: '| L2 缓存全局内存吞吐量 (GB/s) | 该值为 L2 缓存的读取和写入内存吞吐量的总和。计算公式为 (L2 缓存全局内存读取吞吐量 + L2
+    缓存全局内存写入吞吐量) |'
 - en: '| L2 cache read hit ratio (%) | Percentage of hits that occur in L2 cache while
     reading from global memory. This is calculated as 100 * (L2 cache global memory
     read throughput – glob mem read throughput)/ (L2 cache global memory read throughput)
     |'
+  id: totrans-25
   prefs: []
   type: TYPE_TB
+  zh: '| L2 缓存读取命中率 (%) | 在从全局内存读取数据时，L2 缓存中发生的命中的百分比。计算公式为 100 * (L2 缓存全局内存读取吞吐量
+    - 全局内存读取吞吐量) / (L2 缓存全局内存读取吞吐量) |'
 - en: '| L2 cache write hit ratio (%) | Percentage of hits that occur in L2 cache
     while writing to global memory. This is calculated as 100 * (L2 cache global memory
     write throughput – glob mem write throughput)/ (L2 cache global memory write throughput)
     |'
+  id: totrans-26
   prefs: []
   type: TYPE_TB
+  zh: '| L2 缓存写命中率 (%) | 在向全局内存写入数据时，L2 缓存中发生的命中的百分比。计算公式为 100 * (L2 缓存全局内存写入吞吐量 -
+    全局内存写入吞吐量) / (L2 缓存全局内存写入吞吐量) |'
 - en: L1 Cache
+  id: totrans-27
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: L1 缓存
 - en: Compute 2.0 devices have 64 KB of L1 memory that can be partitioned to favor
     shared memory or dynamic read/write operations. Note that the L1 cache:■ Is designed
     for *spatial and not temporal reuse*. Most developers expect processor caches
@@ -261,71 +341,122 @@
     keyword.2\. The memory access is uniform across all the threads in the block as
     in [Example 5.2](#tb0015), “A Uniform Memory Access Example”:`__global__ void
     kernel( float *g_dst, const float *g_src )``{``g_dst = g_src[0] + g_src[blockIdx.x];``}`
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: Compute 2.0 设备具有 64 KB 的 L1 内存，可以将其划分为共享内存或动态读/写操作。请注意，L1 缓存：■ 设计用于*空间而非时间重用*。大多数开发者期望处理器缓存表现得像一个
+    LRU 缓存。在 GPU 上，这种错误的假设可能导致意外的缓存未命中，因为频繁访问缓存的 L1 内存位置并不能保证该内存位置会留在缓存中。■ 不会受到写入全局内存的影响，因为写入操作绕过
+    L1 缓存。■ 不是一致的。声明可能被其他块中的线程修改的共享内存时，必须使用 volatile 关键字，以确保编译器不会将共享内存位置加载到寄存器中。私有数据（寄存器、栈等）可以放心使用。■
+    延迟为 10–20 个周期。L1 缓存每个线程的局部数据结构，例如每个线程的栈。栈的加入使得 Compute 2.0 设备能够支持递归程序（调用自身的程序）。许多问题可以自然地用递归的形式表达。例如，*分治法*通过反复将大问题分解成更小的子问题来解决。在某些时候，问题变得足够简单，可以直接解决。子问题的解决方案被组合起来，给出初始问题的解答。栈可以占用最多
+    1 KB 的 L1 缓存。CUDA 还使用一种称为*局部内存*的抽象内存类型。局部内存本身并不是一个独立的内存系统，而是用于存放溢出的寄存器的内存位置。当线程块需要的寄存器存储超过
+    SM 上可用的寄存器时，就会发生寄存器溢出。在 Fermi 之前的 GPU 中，溢出的寄存器会写入全局内存，这会导致应用性能显著下降，因为每秒 GB 的全局内存访问取代了每秒
+    TB 的寄存器内存访问。Compute 2.0 及更高版本的设备将寄存器溢出到 L1 缓存，从而最小化了寄存器溢出对性能的影响。如果需要，可以使用 **-Xptxas
+    -dlcm=cg** 命令行参数禁用 Fermi L1 缓存 **nvcc**。即使禁用，栈和局部内存仍然驻留在 L1 缓存内存中。这种可配置性的优点在于，应用程序可以根据数据重用、内存访问模式不对齐、不规则或不可预测的需求，将
+    L1 缓存配置为 48 KB 的动态缓存（留出 16 KB 用于共享内存），而需要在线程块内共享更多数据的应用程序可以将 48 KB 分配为共享内存（留出
+    16 KB 用于缓存）。通过这种方式，NVIDIA 设计人员使得应用开发者可以在 SM 内配置内存，以实现最佳性能。当编译器生成 LDU（LoaD Uniform）指令以缓存需要有效广播到
+    SM 内所有线程的数据时，会使用 L1 缓存。上一代 GPU 只能通过常量内存有效地在应用程序的所有线程之间广播信息。Compute 2.0 设备可以从全局内存广播数据，而无需显式的程序员干预，前提是满足以下条件：1.
+    指针前缀为 **const** 关键字。2. 内存访问在块内的所有线程中是统一的，如 [示例 5.2](#tb0015) “统一内存访问示例”所示：`__global__
+    void kernel( float *g_dst, const float *g_src )``{``g_dst = g_src[0] + g_src[blockIdx.x];``}``
 - en: Relevant computeprof Values for the L1 Cache
+  id: totrans-29
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: L1缓存的相关computeprof值
 - en: '**Table 5.3\.** Visual Profiler Values for the L1 Cache'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表5.3** L1缓存的Visual Profiler值'
 - en: '|  |'
+  id: totrans-31
   prefs: []
   type: TYPE_TB
+  zh: '|  |'
 - en: '| L1 gld hit rate (%) | This value is calculated as 100 * (L1 global load hit
     count)/((L1 global load hit count) + (L1 global load miss count)) |'
+  id: totrans-32
   prefs: []
   type: TYPE_TB
+  zh: '| L1全局命中率（%） | 该值通过计算 100 * (L1全局加载命中次数)/((L1全局加载命中次数) + (L1全局加载未命中次数)) 得出
+    |'
 - en: '| L1 cache read throughput (GB/s) | This value gives the throughput achieved
     while accessing data from L1 cache. This is calculated as [(L1 global load hit
     + L1 local load hit) * 128 * #SM + L2 read requests * 32]/(gpu time * 1000) |'
+  id: totrans-33
   prefs: []
   type: TYPE_TB
+  zh: '| L1缓存读取吞吐量（GB/s） | 该值表示从L1缓存访问数据时所达到的吞吐量。计算公式为 [(L1全局加载命中 + L1本地加载命中) * 128
+    * #SM + L2读取请求 * 32] / (GPU时间 * 1000) |'
 - en: '| L1 cache global hit ratio (%) | Percentage of hits that occur in L1 cache
     while accessing global memory. This statistic will be zero when L1 cache is disabled.
     This is calculated as (100 * L1 global load hit)/(L1 global load hit + L1 global
     load miss) |'
+  id: totrans-34
   prefs: []
   type: TYPE_TB
+  zh: '| L1缓存全局命中比率（%） | 在访问全局内存时发生在L1缓存中的命中百分比。当L1缓存被禁用时，此统计数据为零。该值通过 (100 * L1全局加载命中)/(L1全局加载命中
+    + L1全局加载未命中) 计算得出 |'
 - en: CUDA Memory Types
+  id: totrans-35
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: CUDA内存类型
 - en: '[Table 5.4](#t0025) summarizes the characteristics of the various CUDA memory
     spaces for compute 2.0 and later devices.'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: '[表5.4](#t0025)总结了针对Compute 2.0及更高版本设备的各种CUDA内存空间的特性。'
 - en: '**Table 5.4** CUDA Memory Types and Characteristics'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表5.4** CUDA内存类型及其特征'
 - en: '| Memory | Location | Cached | Access | Scope |'
+  id: totrans-38
   prefs: []
   type: TYPE_TB
+  zh: '| 内存 | 位置 | 缓存 | 访问 | 范围 |'
 - en: '| Register | On-chip | No | Read/write | One thread |'
+  id: totrans-39
   prefs: []
   type: TYPE_TB
+  zh: '| 寄存器 | 芯片内 | 否 | 读/写 | 单个线程 |'
 - en: '| Local | On-chip | Yes | Read/write | One thread |'
+  id: totrans-40
   prefs: []
   type: TYPE_TB
+  zh: '| 本地 | 芯片内 | 是 | 读/写 | 单个线程 |'
 - en: '| Shared | On-chip | N/A | Read/write | All threads in a block |'
+  id: totrans-41
   prefs: []
   type: TYPE_TB
+  zh: '| 共享 | 芯片内 | 不适用 | 读/写 | 块内所有线程 |'
 - en: '| Global | Off-chip (unless cached) | Yes | Read/write | All threads + host
     |'
+  id: totrans-42
   prefs: []
   type: TYPE_TB
+  zh: '| 全局 | 跨芯片（除非已缓存） | 是 | 读/写 | 所有线程 + 主机 |'
 - en: '| Constant | Off-chip (unless cached) | Yes | Read | All threads + host |'
+  id: totrans-43
   prefs: []
   type: TYPE_TB
+  zh: '| 常量 | 跨芯片（除非已缓存） | 是 | 读 | 所有线程 + 主机 |'
 - en: '| Texture | Off-chip (unless cached) | Yes | Read/write | All threads + host
     |'
+  id: totrans-44
   prefs: []
   type: TYPE_TB
+  zh: '| 纹理 | 跨芯片（除非已缓存） | 是 | 读/写 | 所有线程 + 主机 |'
 - en: Registers
+  id: totrans-45
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 寄存器
 - en: Registers are the fastest memory on the GPU. They are a very precious resource
     because they are the only memory on the GPU with enough bandwidth and a low enough
     latency to deliver peak performance.Each GF100 SM supports 32 K 32-bit registers.
@@ -338,12 +469,18 @@
     of the L1 cache because it can preserve high performance. Be aware that pressure
     from register spilling and the stack (which can consume 1 KB of L1 storage) can
     increase the cache miss rate by forcing data to be evicted.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 寄存器是GPU上最快的内存。它们是非常宝贵的资源，因为它们是GPU上唯一具有足够带宽和足够低延迟以实现峰值性能的内存。每个GF100 SM支持32K 32位寄存器。由于用于寄存器存储索引的位数有限，CUDA内核可以使用的最大寄存器数量为63。Fermi
+    SM上的可用寄存器数量如下：■ 如果SM正在运行1,536个线程，则只能使用21个寄存器。■ 随着工作负载（因此资源需求）随着线程数的增加，可用寄存器数量会逐渐从63降至21。在GF100
+    SM上进行寄存器溢出会增加L1缓存的重要性，因为它可以保持高性能。请注意，来自寄存器溢出和堆栈的压力（堆栈可能会占用1 KB的L1存储）可能会通过强制数据驱逐，增加缓存未命中率。
 - en: Local memory
+  id: totrans-47
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 本地内存
 - en: Local memory accesses occur for only some automatic variables. An automatic
     variable is declared in the device code without any of the **__device__**, **__shared__**,
     or **__constant__** qualifiers. Generally, an automatic variable resides in a
@@ -354,27 +491,41 @@
     compiler reports total local memory usage per kernel (lmem) when compiling with
     **the --ptxas-options=-v** option. These reported values may be affected by some
     mathematical functions that access local memory.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 仅某些自动变量会发生本地内存访问。自动变量在设备代码中声明时不带有任何**__device__**、**__shared__**或**__constant__**修饰符。通常，自动变量会保存在寄存器中，以下情况除外：■
+    编译器无法确定其索引为常量的数组。■ 会消耗过多寄存器空间的大型结构或数组。■ 内核使用的寄存器超过SM上可用的寄存器数量时，编译器决定将某些变量溢出到本地内存中。**nvcc**编译器在使用**--ptxas-options=-v**选项进行编译时，会报告每个内核的总本地内存使用量（lmem）。这些报告的值可能会受到某些访问本地内存的数学函数的影响。
 - en: Relevant computeprof Values for Local Memory Cache
+  id: totrans-49
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 本地内存缓存的相关computeprof值
 - en: '**Table 5.5\.** Visual Profiler Values for the Local Memory'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.5\.** 本地内存的可视化分析器值'
 - en: '|  |'
+  id: totrans-51
   prefs: []
   type: TYPE_TB
+  zh: '|  |'
 - en: '| Local memory bus traffic (%) | Percentage of bus traffic caused due to accesses
     to local memory. This is calculated as (2 * L1 local load miss * 128 * 100)/((L2
     read requests + L2 write requests) * 32/#SMs) |'
+  id: totrans-52
   prefs: []
   type: TYPE_TB
+  zh: '| 本地内存总线流量 (%) | 由于访问本地内存导致的总线流量百分比。计算公式为 (2 * L1 本地加载未命中 * 128 * 100)/((L2
+    读请求 + L2 写请求) * 32/#SMs) |'
 - en: Shared Memory
+  id: totrans-53
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 共享内存
 - en: Shared memory (also referred to as smem) can be either 16 KB or 48 KB per SM
     arranged in 32 banks that are 32 bits wide. Contrary to early NVIDIA documentation,
     shared memory is not as fast as register memory.Shared memory can be allocated
@@ -448,51 +599,76 @@
     is a step backward ([Volkov, 2010](B978012388426800015X.xhtml#ref139)).[Table
     5.6](#t0035) shows the ratio of shared memory banks to thread processors compared
     to the number of registers per thread.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: '共享内存（也称为 smem）可以是每个 SM 16 KB 或 48 KB，按 32 个宽度为 32 位的银行排列。与早期的 NVIDIA 文档不同，共享内存并不像寄存器内存那样快速。共享内存可以通过三种不同方式进行分配：  '
 - en: '**Table 5.6** Trends Toward an Inverse Memory Hierarchy'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.6** 向反向内存层次结构的趋势'
 - en: '| Architecture | Banks vs. Thread Processors | Ratio of Banks to Thread Processors
     | Registers per Thread |'
+  id: totrans-56
   prefs: []
   type: TYPE_TB
+  zh: '| 架构 | 银行与线程处理器的数量 | 银行与线程处理器的比例 | 每个线程的寄存器数 |'
 - en: '| G80-GT200 | 16 banks vs. 8 thread processors | 2:1 | 128 |'
+  id: totrans-57
   prefs: []
   type: TYPE_TB
+  zh: '| G80-GT200 | 16 个银行 vs. 8 个线程处理器 | 2:1 | 128 |'
 - en: '| GF100 | 32 banks vs. 32 thread processors | 1:1 | 21–64 |'
+  id: totrans-58
   prefs: []
   type: TYPE_TB
+  zh: '| GF100 | 32 个银行 vs. 32 个线程处理器 | 1:1 | 21–64 |'
 - en: For portability, performance, and scalability reasons, it is highly recommended
     that registers be used instead of shared memory whenever possible.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 出于可移植性、性能和可扩展性的考虑，强烈建议尽可能使用寄存器而不是共享内存。
 - en: Relevant computeprof Values for Shared Memory
+  id: totrans-60
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 共享内存的相关计算性能值
 - en: '**Table 5.7\.** Visual Profiler Values for smem'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.7.** Visual Profiler 中的 smem 值'
 - en: '|  |'
+  id: totrans-62
   prefs: []
   type: TYPE_TB
+  zh: '|  |'
 - en: '| Shared memory bank conflict per shared memory instruction (%) | This value
     gives an indication of the number of bank conflicts caused per shared memory instruction.
     This value may exceed 100% if there are *n*-way bank conflicts or the data accessed
     is double precision. This is calculated as 100 * (L1 shared bank conflict)/(shared
     load + shared store) |'
+  id: totrans-63
   prefs: []
   type: TYPE_TB
+  zh: '| 每个共享内存指令的共享内存银行冲突（%） | 此值表示每个共享内存指令引起的银行冲突的数量。如果发生 *n* 路银行冲突或访问的数据是双精度，则该值可能超过
+    100%。此值通过 100 * (L1 共享内存银行冲突)/(共享加载 + 共享存储) 计算得出 |'
 - en: '| Shared bank conflict replay (%) | Percentage of replayed instructions caused
     due to shared memory bank conflicts. This is calculated as 100 * (L1 shared conflict)/instructions
     issued |'
+  id: totrans-64
   prefs: []
   type: TYPE_TB
+  zh: '| 共享内存银行冲突重放（%） | 由于共享内存银行冲突导致的重放指令的百分比。此值通过 100 * (L1 共享冲突)/发出的指令数 计算得到 |'
 - en: Constant Memory
+  id: totrans-65
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 常量内存
 - en: 'For compute 1.x devices, constant memory is an excellent way to store and broadcast
     read-only data to all the threads on the GPU. The constant cache is limited to
     64 KB. It can broadcast 32-bits per warp per two clocks per multiprocessor and
@@ -513,39 +689,65 @@
     the runtime library methods: **cudaGetSymbolAddress**(), **cudaGetSymbolSize**(),
     **cudaMemcpyToSymbol**(), and **cudaMemcpyFromSymbol**(), plus **cuModuleGetGlobal**()
     from the driver API.'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于计算 1.x 设备，常量内存是存储和广播只读数据到 GPU 上所有线程的一个优秀方式。常量缓存的大小限制为 64 KB。它可以在每个多处理器的两个时钟周期内广播每个
+    warp 每次 32 位，且应在所有 warp 中的线程读取相同地址时使用。否则，在计算 1.x 设备上，访问将会串行化。计算 2.0 及更高版本的设备允许开发者在编译器能够识别并使用
+    LDU 指令时，以常量内存的效率访问全局内存。具体而言，数据必须：■ 存放在全局内存中。■ 在内核中为只读（程序员可以使用**const**关键字强制执行）。■
+    不依赖于线程 ID。见 [示例 5.10](#tb0055)，“均匀与非均匀常量内存访问示例”：`__global__ void kernel( const
+    float *g_a )``{``float x = g_a[15]; // 均匀``float y = g_a[blockIdx.x + 5] ; //
+    均匀``float z = g_a[threadIdx.x] ; // 非均匀！``}`常量内存不需要**__constant__**声明；而且，与常量内存的情况不同，没有数据量的固定限制。尽管如此，当缓存受到足够压力导致需要驱逐广播数据时，常量内存在计算
+    2.0 设备上依然有用。常量内存在文件中静态分配。只有主机可以写入常量内存，常量内存可以通过运行时库方法访问：**cudaGetSymbolAddress**()，**cudaGetSymbolSize**()，**cudaMemcpyToSymbol**()，和
+    **cudaMemcpyFromSymbol**()，还可以通过驱动程序 API 中的 **cuModuleGetGlobal**() 访问。
 - en: Texture Memory
+  id: totrans-67
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 纹理内存
 - en: Textures are bound to global memory and can provide both cache and some limited,
     9-bit processing capabilities. How the global memory that the texture binds to
     is allocated dictates some of the capabilities the texture can provide. For this
     reason, it is important to distinguish between three memory types that can be
     bound to a texture (see [Table 5.8](#t0045)).
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 纹理绑定到全局内存，并且可以提供缓存和一些有限的 9 位处理能力。纹理绑定的全局内存是如何分配的，决定了纹理可以提供的某些能力。因此，区分三种可以绑定到纹理的内存类型非常重要（见
+    [表 5.8](#t0045)）。
 - en: '**Table 5.8** How Memory Was Created Defines the Texture Capability'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.8** 如何创建内存定义了纹理能力'
 - en: '| Memory Type | How Created | Texture Capability | Texture Update |'
+  id: totrans-70
   prefs: []
   type: TYPE_TB
+  zh: '| 内存类型 | 创建方式 | 纹理能力 | 纹理更新 |'
 - en: '| Linear memory | cudaMalloc() | • Acts as a linear cache | Free to write to
     the global memory from threads if the incoherence is safe. |'
+  id: totrans-71
   prefs: []
   type: TYPE_TB
+  zh: '| 线性内存 | cudaMalloc() | • 作为线性缓存 | 如果不一致性是安全的，允许从线程写入全局内存。 |'
 - en: '| CUDA arrays | cudaMallocArray(),cudaMalloc3D() | • Cache optimized for spatial
     locality • Interpolation, wrapping, and clamping | Writing to arrays from a kernel
     is not allowed. |'
+  id: totrans-72
   prefs: []
   type: TYPE_TB
+  zh: '| CUDA 数组 | cudaMallocArray(),cudaMalloc3D() | • 为空间局部性优化的缓存 • 插值、包裹和夹取 | 不允许从内核写入数组。
+    |'
 - en: '| 2D pitch linear memory | cudaMallocPitch() | • Cache optimized for spatial
     locality • Interpolation, wrapping, and clamping | Free to write to the global
     memory from threads if the incoherence is safe. |'
+  id: totrans-73
   prefs: []
   type: TYPE_TB
+  zh: '| 2D 排布线性内存 | cudaMallocPitch() | • 为空间局部性优化的缓存 • 插值、包裹和夹取 | 如果不一致性是安全的，允许从线程写入全局内存。
+    |'
 - en: 'For CUDA programmers, the most salient points about using texture memory are:■
     Texture memory is generally used in visualization.■ The cache is optimized for
     2D spatial locality.■ It contains only 8 KB of cache per SM.■ Textures have limited
@@ -588,28 +790,51 @@
     all references will be in the range [0,1).The *wrap mode* specifies what happens
     for out-of-bounds addressing:■ Wrap: out-of-bounds coordinates are wrapped (via
     modulo arithmetic), as shown in [Figure 5.3](#f0020).'
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于CUDA程序员，使用纹理内存的最显著特点是：■ 纹理内存通常用于可视化。■ 缓存针对2D空间局部性进行了优化。■ 每个SM只有8KB的缓存。■ 纹理具有有限的处理能力，可以高效地解包并广播数据。因此，单次**float4**纹理读取比四次独立的32位读取要更快。■
+    纹理具有独立的9位计算单元，执行越界索引处理、插值和从整数类型（如char、short、int）到float的格式转换。■ 线程只有在某个纹理或表面内存位置被之前的内核调用或内存复制更新过时，才能安全地读取该内存位置，但如果该内存位置是由同一线程或来自同一内核调用的其他线程更新过，则不能读取。需要区分绑定到使用**cudaMalloc()**分配的内存上的纹理和绑定到使用**cudaMallocPitch()**分配的填充内存上的纹理。■
+    **仅将纹理用作缓存时：** 在这种情况下，程序员可以考虑绑定使用**cudaMalloc()**创建的纹理内存，因为纹理单元缓存较小，缓存**cudaMallocPitch()**添加的填充会浪费空间。■
+    **将纹理用于处理时：** 在这种情况下，重要的是将纹理绑定到使用**cudaMallocPitch()**创建的填充内存上，以确保纹理单元边界处理正确。换句话说，不要将使用**cudaMalloc()**创建的线性内存绑定到纹理并尝试手动设置纹理的步长，因为可能会发生不可预见的事情——尤其是在不同的设备代际间。根据与纹理绑定的全局内存的创建方式，可能有几种方式从纹理中提取数据，这些方式也可能调用一些纹理处理操作。提取纹理数据最简单的方法是使用**tex1Dfetch()**，原因如下：■
+    仅支持整数寻址。■ 不提供额外的过滤或寻址模式。使用方法**tex1D()**、**tex2D()**和**tex3D()**更为复杂，因为纹理坐标的解释、在纹理提取过程中发生的处理和纹理提取返回的值都由设置纹理引用的可变（运行时）和不可变（编译时）属性控制：■
+    不可变参数（编译时）。■ 类型：提取时返回的类型- 基本整数和浮点类型- CUDA 1、2、4元素向量■ 维度：- 当前为1D、2D或3D■ 读取模式：-
+    cudaReadModeElementType- cudaReadModeNormalizedFloat（有效于8位或16位整数）。它返回[–1,1]（有符号）或[0,1]（无符号）■
+    可变参数（运行时，仅适用于数组纹理和步长线性内存）。■ 归一化：- 非零值 = 寻址范围[0,1]■ 滤波模式：- cudaFilterModePoint-
+    cudaFilterModeLinear■ 寻址模式：- cudaAddressModeClamp- cudaAddressModeWrap默认情况下，纹理使用浮点坐标引用，坐标范围为[0,*N*)，其中*N*是对应坐标维度的纹理大小。指定使用归一化纹理坐标意味着所有引用将处于范围[0,1)。*包裹模式*指定了越界寻址时的处理方式：■
+    包裹：越界坐标通过模算术进行包裹，如[图5.3](#f0020)所示。
 - en: '| ![B9780123884268000057/f05-03-9780123884268.jpg is missing](B9780123884268000057/f05-03-9780123884268.jpg)
     |'
+  id: totrans-75
   prefs: []
   type: TYPE_TB
+  zh: '| ![B9780123884268000057/f05-03-9780123884268.jpg is missing](B9780123884268000057/f05-03-9780123884268.jpg)
+    |'
 - en: '| **Figure 5.3**Example of a texture wrapping an out-of-bounds coordinate.
     |'
+  id: totrans-76
   prefs: []
   type: TYPE_TB
+  zh: '| **图 5.3** 纹理对超出范围的坐标进行包裹的示例。 |'
 - en: '■ Clamp: out-of-bounds coordinates are replaced with the closest boundary,
     as shown in [Figure 5.4](#f0025).'
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: ■ Clamp：超出范围的坐标将被替换为最接近的边界，如[图 5.4](#f0025)所示。
 - en: '| ![B9780123884268000057/f05-04-9780123884268.jpg is missing](B9780123884268000057/f05-04-9780123884268.jpg)
     |'
+  id: totrans-78
   prefs: []
   type: TYPE_TB
+  zh: '| ![B9780123884268000057/f05-04-9780123884268.jpg is missing](B9780123884268000057/f05-04-9780123884268.jpg)
+    |'
 - en: '| **Figure 5.4**Example of a texture clamping an out-of-bounds coordinate.
     |'
+  id: totrans-79
   prefs: []
   type: TYPE_TB
+  zh: '| **图 5.4** 纹理对超出范围的坐标进行钳制的示例。 |'
 - en: 'Linear texture filtering may be performed only for textures that are configured
     to return floating-point data. A *texel*, short for “texture element,” is an element
     of a texture array. Thus, linear texture filtering performs low-precision (9-bit
@@ -625,42 +850,65 @@
     an innovative opportunity to gain even greater performance from GPU computing.
     One example is “GRASSY: Leveraging GPU Texture Units for Asteroseismic Data Analysis”
     ([Townsend, Sankaralingam, & Sinclair, 2011](B978012388426800015X.xhtml#ref133)).'
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: '线性纹理过滤仅适用于配置为返回浮点数据的纹理。*纹素*（texel）是“纹理元素”的缩写，表示纹理数组中的一个元素。因此，线性纹理过滤在相邻的纹素之间执行低精度（9位定点数，8位小数）插值。当启用时，纹理获取位置周围的纹素将被读取，纹理获取的返回值将由纹理硬件根据纹理坐标在纹素之间的位置进行插值。对于一维纹理，将执行简单的线性插值，如[公式
+    5.1](#fm0010)《纹理线性插值》中所示。(5.1)![B9780123884268000057/si1.gif is missing](B9780123884268000057/si1.gif)类似地，专用的纹理硬件将对更高维度的数据执行双线性和三线性过滤。只要可以容忍9位的精度，专用纹理单元就提供了一个创新的机会，使GPU计算能够获得更大的性能。例如，“GRASSY:
+    利用GPU纹理单元进行星震数据分析”([Townsend, Sankaralingam, & Sinclair, 2011](B978012388426800015X.xhtml#ref133))。'
 - en: Relevant computeprof Values for Texture Memory
+  id: totrans-81
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 纹理内存的相关计算分析器值
 - en: '**Table 5.9\.** Visual Profiler Values for Texture Memory'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.9** 纹理内存的视觉分析器值'
 - en: '|  |'
+  id: totrans-83
   prefs: []
   type: TYPE_TB
+  zh: '|  |'
 - en: '| Texture Hit Rate (%) | This Value Is Calculated as 100 *(tex_cache_requests
     – tex_cache_misses)/(tex_cache_requests) |'
+  id: totrans-84
   prefs: []
   type: TYPE_TB
+  zh: '| 纹理命中率 (%) | 该值计算为 100 * (tex_cache_requests – tex_cache_misses) / (tex_cache_requests)
+    |'
 - en: '| Texture cache memory throughput (GB/s) | This value gives the memory throughput
     achieved while reading data from texture memory. This statistic will be zero when
     texture memory is not used. This is calculated as (#SM * tex cache sector queries
     * 32)/(gpu time * 1000) |'
+  id: totrans-85
   prefs: []
   type: TYPE_TB
+  zh: '| 纹理缓存内存吞吐量（GB/s） | 该值表示从纹理内存读取数据时达到的内存吞吐量。当未使用纹理内存时，该统计值为零。该值的计算公式为 (#SM *
+    纹理缓存扇区查询次数 * 32)/(gpu 时间 * 1000) |'
 - en: '| Texture cache hit rate (%) | Percentage of hits that occur in texture cache
     while accessing data from texture memory. This statistic will be zero when texture
     memory is not used. This value is calculated as 100 * (tex cache requests – tex
     cache misses)/tex cache requests |'
+  id: totrans-86
   prefs: []
   type: TYPE_TB
+  zh: '| 纹理缓存命中率（%） | 在访问纹理内存中的数据时，发生在纹理缓存中的命中的百分比。当未使用纹理内存时，该统计值为零。该值的计算公式为 100 *
+    (纹理缓存请求次数 - 纹理缓存未命中次数)/纹理缓存请求次数 |'
 - en: Complete working examples utilizing texture memory can be found in Part 13 of
     my *Doctor Dobb's Journal* tutorial series ([http://drdobbs.com/cpp/218100902](http://drdobbs.com/cpp/218100902)).
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用纹理内存的完整工作示例可以在我的 *Doctor Dobb's Journal* 教程系列的第13部分找到 ([http://drdobbs.com/cpp/218100902](http://drdobbs.com/cpp/218100902))。
 - en: Global Memory
+  id: totrans-88
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 全局内存
 - en: Understanding how to efficiently use global memory is an essential requirement
     to becoming an adept CUDA programmer. Focusing on data reuse within the SM and
     caches avoids memory bandwidth limitations. This is the third most important rule
@@ -716,68 +964,105 @@
     caused by having to rely on round trips to the much slower global memory. For
     performance reasons and transparency reasons, the L1 and L2 caches in compute
     2.0 devices are a very good thing.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: '理解如何高效地使用全局内存是成为熟练CUDA程序员的基本要求。在SM和缓存中关注数据重用，可以避免内存带宽的限制。这是高性能GPGPU编程中的第三条最重要规则，如[第1章](B978012388426800001X.xhtml#B978-0-12-388426-8.00001-X)中所介绍：1\.
+    将数据加载到GPGPU并保持在那里。2\. 给GPGPU足够的工作量。3\. 在GPGPU内关注数据重用，避免内存带宽限制。在某些情况下，不可能避免使用全局内存，因此，理解如何有效使用全局内存至关重要。特别是，Fermi架构对CUDA程序员如何思考和使用全局内存做出了一些重要的变化。从开发者的角度来看，必须强调的是，所有全局内存访问需要完全合并。合并的内存访问意味着硬件可以将来自线程的内存请求合并成一个宽的内存事务。当以下情况发生时，性能最佳：  '
 - en: Common Coalescing Use Cases
+  id: totrans-90
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 常见的合并使用案例
 - en: Some common use cases for accessing global memory are shown with caching enabled
     ([Table 5.10](#t0055)) and disabled ([Table 5.11](#t0060)).
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 一些常见的全局内存访问使用案例在缓存启用（[表 5.10](#t0055)）和禁用（[表 5.11](#t0060)）的情况下展示。
 - en: '**Table 5.10** Common Cached Global Memory Use Cases'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.10** 常见的缓存全局内存使用案例'
 - en: '| Cache Enabled | Case | Bytes Needed by the Warp | Bytes Fetched from Gmem
     | Efficiency |'
+  id: totrans-93
   prefs: []
   type: TYPE_TB
+  zh: '| 缓存启用 | 情况 | Warp 所需字节数 | 从 Gmem 提取的字节数 | 效率 |'
 - en: '| Y | Broadcast access consecutive 4-byte words to all threads in the warp
     (*N* ≤ 32) | N*128 | 128 | 3200% |'
+  id: totrans-94
   prefs: []
   type: TYPE_TB
+  zh: '| Y | 向 Warp 中的所有线程广播访问连续的 4 字节字 (*N* ≤ 32) | N*128 | 128 | 3200% |'
 - en: '| Y | Warp accesses 32 aligned, consecutive 4-byte words | 128 | 128 | 100%
     |'
+  id: totrans-95
   prefs: []
   type: TYPE_TB
+  zh: '| Y | Warp 访问 32 个对齐的连续 4 字节字 | 128 | 128 | 100% |'
 - en: '| Y | Warp accesses 32 aligned, permuted 4-byte words | 128 | 128 | 100% |'
+  id: totrans-96
   prefs: []
   type: TYPE_TB
+  zh: '| Y | Warp 访问 32 个对齐的置换 4 字节字 | 128 | 128 | 100% |'
 - en: '| Y | Warp accesses 32 misaligned, consecutive 4-byte words | 128 | 256 | 50%
     |'
+  id: totrans-97
   prefs: []
   type: TYPE_TB
+  zh: '| Y | Warp 访问 32 个未对齐的连续 4 字节字 | 128 | 256 | 50% |'
 - en: '| Y | Warp accesses 32 misaligned, permuted 4-byte words | 128 | 256 | 50%
     |'
+  id: totrans-98
   prefs: []
   type: TYPE_TB
+  zh: '| Y | Warp 访问 32 个未对齐的置换 4 字节字 | 128 | 256 | 50% |'
 - en: '| Y | Warp accesses *N* scattered 4-byte words (*N* ≤ 32) | 128 | *N**128 |
     1/*N* or 3.125% worst case |'
+  id: totrans-99
   prefs: []
   type: TYPE_TB
+  zh: '| Y | Warp 访问 *N* 个分散的 4 字节字 (*N* ≤ 32) | 128 | *N**128 | 1/*N* 或 3.125% 最差情况
+    |'
 - en: '**Table 5.11** Common Noncached Global Memory Use Cases'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.11** 常见的非缓存全局内存使用案例'
 - en: '| Cache Enabled | Case | Bytes Needed by the Warp | Bytes Fetched from Gmem
     | Efficiency |'
+  id: totrans-101
   prefs: []
   type: TYPE_TB
+  zh: '| 缓存启用 | 情况 | Warp 所需字节数 | 从 Gmem 提取的字节数 | 效率 |'
 - en: '| N | Warp accesses 32 aligned, consecutive 4-byte words | 128 | 128 | 100%
     |'
+  id: totrans-102
   prefs: []
   type: TYPE_TB
+  zh: '| N | Warp 访问 32 个对齐的连续 4 字节字 | 128 | 128 | 100% |'
 - en: '| N | Warp accesses 32 aligned, permuted 4-byte words | 128 | 128 | 100% |'
+  id: totrans-103
   prefs: []
   type: TYPE_TB
+  zh: '| N | Warp 访问 32 个对齐的置换 4 字节字 | 128 | 128 | 100% |'
 - en: '| N | Warp accesses 32 misaligned, consecutive 4-byte words | 128 | 128 or
     256 | 80–100%, depending on pattern |'
+  id: totrans-104
   prefs: []
   type: TYPE_TB
+  zh: '| N | Warp 访问 32 个未对齐的连续 4 字节字 | 128 | 128 或 256 | 80–100%，取决于模式 |'
 - en: '| N | Warp accesses *N* scattered 4-byte words (*N* ≤ 32) | 128 | *N**32 |
     4/*N* or 12.5% worst case |'
+  id: totrans-105
   prefs: []
   type: TYPE_TB
+  zh: '| N | Warp 访问 *N* 个分散的 4 字节字 (*N* ≤ 32) | 128 | *N**32 | 4/*N* 或 12.5% 最差情况
+    |'
 - en: Global memory on the GPU was designed to quickly stream memory blocks of data
     into the SM. Unfortunately, loops that perform indirect indexing, utilize pointers
     to varying regions in memory, or that have an irregular or a large stride break
@@ -785,12 +1070,18 @@
     global memory throughput to only 3.125% of the hardware capability. Turning off
     the cache can provide a 4-times speed improvement, which is good but still starves
     the SM for data, as it provides only 12.5% of the potential global memory bandwidth.
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 上的全局内存设计用于快速将数据块流式传输到 SM。不幸的是，执行间接索引、使用指针访问内存中不同区域的循环，或具有不规则或大步长的循环打破了这一假设。如
+    [表 5.10](#t0055) 所示，分散读取会将全局内存吞吐量降低到硬件能力的 3.125%。关闭缓存可以提供 4 倍的速度提升，虽然这仍然会使 SM
+    数据短缺，因为它只能提供潜在全局内存带宽的 12.5%。
 - en: Allocation of Global Memory
+  id: totrans-107
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 全局内存分配
 - en: Memory can be statically allocated in device memory with a declaration:`__device__
     int gmemArray[SIZE];`When using the runtime API, linear (or 1D) regions of global
     memory can be dynamically allocated with **cudaMalloc()** and freed with **cudaFree()**.
@@ -823,12 +1114,28 @@
     and **cudaDeviceGetLimit** return the currently requested heap size.The *CUDA
     C Programming Guide Version 4.0* provides simple working examples of per-thread,
     per-threadblock, and allocation persistence across kernel invocations.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 内存可以通过声明在设备内存中静态分配：`__device__ int gmemArray[SIZE];`。使用运行时 API 时，全球内存的线性（或 1D）区域可以通过**cudaMalloc()**动态分配，并通过**cudaFree()**释放。Thrust
+    API 内部使用**cudaMalloc()**。■ 内存对齐到 256 字节边界。■ 为了使 2D 访问完全合并，线程块的宽度和数组的宽度必须是 warp
+    大小的倍数（或者对于计算能力为 1.x 的设备，必须是 warp 大小的一半）。运行时 **cudaMallocPitch()** 和驱动 API **cuMemAllocPitch()**
+    方法会根据目标设备适当地填充数组分配。参考手册中描述的关联内存复制函数必须与步幅线性内存一起使用。内存可以在内核中使用标准 C 语言的 **malloc()**
+    和 **free()** 动态分配。它对齐到 16 字节边界。设备上的动态全局内存分配仅支持计算能力为 2.x 的设备。通过给定 CUDA 线程通过 **malloc()**
+    分配的内存会在 CUDA 上下文的生命周期内保留，或者直到通过调用 **free()** 明确释放。任何线程都可以使用由其他 CUDA 线程分配的内存——即使是在后续的内核启动中。请注意，任何
+    CUDA 线程都可以释放由其他线程分配的内存，这意味着必须小心确保相同的指针不会被释放多次。CUDA 内存检查工具 **cuda-memcheck** 是一个有用的工具，用于查找内存错误。必须在任何内核动态分配内存之前创建设备堆。默认情况下，CUDA
+    会创建一个 8MB 的堆。与常规处理器上的堆不同，GPU 上的堆不会动态调整大小。此外，一旦内核模块加载，堆的大小无法更改。为设备堆保留的内存与通过主机端
+    CUDA API 调用（如 **cudaMalloc()**）分配的内存一样占用空间。以下 API 函数获取和设置堆大小：■ 驱动 API：■ **cuCtxGetLimit**(size_t*
+    size, CU_LIMIT_MALLOC_HEAP_SIZE)。■ **cuCtxSetLimit**(CU_LIMIT_MALLOC_HEAP_SIZE,
+    size_t size)。■ 运行时 API：■ **cudaDeviceGetLimit**(size_t* size, cudaLimitMallocHeapSize)。■
+    **cudaDeviceSetLimit**(cudaLimitMallocHeapSize, size_t size)。分配的堆大小将至少为 **size**
+    字节。**cuCtxGetLimit** 和 **cudaDeviceGetLimit** 返回当前请求的堆大小。*CUDA C 编程指南 4.0 版* 提供了线程级、线程块级和内核调用之间分配持久性的简单工作示例。
 - en: Limiting Factors in the Design of Global Memory
+  id: totrans-109
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 全球内存设计中的限制因素
 - en: Global memory does represent a scaling challenge for GPGPU architects. Although
     multiple memory subsystems can be combined to deliver blocks of data at the aggregate
     performance of the combined memory systems, limiting factors such as cost, power,
@@ -874,37 +1181,55 @@
     us the maximum theoretical information transfer rate in the presence of noise,
     but it is up to the engineers and standards committees to make the magic of higher
     bandwidth data transmission happen.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
 - en: Relevant computeprof Values for Global Memory
+  id: totrans-111
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 相关的计算分析器值用于全局内存
 - en: '**Table 5.12\.** Visual Profiler Values for gmem'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: '**表 5.12\.** gmem 的视觉分析器值'
 - en: '|  |'
+  id: totrans-113
   prefs: []
   type: TYPE_TB
+  zh: '|  |'
 - en: '| glob mem read throughput (GB/s) | Global memory read throughput in gigabytes
     per second. For compute capability < 2.0, this is calculated as (((gld_32*32)
     + (gld_64*64) + (gld_128*128)) * TPC)/(gputime * 1000) For compute capability
     >= 2.0, this is calculated as ((DRAM reads) * 32)/(gputime * 1000) |'
+  id: totrans-114
   prefs: []
   type: TYPE_TB
+  zh: '| 全局内存读取吞吐量 (GB/s) | 以每秒千兆字节计算的全局内存读取吞吐量。对于计算能力 < 2.0，计算公式为：(((gld_32*32) +
+    (gld_64*64) + (gld_128*128)) * TPC) / (GPU时间 * 1000)。对于计算能力 >= 2.0，计算公式为：((DRAM
+    读取) * 32) / (GPU时间 * 1000)。 |'
 - en: '| glob mem write throughput (GB/s) | Global memory write throughput in gigabytes
     per second. For compute capability < 2.0, this is calculated as (((gst_32*32)
     + (gst_64*64) + (gst_128*128)) * TPC)/(gputime * 1000) For compute capability
     >= 2.0, this is calculated as ((DRAM writes) *32)/(gputime * 1000) This derived
     statistic is also shown as “Achieved global memory write throughput (GB/s)” in
     the kernel analysis window for Fermi. |'
+  id: totrans-115
   prefs: []
   type: TYPE_TB
+  zh: '| 全局内存写入吞吐量 (GB/s) | 以每秒千兆字节计算的全局内存写入吞吐量。对于计算能力 < 2.0，计算公式为：(((gst_32*32) +
+    (gst_64*64) + (gst_128*128)) * TPC) / (GPU时间 * 1000)。对于计算能力 >= 2.0，计算公式为：((DRAM
+    写入) * 32) / (GPU时间 * 1000)。这个派生统计量也在 Fermi 的内核分析窗口中显示为“已实现的全局内存写入吞吐量 (GB/s)”。
+    |'
 - en: '| glob mem overall throughput (GB/s) | Global memory overall throughput in
     gigabytes per second. This is calculated as global memory read throughput + global
     memory write throughput |'
+  id: totrans-116
   prefs: []
   type: TYPE_TB
+  zh: '| 全局内存总体吞吐量 (GB/s) | 以每秒千兆字节计算的全局内存总体吞吐量。这是通过将全局内存读取吞吐量与全局内存写入吞吐量相加得出的。 |'
 - en: '| kernel-requested global memory read throughput (GB/s) | This is the actual
     number of bytes requested in terms of loads by the kernel from global memory divided
     by the kernel execution time. These requests are made in terms of global load
@@ -912,22 +1237,33 @@
     This is calculated as (gld instructions 8bit + 2 * gld instructions 16bit + 4
     * gld instructions 32bit + 8 * gld instructions 64bit + 16 * gld instructions
     128bit)/(gpu time * 1000) |'
+  id: totrans-117
   prefs: []
   type: TYPE_TB
+  zh: '| 内核请求的全局内存读取吞吐量 (GB/s) | 这是由内核从全局内存请求的字节数（以加载次数计算），除以内核执行时间。这些请求是通过全局加载指令进行的，指令的字长可以是
+    8、16、32、64 或 128 位。计算公式为： (gld 指令 8bit + 2 * gld 指令 16bit + 4 * gld 指令 32bit +
+    8 * gld 指令 64bit + 16 * gld 指令 128bit) / (GPU 时间 * 1000) |'
 - en: '| kernel-requested global memory write throughput (GB/s) | This is the actual
     number of bytes requested in terms of stores by the kernel from global memory
     divided by the kernel execution time. These requests are made in terms of global
     store instructions, which can be of varying word sizes of 8, 16, 32, 64, or 128
     bits. This is calculated as (gst instructions 8bit + 2 * gst instructions 16bit
     + 4 * gst instructions 32bit + 8 * gst instructions 64bit) |'
+  id: totrans-118
   prefs: []
   type: TYPE_TB
+  zh: '| 内核请求的全局内存写入吞吐量 (GB/s) | 这是由内核从全局内存请求的字节数（以存储次数计算），除以内核执行时间。这些请求是通过全局存储指令进行的，指令的字长可以是
+    8、16、32、64 或 128 位。计算公式为： (gst 指令 8bit + 2 * gst 指令 16bit + 4 * gst 指令 32bit +
+    8 * gst 指令 64bit)。 |'
 - en: '| kernel-requested global memory throughput (GB/s) | This is the combined kernel
     requested read and write memory throughput. This is calculated as (kernel-requested
     global memory read throughput + kernel-requested global memory write throughput)
     |'
+  id: totrans-119
   prefs: []
   type: TYPE_TB
+  zh: '| 内核请求的全局内存吞吐量（GB/s） | 这是内核请求的读取和写入内存吞吐量的总和。计算公式为（内核请求的全局内存读取吞吐量 + 内核请求的全局内存写入吞吐量）
+    |'
 - en: '| global memory excess load (%) | This shows the percentage of excess data
     that is fetched while making global memory load transactions. Ideally 0% excess
     loads will be achieved when kernel requested global memory read throughput is
@@ -938,8 +1274,11 @@
     bytes are getting fetched while serving the threads of the kernel. This is calculated
     as 100 – (100 * kernel requested global memory read throughput/l2 read throughput)
     |'
+  id: totrans-120
   prefs: []
   type: TYPE_TB
+  zh: '| 全局内存超额加载（%） | 该值表示在进行全局内存加载事务时访问的超额数据的百分比。理想情况下，当内核请求的全局内存读取吞吐量等于L2缓存读取吞吐量时，将实现0%的超额加载，即内核请求的读取字节数等于硬件在内核执行期间实际提取的字节数，用以服务内核。如果此统计数据较高，意味着提取的访问模式没有合并，导致在执行内核线程时提取了许多额外的字节。这是通过
+    100 – (100 * 内核请求的全局内存读取吞吐量 / L2 读取吞吐量) 计算的 |'
 - en: '| global memory excess store (%) | This value shows the percentage of excess
     data that is accessed while making global memory store transactions. Ideally,
     0 percent excess stores will be achieved when kernel-requested global memory write
@@ -950,23 +1289,32 @@
     and many extra bytes are getting accessed during execution of the threads of the
     kernel. This is calculated as 100 – (100 * kernel-requested global memory write
     throughput/L2 write throughput) |'
+  id: totrans-121
   prefs: []
   type: TYPE_TB
+  zh: '| 全局内存超额存储（%） | 该值表示在进行全局内存存储事务时访问的超额数据的百分比。理想情况下，当内核请求的全局内存写入吞吐量等于L2缓存写入吞吐量时，将实现0%的超额存储，即内核请求的存储字节数等于硬件在内核执行期间实际访问的字节数，用以服务内核。如果此统计数据较高，意味着存储的访问模式没有合并，导致在执行内核线程时访问了许多额外的字节。这是通过
+    100 – (100 * 内核请求的全局内存写入吞吐量 / L2 写入吞吐量) 计算的 |'
 - en: '| peak global memory throughput (GB/s) | This is the peak memory throughput
     or bandwidth that can be achieved on the present CUDA device. This is a device
     property and the kernel-achieved memory throughput should be as close as possible
     to this peak. |'
+  id: totrans-122
   prefs: []
   type: TYPE_TB
+  zh: '| 峰值全局内存吞吐量（GB/s） | 这是当前CUDA设备可以实现的峰值内存吞吐量或带宽。这是设备属性，内核实现的内存吞吐量应尽可能接近此峰值。 |'
 - en: '| global memory replay (%) | Percentage of replayed instructions caused due
     to global memory accesses. This is calculated as 100 * (L1 global load miss)/instructions
     issued. |'
+  id: totrans-123
   prefs: []
   type: TYPE_TB
+  zh: '| 全局内存重放（%） | 由于全局内存访问而导致的指令重放百分比。计算公式为 100 *（L1 全局加载未命中）/发出的指令数。 |'
 - en: Summary
+  id: totrans-124
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: CUDA makes various hardware spaces available to the programmer. It is essential
     that the CUDA programmer utilize the available memory spaces to best advantage
     given the three orders of magnitude difference in bandwidth (from 8 TB/s register
@@ -979,5 +1327,10 @@
     is a core skill in creating high-performance applications. Otherwise, finding
     application bottlenecks becomes a matter of guesswork. Similarly, the CUDA memory
     checker can help find errors in using memory.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: CUDA 为程序员提供了多种硬件空间。考虑到不同 CUDA 内存类型之间带宽差异（从 8 TB/s 的寄存器带宽到受 PCIe 限制的映射内存的 8 GB/s），CUDA
+    程序员必须充分利用可用的内存空间，才能发挥最大的性能。如果没有做到这一点，可能会导致性能不佳。CUDA 提供了许多优秀的度量和派生的分析信息，有助于追踪内存瓶颈。了解每种内存类型的特性是精通
+    CUDA 编程的前提。通过 CUDA 分析器的自动化分析，开发人员可以朝着正确的方向前进。能够解读分析器输出是创建高性能应用程序的核心技能。否则，找到应用程序瓶颈就成了猜测的过程。同样，CUDA
+    内存检查器可以帮助发现内存使用中的错误。
