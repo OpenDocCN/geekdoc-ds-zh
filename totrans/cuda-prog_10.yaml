@@ -2223,6 +2223,7 @@
   id: totrans-320
   prefs: []
   type: TYPE_NORMAL
+  zh: SDK示例中有一些需要进一步讨论的点。首先，在`asyncAPI`示例中，使用了流0，即默认流。不幸的是，许多情况下默认流会导致流之间的隐式同步。你几乎肯定会使用双缓冲或三重缓冲方法，这时这种隐式同步可能会让你吃亏。使用异步操作时，始终创建自己的流。
 - en: '[PRE55]'
   id: totrans-321
   prefs: []
@@ -2239,6 +2240,7 @@
   id: totrans-322
   prefs: []
   type: TYPE_NORMAL
+  zh: '`asyncAPI`流示例中的第二点，您可能没有注意到的是，它获取元素数量*N*，并直接将其除以线程数来获取网格的块数。恰巧*N*是线程数的倍数，但如果不是呢？发生的情况是，数组中的最后几个元素不会被GPU内核处理。对于任何刚接触CUDA的人来说，这一点可能并不明显。如果您计划允许*N*不是线程数的倍数，请始终使用以下公式来生成块数：'
 - en: '[PRE56]'
   id: totrans-323
   prefs: []
@@ -2248,6 +2250,7 @@
   id: totrans-324
   prefs: []
   type: TYPE_NORMAL
+  zh: 在内核中，添加一个检查数组越界的代码：
 - en: '[PRE57]'
   id: totrans-325
   prefs: []
@@ -2262,11 +2265,14 @@
   id: totrans-326
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，这就增加了将`num_elem`传递给内核并在内核中进行检查的开销。如果您能*保证*始终使用线程数的倍数，那么您可以避免这段代码，继续使用更简单的`num_blocks
+    = num_elem / num_threads`方法。大多数时候，作为程序员，我们可以说这是真的，因为我们通常控制数据块的大小。
 - en: 'If we look at the `cudaOpenMP` example now, how are multiple CPU threads launched?
     It uses a call to `omp_set_num_threads`:'
   id: totrans-327
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在如果我们看一下`cudaOpenMP`示例，多个CPU线程是如何启动的？它使用了`omp_set_num_threads`调用：
 - en: '[PRE58]'
   id: totrans-328
   prefs: []
@@ -2279,10 +2285,12 @@
   id: totrans-329
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里有两种方法：为每个GPU设置一个线程，或者为每个GPU设置多个线程（[图 10.6](#F0035)）。后一种方法在GPU数量远少于CPU核心数时更为有用。我们在示例程序中使用的这种OpenMP指令的简化形式通常更可靠：
 - en: '![image](../images/F000107f10-06-9780124159334.jpg)'
   id: totrans-330
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000107f10-06-9780124159334.jpg)'
 - en: FIGURE 10.6 Multiple GPUs with OpenMP.
   id: totrans-331
   prefs: []
@@ -2386,6 +2394,7 @@
   id: totrans-342
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的`8`部分是指任何元素的起始地址应对齐的字节数。示例在相关文本中解释了，`align`指令允许编译器在每个线程中使用比平时更大的读取方式。在前面的`LA32`案例中，编译器可以使用64位读取，而不是两次32位读取。正如我们在[第9章](CHP009.html)中看到的，较少的内存事务意味着更高的带宽。我们在那里的示例中使用了向量类型，它们也在定义中使用了`align`指令。
 - en: One of the things we saw in the earlier examples was that to achieve anything
     like peak bandwidth you had to generate a sufficient number of memory transactions
     in flight. Unfortunately, this SDK sample is not written with this in mind. It
@@ -2396,6 +2405,7 @@
   id: totrans-343
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在早期示例中看到的一点是，要实现类似峰值带宽的性能，必须生成足够多的内存事务。遗憾的是，这个SDK示例并未考虑到这一点。它使用了64个256线程的块，总共32个warp。要完全加载一个计算2.x设备，我们需要48个warp（Kepler需要64个），因此这个示例使用的块数太少。因此，我们将块数扩展到1024，并选择了192个线程的设置，这个设置在整个计算级别上都表现良好。
 - en: We also added the basic type output to the test so we can see baseline figures.
     Additionally each run was compiled specifically generating code for that device
     compute level. Note that this SDK example, even with the changes, only reaches
@@ -2404,29 +2414,35 @@
   id: totrans-344
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还将基本类型输出添加到了测试中，以便查看基准数据。此外，每次运行都是专门编译的，生成该设备计算级别的代码。请注意，尽管进行了这些更改，这个SDK示例仍然只能达到峰值内存传输能力的约50%。然而，实际更重要的是相对内存带宽这一数据。
 - en: Initially we see the baseline figures shown in [Table 10.3](#T0020) and [Figure
     10.7](#F0040) from the various devices. We can use this baseline performance table
     to assess how well aligned and nonaligned types perform.
   id: totrans-345
   prefs: []
   type: TYPE_NORMAL
+  zh: 最初，我们可以看到来自不同设备的基准数据，这些数据显示在[表10.3](#T0020)和[图10.7](#F0040)中。我们可以利用这个基准性能表来评估对齐类型和非对齐类型的性能表现。
 - en: Table 10.3 Table of Baseline Performance across Devices
   id: totrans-346
   prefs: []
   type: TYPE_NORMAL
+  zh: 表10.3 各设备的基准性能表
 - en: '![Image](../images/T000107tabT0020.jpg)'
   id: totrans-347
   prefs: []
   type: TYPE_IMG
+  zh: '![Image](../images/T000107tabT0020.jpg)'
 - en: '![image](../images/F000107f10-07-9780124159334.jpg)'
   id: totrans-348
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000107f10-07-9780124159334.jpg)'
 - en: FIGURE 10.7 Graph of baseline performance across the devices (MB/s vs. transfer
     size).
   id: totrans-349
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 10.7 不同设备的基准性能图（MB/s与传输大小的关系）。
 - en: As you can see from [Figure 10.7](#F0040), they all hit the maximum coalesced
     memory size at `u32`, or four bytes. This would equate to 32 threads, multiplied
     by 4 bytes, or 128 bytes in total. On Fermi, this is the size of a single cache
@@ -2434,6 +2450,7 @@
   id: totrans-350
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你从[图10.7](#F0040)中看到的，它们都在`u32`，即四字节时达到了最大合并内存大小。这相当于32个线程，每个线程4字节，总共128字节。在Fermi架构中，这是单个缓存行的大小，因此在计算2.x设备上，我们在这一点上会平稳直线。
 - en: The GTX285 device (compute 1.3) is executing 16-thread coalesced memory reads
     instead of 32 as in compute 2.x devices. Thus, it benefits from back-to-back reads
     and can make use of the 64-bit (8-byte) reads per thread. Additionally, with twice
@@ -2442,6 +2459,7 @@
   id: totrans-351
   prefs: []
   type: TYPE_NORMAL
+  zh: GTX285设备（计算1.3）执行的是16线程的合并内存读取，而不是像计算2.x设备那样的32线程读取。因此，它从连续读取中受益，并能够利用每个线程64位（8字节）读取的优势。此外，GTX285拥有比Fermi世代卡片多一倍的SM单元，且内存总线宽度比GTX470更大，因此在这个特定内核中，它能够超越GTX470的性能。
 - en: In the 9800 GT (compute 1.1) we see a similar pattern to the GTX285\. However,
     the major difference here is the physical memory bandwidth is only around half
     of that of the GTX285\. Thus, we see a minor gain between 32- to 64-bit accesses
@@ -2451,22 +2469,27 @@
   id: totrans-352
   prefs: []
   type: TYPE_NORMAL
+  zh: 在9800 GT（计算1.1）中，我们看到与GTX285相似的模式。然而，主要的区别在于其物理内存带宽只有GTX285的一半。因此，我们看到每个线程在32位到64位访问之间的性能提升较小，远低于GTX285的提升。参见[表10.4](#T0025)。从运行示例中，我们可以看到对齐访问与非对齐访问之间的百分比变化。在[表10.5](#T0030)中，100%表示没有变化。
 - en: Table 10.4 MB/s Aligned/Nonaligned for Various Devices
   id: totrans-353
   prefs: []
   type: TYPE_NORMAL
+  zh: 表10.4 各种设备的对齐/非对齐带宽（MB/s）
 - en: '![Image](../images/T000107tabT0025.jpg)'
   id: totrans-354
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../images/T000107tabT0025.jpg)'
 - en: Table 10.5 Percentage Change for Aligned versus Nonaligned Access Patterns
   id: totrans-355
   prefs: []
   type: TYPE_NORMAL
+  zh: 表10.5 对比对齐与非对齐访问模式的百分比变化
 - en: '![Image](../images/T000107tabT0030.jpg)'
   id: totrans-356
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../images/T000107tabT0030.jpg)'
 - en: Thus, we can see that as we move back through the compute levels, especially
     for the early compute levels, aligned access gains greatly. In the best case we
     see a 31× speed improvement when adding such a directive to the data structure.
@@ -2476,6 +2499,7 @@
   id: totrans-357
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们可以看到，当我们回溯到计算层次时，特别是对于早期的计算层次，对齐访问的性能提升显著。在最好的情况下，向数据结构添加此类指令可以实现31倍的速度提升。即使是移动到现代GPU，我们也能看到2倍的性能提升。显然，添加此类指令在除非导致更多内存从主内存转移到GPU的情况下，在所有情况下都非常有益。
 - en: Note the `RGB32` case. This is actually a 96-bit structure (three `u32`s), effectively
     an `int3` for `float3` type. Adding the `align` directive inserts 4 bytes of padding
     at the end of the structure. Although this allows coalesced accesses, 25% of the
@@ -2485,6 +2509,7 @@
   id: totrans-358
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意`RGB32`的例子。实际上，这是一个96位结构（三个`u32`），有效地相当于`float3`类型的`int3`。添加`align`指令会在结构体的末尾插入4字节的填充。尽管这样可以实现合并访问，但从内存系统传输的数据中有25%被丢弃。在非对齐的情况下，Fermi设备从前一个缓存行中的过度提取节省了33%的后续内存获取。
 - en: The conclusion we can draw from this example is that, if you are using structures,
     you need to think about the coalescing impact of this and, at a minimum, use the
     `align` directive. A better solution entirely is to create structures of arrays,
@@ -2493,11 +2518,13 @@
   id: totrans-359
   prefs: []
   type: TYPE_NORMAL
+  zh: 从这个例子中我们可以得出结论，如果你正在使用结构体，需要考虑这一点的合并影响，并至少使用`align`指令。一个更好的完全解决方案是创建数组结构体，而不是结构体数组。例如，使用单独的红色、绿色和蓝色（RGB）色彩平面，而不是交错的RGB值。
 - en: Directive-Based Programming
   id: totrans-360
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 基于指令的编程
 - en: This book has largely focused on writing CUDA directly. This is good if you
     enjoy writing programs and are maybe from a CS (computer science) background like
     myself. However, very many people who find themselves writing CUDA today are not
@@ -2506,6 +2533,7 @@
   id: totrans-361
   prefs: []
   type: TYPE_NORMAL
+  zh: 本书主要集中于直接编写CUDA。如果你喜欢编程，并且可能像我一样有计算机科学（CS）背景，这很好。然而，今天许多编写CUDA的程序员并不属于这一类。许多人最关心的是他们自己的问题空间，而不是CUDA或从计算机科学角度出发的优雅解决方案。
 - en: One of the great successes of OpenMP is that it’s relatively easy to learn and
     pick up. It involves decorating the C source code with directives that tell the
     compiler various things about the parallel nature of the code it’s currently compiling.
@@ -2515,6 +2543,7 @@
   id: totrans-362
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenMP的一个巨大成功之处在于它相对容易学习和掌握。它通过在C源代码中添加指令来装饰代码，告诉编译器关于代码并行性质的各种信息。因此，它要求程序员显式地识别代码中的并行性。编译器则负责处理利用并行性的较为复杂的任务。总体而言，它做得相当好。
 - en: 'Thus, the obvious solution to making GPU programming easier is to extend the
     OpenMP model to GPUs. There are, unfortunately, two standards that have/will come
     about for this: the OpenMP4ACC and OpenACC standards. We’ll concentrate here on
@@ -2526,6 +2555,8 @@
   id: totrans-363
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，使 GPU 编程更简单的显而易见的解决方案是将 OpenMP 模型扩展到 GPU。然而，不幸的是，已经出现了两个标准或将要出现：OpenMP4ACC
+    和 OpenACC 标准。我们这里将专注于 OpenACC 标准，因为这是 NVIDIA 明确支持的标准。通常，支持者的规模和程序员的接受程度将在很大程度上决定给定软件编程倡议的成功或失败。大多数标准，不论是由谁开发的，通常涵盖相同的领域，因此在大多数情况下，学习一个标准会让你更容易学习另一个标准。
 - en: If you are interested in writing GPU code using directives, you will likely
     already have a reasonable understanding of the OpenMP directives for CPUs. The
     major difference we find with standards such as OpenACC is that they, and thus
@@ -2535,6 +2566,8 @@
   id: totrans-364
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你有兴趣使用指令编写 GPU 代码，你可能已经对用于 CPU 的 OpenMP 指令有了相当的了解。我们发现像 OpenACC 这样的标准与众不同之处在于，程序员还必须处理数据的位置。在一个有多个物理插槽的
+    OpenMP 系统中，我们称之为 NUMA（非一致性内存访问）系统。
 - en: As we can see from [Figure 10.8](#F0045), memory in a system with more than
     one CPU is attached directly to a given CPU. Thus, a process that resides on CPU[0]
     takes considerably longer to access memory that resides on CPU[1] than if that
@@ -2548,47 +2581,59 @@
   id: totrans-365
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们从[图 10.8](#F0045)中看到的，具有多个 CPU 的系统中的内存是直接连接到特定 CPU 的。因此，驻留在 CPU[0]上的进程访问驻留在
+    CPU[1]上的内存的时间要远长于访问本地内存（CPU[0]上的内存）。假设我们有八个进程在两个 CPU 插槽上运行，每个 CPU 有四个核心。要执行需要多对多通信的数据交换，意味着我们受限于最慢通信链路的吞吐量。这将是处理器之间的
+    QPI/超传输链路，通过该链路，内存流量必须经过另一处理器的内存总线。OpenMP 模型简单地忽略了这一影响，并缺少加速器解决方案所需的许多数据概念。
 - en: '![image](../images/F000107f10-08-9780124159334.jpg)'
   id: totrans-366
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000107f10-08-9780124159334.jpg)'
 - en: FIGURE 10.8 Multi-GPU data pathways.
   id: totrans-367
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 10.8 多 GPU 数据通道。
 - en: OpenACC
   id: totrans-368
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenACC
 - en: OpenACC is a move toward directive programming and very much follows in the
     footsteps of OpenMP, which has been very successful within standalone, single
     machines.
   id: totrans-369
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC 是朝着指令式编程迈进的一步，并且在很大程度上继承了 OpenMP 的理念，后者在独立的单机系统中取得了巨大的成功。
 - en: 'OpenACC is aimed at:'
   id: totrans-370
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC 的目标群体是：
 - en: • Independent loop-based parallelism.
   id: totrans-371
   prefs: []
   type: TYPE_NORMAL
+  zh: • 独立的基于循环的并行性。
 - en: • Programmers who have not yet been exposed to CUDA or found it too complex.
   id: totrans-372
   prefs: []
   type: TYPE_NORMAL
+  zh: • 尚未接触过 CUDA 或觉得 CUDA 太复杂的程序员。
 - en: • Programmers who have no wish to learn CUDA and are happy to abstract the details
     of the particular target architecture to the compiler.
   id: totrans-373
   prefs: []
   type: TYPE_NORMAL
+  zh: • 不愿意学习 CUDA 并且愿意将特定目标架构的细节抽象到编译器中的程序员。
 - en: • Programmers who would like rapidly to prototype an existing serial application
     on the GPU.
   id: totrans-374
   prefs: []
   type: TYPE_NORMAL
+  zh: • 希望在 GPU 上快速原型化现有串行应用程序的程序员。
 - en: OpenACC, as with OpenMP, tries to abstract the hardware and let the programmer
     write standard serial code that the compiler then transforms into code that runs
     on the accelerator. As with OpenMP it involves adding a series of pragma statements
@@ -2596,74 +2641,90 @@
   id: totrans-375
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC 和 OpenMP 一样，试图抽象硬件，让程序员编写标准的串行代码，然后由编译器将其转换为在加速器上运行的代码。与 OpenMP 类似，它需要在循环周围添加一系列的
+    pragma 语句，指示编译器将特定的循环并行执行。
 - en: 'Advantages:'
   id: totrans-376
   prefs: []
   type: TYPE_NORMAL
+  zh: 优势：
 - en: • Looks similar to OpenMP so it is easy to learn for anyone who has used OpenMP.
   id: totrans-377
   prefs: []
   type: TYPE_NORMAL
+  zh: • 看起来与 OpenMP 相似，因此对于曾经使用过 OpenMP 的人来说，学习起来非常容易。
 - en: • Existing serial source code remains unchanged and is simply decorated with
     directives.
   id: totrans-378
   prefs: []
   type: TYPE_NORMAL
+  zh: • 现有的串行源代码保持不变，仅通过指令进行装饰。
 - en: • Single set of source for both CPU and GPU accelerated versions.
   id: totrans-379
   prefs: []
   type: TYPE_NORMAL
+  zh: • 针对 CPU 和 GPU 加速版本的单一源代码集。
 - en: • Accelerator vendor agnostic. The potential, as with OpenCL, to target multiple
     hardware platforms including CPU-based AVX acceleration.
   id: totrans-380
   prefs: []
   type: TYPE_NORMAL
+  zh: • 与加速器供应商无关。与 OpenCL 类似，有潜力支持包括基于 CPU 的 AVX 加速在内的多种硬件平台。
 - en: • Takes care of many of the “details”, such as moving data to and from shared
     memory for data the user specifies shall be cached.
   id: totrans-381
   prefs: []
   type: TYPE_NORMAL
+  zh: • 负责处理许多“细节”，例如将用户指定为缓存的数据从共享内存中移动进出。
 - en: • Vendor-cited studies show easy learning curve for non-CUDA programmers.
   id: totrans-382
   prefs: []
   type: TYPE_NORMAL
+  zh: • 供应商引用的研究表明，非 CUDA 程序员的学习曲线较容易。
 - en: • Supports Fortran in addition to C. Allows many existing Fortran programs to
     benefit from acceleration without a massive rewrite.
   id: totrans-383
   prefs: []
   type: TYPE_NORMAL
+  zh: • 除了 C 之外，还支持 Fortran。允许许多现有的 Fortran 程序在无需大规模重写的情况下受益于加速。
 - en: 'Disadvantages:'
   id: totrans-384
   prefs: []
   type: TYPE_NORMAL
+  zh: 缺点：
 - en: • Not currently supported under Visual Studio, so is effectively a Linux-only
     solution.
   id: totrans-385
   prefs: []
   type: TYPE_NORMAL
+  zh: • 目前不支持 Visual Studio，因此实际上是一个仅限 Linux 的解决方案。
 - en: • Commercial product currently supported by PGI, CAPS, and Cray, so it is not
     part of the free CUDA SDK product suite.
   id: totrans-386
   prefs: []
   type: TYPE_NORMAL
+  zh: • 目前由 PGI、CAPS 和 Cray 支持的商业产品，因此不属于免费的 CUDA SDK 产品套件。
 - en: • To achieve a comparable or better level of performance to OpenMP with nontrivial
     programs, the user must additionally specify various simple data clauses to minimize
     PCI-E-based transfers.
   id: totrans-387
   prefs: []
   type: TYPE_NORMAL
+  zh: • 要在非平凡的程序中实现与 OpenMP 相当或更好的性能，用户还必须额外指定各种简单的数据子句，以最小化基于 PCI-E 的传输。
 - en: • Is targeted at single-CPU/single-GPU solutions. Does not autoscale when additional
     GPUs are added. Multiple GPU usage requires the use of multiple CPU threads/processes.
     This may change in the future.
   id: totrans-388
   prefs: []
   type: TYPE_NORMAL
+  zh: • 针对单 CPU / 单 GPU 解决方案。添加额外 GPU 时不自动扩展。使用多个 GPU 需要使用多个 CPU 线程/进程。这在未来可能会有所改变。
 - en: • New features of the CUDA toolkit or the hardware may require explicit support
     from the compiler vendor. Currently OpenACC compiler support can take several
     months to switch over to a CUDA SDK release or to support a new hardware release.
   id: totrans-389
   prefs: []
   type: TYPE_NORMAL
+  zh: • CUDA 工具包或硬件的新特性可能需要编译器供应商的显式支持。目前，OpenACC 编译器支持可能需要几个月的时间才能切换到 CUDA SDK 发布版本，或者支持新的硬件发布。
 - en: The main issue with regard to OpenACC versus OpenMP is that OpenMP has no concept
     of various levels of memory or various locations of memory because these concepts
     do not exist in the traditional CPU programming models. In OpenMP data is either
@@ -2671,30 +2732,38 @@
   id: totrans-390
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC 与 OpenMP 的主要区别在于，OpenMP 没有关于各种内存级别或内存位置的概念，因为这些概念在传统的 CPU 编程模型中并不存在。在
+    OpenMP 中，数据要么是线程私有的，要么是全局的（共享的）。
 - en: 'By contrast the GPU system is much more complex. You have:'
   id: totrans-391
   prefs: []
   type: TYPE_NORMAL
+  zh: 相比之下，GPU 系统要复杂得多。你有：
 - en: • Host memory
   id: totrans-392
   prefs: []
   type: TYPE_NORMAL
+  zh: • 主机内存
 - en: • GPU global memory
   id: totrans-393
   prefs: []
   type: TYPE_NORMAL
+  zh: • GPU 全局内存
 - en: • GPU constant memory
   id: totrans-394
   prefs: []
   type: TYPE_NORMAL
+  zh: • GPU 常量内存
 - en: • GPU block private memory (shared memory in CUDA)
   id: totrans-395
   prefs: []
   type: TYPE_NORMAL
+  zh: • GPU 块私有内存（CUDA 中的共享内存）
 - en: • GPU thread private memory (local memory in CUDA)
   id: totrans-396
   prefs: []
   type: TYPE_NORMAL
+  zh: • GPU 线程私有内存（CUDA 中的本地内存）
 - en: The OpenACC model, for simplicity, works on the basis that the data resides
     on the host and is shipped to the accelerator memory space at the start of the
     parallel region and shipped back at the end of the parallel region. Thus, every
@@ -2703,6 +2772,8 @@
   id: totrans-397
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC 模型为了简化，假设数据驻留在主机上，并在并行区域开始时传输到加速器内存空间，在并行区域结束时传输回主机。因此，每个并行区域默认情况下都受到这些通过
+    PCI-E 总线进行的隐式内存复制的限制。
 - en: Although a simplistic way to think of this, conceptually it’s an easy way to
     ensure correctness at the potential expense of performance. If you had only one
     calculation and would not reuse the data, then this is effectively what you’d
@@ -2712,11 +2783,14 @@
   id: totrans-398
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管这是一种简化的思维方式，从概念上讲，它是一种确保正确性的方法，可能会以牺牲性能为代价。如果你只有一个计算任务并且不会重复使用数据，那么这在 CUDA
+    中实际上就是你要做的。如果你计划对数据进行多次转换，那么你需要通过向指令中添加数据限定符，明确指定哪些数据应该保留在设备上。
 - en: 'So let’s look at a simple program to give some idea of how it might be converted
     to OpenMP/OpenACC. If we take the classic reduction, you typically see the following:'
   id: totrans-399
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，让我们来看一个简单的程序，了解它是如何转换为 OpenMP/OpenACC 的。如果我们以经典的归约为例，通常会看到以下内容：
 - en: '[PRE62]'
   id: totrans-400
   prefs: []
@@ -2726,6 +2800,7 @@
   id: totrans-401
   prefs: []
   type: TYPE_NORMAL
+  zh: '`}`'
 - en: As you can see all we do is replace the OpenMP directive with an OpenACC directive.
     We then compile with the vendor-supplied OpenACC compiler. This may generate anything
     from high-level CUDA code to raw PTX code. It will then usually invoke the NVCC
@@ -2734,6 +2809,8 @@
   id: totrans-402
   prefs: []
   type: TYPE_NORMAL
+  zh: 如你所见，我们所做的只是用OpenACC指令替换OpenMP指令。然后我们使用厂商提供的OpenACC编译器进行编译。这可能生成从高级CUDA代码到原始PTX代码的任何内容。然后，它通常会调用NVCC编译器来生成目标GPU代码。一些厂商支持除了NVIDIA
+    GPU之外的其他目标。
 - en: During the compilation stage most vendors’ compilers provide statistics about
     how they are transforming the serial code to device code. However, this is a little
     like the `-v` option in NCC, in that you need to be able to understand what the
@@ -2741,6 +2818,7 @@
   id: totrans-403
   prefs: []
   type: TYPE_NORMAL
+  zh: 在编译阶段，大多数厂商的编译器会提供关于它们如何将串行代码转换为设备代码的统计信息。然而，这有点类似于NCC中的`-v`选项，因为你需要能够理解编译器告诉你的内容。这里我们看一个PGI编译器输出的例子。
 - en: '[PRE63]'
   id: totrans-404
   prefs: []
@@ -2751,30 +2829,37 @@
   id: totrans-405
   prefs: []
   type: TYPE_NORMAL
+  zh: 要理解这个输出，你需要理解OpenACC术语如何映射到CUDA术语（[表10.6](#T0035)）。
 - en: Table 10.6 OpenACC and CUDA Terminology
   id: totrans-406
   prefs: []
   type: TYPE_NORMAL
+  zh: 表10.6 OpenACC和CUDA术语对照
 - en: '| OpenACC | CUDA |'
   id: totrans-407
   prefs: []
   type: TYPE_TB
+  zh: '| OpenACC | CUDA |'
 - en: '| --- | --- |'
   id: totrans-408
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- |'
 - en: '| Gangs | Blocks |'
   id: totrans-409
   prefs: []
   type: TYPE_TB
+  zh: '| 并行单元 | 块 |'
 - en: '| Workers | Warps |'
   id: totrans-410
   prefs: []
   type: TYPE_TB
+  zh: '| 工作者 | 执行单元 |'
 - en: '| Vectors | Threads |'
   id: totrans-411
   prefs: []
   type: TYPE_TB
+  zh: '| 向量 | 线程 |'
 - en: The first line states that the kernel occupied 60 gangs (blocks in CUDA terminology).
     It then states it generated output for “CC 1.3 and CC 2.0,” compute capacity 1.3
     and 2.0 devices, respectively. It also tells you the number of registers used,
@@ -2783,6 +2868,7 @@
   id: totrans-412
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一行说明内核占用了60个并行单元（在CUDA术语中为“块”）。接着它说明为“CC 1.3和CC 2.0”生成了输出，即分别为计算能力1.3和2.0的设备。它还告诉你使用了多少寄存器、每个块使用了多少共享内存、每个块使用了多少字节的常量内存，以及是否有寄存器溢出到局部内存。
 - en: Finally, it calculates the ideal number of threads (OpenACC calls these vectors)
     to achieve near 100% occupancy as possible based on the number of registers and
     shared memory the kernel is using. It may, however, not always select the best
@@ -2791,6 +2877,7 @@
   id: totrans-413
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，它会计算出理想的线程数（OpenACC称之为向量），以便根据内核使用的寄存器和共享内存，尽可能实现接近100%的占用率。然而，它可能并不总是为给定的内核/数据模式选择最佳值。指定此项允许我们覆盖或部分覆盖这些选择。
 - en: It will look at your data and decide on the best launch parameters (number of
     threads, number of blocks, number of grids, etc.). It will also automatically
     try to allocate data to constant and/or global memory. You are free to override
@@ -2798,12 +2885,14 @@
   id: totrans-414
   prefs: []
   type: TYPE_NORMAL
+  zh: 它会根据你的数据决定最佳的启动参数（线程数、块数、网格数等）。它还会自动尝试将数据分配到常量内存和/或全局内存中。如果你愿意，可以覆盖这些选择。
 - en: 'To override the default behavior of mirroring global data on the host (automatic
     background update commands), you need to specify how the data must be managed.
     This can be done as follows:'
   id: totrans-415
   prefs: []
   type: TYPE_NORMAL
+  zh: 要覆盖主机上全局数据镜像的默认行为（自动后台更新命令），需要指定数据如何管理。可以通过以下方式进行：
 - en: '[PRE64]'
   id: totrans-416
   prefs: []
@@ -2814,32 +2903,38 @@
   id: totrans-417
   prefs: []
   type: TYPE_NORMAL
+  zh: 其中，`<directives>`可以是以下几种指令中的一种，此外还有一些更复杂的指令在此未展示：
 - en: '**copy** (data1, data2, …)—Maintain an identical CPU version by copying in
     at the start of the kernel and out at the end (the default behavior).'
   id: totrans-418
   prefs: []
   type: TYPE_NORMAL
+  zh: '**copy** (data1, data2, …)—通过在内核开始时将数据复制到GPU并在结束时从GPU复制回CPU，保持与CPU的相同版本（默认行为）。'
 - en: '**copyin** (data1, data2, …)—Only copy data to the GPU and do not copy it back,
     that is, discard the GPU data. This is useful for read-only data the GPU will
     process.'
   id: totrans-419
   prefs: []
   type: TYPE_NORMAL
+  zh: '**copyin** (data1, data2, …)—仅将数据复制到GPU，不再复制回CPU，即丢弃GPU上的数据。对于GPU将处理的只读数据非常有用。'
 - en: '**copyout** (data1, data2, …)—Only copy data from the GPU back to the CPU.
     Useful for declaring output data on the GPU.'
   id: totrans-420
   prefs: []
   type: TYPE_NORMAL
+  zh: '**copyout** (data1, data2, …)—仅将数据从GPU复制回CPU。对于声明在GPU上的输出数据非常有用。'
 - en: '**create** (data1, data2, …)—Allocates temporary storage on the GPU with no
     copy operation in either direction.'
   id: totrans-421
   prefs: []
   type: TYPE_NORMAL
+  zh: '**create** (data1, data2, …)—在GPU上分配临时存储，但不进行任何方向上的复制操作。'
 - en: '**present** (data1, data2, …)—Data is already present on the GPU so does not
     need to be copied or allocated anew.'
   id: totrans-422
   prefs: []
   type: TYPE_NORMAL
+  zh: '**present** (data1, data2, …)—数据已存在于GPU上，因此不需要复制或重新分配。'
 - en: Be aware that the OpenACC model expects you to use the C99 standard and in particular
     the `__restrict__` keyword in C to specify that any pointers used do not alias
     with one another. Failure to do this will likely result in your code failing to
@@ -2847,6 +2942,7 @@
   id: totrans-423
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，OpenACC模型要求使用C99标准，特别是C语言中的`__restrict__`关键字，用于指定所使用的指针彼此之间没有别名。如果没有这样做，可能会导致代码无法向量化。
 - en: You can tell if adding data directives helps (it almost always will) by using
     the `PGI_ACC_TIME=1` (vendor-specific) option. This, in the case of the PGI compiler,
     will enable profiling. It will then tell you how often the kernel was called,
@@ -2859,6 +2955,8 @@
   id: totrans-424
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以通过使用`PGI_ACC_TIME=1`（厂商特定）选项来判断添加数据指令是否有帮助（几乎总是有效）。在PGI编译器的情况下，这将启用性能分析。它会告诉你内核被调用的频率、内核的块维度、执行所花费的时间，以及数据传输所耗费的时间。通常，数据传输部分是最关键的，而数据指令可以提供帮助。你还可以使用Linux中可用的标准性能分析工具，例如Visual
+    Profiler，来查看OpenACC编译器的实际操作。通过这样做，你可能会发现一些原本没有注意到的问题。
 - en: 'In being able to see the block size chosen you can also then perform certain
     optimizations to it. For example, you can specify less blocks and threads than
     you have data elements. By default, OpenACC compilers tend to select one thread
@@ -2868,6 +2966,7 @@
   id: totrans-425
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过查看所选择的块大小，你也可以对其进行一定的优化。例如，你可以指定比数据元素数量更少的块和线程。默认情况下，OpenACC编译器通常会为每个元素选择一个线程，尽管标准中并没有要求必须这么做。因此，如果你希望每个线程处理四个元素——这是我们发现效果较好的做法——你可以通过指定更少的块和线程来实现：
 - en: '[PRE65]'
   id: totrans-426
   prefs: []
@@ -2882,6 +2981,7 @@
   id: totrans-427
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们指定循环应使用64个块（组），每个块包含128个线程（向量）。因此，我们在设备上有8192个活跃线程。假设使用的是16个SM的设备，例如GTX580，这样每个SM上会有四个块，每个块128个线程。这等同于每个SM上有16个warp，这对GTX580来说占用过少，不能实现理想的占用率。为了解决这个问题，我们需要增加块（组）或线程（向量）的数量。
 - en: Depending on the particular algorithm, you may wish to process more than one
     element per thread, rather than increase the block or thread count. As long as
     the number of elements is known to the compiler, as in the previous example, it
@@ -2889,6 +2989,7 @@
   id: totrans-428
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据具体的算法，你可能希望每个线程处理多个元素，而不是增加块或线程的数量。只要编译器知道元素的数量，就像在前面的示例中一样，它将处理每个线程多个元素，在这种情况下是四个。
 - en: Remember also, as with regular CUDA, threads in reality run as warps, groups
     of 32 threads. Allocating 33 threads allocates 64 threads in the hardware, 31
     of which do nothing but consume space resources on the device. Always allocate
@@ -2896,6 +2997,7 @@
   id: totrans-429
   prefs: []
   type: TYPE_NORMAL
+  zh: 同样需要记住，和常规的CUDA一样，线程实际上是作为warp运行的，每个warp由32个线程组成。分配33个线程实际上会在硬件上分配64个线程，其中31个线程什么也不做，仅仅消耗设备上的空间资源。始终以32为单位分配线程块（在OpenACC中是向量）。
 - en: Also as with CUDA, if you specify gangs or vectors (blocks or threads), which
     you don’t have to, then the usual kernel launch rules apply. Thus, there is a
     limit on the number of threads a block can support, which will change depending
@@ -2906,6 +3008,7 @@
   id: totrans-430
   prefs: []
   type: TYPE_NORMAL
+  zh: 同样，和CUDA一样，如果你指定了组或向量（块或线程），虽然你不必这样做，但仍然会遵循通常的内核启动规则。因此，块可以支持的线程数量是有限制的，这个限制会根据你所针对的硬件的计算能力级别而变化。通常，你会发现，64、128、192和256的值对于计算能力为1.x的设备来说效果较好；而128、192、256、384和512的值适用于计算能力为2.x的设备。对于计算能力为3.x的平台，256通常是最合适的值。
 - en: However, when considering adding any specifiers here, consider the likely impact
     of future hardware and how this might limit the use of other accelerator targets.
     By specifying nothing you are letting the compiler select what it thinks is the
@@ -2917,6 +3020,8 @@
   id: totrans-431
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在考虑添加任何修饰符时，请考虑未来硬件可能带来的影响，以及这可能如何限制对其他加速器目标的使用。通过不指定任何修饰符，你让编译器选择它认为最合适的值。当新的
+    GPU 出现，拥有更多的每块线程和每个 SM 的块，且一旦厂商更新编译器以支持这一变化，一切就能顺利运行。如果你确实指定了这些参数，那么应该指定当前最大值的某个倍数，以便你的代码在未来的设备上能够运行，而不会耗尽块数。
 - en: By default the OpenACC model uses synchronous kernel calls. That is, the host
     processor will wait for the GPU to complete and then continue execution once the
     GPU kernel call returns. This is akin to making a function call in C as opposed
@@ -2924,6 +3029,8 @@
   id: totrans-432
   prefs: []
   type: TYPE_NORMAL
+  zh: 默认情况下，OpenACC 模型使用同步内核调用。也就是说，主机处理器会等待 GPU 完成计算，只有当 GPU 内核调用返回时，才会继续执行。这类似于在
+    C 语言中进行函数调用，而不是创建一个工作线程然后稍后合并。
 - en: You should be aware by now that this approach, although nice to develop the
     initial application on, should be replaced with an asynchronous model as soon
     as the application is running well. You probably have a reasonable multicore CPU
@@ -2934,6 +3041,8 @@
   id: totrans-433
   prefs: []
   type: TYPE_NORMAL
+  zh: 你现在应该已经意识到，尽管这种方法适合在初期开发应用时使用，但一旦应用程序运行良好，就应该替换为异步模型。你的机器可能配备了一个性能良好的多核 CPU，你可以在
+    GPU 计算某些内容时，充分利用 CPU。应该优先分配给 CPU 的任务是那些与内存的加载与存储操作相比，计算量较少的操作。
 - en: One of the reasons why we see the reduction operation perform better, or at
     least the at same speed as the GPU, is the amount of work done per memory read/write.
     To calculate data on the GPU we need to either generate it there or send it over
@@ -2945,12 +3054,16 @@
   id: totrans-434
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们看到归约操作表现更好，或者至少和 GPU 一样快的原因之一，是每次内存读写操作中所完成的工作量。要在 GPU 上计算数据，我们需要么在 GPU 上生成数据，要么通过
+    PCI-E 总线将数据发送过去。如果你仅仅为了执行一个简单的操作（如加法）而通过总线传输两个数据项，那就放弃它，直接在 CPU 上做吧。在这种情况下，PCI-E
+    传输的成本远大于任何其他因素。最适合 GPU 的任务是那些计算密集型的领域，或者是 GPU 的额外内存带宽可以发挥作用的地方。
 - en: Thus, OpenACC provides the `async` clause for kernels and data to allow them
     to run asynchronously to the host and perform asynchronous transfers with the
     host.
   id: totrans-435
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，OpenACC提供了`async`子句，用于内核和数据，使它们能够与主机异步运行，并执行与主机的异步传输。
 - en: '[PRE66]'
   id: totrans-436
   prefs: []
@@ -2966,6 +3079,7 @@
   id: totrans-437
   prefs: []
   type: TYPE_NORMAL
+  zh: 异步传输需要使用固定内存，即不能交换到磁盘的内存。你不需要像在CUDA中那样显式关注这一点，在OpenACC中，只需要指定`async`子句，OpenACC编译器就会在幕后为传输使用固定内存。当然，使用异步操作时需要记住的一件事是，在异步操作完成之前，你不能更改正在传输或由内核操作的数据。
 - en: 'Once people have mastered asynchronous communication and achieved the best
     performance they are able to on a single-core/GPU pair, the obvious question is:
     Can I speed up my application by using multiple GPUs? The answer is of course
@@ -2974,6 +3088,7 @@
   id: totrans-438
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦人们掌握了异步通信，并在单核/GPU对上达到了最佳性能，显而易见的问题是：我能通过使用多个GPU来加速我的应用吗？答案当然是肯定的，而且如果你能保持在单个节点内，通常会看到接近线性的扩展效果。
 - en: The OpenACC standard supports only a “one CPU thread per GPU” view of multiple
     GPUs on a single node. If you plan on performing some work on the CPU, this makes
     perfect sense, as it allows you to exploit the full potential of a multicore CPU.
@@ -2981,6 +3096,7 @@
   id: totrans-439
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC标准仅支持在单个节点上“每个GPU一个CPU线程”的多GPU视图。如果你打算在CPU上执行一些工作，这样的方式是非常合理的，因为它可以让你充分利用多核CPU的潜力。因此，在OpenMP中，你只需使用OpenMP指令启动若干线程。
 - en: '[PRE67]'
   id: totrans-440
   prefs: []
@@ -2991,6 +3107,7 @@
   id: totrans-441
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设你有一个四核CPU和四张GPU卡连接，那么你需要指定给OpenACC当前线程使用特定的GPU。
 - en: '[PRE68]'
   id: totrans-442
   prefs: []
@@ -3002,6 +3119,7 @@
   id: totrans-443
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果系统中只有两张GPU，那么你可能更适合为OpenMP指定两个线程。如果你希望利用四个线程，但只有两个线程用于GPU使用，你可以这样做：
 - en: '[PRE69]'
   id: totrans-444
   prefs: []
@@ -3011,6 +3129,7 @@
   id: totrans-445
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以在MPI中使用相同的方法，通过以下方式：
 - en: '[PRE70]'
   id: totrans-446
   prefs: []
@@ -3020,6 +3139,7 @@
   id: totrans-447
   prefs: []
   type: TYPE_NORMAL
+  zh: '`}`'
 - en: One issue to be careful of here is that the `acc_set_device_num` API call is
     a one-time event only per host thread. This is very much the way the `cudaSetDevice`
     call used to work prior to the CUDA 4.x SDK. You cannot select a context from
@@ -3028,6 +3148,8 @@
   id: totrans-448
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里需要注意的一个问题是，`acc_set_device_num` API 调用仅在每个主机线程中执行一次。这与 CUDA 4.x SDK 之前 `cudaSetDevice`
+    调用的方式非常相似。你不能从单个主机线程选择一个上下文并因此控制多个 GPU。唯一支持的模型是每个 GPU 上下文对应一个主机线程的模型。
 - en: Note that a dedicated 1:1 ratio of CPU cores to GPUs is the ideal for heavily
     used systems. However, oversubscribing GPUs to CPU cores can be useful, as rarely
     will GPU programs actually saturate the GPU. Thus, there may be points where the
@@ -3037,6 +3159,9 @@
   id: totrans-449
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，对于高负载的系统，理想的配置是每个 CPU 核心对应一个 GPU 核心的 1:1 比例。然而，将多个 GPU 分配给单个 CPU 核心也可能有用，因为
+    GPU 程序通常不会真正饱和 GPU。因此，可能会出现 GPU 未充分利用的情况，通常出现在同步点或内核调用之间。在有主/工作者安排的情况下（通常出现在 MPI
+    中），将一个非 GPU 的 CPU 核心专门作为主线程可能是有益的。
 - en: One aspect I should touch on here is memory patterns. OpenACC, when implemented
     on an accelerator that does coalescing of global memory, will be just as badly
     affected by a poor memory layout as a CUDA program will. There is no automatic
@@ -3045,6 +3170,8 @@
   id: totrans-450
   prefs: []
   type: TYPE_NORMAL
+  zh: 我在这里要提到的一个方面是内存访问模式。OpenACC，当在一个能够进行全局内存合并的加速器上实现时，将会像 CUDA 程序一样，受到糟糕内存布局的严重影响。它没有自动转置。你需要考虑你的内存布局，并创建一个适合
+    GPU 的最优布局（数据应按 32 个元素的列排列，而不是按顺序的行排列）。
 - en: Overall OpenACC represents a very interesting development in GPU programming
     and potentially opens up the GPU programming arena to many non-GPU programmers.
     Many of these people will progress to use learn CUDA, as it’s perfectly possible
@@ -3054,11 +3181,14 @@
   id: totrans-451
   prefs: []
   type: TYPE_NORMAL
+  zh: 总体来说，OpenACC 代表了 GPU 编程领域的一项非常有趣的发展，并且可能会将 GPU 编程领域引入许多非 GPU 编程人员。许多人会进而学习 CUDA，因为完全可以将
+    OpenACC 和 CUDA 混合使用。因此，你可以从 OpenACC 开始，如果你发现某些特定区域需要更多控制时，再切换到 CUDA，同时保持应用程序的大部分不变。
 - en: Writing Your Own Kernels
   id: totrans-452
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 编写你自己的内核
 - en: We’ve presented a number of other options in this chapter that range from specifying
     the parallelism at a high level and having the compiler do the heavy lifting,
     to using libraries developed by those far better at exploiting the hardware than
@@ -3069,6 +3199,7 @@
   id: totrans-453
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章中我们介绍了多种选择，从高层次指定并让编译器完成繁重工作，到使用那些比你更擅长利用硬件的库。你永远不可能，也许实际上不应该尝试在所有领域都做到最好。像编译器指令和库这样的工具，能让你借助他人的努力来实现你的目标。你的知识主要存在于你自己感兴趣的领域。
 - en: As a professional developer, or even as a student, you should be conscious of
     the time you take to develop a solution. It may be technically challenging to
     develop the most efficient parallel quick sort, but probably some bright computer
@@ -3079,6 +3210,7 @@
   id: totrans-454
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为一名专业开发人员，甚至作为一名学生，你应该意识到你开发解决方案所花费的时间。开发最高效的并行快速排序可能在技术上具有挑战性，但很可能已经有某个聪明的计算机科学毕业生写过相关论文。如果你在招聘，那么显而易见的做法是将这个人纳入团队。购买知识，无论是通过人才还是软件，都能让你在竞争中获得巨大的领先优势。
 - en: It also makes a lot of sense to select libraries where they cover something
     that is not your area of expertise. If you are developing an image blur algorithm,
     for example, loading/saving the images from the disk is not really what you are
@@ -3087,6 +3219,7 @@
   id: totrans-455
   prefs: []
   type: TYPE_NORMAL
+  zh: 选择那些涵盖你不擅长领域的库也非常有意义。例如，如果你正在开发一个图像模糊算法，加载/保存磁盘上的图像并不是你真正关注的内容。市面上有很多开源或商业库可以涵盖你开发中的这一部分内容。
 - en: One common problem you may encounter using libraries is memory allocation. Most
     CPU-based solutions, if they allocate memory, do not allocate pinned memory. Thus,
     an image library that returns a pointer to the loaded image will cause a slowdown
@@ -3096,6 +3229,8 @@
   id: totrans-456
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用库时，常见的一个问题是内存分配。大多数基于 CPU 的解决方案，如果它们分配内存，通常不会分配固定内存。因此，一个返回已加载图像指针的图像库，在你将图像数据传输到
+    GPU 时会导致应用程序的性能下降。因此，选择那些允许用户控制内存管理，或者是 GPU 感知并支持固定内存的库。
 - en: The next issue we hit with the directive and library approach is they are, generally,
     not multi-GPU aware unless written as such. As you can usually get up to four
     GPU cards into a workstation, this approach is a bit like using only one of the
@@ -3106,6 +3241,7 @@
   id: totrans-457
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用指令和库方法时，我们遇到的下一个问题是，它们通常不支持多GPU，除非特别编写为支持多GPU。因为通常你可以在工作站中安装最多四张GPU卡，所以这种方法有点像在标准四核CPU中只使用一个核心。支持多GPU配置的编程并不简单，但也不是无法实现的难题。我们在CudaDeveloper内部使用的库支持多GPU设置。它使得数据处理变得更加复杂，并需要更多的思考，但绝对是可以实现的。
 - en: The issue of how much you need to write yourself often is a question of performance.
     In using directives you trade a certain percentage of performance for quicker
     program development. Libraries, by comparison, may bring a significant speedup
@@ -3117,6 +3253,7 @@
   id: totrans-458
   prefs: []
   type: TYPE_NORMAL
+  zh: 如何判断你需要自己编写多少代码，通常是一个性能问题。使用指令时，你需要在程序开发速度和一定的性能之间做出权衡。与此相比，库可能会带来显著的加速，同时减少开发工作量，但也可能牺牲灵活性并带来许可问题。许多库在商业使用上有一定的限制，这反映出，如果你打算通过使用库来避免自己开发的成本，那么你应该准备好为这种特权付费。对于学术用途，通常只需简单地承认贡献即可。
 - en: Thus, there are a number of reasons why you might chose to develop your own
     kernels in CUDA. This text provides good insight to the issues of developing kernels
     using CUDA. The basic principles (coalesced memory access, fully utilizing the
@@ -3126,6 +3263,7 @@
   id: totrans-459
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，你可能选择在CUDA中开发自己的内核的原因有很多。这篇文章很好地揭示了使用CUDA开发内核的相关问题。基本原则（合并内存访问、充分利用硬件、避免资源争用、理解硬件限制、数据局部性）适用于你自己编写内核，还是将内核抽象成别人解决的问题。
 - en: We’ve covered in this section some of the NVIDIA-provided libraries. If you
     are working in a field that these cover, why would you not chose to use such libraries?
     They are developed by the manufacturer to run well on their hardware. They are
@@ -3137,6 +3275,7 @@
   id: totrans-460
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节中我们已经介绍了一些NVIDIA提供的库。如果你所从事的领域涵盖了这些库，为什么不选择使用这些库呢？它们是由制造商开发的，能够在他们的硬件上运行得很好。它们被设计为更复杂算法的基本构建模块。NVIDIA的许可条款非常慷慨，因为他们希望人们使用这些库并构建CUDA应用程序。考虑到CUDA的更广泛应用意味着更多GPU的销售，这并不令人惊讶，当然，越是精通CUDA，你的知识也就越有价值。
 - en: The question is really does this bring you sufficient level of performance?
     Most people program in a high-level language because it’s much more productive
     than something like Assembler. The better programmers out there understand both
@@ -3147,6 +3286,7 @@
   id: totrans-461
   prefs: []
   type: TYPE_NORMAL
+  zh: 问题其实在于，这样做能否带来足够的性能水平？大多数人使用高级语言编程，因为它比汇编语言更具生产力。优秀的程序员通常会非常熟悉C语言和汇编语言。他们知道何时应该使用C语言以提高生产力，也知道在某些情况下需要用汇编语言手动编写少量函数。使用库/指令的问题在本质上是类似的。你可以自己编写所有代码，但除非必须，为什么要让自己的生活变得这么艰难呢？
 - en: When developing applications for GPUs, a good approach is to first get a prototype
     working on the CPU side. Consider how you’d like to make that CPU version multicore
     aware and if it would benefit the application. What will be the CPU/GPU work balance?
@@ -3156,18 +3296,21 @@
   id: totrans-462
   prefs: []
   type: TYPE_NORMAL
+  zh: 在为GPU开发应用程序时，一个好的方法是首先在CPU端实现一个原型。考虑如何使CPU版本支持多核，并思考这是否会对应用程序有所帮助。CPU/GPU之间的工作平衡如何？如果需要线程，如何在CPU端创建线程？然而，至少在初期，还是坚持使用单个CPU线程和单个GPU，但从一开始就要考虑你最终希望达到的目标。
 - en: Now think about the host/device transfers. The transfer-compute-transfer model
     will usually (depending on the ratios) underutilize the GPU. To some extent we
     can overlap transfer/compute depending on the hardware you have to support.
   id: totrans-463
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在考虑主机/设备之间的传输。传输-计算-传输模型通常会（根据比率的不同）未充分利用GPU。根据你所支持的硬件，某种程度上我们可以重叠传输和计算。
 - en: Next think about the memory hierarchy within the GPU. What locality (registers,
     shared, cache, constant, texture) are you going to exploit on the GPU? What data
     layout do you need for these various types of data stores?
   id: totrans-464
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来思考GPU内存层次结构。你将如何在GPU上利用哪些局部性（寄存器、共享内存、缓存、常量、纹理）？你需要为这些不同类型的数据存储设计什么样的数据布局？
 - en: Now think about the kernel design. The decomposition into threads and blocks
     has implications in terms of the amount of interthread/interblock communication
     and resource usage. What serialization or contention issues are you likely to
@@ -3175,12 +3318,14 @@
   id: totrans-465
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在考虑内核设计。将其分解为线程和块在跨线程/跨块通信和资源使用方面有着重要影响。你可能会遇到哪些序列化或竞争问题？
 - en: Once you have a working CPU/GPU application, profile it and get it working as
     efficiently as you can. At this stage keep a very close eye on correctness, preferably
     through some back-to-back automated tests.
   id: totrans-466
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦你有了一个可用的CPU/GPU应用程序，进行性能分析并使其尽可能高效地运行。在这一阶段，保持对正确性非常关注，最好通过一些前后对比的自动化测试来确保。
 - en: This brings us then to the issue of efficiency of the kernel implementation
     and where you need to consider the CUDA/libraries/directives choice. Given the
     plan of how you’d like to use the GPU, how does your choice here affect your ability
@@ -3189,6 +3334,7 @@
   id: totrans-467
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就引出了内核实现效率的问题，以及你需要考虑CUDA/库/指令选择的问题。根据你计划如何使用GPU，你在此做出的选择会如何影响你的能力？你选择使用我们的CUDA/库/指令是在积极还是消极地影响性能？影响的百分比是多少？
 - en: Consider shared memory as an example. OpenACC has a `cache` qualifier that instructs
     the compiler to place and hold this data in shared memory, a resource it may otherwise
     ignore or use depending on the compiler vendor. Libraries rarely expose shared
@@ -3199,6 +3345,7 @@
   id: totrans-468
   prefs: []
   type: TYPE_NORMAL
+  zh: 以共享内存为例。OpenACC有一个`cache`限定符，指示编译器将数据放入并保存在共享内存中，这是一个它可能会忽略或根据编译器供应商的不同而使用的资源。库通常不会直接暴露共享内存，但内部通常会非常高效地使用它，并且通常会记录这一点。较新的硬件可能有不同的实现。例如，Kepler可以将共享内存配置为32位或64位宽，这意味着许多金融和其他应用程序可能会从这种优化中受益匪浅。
 - en: Can you make use of such significant optimizations? If you are reliant on the
     directive vendor or library developer to do this, what level of support will they
     provide and how long might this take? If the library was written by a student
@@ -3209,6 +3356,7 @@
   id: totrans-469
   prefs: []
   type: TYPE_NORMAL
+  zh: 你能利用这些显著的优化吗？如果你依赖指令供应商或库开发者来实现这一点，他们会提供什么样的支持，可能需要多长时间？如果这个库是由一个学生作为其论文工作的一部分编写的，除非你或其他人愿意维护它，或者你支付某人来维护，否则它将不会更新。如果你需要的功能是指令供应商认为没有广泛需求的，那么他们不太可能为你的应用开发这个功能。
 - en: When you have an efficient single-CPU/single-GPU implementation, move it to
     a multicore/multi-GPU solution as appropriate for your workload. For GPU-dominated
     workflow where the CPU is underutilized, the simple single-CPU core controls and
@@ -3220,6 +3368,7 @@
   id: totrans-470
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你有一个高效的单CPU/单GPU实现时，根据你的工作负载，将其移到多核/多GPU解决方案中。对于GPU主导的工作流，CPU未被充分利用时，简单的单CPU核心控制和全GPU异步模型就能很好地工作。若CPU核心也被加载，使用多个线程，每个线程一个GPU会如何帮助？对于CPU负载未充分利用的情况，多核CPU是否能做一些有用的工作？最佳设计是最有效地利用你现有的资源来解决给定问题。
 - en: Moving to a multithread/multi-GPU approach may be a painless or very painful
     experience. Your GPU global memory data is now split over multiple GPUs’ memory
     spaces. What inter-GPU communication is now needed? The P2P model, if supported,
@@ -3229,6 +3378,7 @@
   id: totrans-471
   prefs: []
   type: TYPE_NORMAL
+  zh: 转向多线程/多GPU方法可能是一个无痛或非常痛苦的过程。你的GPU全局内存数据现在被拆分到多个GPU的内存空间中。现在需要什么样的GPU间通信？如果支持P2P模型，这通常是进行此类通信的最佳方法。另一种选择是由主机来协调或传输数据。让单个CPU协调*N*个GPU可能比让多个CPU线程协调这些GPU更简单。
 - en: How well do your directives or libraries support a multi-GPU approach? Are they
     thread safe, or do they maintain an internal state assuming there will only be
     one instance or CPU thread? What support is there for exchanging data and concurrent
@@ -3237,6 +3387,7 @@
   id: totrans-472
   prefs: []
   type: TYPE_NORMAL
+  zh: 你的指令或库对多GPU方法的支持如何？它们是线程安全的吗？还是它们保持一个内部状态，假设只有一个实例或CPU线程？它们对交换数据和并发操作的支持如何？你是否被迫按顺序发送或接收每个GPU的数据，还是可以执行*N*个同时传输？
 - en: When selecting tools or libraries, consider how mature they are and for what
     purpose they were written. How do you debug the code when it goes wrong, as it
     inevitably will? Are you left on your own to figure out the issue or is there
@@ -3246,6 +3397,7 @@
   id: totrans-473
   prefs: []
   type: TYPE_NORMAL
+  zh: 选择工具或库时，考虑它们的成熟度以及它们的编写目的。当代码出错时，你如何调试它，因为错误是不可避免的？你是自己解决问题，还是有提供支持来修复bug、功能请求等？它们是什么时候编写的，在哪种GPU上运行最佳？它们是否针对不同的GPU世代进行了优化，或者是否考虑了这些差异？
 - en: By thinking about your design in advance and realizing where you’d like to end
     up, you can decide what sort of software/tools you will need at the outset. You
     may be able to prototype a solution with one approach, but may ultimately have
@@ -3255,11 +3407,13 @@
   id: totrans-474
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过提前思考设计，并意识到你希望最终实现的目标，你可以在一开始就决定需要哪些软件/工具。你也许可以通过某种方法原型化一个解决方案，但最终可能还是需要使用CUDA来达到你期望的性能和效率。软件开发中没有神奇的“灵丹妙药”。你必须思考设计，规划如何实现它，并理解某些方法能够带你多远。
 - en: Conclusion
   id: totrans-475
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 结论
 - en: We have looked at a number of approaches to development of code for the GPU
     in this chapter. What appeals to you will largely depend on your background and
     how comfortable and experienced you currently are with CUDA. I specifically encourage
@@ -3268,6 +3422,7 @@
   id: totrans-476
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们已经看了多种针对GPU开发的不同方法。你选择的方案很大程度上取决于你的背景，以及你目前对CUDA的熟悉程度和经验。我特别鼓励你查看NVIDIA提供的库，因为它们覆盖了许多常见问题，且涵盖面非常广。
 - en: We have looked at a number of the nondomain-specific examples in the SDK, specifically
     because everyone can follow and benefit from looking at these. There are many
     domain-specific examples in the SDK. I encourage you to explore these as, with
@@ -3276,6 +3431,7 @@
   id: totrans-477
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经看了SDK中的一些非特定领域的例子，特别是因为每个人都可以通过这些例子获益。SDK中还有许多特定领域的例子。我鼓励你去探索这些例子，因为在现在对CUDA有了较好的理解后，你将能从这些例子中获得更多的启发。
 - en: I hope you have seen from this chapter that writing everything yourself in CUDA
     is not the *only* option. Significant productivity gains can be made by the use
     of libraries. Directives also allow a much higher level of programming that many
@@ -3285,3 +3441,4 @@
   id: totrans-478
   prefs: []
   type: TYPE_NORMAL
+  zh: 我希望你已经从这一章中看出，在CUDA中自己编写所有内容并不是*唯一*的选择。通过使用库，可以显著提高生产力。指令还允许更高层次的编程，许多人可能更倾向于这种方式，而不是更低级的CUDA方法。人们根据各种原因做出不同的选择。了解对你来说关键的标准是什么，并据此选择。

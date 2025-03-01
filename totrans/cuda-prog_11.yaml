@@ -1,35 +1,49 @@
 - en: Chapter 11
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 第11章
 - en: Designing GPU-Based Systems
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 设计基于GPU的系统
 - en: Introduction
+  id: totrans-2
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 引言
 - en: Server environments are typically large, specially air conditioned rooms, often
     sealed against the excessive noise they generate. They consume hundreds of kilowatts
     to many megawatts of power. Typically, the computers are arranged by 1U, 2U, or
     4U nodes, which slot into a large rack unit. These racks are often interconnected
     using a high-speed interconnect, such as InfiniBand, as shown in [Figure 11.1](#F0010).
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 服务器环境通常是大型的、专门空调的房间，通常隔音，以减少它们产生的噪音。它们消耗数百千瓦到数兆瓦的电力。通常，计算机按1U、2U或4U节点排列，并插入一个大型机架单元。这些机架通常使用高速互联（如InfiniBand）互连，如[图11.1](#F0010)所示。
 - en: '![image](../images/F000119f11-01-9780124159334.jpg)'
+  id: totrans-4
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-01-9780124159334.jpg)'
 - en: FIGURE 11.1 Typical high-performance computing (HPC) setup.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.1 典型的高性能计算（HPC）设置。
 - en: Each node is connected to every other node within a given server by a high-speed
     switch. This can be something as simple as gigabit Ethernet. Most motherboards
     ship with two gigabit Ethernet ports, allowing one internal and one external connection
     per node. All the external connections go to a common switch, which itself sits
     on a high-speed backbone network such as InfiniBand.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 每个节点都通过高速交换机与给定服务器中的其他节点连接。这可以是简单的千兆以太网。大多数主板配备两个千兆以太网端口，每个节点可以有一个内部和一个外部连接。所有外部连接都连接到一个公共交换机，交换机本身连接到如InfiniBand这样的高速骨干网络。
 - en: 'This arrangement has one very interesting property: Communication from one
     node to another within the server rack may be considerably faster than communication
     with a node in another server rack. This type of arrangement leads to a nonuniform
@@ -37,54 +51,75 @@
     transition. You can simply choose to ignore the problem, but this leads to poor
     performance. You need to think about where the data resides and what data sharing
     is needed between nodes.'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种布局有一个非常有趣的特性：在服务器机架内，一个节点与另一个节点之间的通信速度可能远远快于与其他机架中的节点通信。这种布局导致了非一致性内存访问（NUMA）架构。作为程序员，你需要处理这种转变。你可以选择忽略这个问题，但这会导致性能差。你需要考虑数据存放的位置以及节点间需要共享的数据。
 - en: If you look at a multi-GPU system, you will see it’s actually quite similar
     to a single-server box shown in [Figure 11.1](#F0010). Instead of a gigabit Ethernet
     connection between nodes, each node is a GPU card that is connected to a central
     PCI-E bus. Each group of GPU cards make up a much more powerful node, which is
     connected via a high-speed link to other such nodes, as shown in [Figure 11.2](#F0015).
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你观察一个多GPU系统，你会发现它实际上与[图11.1](#F0010)中展示的单一服务器机箱非常相似。不同之处在于，节点之间不是通过千兆以太网连接，而是每个节点都是一块GPU卡，并通过中央PCI-E总线连接。每组GPU卡构成一个更强大的节点，通过高速链路与其他类似节点连接，如[图11.2](#F0015)所示。
 - en: '![image](../images/F000119f11-02-9780124159334.jpg)'
+  id: totrans-9
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-02-9780124159334.jpg)'
 - en: FIGURE 11.2 GPU HPC setup.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.2 GPU高性能计算（HPC）设置。
 - en: Notice in the figure a total of seven GPUs within a single node. In practice,
     this is only possible using specialist racks or liquid-cooled GPU systems. One
     such example we built at CudaDeveloper is shown in [Figure 11.3](#F0020).
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意图中的单个节点内共有七个GPU。实际上，这只有在使用专业机架或液冷GPU系统时才可能实现。我们在CudaDeveloper构建的一个示例如[图11.3](#F0020)所示。
 - en: '![image](../images/F000119f11-03-9780124159334.jpg)'
+  id: totrans-12
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-03-9780124159334.jpg)'
 - en: FIGURE 11.3 3x GTX290 (6 GPUs) liquid-cooled machine built at CudaDeveloper.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.3 展示了在CudaDeveloper构建的3x GTX290（6个GPU）液冷机。
 - en: Most GPU cards are dual-slot cards, with the exception of some of the older
     G80-based systems. Most motherboards support only up to a maximum of four PCI-E
     slots, meaning for any air-cooled system you are limited to four GPUs per node
     if you have a desktop form factor. Given that each Kepler series card is on the
     order of 3 teraflops of processing power, that’s 12 teraflops on the desktop,
     not in a remote server room.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数GPU卡都是双插槽卡，除了部分较旧的G80系列系统。大多数主板最多只支持四个PCI-E插槽，这意味着对于任何空气冷却系统，如果是桌面形式的，你每个节点只能使用四个GPU。鉴于每张Kepler系列卡的处理能力大约是3
+    TeraFlops，这就意味着在桌面上你能达到12 TeraFlops，而不是在远程服务器机房。
 - en: One of the main issues limiting the use of high-speed computing these days is
     power and heat. As the clock rate increases, so does the heat generated. As the
     heat goes up, the power consumed for the same clock rate also rises. The thermal
     envelope is exceeded at just over 212°F (100°C) for Fermi devices. A system with
     more than two GPUs next to one another can easily start to rapidly climb toward
     this threshold if there is poor airflow.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 目前限制高性能计算使用的主要问题之一是功率和热量。随着时钟频率的提高，产生的热量也会增加。热量上升时，相同时钟频率下消耗的功率也会增加。对于Fermi设备来说，热封装极限在约212°F（100°C）时就会被超越。如果系统中有两个以上的GPU并排放置，且空气流通不良，温度很容易迅速接近这个阈值。
 - en: Hold your hand behind the exhaust of a modern GPU and it’s somewhat like putting
     your hand near a hair dryer. Multiply this four times and very rapidly most small
     offices find they have a nice heating system included with their teraflop workstation
     free of charge.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 将手放在现代GPU的排气口后面，感觉就像将手靠近吹风机一样。将这个情况重复四次，很快大多数小型办公室会发现他们的TeraFlop工作站附带了一个不错的免费供热系统。
 - en: The 580 series Fermi cards (GF110) introduced a much better vapor chamber cooling
     system later dropped on the GTX680 due to the lower heat output. With this, hollow
     copper pipes contain a liquid that quickly takes the heat away to the cooling
@@ -96,72 +131,117 @@
     are. A typical 480/580 series card can draw up to 250 W per card. Thus, a four-card
     system is easily exceeding 1 kW per node. The Kepler GTX680 comes in at just under
     200 W per card with the dual GTX690 managing to come in at under 300 W.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 580 系列 Fermi 卡（GF110）引入了一个更好的蒸汽腔散热系统，后来由于热输出较低而在 GTX680 上取消。通过这种设计，中空铜管内含有液体，迅速将热量带走并传递给散热鳍片和风扇。这与液冷系统非常相似，唯一的不同是热量依然需要通过风扇从鳍片中散发出来，且风扇位于
+    GPU 卡的小范围内。保持 GPU 更冷意味着更低的功耗和更少的热量产生。然而，基于空气的散热方式有其极限，最终将限制 GPU 的显著增长。典型的 480/580
+    系列卡每张卡最大功耗可达 250 W。因此，四卡系统轻松超过每节点 1 kW。Kepler GTX680 每卡功耗不到 200 W，双 GTX690 的功耗则控制在
+    300 W 以下。
 - en: However, the GPU is not the only component in a typical high-speed workstation
     or server. We’ll look at each one of these in turn and see how they impact the
     system design. The key aspect to remember in designing any system is the slowest
     component will limit the overall throughput no matter what speed GPUs you have.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，GPU 并不是典型高性能工作站或服务器中的唯一组件。我们将逐一查看这些组件，并了解它们如何影响系统设计。设计任何系统时，记住一个关键点：最慢的组件将限制整体吞吐量，无论你使用的是何种速度的
+    GPU。
 - en: CPU Processor
+  id: totrans-19
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: CPU 处理器
 - en: 'The choice of processor is primarily one between Intel and AMD. Ignoring obsolete
     processors, you have a choice today of the Intel I7 series or the AMD Phenom series.
     Note, the Sandybride socket 1156/1155 designs are not considered here due to the
     limited PCI-E lanes provided. Looking at these options, we have:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 处理器的选择主要是在英特尔和 AMD 之间做出决定。忽略过时的处理器，目前你可以选择英特尔 I7 系列或 AMD Phenom 系列。需要注意的是，由于提供的
+    PCI-E 通道有限，Sandybridge Socket 1156/1155 的设计不在考虑范围内。根据这些选项，我们有：
 - en: 'Intel I7 Nehalem (Socket 1366; [Figure 11.4](#F0025)):'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 英特尔 I7 Nehalem（Socket 1366；[图 11.4](#F0025)）：
 - en: • 4 to 6 Cores
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: • 4 到 6 核心
 - en: • QPI-based DDR-3 triple-bank memory interface
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: • 基于 QPI 的 DDR-3 三通道内存接口
 - en: • 125 W thermal design
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: • 125 W 热设计功耗
 - en: • 36 PCI-E 2.0 Lanes
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: • 36 PCI-E 2.0 通道
 - en: '![image](../images/F000119f11-04-9780124159334.jpg)'
+  id: totrans-26
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-04-9780124159334.jpg)'
 - en: FIGURE 11.4 Typical I7 Nehalem layout.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.4 典型 I7 Nehalem 布局。
 - en: Intel I7 Sandybridge-E (Socket 2011)
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 英特尔 I7 Sandybridge-E（Socket 2011）
 - en: • 4 to 6 Cores (up to 8 on the Xeon variant)
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: • 4 到 6 核心（Xeon 版本最多可达 8 核心）
 - en: • QPI-based DDR-3 quad-bank memory interface
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: • 基于 QPI 的 DDR-3 四通道内存接口
 - en: • 130 W thermal design
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: • 130 W 热设计功耗
 - en: • 40 PCI-E 2.0 Lanes
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: • 40 PCI-E 2.0 通道
 - en: AMD Phenom II / FX
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: AMD Phenom II / FX
 - en: • Hypertransport-based DDR-2/DDR-3 memory interface
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: • 基于超传输的DDR-2/DDR-3内存接口
 - en: • 125 W thermal design
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: • 125 W热设计功耗
 - en: • 42 PCI-E 2.0 Lanes
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: • 42个PCI-E 2.0通道
 - en: Performance wise, the Intel parts are typically faster than the AMD parts for
     a similar number of cores and clock speed. Price wise, the AMD part is significantly
     cheaper Low Power versions are also available and are certainly attractive for
@@ -170,26 +250,35 @@
     GPUs per node, which may be an issue. The Sandybridge-E platform is significantly
     faster than either of the other solutions, but brings a significant price premium
     both in terms of processor and motherboard.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 从性能角度来看，英特尔处理器通常在相似的核心数和时钟速度下比AMD处理器更快。从价格来看，AMD处理器明显更便宜，同时也有低功耗版本，适用于长时间运行的机器，确实具有吸引力。然而，支持四个或更多PCI-E插槽的主板选择有限，这意味着你可能不得不在每个节点上安装更少的GPU，这可能会成为问题。Sandybridge-E平台明显比其他解决方案更快，但在处理器和主板方面都带来了显著的价格溢价。
 - en: You typically allocate one thread core per GPU in applications that require
     significant CPU involvement. This gives the opportunity to fix a thread or process
     to a physical core. Unless you have more than four GPUs, or you have significant
     extra workload for a CPU core, the additional two cores in the hex core device
     may well be wasted. The I7 in this instance is a clear winner on the performance
     side. However, with six GPUs, slotting in a six-core device may well prove advantageous.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 在需要显著CPU参与的应用程序中，通常会为每个GPU分配一个线程核心。这使得你有机会将一个线程或进程固定到物理核心上。除非你有超过四个GPU，或者CPU核心的额外负载很大，否则六核设备中的额外两个核心可能会被浪费。在这种情况下，I7在性能方面显然更具优势。然而，如果你有六个GPU，插入一个六核设备可能会带来优势。
 - en: One other alternative is the recently released IvyBridge based Intel processor
     line. This supports PCI-E 3.0 standard. With the socket 2011 Ivybridge-E scheduled
     for release late 2012 this will finally bring a PCI-E 3.0 solution with enough
     PCI-E lanes for GPU based computing.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个选择是最近发布的基于IvyBridge的英特尔处理器系列。该系列支持PCI-E 3.0标准。随着2012年末发布的Socket 2011 Ivybridge-E，这将最终带来一个PCI-E
+    3.0解决方案，提供足够的PCI-E通道用于GPU计算。
 - en: GPU Device
+  id: totrans-40
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: GPU设备
 - en: The GPU in a GPU machine is obviously the most important consideration in any
     design. GPUs change generations about every 12–24 months, a slightly faster rate
     than the CPU side. So far we’ve seen an approximate doubling of GPU performance
@@ -198,8 +287,12 @@
     core go. As long as there is sufficient parallelism in the problem domain, GPUs
     should continue this scaling for quite a few years to come, mirroring the multicore
     growth seen in CPUs.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 机器中的 GPU 显然是任何设计中最重要的考虑因素。GPU 的更替周期大约为 12–24 个月，比 CPU 的更新速度略快。截至目前，我们已经看到
+    GPU 性能大约每 18–24 个月翻一番，完全符合摩尔定律，至少现在是这样。CPU 也经历了许多年这种更新换代，但单核的速度提升是有极限的。只要问题领域中存在足够的并行性，GPU
+    应该能够继续保持这种扩展趋势，至少在未来几年内会像 CPU 的多核增长一样持续下去。
 - en: So what are the major considerations of a GPU? First, there is no point in having
     the last generation of hardware. With a doubling of performance in every major
     hardware generation for approximately the same power budget, there is little point
@@ -207,43 +300,67 @@
     Going from 2 minutes to 1 minute is no big deal, but from 10 hours to 5 hours,
     or 10 days to 5 days can make a huge difference, both in terms of usability and
     power and space budget.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，GPU 的主要考虑因素是什么呢？首先，使用上一代硬件是没有意义的。每一代硬件性能翻倍，并且大约在相同的功耗预算下，除非你已经拥有足够的性能，否则没有理由保留旧硬件。从
+    2 分钟到 1 分钟不算什么，但从 10 小时到 5 小时，或者从 10 天到 5 天则可能带来巨大的差异，无论是在可用性，还是在功率和空间预算方面。
 - en: 'The GPU market is driven by the gamers—thank them, for they have brought parallel
     hardware to the masses at commodity prices. GPU hardware is split into two major
     areas, the gaming GPUs and the server GPUs. NVIDIA provides the Tesla range of
     GPUs for the server and workstation market with a number of key advantages over
     their desktop cousins:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 市场由游戏玩家驱动——感谢他们，因为正是他们将平行硬件以普通价格带给了大众。GPU 硬件主要分为两大类：游戏 GPU 和服务器 GPU。NVIDIA
+    提供了 Tesla 系列 GPU，面向服务器和工作站市场，相比于桌面版本，它们有一些关键优势：
 - en: • Large memory support
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: • 大内存支持
 - en: • ECC memory support (Fermi onward)
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: • ECC 内存支持（Fermi 及之后）
 - en: • Tesla compute cluster driver
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: • Tesla 计算集群驱动程序
 - en: • Higher double-precision math
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: • 更高的双精度计算能力
 - en: • Large memory bus width
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: • 大内存总线宽度
 - en: • SMI (system management interrupt)
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: • SMI（系统管理中断）
 - en: • Status LEDs
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: • 状态 LED
 - en: Let’s look at what these are and why they are important for the server market.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们看看这些因素是什么，以及它们为何对服务器市场如此重要。
 - en: Large memory support
+  id: totrans-52
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 大内存支持
 - en: Shipping data onto and off of a GPU is slow. You have, at best, a 5 GB/s bidirectional
     PCI-E bus (10 GB/s total) bandwidth to the main CPU memory. The larger the memory
     on the GPU, the more data you can leave on the GPU. This avoids the need to transfer
@@ -252,12 +369,18 @@
     memory space, allowing GPUs to have up to 6 GB of memory. Given a maximum 4 GPUs
     per CPU, that is a total of 24 GB of RAM, easily within the limit on memory size
     you’ll find on most server boards.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 将数据传输进出GPU的速度较慢。最多你只能通过5 GB/s的双向PCI-E总线（总计10 GB/s带宽）与主CPU内存进行数据传输。GPU上的内存越大，你可以在GPU上保留的数据就越多，这样就不需要频繁地进行数据传输。Tesla显卡通常配备4
+    GB到6 GB的内存。随着Fermi架构的推出，我们终于摆脱了32位内存空间的限制，允许GPU拥有最多6 GB的内存。考虑到每个CPU最多支持4个GPU，这样总共有24
+    GB的内存，这完全在大多数服务器主板的内存大小限制内。
 - en: ECC memory support
+  id: totrans-54
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: ECC内存支持
 - en: ECC memory is a special type of memory used in server environments, or where
     the memory may be subject to corruption. With large amounts of electromagnetic
     interference, it’s possible that memory cells may be changed to some random value
@@ -267,43 +390,57 @@
     racks generates a significant amount of electronic noise. For years now, servers
     on the CPU side have used ECC. ECC can both detect and correct errors found within
     the memory, making it ideal for this type of environment.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: ECC内存是一种特殊类型的内存，通常用于服务器环境，或是那些内存可能会遭到损坏的地方。在有大量电磁干扰的情况下，常规内存中的内存单元可能会被更改为随机值。设备周围的电子元件密度越高，产生的电磁辐射就越强，错误率也会越高。将大量GPU放入机架中，并将机架放置在其他几个机架旁边，会产生大量的电子噪声。多年来，CPU端的服务器都在使用ECC内存。ECC内存能够检测并修正内存中的错误，因此非常适合这种环境。
 - en: Memory corruption of the data on the GPU doesn’t generally matter for gamers
     and would usually go entirely unnoticed. It may result in an odd pixel, or a strangely
     appearing object. However, as the frame buffer is typically redrawn 50 to 60 times
     a second, completely from scratch, it’s very hard to see any single pixel getting
     corrupted.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GPU上，数据的内存损坏通常对玩家来说并不重要，通常不会被察觉。它可能表现为一个奇怪的像素，或一个异常出现的物体。然而，由于帧缓冲区通常每秒会从头开始重绘50到60次，因此很难看到任何单个像素被损坏。
 - en: When you shift this to the compute world, however, corruption of the data memory
     means the wrong answer for one or more elements in the output dataset, which is
     clearly not acceptable. You can tackle this in a number of ways, either using
     ECC or running every calculation twice to check the result. The latter choice
     requires you to double up on the hardware, which effectively means twice the initial
     investment and twice the operating costs—a less-than-optimal solution.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，当你转向计算领域时，数据内存的损坏意味着输出数据集中一个或多个元素的错误结果，这显然是不可接受的。你可以通过多种方式解决这个问题，要么使用ECC，要么将每个计算重复进行两次以检查结果。后者需要你双倍配置硬件，这实际上意味着初始投资和运营成本都将翻倍——这显然不是最优的解决方案。
 - en: Tesla compute cluster driver (TCC)
+  id: totrans-58
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: Tesla计算集群驱动程序（TCC）
 - en: This is a Tesla-only supported driver. The Tesla cards have no graphics output
     and are designed for compute only. There is a considerable overhead and latency
     on the kernel calls due to the need to support the graphics interface. By removing
     this, the TCC drivers produce a significant increase in performance over the standard
     GeForce driver. There are also certain parts of the hardware that are enabled
     only on Tesla devices, such as ECC and dual PCI-E copy engines.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是仅支持Tesla的驱动程序。Tesla显卡没有图形输出，专为计算而设计。由于需要支持图形接口，内核调用存在相当大的开销和延迟。通过去除这一点，TCC驱动程序相较于标准GeForce驱动程序提供了显著的性能提升。某些硬件部分仅在Tesla设备上启用，例如ECC和双PCI-E复制引擎。
 - en: The TCC driver is included in the standard NVIDIA driver download package, but
     can only be enabled on Tesla-based hardware.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: TCC驱动程序包含在标准的NVIDIA驱动程序下载包中，但只能在基于Tesla的硬件上启用。
 - en: Higher double-precision math
+  id: totrans-61
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 更高的双精度运算性能
 - en: As most games have very little, if any, double-precision math present, the Fermi
     range of cards comes with one of the two double-precision units within each SM
     disabled. Thus, the standard GeForce Fermi cards have around half of the double-precision
@@ -311,19 +448,26 @@
     and in many cases faster on the GeForce cards due to the higher clock rates. However,
     if double precision is important in your application, as it is in many financial
     applications, it makes sense to install only Telsa-based GPUs.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于大多数游戏几乎不涉及双精度运算（如果有的话），Fermi系列显卡在每个SM中禁用了两个双精度单元之一。因此，标准的GeForce Fermi显卡的双精度性能大约只有相同型号Tesla显卡的一半。单精度性能相当，且由于较高的时钟频率，GeForce显卡在许多情况下表现得更快。然而，如果在应用中双精度计算很重要，就像许多金融应用中一样，那么只安装基于Tesla的GPU是更为合适的选择。
 - en: Larger memory bus width
+  id: totrans-63
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 更大的内存总线宽度
 - en: The Tesla cards, being the top-end cards, are usually the ones with all the
     SMs enabled. NVIDIA charges much more for the server-level cards, so they can
     afford to “bin” the GPUs according to how many SMs are functional. Those with
     nonfunctional SMs can be sold as cheaper GeForce cards where having one or two
     SM units disabled make little difference to overall game performance.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: Tesla 卡通常是顶级卡片，通常是那些所有 SM 单元都启用的卡。NVIDIA 对服务器级卡收费较高，因此他们可以根据 SM 单元的功能状态对 GPU
+    进行“筛选”。那些 SM 单元不可用的卡可以作为更便宜的 GeForce 卡销售，其中一两个 SM 单元禁用对整体游戏性能几乎没有影响。
 - en: Having all the SMs enabled usually also means the full bus width is available
     for transfers to or from the global memory on the card. As memory bandwidth is
     often the single limiting factor in a lot of algorithms, having 512 bits as opposed
@@ -334,44 +478,65 @@
     a 20% improvement on memory bus bandwidth alone, not to mention the additional
     SM unit. The Kepler targeted for compute, the Tesla K20 model, will also have
     a 384 bit bus as compared with the 256 bit bus found on the GTX680.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 启用所有 SM 单元通常也意味着可以使用完整的总线宽度来进行与卡上的全局内存的传输。由于内存带宽常常是许多算法中的单一限制因素，因此将总线宽度从 448
+    位提升到 512 位会带来显著的差异。在较老的 G200 系列卡中，使用 285 卡而不是 275 卡可以通过额外的总线带宽带来显著的性能提升，尽管成本也有所增加。GeForce
+    480 和 580 卡也面临同样的问题，320 位与 384 位的比较，仅内存总线带宽就提升了 20%，更不用说额外的 SM 单元了。针对计算的 Kepler
+    架构，Tesla K20 型号与 GTX680 的 256 位总线相比，也将拥有 384 位总线。
 - en: SMI
+  id: totrans-66
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: SMI
 - en: SMI is a useful feature for remotely querying devices over a network. In a large
     data center you may have thousands of GPUs installed. There are already existing
     centrally managed solutions for CPU nodes and adding SMI support simply extends
     this to GPUs as well. Thus, the GPU has the capability to respond to a request
     and report a number of useful pieces of information to the central management
     system.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: SMI 是一个有用的功能，可以通过网络远程查询设备。在大型数据中心中，你可能安装了成千上万的 GPU。现有的中央管理解决方案已经适用于 CPU 节点，增加
+    SMI 支持只是将这一功能扩展到 GPU。因此，GPU 具备响应请求并向中央管理系统报告多项有用信息的能力。
 - en: Status LEDs
+  id: totrans-68
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 状态 LED
 - en: The Tesla cards have a number of LEDs on the back of the card that show the
     card’s status. With the exception of the GeForce 295 cards, these LEDs are not
     present on any standard GeForce card. They allow a technician to walk around an
     installation of GPUs and identify the GPU that is failing. In a data center with
     a thousand GPUs, being able to quickly see if any node has a problem is a huge
     benefit to the IT people looking at the system.
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: Tesla 卡的背面有多个 LED 灯，用于显示卡的状态。除了 GeForce 295 卡，其他任何标准 GeForce 卡上都没有这些 LED 灯。它们允许技术人员在
+    GPU 安装中走动并识别故障的 GPU。在一个拥有千个 GPU 的数据中心，能够快速看到是否有节点出现问题，对于 IT 人员来说是一个巨大的好处。
 - en: PCI-E Bus
+  id: totrans-70
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: PCI-E 总线
 - en: The Intel system uses the Northbridge/Southbridge chipset design. The Northbridge
     is basically a fast switch, connecting all the high-speed peripherals. The slower
     Southbridge handles all the mundane requests, like USB, mouse, keyboards, etc.
     On AMD-based systems, and also the later Intel designs, some aspects of the PCI-E
     bus controller are integrated into the CPU, rather than being a completely separate
     device.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: Intel 系统使用 Northbridge/Southbridge 芯片组设计。Northbridge 基本上是一个高速交换机，连接所有高速外设。较慢的
+    Southbridge 处理所有常规请求，如 USB、鼠标、键盘等。在基于 AMD 的系统以及后期的 Intel 设计中，PCI-E 总线控制器的某些功能被集成到
+    CPU 中，而不是作为完全独立的设备。
 - en: On the Intel I7 Nehalem systems, you get a total of 36 (40 on Sandybridge-E)
     lines of PCI-E bus bandwidth available. These are combined into groups of 16 lines
     to form a single PCI-E 2.0 X16 link. This is what the GPU will utilize, giving
@@ -379,39 +544,58 @@
     to two GPUs in full X16 mode. As you add more GPUs, the number of lanes, and thus
     the bandwidth allocated to each GPU, is reduced. With four GPUs, you’re running
     an X8 link, or 2 GB/s in either direction.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Intel I7 Nehalem 系统上，你可以获得总共 36 条（在 Sandybridge-E 上为 40 条）PCI-E 总线带宽。这些带宽被组合成
+    16 条一组，形成单一的 PCI-E 2.0 X16 链接。这正是 GPU 所使用的，提供每个方向 4 GB/s 的带宽。一颗 I7 或 AMD 处理器最多支持两块
+    GPU 以全 X16 模式运行。当你添加更多 GPU 时，每块 GPU 所分配的通道数和带宽都会减少。使用四个 GPU 时，你会运行一个 X8 链接，也就是每个方向
+    2 GB/s 的带宽。
 - en: Most motherboards do not support more than 4 PCI-E slots. However, some do,
     using a special NVIDIA multiplexer device (NF200) to multiplex up the number of
     lanes. Motherboards such as the ASUS supercomputer are an example. This board
     supports seven PCI-E slots.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数主板不支持超过 4 个 PCI-E 插槽。然而，有些主板通过使用专用的 NVIDIA 多路复用器设备（NF200）来增加通道数量。例如，ASUS
+    超级计算机就是一个例子。这款主板支持七个 PCI-E 插槽。
 - en: When designing a system, remember that other devices may also need to sit on
     the PCI-E bus. The six GPU workstations shown in [Figure 11.3](#F0020) also has
     a 24-channel PCI-E raid card in the last PCI-E slot. Other systems may use InfiniBand
     or gigabit Ethernet network cards in the spare PCI-E slots, so it’s not just GPUs
     that need to be considered.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 设计系统时，请记住其他设备也可能需要连接到 PCI-E 总线上。[图 11.3](#F0020) 中显示的六台 GPU 工作站的最后一个 PCI-E 插槽也插有一个
+    24 通道 PCI-E RAID 卡。其他系统可能在空余的 PCI-E 插槽中使用 InfiniBand 或千兆以太网网卡，因此不仅仅是 GPU 需要考虑。
 - en: PCI-E 3.0 is also now available on many motherboards. This will significantly
     boost the current bus bandwidth available to each GPU because the same number
     of lanes on PCI-E 3.0 equates to double that of PCI-E 2.0\. However, PCI-E 3.0
     is only supported on the Kepler line of graphics cards.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: PCI-E 3.0 现在也已在许多主板上提供。这将显著提升每个 GPU 可用的总线带宽，因为 PCI-E 3.0 上相同数量的通道相当于 PCI-E 2.0
+    的两倍。然而，PCI-E 3.0 仅在 Kepler 系列显卡上得到支持。
 - en: GeForce cards
+  id: totrans-76
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: GeForce 显卡
 - en: An alternative to the Tesla cards are the GeForce cards. The Tesla cards are
     aimed at the server and corporate market. If you are a student or an engineer
     learning CUDA on your own and do not have access to these cards through your company
     or university, a GeForce card is entirely suitable for developing CUDA code. If
     you are developing for the consumer market, clearly these are what you need to
     develop on.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: Tesla 显卡的替代品是 GeForce 显卡。Tesla 显卡主要面向服务器和企业市场。如果你是学生或工程师，自己学习 CUDA，且无法通过公司或大学获得这些显卡，那么
+    GeForce 显卡完全适合用于开发 CUDA 代码。如果你是为消费市场开发，显然这些显卡是你需要开发的设备。
 - en: The consumer cards vary primarily in terms of compute level. Currently, almost
     any card you purchase from the 400 or 500 series will contain a Fermi-class GPU.
     The 600 series cards are mostly Kepler based designs. If you specifically want
@@ -419,8 +603,12 @@
     series. The compute 1.1/1.2 cards are typically numbered in the 9000 series. Finally,
     the 8000 series are usually compute 1.0 cards, which are actually pretty difficult
     to program well compared with the more modern designs.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 消费者显卡的主要区别在于计算能力。目前，几乎任何你从 400 或 500 系列购买的显卡都包含 Fermi 类 GPU。600 系列显卡大多基于 Kepler
+    架构。如果你特别想要一款旧款显卡，上一代（计算能力 1.3）的显卡编号为 200 系列。计算能力 1.1/1.2 的显卡通常编号为 9000 系列。最后，8000
+    系列通常是计算能力 1.0 的显卡，实际上，与现代设计相比，这些显卡编程起来相对困难。
 - en: Within a generation of the cards, the cards vary by the number of SMs and the
     global memory present. You should purchase a card with at least 1 GB of memory.
     Currently, the largest memory capacity of a GeForce card is 4 GB. Be aware that
@@ -433,8 +621,11 @@
     as with anything, you get what you pay for. Thus, a card near the top end of the
     price scale for a given series (560, 570, 580, etc.) will typically be quieter
     than one at the very low end.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 在同一代显卡中，显卡的差异主要体现在SM数量和全局内存的大小。你应该购买至少拥有1 GB内存的显卡。目前，GeForce显卡的最大内存容量为4 GB。需要注意的是，大多数GPU显卡的噪音相较于通常安静的PC来说要大。如果噪音是你的顾虑，可以选择一款功率较低的显卡，或者选择带有定制散热器的显卡，例如MSI
+    Frozr系列。请注意，后来的500系列显卡通常比400系列显卡安静，因为它们基于一种改进版的硅芯片，降低了功耗和热量。基于Kepler架构的显卡相比500系列显卡，因产生的热量较少，通常会稍微安静一些。然而，正如所有产品一样，价格决定了性能。因此，对于某一系列的显卡来说，价格靠近上端的显卡（例如560、570、580等）通常会比最低端的显卡安静。
 - en: In terms of card design, almost all the cards produced are based on the standard
     NVIDIA layout. Thus, they are largely identical and vary in terms of brand, accessories,
     and software provided. The exceptions to this are the very high-end cards where
@@ -444,14 +635,19 @@
     that work reliably at a higher speed, typically a 10% overclock. Power circuitry
     has been redesigned to provide additional power to reliably drive the GPU to this
     specification.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 就显卡设计而言，几乎所有的显卡都基于标准的NVIDIA布局。因此，它们大体上是相同的，区别主要体现在品牌、附加配件和提供的软件上。唯一的例外是那些高端显卡，制造商在这些显卡上进行了创新。Gigabyte
+    SOC（Super OverClock）系列可能是这一创新的最佳代表。典型的单风扇散热器被三风扇散热器取代。GPU经过超频筛选，挑选出那些在较高速度下能可靠工作的芯片，通常是超频10%。电源电路经过重新设计，提供额外的电力，确保GPU能够稳定运行在这一规格下。
 - en: In terms of a low-end card, the GTX520/GTX610 is one of the cheapest cards at
     less than $50 USD, or around £30 or 35 Euros. It doesn’t require any special power
     connectors and will fit in just about any PC. It’s an ideal low-budget card to
     do some CUDA development on.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 就低端显卡而言，GTX520/GTX610是价格最低的显卡之一，售价不到50美元，约为30英镑或35欧元。它不需要任何特殊的电源连接器，几乎可以适配任何PC。它是进行CUDA开发的理想低预算显卡。
 - en: On the liquid cooling side, the Zoltac Infinity Edition card is perhaps the
     most useful in that it comes with a sealed and self-contained liquid cooling system,
     similar to some systems available for the CPU. As such, all you need to do is
@@ -460,31 +656,45 @@
     Point of View (POV) TGT Beast GTX580 Liquid cooled edition comes with 3 GB of
     RAM and a prefitted water block that can be easily connected to additional blocks.
     Pre-fitted liquid cooled cards are also available from EVGA, MSI and PNY.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 在液体冷却方面，Zoltac Infinity Edition 卡可能是最有用的，因为它配备了一个封闭且自给自足的液体冷却系统，类似于一些为 CPU 提供的系统。因此，你所需要做的就是将现有的排气风扇替换为提供的散热器和风扇。它适用于单卡解决方案，但不适合多
+    GPU 系统。Point of View (POV) TGT Beast GTX580 液冷版配备了 3 GB 的内存和一个预装的水冷块，可以轻松连接到额外的冷却块。EVGA、MSI
+    和 PNY 也提供预装液冷卡。
 - en: CPU Memory
+  id: totrans-83
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: CPU 内存
 - en: CPU memory may not seem like such a consideration. However, any transfer of
     data must come from somewhere and eventually return to the sender. At the maximum
     4 GB/s of PCI-E 2.0 bandwidth in both directions, each GPU card can use up to
     8 GB/s of memory bandwidth.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU 内存可能看起来并不是一个重要的考虑因素。然而，任何数据传输都必须有来源，并最终返回给发送者。在最大 4 GB/s 的 PCI-E 2.0 双向带宽下，每张
+    GPU 卡可以使用最多 8 GB/s 的内存带宽。
 - en: The amount of bandwidth you need depends a lot on your data structures and how
     much you can keep on the GPU cards. You may have a large input dataset but a tiny
     output dataset, or vice versa.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 你需要的带宽量很大程度上取决于你的数据结构以及你能在 GPU 卡上保留多少数据。你可能有一个大的输入数据集，但输出数据集很小，或者反之亦然。
 - en: Assuming a balanced dataset, having three GPU cards (total 24 GB/s peak bandwidth)
     can saturate the CPU memory bandwidth without the CPU itself actually doing any
     work. Four or more cards means you may need the server edition of the I7 Nehalem
     or the Sandybridge-E processor with the 6 GT/s QPI bus connector just to keep
     the cards supplied with data if your application has large input and output bandwidth
     requirements.
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设数据集是平衡的，拥有三张 GPU 卡（总共 24 GB/s 的峰值带宽）可以饱和 CPU 内存带宽，而 CPU 本身并不需要执行任何工作。四张或更多的卡意味着，如果你的应用程序有较大的输入和输出带宽需求，你可能需要使用
+    I7 Nehalem 或 Sandybridge-E 处理器的服务器版本，并配备 6 GT/s 的 QPI 总线连接器，以确保卡片有足够的数据供应。
 - en: Standard 1066/1333 MHz memory clocks will be a bottleneck on multi-GPU systems
     if there is a lot of data needing to be transferred. For applications that are
     primarily compute bound, it will make little difference. DDR-3 memory can be safely
@@ -495,20 +705,28 @@
     memory at 1066 MHz may also be sold as CL9 memory at 1333 MHz. As with most computer
     hardware, the higher the clock rate and the lower the response time, the more
     expensive the memory becomes.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果需要传输大量数据，标准1066/1333 MHz内存时钟会成为多GPU系统的瓶颈。对于主要依赖计算的应用，这几乎没有影响。DDR-3内存在I7平台上可以安全地超频到2
+    GHz，但在AMD平台上很少达到如此高的频率。官方上，两种设备都不支持超过1333 MHz的内存时钟。内存还配有特定的时序信息，有时缩写为CL7、CL8或CL9。这大致衡量的是对数据请求的响应时间。因此，同样的CL7内存在1066
+    MHz时可能也会以CL9内存在1333 MHz时出售。与大多数计算机硬件一样，时钟频率越高、响应时间越低，内存的价格就越贵。
 - en: Special memory DIMMs containing embedded information (Intel XMP) are available.
     With the appropriate motherboard support, they can automatically be used to safely
     clock the memory to an optimum rate. Of course, this certified memory, due to
     the licensing costs associated with such a brand, is more expensive than the noncertified
     memory that may in all other respects be identical.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 可用的特殊内存DIMMs包含嵌入式信息（Intel XMP）。在适当的主板支持下，它们可以自动安全地将内存时钟设置为最佳速率。当然，由于与这种品牌相关的许可费用，这种认证内存比未认证的内存更贵，尽管在其他方面可能完全相同。
 - en: Be aware, however, the higher the clock rate, the more heat and power is consumed.
     Memory devices are the same in this respect. Typically, you should budget for
     around 1 W of power per gigabyte of DDR-3 present on the motherboard.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，需要注意的是，时钟频率越高，消耗的热量和功率就越多。内存设备在这方面是相同的。通常，你应该为主板上每GB DDR-3内存预留大约1 W的功率预算。
 - en: As well as the speed of the memory, you need to consider the total capacity
     of memory you will likely need. The fastest transfers are achieved using page-locked
     memory, which is where a dedicated block of memory is allocated to each card in
@@ -517,13 +735,20 @@
     no monitor) a typical desktop configuration will use three Tesla cards and one
     dedicated graphics card. Thus, in terms of page-locked memory alone, you could
     need up to 18 GB of memory.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了内存的速度外，你还需要考虑你可能需要的总内存容量。最快的数据传输是通过页锁定内存实现的，这意味着系统中为每张卡分配一个专用内存块。使用Tesla卡时，你可能希望将最多6
+    GB的内存传输到卡上，达到卡的最大内存容量。由于Tesla卡是无头的（没有显示器），典型的桌面配置将使用三张Tesla卡和一张专用显卡。因此，仅就页锁定内存而言，你可能需要最多18
+    GB的内存。
 - en: The OS also needs around 1–2 gigabytes of memory for its own purposes. Around
     another 2 GB or so should be allocated to a disk cache. Thus, for a three-card
     Tesla system, you can see we need around 20 GB of memory.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 操作系统还需要大约1到2 GB的内存用于其自身的目的。大约再分配2 GB左右的内存作为磁盘缓存。因此，对于一台三卡特斯拉系统，你可以看到我们需要大约20
+    GB的内存。
 - en: 'However, the DDR3 memory system is typically a triple or quad bank on the Intel
     system and dual bank on the AMD system. Most Intel systems have between four and
     eight DIMMs, and most AMD systems have four DIMM sockets. You generally have to
@@ -532,31 +757,44 @@
     GB DIMMs. Thus, with four slots you typically find up to 16 GB/32 GB AMD systems
     and up to 16 GB/24 GB/32 GB/64 GB Intel systems. Note that 4 GB 32-bit systems
     are still the most common consumer-level platform.'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，DDR3内存系统通常是英特尔系统的三通道或四通道，AMD系统则是双通道。大多数英特尔系统有四到八个DIMM插槽，大多数AMD系统有四个DIMM插槽。通常，每个插槽都必须使用相同大小的内存：4
+    GB的DIMM现在相当常见，8 GB的DIMM也可以获得，但每GB的价格大约是4 GB DIMM的两倍。因此，四个插槽的系统通常可以支持16 GB/32 GB的AMD系统，最多支持16
+    GB/24 GB/32 GB/64 GB的英特尔系统。请注意，4 GB的32位系统仍然是最常见的消费级平台。
 - en: With non-Tesla cards, we typically have up to 2 GB memory capacity on the card,
     meaning the total footprint of memory we need to allocate to page-locked memory
     is much less. With four cards, we need just 8 GB. With the maximum of seven cards,
     we need 14 GB, well within the capacity you’d find on a typical high-end motherboard.
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于非特斯拉卡，我们通常卡上的内存容量最大为2 GB，这意味着我们需要分配到页锁定内存的总内存占用要小得多。对于四张卡，我们只需要8 GB内存。最多七张卡时，我们需要14
+    GB内存，这完全在典型高端主板的容量范围内。
 - en: Air Cooling
+  id: totrans-94
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 空气冷却
 - en: Heat and power are the bane of any system designer. As you increase the clock
     speed, the power needed increases, which in turn generates more heat. The hotter
     the device, the more power is required to drive the gates. The higher the clock
     speed, the more of a problem it becomes.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 热量和功率是任何系统设计师的噩梦。随着时钟频率的提升，所需的功率也会增加，进而产生更多的热量。设备越热，驱动门的功率需求就越大。时钟频率越高，这个问题就越严重。
 - en: CPU designers gave up pushing the 4 GHz limit some time ago and went down the
     parallel core route. Hardened overclockers will tell you they can run systems
     reliably at 4 GHz and beyond. However, the amount of heat generated and the power
     consumption is huge compared to the standard clock and power footprint of the
     device.
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU设计师早就放弃了推动4 GHz极限的做法，而是选择了并行核心的路线。经验丰富的超频玩家会告诉你，他们可以让系统在4 GHz甚至更高频率下稳定运行。然而，与设备的标准时钟频率和功率占用相比，产生的热量和功耗是巨大的。
 - en: GPUs have always drawn a lot of power and generated a lot of heat. This is not
     because they are inefficient, but because they contain so many cores on one device.
     A CPU has four cores typically, but up to 16 in some high-end server devices.
@@ -564,39 +802,53 @@
     you start to understand the problem. It’s arguable whether a fair comparison with
     CPU cores is at the SM level or at the CUDA core level. Whichever measure is used,
     the GPU devices end up with many times more cores than a CPU.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU一直消耗大量的电力并产生大量的热量。这并不是因为它们效率低下，而是因为它们在一个设备上集成了如此多的核心。一个CPU通常有四个核心，但在一些高端服务器设备中最多可以有16个核心。当你开始考虑顶级GPU拥有512个CUDA核心需要保持冷却时，你就会理解这个问题。是否在SM级别还是CUDA核心级别进行公平比较是值得讨论的。无论使用哪种衡量标准，GPU设备的核心数都远远超过CPU。
 - en: A retail CPU typically comes with a fairly basic heat sink and fan unit. They
     are low-cost, mass-produced units. Replace the standard heat sink and fan with
     an advanced one and the CPU temperature can easily drop by 20 degrees or more.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 零售版CPU通常配备相当基础的散热器和风扇单元。它们是低成本、大规模生产的单元。更换标准的散热器和风扇为先进型散热器后，CPU温度可以轻松降低20度以上。
 - en: GPUs come typically as a dual-height board (two PCI-E slots) with the top part
     being an air cooler. When taken apart, you can usually see quite a substantial
     cooler ([Figure 11.5](#F0030)).
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU通常为双高度板（两个PCI-E插槽），上部分为空气散热器。拆开后，你通常可以看到一个相当大的散热器（[图11.5](#F0030)）。
 - en: '![image](../images/F000119f11-05-9780124159334.jpg)'
+  id: totrans-100
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-05-9780124159334.jpg)'
 - en: FIGURE 11.5 Heat sink from a GTX295 (dual-GPU) board.
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.5 GTX295（双GPU）板的散热器。
 - en: The GeForce 580 design even features vapor chamber cooler, where the copper
     surface next to the GPU is filled with a liquid to aid transfer of heat from the
     GPU to the set of cooling fins. This is highly advanced technology just to cool
     a GPU. However, one of the problems you find is the GPUs’ coolers work well *only*
     when surrounded by cool air, but if you put one next to another and you will suffocate
     their air supply.
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: GeForce 580的设计甚至配备了蒸汽室散热器，其中位于GPU旁边的铜表面充满液体，帮助将热量从GPU传导到散热鳍片。这是一项非常先进的技术，仅用于冷却GPU。然而，你会发现其中一个问题是，GPU的散热器*只有*在周围有冷空气时才能发挥良好的效果，但如果你把它们放在一起，就会让它们的空气供应窒息。
 - en: Put four GPU cards in a standard PC case and it sounds like a hovercraft and
     does a good job replacing a storage heater. Unfortunately, it will most likely
     start to overheat after as little as 10 minutes once you start loading the GPUs.
     Overheating will eventually translate into errors in the calculations and operators
     who have to come to work in t-shirts and shorts.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果在标准PC机箱中放入四张GPU卡，它会像气垫船一样发出声音，并且在替代储热器方面表现出色。不幸的是，一旦开始加载GPU，它很可能会在不到10分钟的时间内开始过热。过热最终会导致计算错误，操作员不得不穿着T恤和短裤来工作。
 - en: The only way to run four GPUs with air cooling is either to feed in air conditioned
     air (costly) or to purchase special cards with custom coolers ([Figure 11.6](#F0035)).
     Most server environments do the former and the servers are kept in specially air
@@ -606,14 +858,22 @@
     your desk and expect the machine to be silent. With larger cases, motherboards
     such as the ASRock X58 Extreme6 work well due to the three-slot spacing of the
     PCI-E sockets, making a three-card air-cooled system a real possibility.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用空气冷却来运行四个显卡的唯一方法是将空调空气引入（成本较高），或者购买带有定制散热器的特殊显卡（[图 11.6](#F0035)）。大多数服务器环境选择前者，并且服务器通常会放在专门空调的服务器机房中。定制冷却方案则更适合办公室工作站使用。不过，这意味着你不能使用
+    Tesla 显卡，或者如果想要在桌旁放置一台安静的机器，你最多只能使用两张显卡并且两者之间保持间隔。对于更大的机箱，像 ASRock X58 Extreme6
+    这样的主板非常合适，因为其三槽间距的 PCI-E 插槽设计，使得三卡空气冷却系统成为一个实际的可能性。
 - en: '![image](../images/F000119f11-06-9780124159334.jpg)'
+  id: totrans-105
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-06-9780124159334.jpg)'
 - en: FIGURE 11.6 Four GPU air-cooled system (various consumer GPU cards).
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.6 四显卡空气冷却系统（各类消费级显卡）。
 - en: There are many review sites on the Internet that review the GeForce cards and
     almost all of them will measure the noise output of the cards. MSI, Gigabyte,
     and Gainward produce some very interesting cooling solutions for air-cooled GPUs.
@@ -621,71 +881,98 @@
     be avoided at all costs, as they are often far too noisy for usage next to a desk.
     Spending $20 USD more on a custom cooling solution will often make your life far
     quieter and keep the GPU far cooler, saving on running costs.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 互联网上有很多评测网站会对 GeForce 显卡进行评测，几乎所有的评测都会测量显卡的噪音输出。MSI、Gigabyte 和 Gainward 都生产了一些非常有趣的空气冷却解决方案。大多数解决方案（无论是
+    GPU 还是 CPU）附带的常规散热器一般来说应该尽量避免使用，因为它们通常在办公桌旁使用时噪音太大。多花 $20 美元购买一个定制冷却方案，通常会让你的生活变得安静得多，同时使显卡保持更低温度，节省运行成本。
 - en: Liquid Cooling
+  id: totrans-108
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 液冷
 - en: Liquid has two interesting properties over air when considered for cooling.
     It is both thermally more conductive and has a higher thermal mass. This means
     it both more easily absorbs heat and can carry more of it away.
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 与空气相比，液体在冷却时有两个有趣的特性。液体的热导性更强，且热质量更高。这意味着它既能更容易地吸收热量，也能带走更多的热量。
 - en: Liquid cooling may sound like an exotic solution to the heat problem, but it’s
     actually quite a practical one. One of the major breakthroughs in cooling in the
     early days of supercomputers was the use of nonconductive liquids. The Cray-II,
     for example, used a special nonconductive liquid made by 3M called Fluorinert
     into which the entire circuit boards were immersed. The liquid was pumped through
     the system and then to an external cooling unit where the heat was dispersed.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 液冷可能听起来像是一个奇异的热量解决方案，但实际上它是一个非常实用的方案。早期超级计算机冷却的重大突破之一就是使用非导电液体。例如，Cray-II使用了一种由3M公司制造的特殊非导电液体，名为Fluorinert，整个电路板被浸泡在这种液体中。液体通过系统泵送，然后送到外部冷却单元，在那里热量被散发出去。
 - en: For GPU computing, we’ve moved on a little. Although immersing an entire motherboard
     and GPU in a nonconductive liquid such as commonly available oils works, it’s
     not a good solution. The liquid can eventually penetrate sensitive components,
     which ultimately results in system failure.
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于GPU计算，我们有了一些进展。尽管将整个主板和GPU浸泡在非导电液体（如常见的油类）中是可行的，但这并不是一个理想的解决方案。液体最终可能渗透到敏感组件中，最终导致系统故障。
 - en: Liquid cooling enthusiasts came up with the idea of liquid cooling blocks. These
     are hollow blocks of copper through which liquid runs and never makes physical
     contact with anything electrical ([Figure 11.7](#F0040)). You can buy nonconductive
     liquids, which we use in our liquid-cooled systems, minimizing the risk of any
     damage to components should some spillage occur.
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 液冷爱好者提出了液冷块的概念。这些是中空的铜块，液体通过其中流动，并且永远不会与任何电子元件接触（见[图11.7](#F0040)）。你可以购买非导电液体，我们在液冷系统中使用这种液体，以尽量减少液体泄漏时对组件造成损害的风险。
 - en: '![image](../images/F000119f11-07-9780124159334.jpg)'
+  id: totrans-113
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-07-9780124159334.jpg)'
 - en: FIGURE 11.7 Single CPU and GPU water cooling loop.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.7 单个CPU和GPU水冷循环系统。
 - en: A modern liquid-cooled system consists of a number of heat collectors, a CPU
     block, one or more GPU blocks, and, optionally, memory and chipset blocks. The
     hollow copper blocks have liquid pumped through them, which is fed from a reservoir.
     The output of the heated liquid is then fed into a cooling system, usually one
     or more radiators or a heat exchanger. The typical layout is shown in [Figure
     11.8](#F0045).
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 现代液冷系统由多个热收集器、一个CPU块、一个或多个GPU块以及可选的内存和芯片组块组成。中空的铜块内有液体通过，它由一个储液池供给。加热后的液体输出后进入冷却系统，通常是一个或多个散热器或热交换器。典型布局如[图11.8](#F0045)所示。
 - en: '![image](../images/F000119f11-08-9780124159334.jpg)'
+  id: totrans-116
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-08-9780124159334.jpg)'
 - en: FIGURE 11.8 Typical liquid-cooled loop.
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 图11.8 典型液冷循环系统。
 - en: There are many variations on this type of layout. The more units there are in
     a serial run like the one shown in [Figure 11.8](#F0045), the higher the resistance
     to the flow of the liquid. There are parallel flow solutions that overcome this,
     but it’s actually quite hard to ensure exactly the same flow goes through each
     parallel route, as the liquid will always pick the route of least resistance.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种布局有很多不同的变种。像[图 11.8](#F0045)所示的那种串联配置，液体流动的阻力越大，单元数量越多。虽然有并联流动解决方案可以克服这一点，但实际上很难确保每条并联线路的流量完全相同，因为液体总是选择阻力最小的路径。
 - en: The main issue with liquid cooling is that it doesn’t really solve the heat
     generation issue. It only allows you to move the heat to somewhere it can be dispersed
     more easily. Thus, the radiator may be a large external one, or even mounted internally
     within the workstation if only a small amount of cooling is required.
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 液体冷却的主要问题是它并不能真正解决热量生成的问题。它只允许你将热量移到一个更容易散热的位置。因此，散热器可能是一个大型外部散热器，或者如果只需要少量冷却，甚至可以安装在工作站内部。
 - en: The key aspect of any water cooling system is actually the radiator and more
     importantly the size and the amount and temperature of the airflow. One of the
     best radiators is the external Watercool MO-RA3, available in a 9 × 120 mm or
@@ -698,8 +985,11 @@
     pump is always pumping liquid and never air. Think about how you will fill and
     empty such a system and where any air may accumulate. Often included are a drain
     point and an air purge point.
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 任何水冷系统的关键部分实际上是散热器，更重要的是空气流量的大小、数量和温度。最好的散热器之一是外部的Watercool MO-RA3，提供9 × 120
+    mm或4 × 180 mm的规格。内部散热器应该是能适配机箱内的最大尺寸（高度、宽度、深度），并且应该将空气排出机箱。始终确保你考虑到物理法则，尤其是热空气上升这一点。顶部安装散热器通常是最好的解决方案，但在初次填充系统时需要某种方法来排出残余空气。将水泵放置在尽可能低的位置，水箱放在尽可能高的位置，以确保水泵始终在泵送液体而非空气。考虑如何填充和排空这种系统，以及空气可能会积聚的地方。通常系统中会包含一个排水点和一个空气排除点。
 - en: Liquid cooling connectors come in many sizes. Most liquid cooling systems use
     G1/4-threaded connectors. These have a 10 mm intertube diameter (ID). Thus, 13
     mm/10 mm (3/8 inch ID) tubing is commonly used. The first size is the outertube
@@ -711,36 +1001,53 @@
     not so tight, but is often easier to maneuver into place in smaller cases. Compression
     fittings are the least likely to leak or work free of the connector and are highly
     recommended. See [Figure 11.9](#F0050).
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 液冷连接器有多种尺寸。大多数液冷系统使用 G1/4 螺纹连接器。它们的管道内径（ID）为 10 毫米。因此，常用 13 毫米/10 毫米（3/8 英寸
+    ID）管道。第一个尺寸是外径（OD），然后是内径（ID）。连接器可以是插嘴型、推入型或压缩型接头。压缩和插嘴型接头使用一种系统，即使未完全密封，拆卸连接器时也需要合理的力。压缩密封圈会滑过插嘴并旋入到位，确保在不拧开顶部的情况下几乎无法移除。插嘴型接头则使用一个不那么紧的软管夹，但在较小的机箱中通常更容易操作。压缩型接头泄漏的可能性最小，且不容易脱离连接器，因此强烈推荐使用。参见[图
+    11.9](#F0050)。
 - en: '![image](../images/F000119f11-09-9780124159334.jpg)'
+  id: totrans-122
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-09-9780124159334.jpg)'
 - en: FIGURE 11.9 CPU liquid cooling block with barb and compression fitting side
     by side.
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.9 CPU 液冷块与插座和压缩接头并排放置的示意图。
 - en: As for liquids, many people use various premixed fluids. These often contain
     the necessary antibacterial agents to prevent algae growth. Some are nonconductive,
     although most are at least somewhat electrically conductive. Alternatively, distilled
     or deionized water may be used, but never tap water as it contains all sorts of
     things you’d not want in a liquid cooling loop.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 至于液体，许多人使用各种预混液体。这些液体通常含有必要的抗菌剂，以防止藻类生长。有些是非导电的，尽管大多数液体至少是部分导电的。或者，也可以使用蒸馏水或去离子水，但绝不能使用自来水，因为自来水中含有各种你不希望出现在液冷系统中的成分。
 - en: Multiple GPUs in the system have to be connected together. This is done with
     a dedicated connector block, such as the AquaComputer twin connect and other similar
     systems. These consist of a solid plastic connector to which all the cards sit
     at a 90-degree angle. These are far preferable to the metal bar–type SLI connectors
     as they provide a nice grip for the cards and ensure the correct spacing. See
     [Figure 11.10](#F0055).
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 系统中的多个 GPU 必须相互连接。这是通过专用连接块完成的，例如 AquaComputer 双连接器和其他类似系统。它们由一个固体塑料连接器组成，所有卡片都以
+    90 度角安装。这些比金属条类型的 SLI 连接器更为优越，因为它们为卡片提供了更好的抓握力，并确保了正确的间距。参见[图 11.10](#F0055)。
 - en: '![image](../images/F000119f11-10-9780124159334.jpg)'
+  id: totrans-126
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000119f11-10-9780124159334.jpg)'
 - en: FIGURE 11.10 Twin liquid-cooled GPU cards fitted in solid connector block.
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 11.10 双液冷 GPU 卡安装在固体连接块中的示意图。
 - en: The main advantage of liquid cooling is that it allows you to create an almost
     silent workstation, but also to cool components far better than an air-cooled
     system. This in turn means lower power consumption. It also allows the increase
@@ -749,54 +1056,74 @@
     Tesla cards found in workstations and server environments by around 20% or more.
     You can even purchase liquid-cooled versions of many cards out of the box, either
     as components or self-contained sealed systems.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 液体冷却的主要优点是它可以让你打造一个几乎无声的工作站，同时也能比空气冷却系统更好地冷却组件。反过来，这意味着更低的功耗。它还可以提高时钟速度，超越原始的时钟规格，这就是所谓的超频。超频后的GeForce显卡，在单精度任务上，往往能比工作站和服务器环境中的Tesla显卡提高20%或更多的性能。你甚至可以购买许多显卡的液冷版本，无论是作为组件还是自封闭的系统。
 - en: The downside is twofold. First, there is the additional cost and effort required
     to plumb in all the components. Second, there is a risk of a leak of coolant,
     which is generally only a major issue when the system is first put together. Maintenance
     is also higher in that most liquids must be replaced on an annual basis.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 缺点有两个。首先，是安装所有组件所需的额外成本和工作量。其次，存在冷却液泄漏的风险，这通常只有在系统首次组装时才会成为重大问题。维护成本也较高，因为大多数液体必须每年更换一次。
 - en: Desktop Cases and Motherboards
+  id: totrans-130
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 台式机机箱和主板
 - en: People interested in building their own GPU system will need to house it in
     a case of some description. A case has to be something that is a suitable size.
     The main criteria will be how many GPUs you wish to fit into the case and also
     the form factor of the motherboard. Most motherboards are ATX or E-ATX designs,
     meaning they will fit most desktop cases. Some smaller cases, however, do not
     support E-ATX.
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 有意构建自己的GPU系统的人需要将其放置在某种类型的机箱中。机箱必须是合适的尺寸。主要的标准是你希望在机箱中安装多少个GPU，以及主板的外形尺寸。大多数主板是ATX或E-ATX设计，这意味着它们适用于大多数桌面机箱。然而，一些较小的机箱不支持E-ATX。
 - en: A number of motherboards that support four PCI-E or more connectors are larger
     than the E-ATX specification, EVGA being a typical example. EVGA sells the only
     dual-X58 motherboard, the EVGA Classified SR-2, which accepts two Xeon-based Nehalem
     I7 processors and up to 48 GB of RAM. However, selecting such a motherboard limits
     the case choice to just a few models (see EVGA’s website at [*http://www.evga.com*](http://www.evga.com)
     for an up-to-date list).
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 支持四个或更多PCI-E连接器的主板往往大于E-ATX规格，EVGA就是一个典型的例子。EVGA销售唯一的双X58主板——EVGA Classified
+    SR-2，它支持两颗基于Xeon的Nehalem I7处理器和最多48GB的内存。然而，选择这种主板会将机箱选择限制在少数几种型号内（请参阅EVGA网站[*http://www.evga.com*](http://www.evga.com)以获取最新的列表）。
 - en: ASUS was among the first to produce a dedicated compute platform motherboard
     aimed at CUDA with its P6T7 WS supercomputer motherboard. This is an X58 platform
     (Nehalem I7) supporting four double-spaced PCI-E 2.0 sockets at full x16 PCI-E
     2.0 speed. Note this board is a CEB form factor, which generally means it will
     fit most E-ATX cases. It’s one of the few boards that supports the x16 speed on
     all four slots.
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: ASUS是首批推出专门面向CUDA的计算平台主板的厂商之一，其P6T7 WS超级计算机主板便是其中之一。这是一个X58平台（Nehalem I7），支持四个双间距PCI-E
+    2.0插槽，具有完整的x16 PCI-E 2.0速度。请注意，这块主板采用的是CEB规格，通常意味着它适配大多数E-ATX机箱。它是少数几个在所有四个插槽上都支持x16速度的主板之一。
 - en: The ASUS Rampage III Extreme is also a good E-ATX design, although it only supports
     x8 PCI-E speeds with four cards. The ASUS Extreme V board is one of the few Ivybridge
     compatible PCI-E 3.0 boards supporting 4 PCI-E connectors.
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: ASUS Rampage III Extreme也是一款优秀的E-ATX设计，尽管它仅支持四张卡的x8 PCI-E速度。ASUS Extreme V主板是少数几个兼容Ivybridge的PCI-E
+    3.0主板之一，支持4个PCI-E连接器。
 - en: MSI produce the BigBang series of motherboards aimed at power users, sporting
     seven physical PCI-E sockets. However, when populated with four cards, as is the
     case for most motherboards, only X8 PCI-E bus speed is supported. MSI is one of
     the few vendors supporting four double-spaced PCI-E sockets on the AMD platform,
     for example, the MSI 890FXA-GD70.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: MSI生产的BigBang系列主板面向高端用户，拥有七个物理PCI-E插槽。然而，当插入四张显卡时，像大多数主板一样，仅支持X8 PCI-E总线速度。MSI是少数几个支持AMD平台上四个双间距PCI-E插槽的厂商之一，例如MSI
+    890FXA-GD70。
 - en: The ASRock X58 supercomputer design provides for four PCI-E 2.0 sockets running
     at x8 speed with up to 24 GB of RAM. Its designs since this have improved tremendously,
     especially with its latest socket 2011 (Sandybridge-E) design. The ASRock X79
@@ -805,20 +1132,31 @@
     SATA-3 ports, the PCI-E 3.0 standard, and up to 64 GB of RAM while still being
     an ATX form factor design. ASROCK recently released the socket 2011, Extreme 11
     board which boasts 7 PCI-E 3.0 x16 slots.
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: ASRock X58超级计算机设计提供四个PCI-E 2.0插槽，运行在x8速度，并支持最多24 GB的内存。自此设计以来，它的设计有了巨大的改进，尤其是其最新的Socket
+    2011（Sandybridge-E）设计。ASRock X79 Extreme9是我们目前见过的最好的Sandybridge-E平台设计之一（见[图11.9](#F0050)）。它支持五个PCI-E
+    x8插槽、八个SATA-3端口、PCI-E 3.0标准，以及最多64 GB的内存，同时依旧是ATX规格设计。ASROCK最近发布了Socket 2011的Extreme
+    11主板，拥有7个PCI-E 3.0 x16插槽。
 - en: Gigabyte is also a well-respected manufacturer. Its UD9-X58 platform, as with
     the ASUS supercomputer, has dual NF200 chips, meaning it supports four full-speed
     x16 PCI-E 2.0 slots. Its GA-990FXA-UD7 AMD platform supports the latest 990 chipset,
     providing SATA-3 support and four PCI-E 2.0 sockets up to x8 speed.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 技嘉也是一款备受尊敬的制造商。其UD9-X58平台与ASUS超级计算机类似，配有双NF200芯片，这意味着它支持四个完整速度的x16 PCI-E 2.0插槽。其GA-990FXA-UD7
+    AMD平台支持最新的990芯片组，提供SATA-3支持，并支持四个最高达x8速度的PCI-E 2.0插槽。
 - en: Having decided on the motherboard, you need a case that supports the form factor,
     but also the number of PCI-E slots you plan to use. Standard PC cases only come
     with seven PCI-E slots, which causes an issue if you in fact have four double-height
     PCI-E cards.
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 确定了主板后，你需要一个支持该主板规格的机箱，同时还要考虑你计划使用的 PCI-E 插槽数量。标准 PC 机箱通常只提供七个 PCI-E 插槽，如果你有四个双高的
+    PCI-E 显卡，这就会成为一个问题。
 - en: Heat and airflow should be big considerations in selecting a case, especially
     with multiple GPUs present. Silverstone produces a number of cases that rotate
     the motherboard 90 degrees and thus vent the hot air from the CPU and GPUs directly
@@ -830,14 +1168,23 @@
     are much more traditional, although all three cases are quite large. Note, the
     newer edition Raven (the RV02-evolution) and Fortress cases support only seven
     PCI-E slots, whereas the Temjin supports nine slots.
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 在选择机箱时，散热和气流应该是重要的考虑因素，特别是在有多个 GPU 的情况下。Silverstone 生产了许多机箱，能够将主板旋转 90 度，从而直接将
+    CPU 和 GPU 的热空气从机箱中向上排出。[图 11.3](#F0020) 展示了一个与 Raven RV02 机箱配合使用的设计。我们发现这种设计在散热效果方面是最有效的。向上流动的空气设计使机箱内部温度降低了几度。Raven
+    的 Fortress FT02 和 Temjin TJ11 机箱采用了类似的设计。Raven 系列的外观风格要么是你喜欢，要么是你讨厌。Fortress 和
+    Temjin 的设计则更为传统，尽管这三款机箱都相当大。需要注意的是，新版 Raven（RV02-evolution）和 Fortress 系列仅支持七个
+    PCI-E 插槽，而 Temjin 支持九个插槽。
 - en: As an alternative, the Coolermaster HAF and Antec 1200 series cases also have
     very good airflow. However, both support only seven PCI-E slots. The Raven RV03
     is a much more compact version of Raven RV02\. It supports a full set of eight
     PCI-E slots and is one of the cheapest cases on the market.
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为替代方案，Coolermaster HAF 和 Antec 1200 系列机箱也有非常好的气流设计。然而，这两款机箱仅支持七个 PCI-E 插槽。Raven
+    RV03 是 Raven RV02 的一个更为紧凑的版本。它支持完整的八个 PCI-E 插槽，并且是市场上最便宜的机箱之一。
 - en: In terms of liquid-cooled cases, most are aimed at single CPU–based cooling,
     so there is a lack of necessary space for a multi-GPU liquid-cooled configuration.
     With four GPUs and an I7 CPU you are burning in excess of 1 kW of power, a significant
@@ -846,35 +1193,49 @@
     The Silverstone Temjin TJ11 allows you to remove the internal hard drive section
     at the bottom of the case and replace it with a 4 × 140 mm radiator and pump assembly.
     This is perhaps one of the best, but most expensive, cases currently on the market.
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 就液冷机箱而言，大多数都针对单个CPU的冷却设计，因此缺乏为多GPU液冷配置所需的空间。使用四个GPU和一个I7 CPU时，你的系统功耗将超过1千瓦，其中大量的能量会转化为热量。此类系统最适合外部冷却。作为大致参考，你需要一个120
+    mm的散热器容量来冷却每个设备（CPU或GPU）。Silverstone Temjin TJ11机箱允许你移除机箱底部的内部硬盘部分，并用一个4 × 140
+    mm散热器和泵组件替代。这可能是当前市场上最好，但也是最贵的机箱之一。
 - en: Mass Storage
+  id: totrans-142
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 大容量存储
 - en: Motherboard-based I/O
+  id: totrans-143
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 基于主板的输入输出（I/O）
 - en: The mass storage subsystem is something that is quite important. You need to
     be able to easily import and export data from a system. If you consider that each
     GPU has a maximum of 5 GB/s input bandwidth and 5 GB/s output bandwidth, you will
     have a problem supplying such a large amount of data from a mass storage device.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 大容量存储子系统是非常重要的部分。你需要能够轻松地从系统中导入和导出数据。如果你考虑到每个GPU的最大输入带宽为5 GB/s，输出带宽为5 GB/s，你就会发现从大容量存储设备提供如此大量数据会遇到问题。
 - en: A typical hard disk has a transfer rate of around 160 MB/s maximum. Due to the
     construction of hard disks, the density of the data is diminished as you approach
     the center of the disk. As such, the data rate drops off to around half of the
     maximum rate at the outside of the disk as it becomes full and starts to use the
     inner part of the drive.
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 一般硬盘的传输速率大约为160 MB/s的最大值。由于硬盘的构造，当你接近磁盘中心时，数据的密度会下降。因此，当磁盘逐渐填满并开始使用内圈部分时，数据传输速率会降至最大速率的约一半。
 - en: Most Intel I7 motherboards come with an built-in controller that supports up
     to six SATA-based hard disks. This is part of the Southbridge chipset, which controls
     the slow devices such as keyboards and mice. It also handles the SATA hard disks
     and network interfaces.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数Intel I7主板配有一个内置控制器，支持最多六个基于SATA的硬盘。这是南桥芯片组的一部分，它负责控制诸如键盘和鼠标等慢速设备，同时也处理SATA硬盘和网络接口。
 - en: The SATA-2 standard defines a speed of up to 300 MB/s per SATA channel. The
     new SATA-3 standard supports twice this. The built-in controller supports up to
     six hard drives, meaning you could theoretically achieve a transfer capability
@@ -882,8 +1243,12 @@
     300 MB/s read speeds, you might expect to be able to simply connect up to six
     disks and get a reasonable input data rate, but even this is only half the bandwidth
     of a *single* PCI-E X16 graphics card.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: SATA-2标准定义了每个SATA通道的最高速度为300 MB/s。新的SATA-3标准支持是其两倍。内置控制器支持最多六个硬盘，这意味着理论上你可以通过SATA端口将数据传输到主内存，速度可达到1.8
+    GB/s。考虑到SATA-2 SSD磁盘的读取速度已超过300 MB/s，你可能会认为能够简单地连接最多六个磁盘并获得合理的输入数据速率，但即使这样也仅是*单个*PCI-E
+    X16显卡带宽的一半。
 - en: However, life is never that easy. In practice, Southbridge-based built-in controllers
     will peak out at about 600 MB/s to 700 MB/s, which is nowhere near close to the
     1.8 GB/s you’d need to support all hard drives at the full data rate. For 160
@@ -891,8 +1256,11 @@
     exceed the SATA-2 interface speeds, the standard motherboard SATA controller will
     not be of much use. With just four SSD drives present, the controller is already
     a bottleneck in the system.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，生活从来不会这么简单。实际上，基于南桥的内置控制器的峰值传输速度大约为600 MB/s到700 MB/s，这远远达不到你需要的1.8 GB/s来支持所有硬盘以全速数据传输。对于160
+    MB/s的物理硬盘来说，这可能有效，但对于可以匹配或超过SATA-2接口速度的SSD驱动器，标准的主板SATA控制器就没什么用处了。即使只连接四个SSD驱动器，控制器已经成为系统中的瓶颈。
 - en: The more modern boards have now entirely moved to SATA-3 on the AMD platforms
     and a mixture of SATA-2 and SATA-3 on the Intel platforms. SATA-3 doubles the
     SATA-2 speed, meaning an SSD drive can peak at up to 550 MB/s (SATA-3 speed is
@@ -900,88 +1268,119 @@
     need for a single GPU. However, as with the SATA-2 controllers, most on-board
     SATA3 controllers peak at around 1GB/s transfer rates and thus cannot support
     large numbers of SSDs.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在更现代的主板已完全在AMD平台上使用SATA-3，在Intel平台上则混合使用SATA-2和SATA-3。SATA-3的速度是SATA-2的两倍，这意味着SSD驱动器的峰值速度可以达到550
+    MB/s（SATA-3的速度为600 MB/s）。使用六个这样的驱动器时，峰值速度迅速接近单个GPU所需的速度。然而，和SATA-2控制器一样，大多数主板上的SATA-3控制器的传输速度最高只能达到1GB/s，因此无法支持大量SSD。
 - en: Dedicated RAID controllers
+  id: totrans-150
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 专用RAID控制器
 - en: For faster input of data you need to turn to a dedicated hard disk controller,
     which sits on the PCI-E bus. However, this approach conflicts with our need to
     have the graphics compute cards on exactly this same bus. With air based cooling,
     all the GPUs are double-slot cards. You may have to remove a GPU card to be able
     to insert a dedicated hard disk controller card and/or a high-speed network card.
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 若要实现更快的数据输入，你需要使用专用的硬盘控制器，它位于PCI-E总线上。然而，这种方法与我们需要将图形计算卡放在同一总线上的需求相冲突。在基于空气冷却的情况下，所有GPU都是双槽卡。你可能需要移除一个GPU卡，才能插入专用的硬盘控制器卡和/或高速网络卡。
 - en: With liquid-cooled systems it’s a little easier, because each card is single
     slot. However, you are still limited by the overall power consumption of a PC,
     typically up to 1.5 kW. This in effect means, at least with the high-end cards,
     there will be spare PCI-E slots.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于液冷系统来说，这稍微容易一些，因为每张卡都是单槽设计。然而，你仍然受限于PC的整体功耗，通常最大为1.5 kW。这实际上意味着，至少对于高端卡来说，仍然会有多余的PCI-E槽位。
 - en: Assuming you have a 550 MB/s SATA-3 SSD drive subsystem, to achieve the 5 GB/s
     input capacity for a single GPU card, you need 10 SSD drives. If the RAID card
     you are using supports simultaneous transfers to and from the PCI-E bus, then
     you’d need a total of 20 SATA-3 SSD drives to support the full bandwidth of a
     single PCI-E X16 RAID controller.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设你有一个550 MB/s的SATA-3 SSD驱动器子系统，为了实现单个GPU卡的5 GB/s输入带宽，你需要10个SSD驱动器。如果你使用的RAID卡支持与PCI-E总线的同时传输，那么你需要总共20个SATA-3
+    SSD驱动器，以支持单个PCI-E X16 RAID控制器的全部带宽。
 - en: So to be able to supply and store in real time the full bandwidth of a *single*
     GPU card, even using SSDs, it will take 20 SSDs. Even with four 6 SSDs per drive
     bay, you’d need 4 drive bays to support this.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 所以，为了实时供应和存储单个GPU卡的全部带宽，即使使用SSD，也需要20个SSD驱动器。即便每个驱动仓支持六个SSD，你仍然需要4个驱动仓来支持这一点。
 - en: If you look at a high-end GPU setup, the solution is a four GPU liquid-cooled
     solution based on a motherboard that supports seven PCI-E bus connectors. With
     no additional cards, all GPUs run at the X8 speed (2.5 GB/s in, 2.5 GB/s out)
     with four GPU cards and X16 with two GPU cards.
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你看一下高端GPU配置，解决方案是基于支持七个PCI-E总线连接器的主板的四GPU液冷解决方案。没有额外卡片的情况下，四个GPU卡运行在X8速度（2.5
+    GB/s输入，2.5 GB/s输出），而两个GPU卡则运行在X16速度。
 - en: With a liquid-cooled system, you have spare slots between the cards, as most
     liquid-cooled solutions are single slot. As soon as you add a RAID controller
     card, the associated slot drops to X8 or X4 for both the GPU and RAID card. This
     is unless you dedicate an X16 slot to the RAID controller, something we’d recommend.
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 在液冷系统中，卡之间有空余槽位，因为大多数液冷解决方案为单槽设计。一旦添加了RAID控制卡，GPU和RAID卡的槽位都将降至X8或X4，除非你为RAID控制卡专门分配一个X16槽位，这是我们推荐的做法。
 - en: There is a physical limit on the number of drive bays that can be included in
     a workstation format. Even a motherboard with seven PCI-E slots, often dubbed
     supercomputer motherboards, have only three slots left available once four liquid-cooled
     GPUs are present. This allows for two RAID controllers and a single high-speed
     network card to be squeezed into such systems.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 工作站格式中有物理限制，决定了可以包含多少驱动仓。即便是配有七个PCI-E槽的主板，通常被称为超级计算机主板，在安装了四个液冷GPU后，也只剩下三个可用的槽位。这使得两张RAID控制卡和一张高速网络卡可以被挤入这种系统中。
 - en: RAID, however, is not simply about speed, although the RAID-0 mode is used for
     this. RAID-1 supports mirroring, where the data is completely duplicated onto
     another disk. Failure of one disk then means the system falls back to the remaining
     disk without significant impact on the operation of the system. Clearly, however,
     the faulty disk needs to be replaced as soon as possible. It saves you the case
     where several weeks of compute time could be lost due to a faulty hard drive.
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，RAID并不仅仅是关于速度，尽管RAID-0模式确实用于此目的。RAID-1支持镜像功能，其中数据会被完全复制到另一块硬盘上。这样，一块硬盘的故障意味着系统将切换到剩余的硬盘，且不会对系统的运行产生重大影响。然而，显然，故障的硬盘需要尽快更换。这样可以避免因硬盘故障而丧失数周的计算时间。
 - en: With a small cluster, hard drives fail rarely enough that it’s not that much
     of a problem. However, in a larger setup, with thousands of active drives, you
     will be changing drives regularly.
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 在小型集群中，硬盘故障的发生率较低，因此问题并不大。然而，在更大的系统中，当有成千上万的活跃硬盘时，你将需要定期更换硬盘。
 - en: RAID-5 is a system that balances storage usage with redundancy, allowing data
     to be split over multiple drives in a safe manner. One of the drives in a set
     is a dedicated parity drive that, if one drive fails, can be used to recover the
     RAID array. RAID is something you definitely need to consider if restarting your
     job on another machine and losing the computations to date is not acceptable.
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: RAID-5是一种平衡存储使用与冗余的系统，允许数据安全地分布在多块硬盘上。一个硬盘在RAID阵列中充当专用的奇偶校验盘，如果某块硬盘发生故障，可以使用该奇偶校验盘来恢复RAID阵列。如果不接受在另一台机器上重启工作并丢失已有计算结果，RAID是你必须考虑的一个系统。
 - en: Check pointing is a system that is often used to avoid the effects of failure.
     After a certain period, the entire results to data are check-pointed or dumped
     to permanent storage. Thus, the job can be moved to another node by simply moving
     the check-pointed data and the associated program code. In designing applications
     that run for some period of time, you should always consider building a check
     pointing system into the application.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 检查点是一种常用于避免故障影响的系统。在一定时间后，所有的结果数据都会被检查或保存到永久存储中。这样，作业可以通过简单地移动检查点数据和相关的程序代码迁移到另一个节点。在设计运行较长时间的应用程序时，你应始终考虑将检查点系统集成到应用程序中。
 - en: HDSL
+  id: totrans-162
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: HDSL
 - en: HDSL is a standard from a company called OCZ that has developed a number of
     innovative products in the SSD market. Most notable of these is the RevoDrive
     range, a product that is basically a number of SSD drives on a PCI-E card with
@@ -989,6 +1388,7 @@
     MB/s, which is quite reasonable; the high-end cards (the R4 C series) claim 2800
     MB/s. You would need a SATA-3 controller and at least five top-end SSDs to achieve
     the same sort of bandwidth.
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
 - en: The HDSL drive offered by OCZ is also an interesting product and an insight
@@ -997,6 +1397,7 @@
     card is used that basically extends four lanes of the PCI-E bus through a cable
     directly to the drive interface. Four PCI-E 2.0 lanes equates to around 1 GB/s
     in both directions, vastly superior to the unidirectional SATA-3 interface.
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
 - en: Being a new technology, it has some way to go before the drives themselves match
@@ -1006,14 +1407,17 @@
     Assuming the drive picks up a little in speed to the full bandwidth of the interface,
     which is almost certain given the march of technology, this will be a very interesting
     technology to see evolve.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
 - en: As the drives themselves are a 3.5 inch format, this means more drives can be
     put in the same physical space. Allocating two X8 slots would support four HDSL
     drives, giving a read/write capacity of around 3 GB/s.
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
 - en: Mass storage requirements
+  id: totrans-167
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -1023,27 +1427,36 @@
     which is itself 1000 gigabytes. Given that the largest single mass storage drive
     available today is around 4 terabytes, just to store that amount of data would
     require (20 × 1000) ÷ 4 = 5000 hard disk drives!
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了来自大容量存储设备的输入速度外，我们还需要考虑总存储容量。以全球最大的数据使用者之一——谷歌为例，2008年他们每天处理20PB（拍字节）的数据。一个PB是1000TB（太字节），而1TB是1000GB（千兆字节）。考虑到目前最大单个大容量存储驱动器约为4TB，仅仅存储这些数据就需要（20
+    × 1000）÷ 4 = 5000个硬盘驱动器！
 - en: So clearly one consideration in designing any node is mass storage needs. In
     practice, most large installations use dedicated storage nodes that do not have
     any compute functionality. Thus, the compute nodes need only the storage capacity
     necessary for a single compute run. They can download data over a high-speed interconnect
     from a central data cluster, meaning you can design them with high-speed, small-capacity
     SSD drives, which we’ve done with some of our test machines at CudaDeveloper.
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，显然设计任何节点时一个重要的考虑因素是大容量存储需求。在实际操作中，大多数大型系统使用专门的存储节点，这些节点没有计算功能。因此，计算节点只需要为一次计算运行所需的存储容量。它们可以通过高速互连从中央数据集群下载数据，这意味着你可以为它们设计高速、小容量的SSD驱动器，这也是我们在CudaDeveloper的一些测试机器上所做的。
 - en: Networking
+  id: totrans-170
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 网络
 - en: Networking is one of the key issues when you consider a system that contains
     more than a single node. Clusters of nodes have become very common in universities
     and commercial organizations as the availability of cheap commodity hardware has
     become commonplace. It is relatively straightforward to configure a small network
     of machines and have them work together on a problem.
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: 网络连接是考虑包含多个节点的系统时的关键问题之一。随着廉价商品硬件的普及，节点集群在大学和商业组织中变得非常常见。配置一个小型机器网络并让它们共同解决一个问题是相对简单的。
 - en: 'You typically see two types of networks: those based on gigabit Ethernet and
     those using somewhat faster, but considerably more expensive, InfiniBand networks.
     Gigabit Ethernet is cheap, usually comes as free on the motherboard, and can be
@@ -1052,14 +1465,19 @@
     Link Aggregation. This, when supported by the switch, allows for the two physical
     links to be used as one, doubling the amount of bandwidth available to and from
     that node.'
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 你通常会看到两种类型的网络：一种是基于千兆以太网，另一种是使用稍快但显著更昂贵的InfiniBand网络。千兆以太网便宜，通常在主板上免费提供，并且可以相对容易地连接到16端口、24端口或32端口的交换机。一些主板提供双千兆以太网连接，通常包括一个叫做链路聚合（Link
+    Aggregation）的功能。在交换机支持的情况下，这使得两个物理连接可以作为一个使用，从而使该节点的带宽翻倍。
 - en: How critical networking is to your problem depends greatly on the amount of
     data that needs to be shared. If you can stay within a single node and go down
     the multiple-GPU route, this will be far, far more effective than going down the
     multiple-node route in most cases.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 网络在你的问题中的重要性，很大程度上取决于需要共享的数据量。如果你能保持在单一节点内，并采用多GPU路线，这通常比采用多节点路线更为高效。
 - en: Systems like Google’s MapReduce is one example where, due to the huge amount
     of data being used, you are forced to split the data between multiple nodes. MapReduce
     works on the principle of a shared and distributed file system, making the file
@@ -1070,32 +1488,41 @@
     distributing and scheduling such jobs. Typically the dataset is very large and
     the program very small, so this type of approach works really well in greatly
     reducing network traffic.
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 像谷歌的MapReduce这样的系统就是一个例子，由于处理的数据量庞大，你被迫将数据分割到多个节点之间。MapReduce基于共享和分布式文件系统的原理，使得文件系统看起来像一个非常大的磁盘。数据本身被分散存储在每个节点的本地存储中。MapReduce的工作方式是将程序送到数据所在的位置，而不是将数据带到程序那里。Hadoop是MapReduce的开源实现，它允许你建立一个非常类似的框架来分发和调度此类任务。通常，数据集非常庞大，而程序则相对较小，因此这种方法在大幅减少网络流量方面非常有效。
 - en: Dedicated communication with something like MPI is also typically how such a
     system is set up. However, as soon as network communication becomes the dominant
     feature of the program, in terms of time, you need to move to a faster network
     architecture such as InfiniBand. This obviously incurs cost, which you may be
     able to avoid through clever programming, such as asynchronous communication,
     compressing data packets, etc.
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 像MPI这样的专用通信通常也是此类系统的设置方式。然而，一旦网络通信成为程序的主导特征（在时间上），你就需要转向更快的网络架构，如InfiniBand。这显然会带来额外成本，但你可能通过巧妙的编程方法（如异步通信、压缩数据包等）来避免这一点。
 - en: Peer-to-peer communication within a node between the GPUs is now supported with
     the CUDA 4.0 SDK. In addition, the GPUs can talk directly to certain InfiniBand
     cards in the same way, without the interaction of the host CPU. Thus, for larger-scale
     GPU installations, InfiniBand and other higher-speed interconnects can become
     a necessity if network traffic plays a significant role.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 在节点内，GPU之间的点对点通信现在已经在CUDA 4.0 SDK中得到了支持。此外，GPU可以直接与某些InfiniBand卡进行通信，而无需主机CPU的参与。因此，对于大规模GPU安装，如果网络流量扮演着重要角色，InfiniBand和其他更高速的互连将成为必需。
 - en: Power Considerations
+  id: totrans-177
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 电力考虑
 - en: Power usage is a big consideration when designing machines that constantly run.
     Often the operating costs of running a supercomputer over just a few years can
     equate to the cost of installing it in the first place. Certainly, the cost of
     running such a machine over its lifetime will easily exceed the original installation
     costs.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
 - en: Power usage comes from the components themselves, but also from the cooling
@@ -1105,6 +1532,7 @@
     job of heating up the office for you. Put a number of such machines into one room,
     and very rapidly the air temperature in that room will start to rise to quite
     unacceptable levels.
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
 - en: A significant amount of power is therefore expended on installing air conditioning
@@ -1119,23 +1547,28 @@
     costs of natural resources, and the increasing pressures on companies to be seen
     as green, simply pumping the heat out the window is no longer economically or
     socially acceptable.
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
 - en: If you look at the top-end GPU cards, they typically come in around the 250
     W mark in terms of power consumption. A typical CPU is around 125 W by comparison.
     A typical power budget for a four-GPU system might therefore be as shown in [Table
     11.1](#T0010).
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
 - en: Table 11.1 Typical Power Usage
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
 - en: '![Image](../images/T000119tabT0010.jpg)'
+  id: totrans-183
   prefs: []
   type: TYPE_IMG
 - en: As you can see from the table, you can be drawing up 1250 W (1.3 kW) of power
     per node with such a configuration. Off-the-shelf power supplies top out at around
     the 1.5 kW mark, after which you’re looking at a very expensive, custom solution.
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
 - en: Selection of the GPU can make a huge difference to overall power consumption.
@@ -1152,12 +1585,15 @@
     as a 448-core device based on the 570 design. The GTX680 is based on the 560 design.
     The dual GPU 690 contains two of these devices, specially binned and clocked to
     achieve 300 W, giving this card the best overall GFlops per watt ratio.
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
 - en: Table 11.2 Gigaflops per Core
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
 - en: '![Image](../images/T000119tabT0015.jpg)'
+  id: totrans-187
   prefs: []
   type: TYPE_IMG
 - en: One important consideration when selecting a power supply is to realize that
@@ -1166,12 +1602,14 @@
     the primary power draw is in such a system (from the graphics cards). Also, others
     do not provide enough PCI-E connectors to support more than a small number of
     cards.
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
 - en: However, one of the most important issues to be concerned about is the efficiency
     of a power supply. This can be as low as 80% or as high as 96%. That difference
     of 16% is effectively a cost of $0.16 cents on every dollar (Euro/pound/franc)
     spent on electricity.
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
 - en: Power supplies are rated according to an efficiency rating. Those meeting the
@@ -1181,6 +1619,7 @@
     is typically a few percent higher at 50% load and slightly higher with the European
     240v power supplies than the U.S. 115v standard. See the website [*http://www.80plus.org*](http://www.80plus.org)
     for a list of certified power supplies.
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
 - en: If you take the typical European cost of electricity at, say, 0.20 Euros per
@@ -1188,12 +1627,15 @@
     is 6.24 Euros per day, 43.48 Euros a week, or 2271 Euros a year to constantly
     run in terms of electricity cost alone. This assumes you have a 100% efficient
     power supply, something that just doesn’t exist. See [Table 11.3](#T0020).
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
 - en: Table 11.3 Typical Costs per Year by Power Consumption
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
 - en: '![Image](../images/T000119tabT0020.jpg)'
+  id: totrans-193
   prefs: []
   type: TYPE_IMG
 - en: With an 80% efficient power supply, for 1.3 kW output, you’d need to put in
@@ -1202,6 +1644,7 @@
     supply, you’d need just 1.413 kW (212 W less), which costs you 2475 Euros per
     year. This is a savings of around 400 Euros a year, which easily covers the additional
     costs of a high-efficiency power supply.
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
 - en: In terms of the U.S. market, electricity is somewhat cheaper at around $0.12
@@ -1211,6 +1654,7 @@
     cents per hour translates into $175 per year when the machine is constantly run.
     Multiply that by *N* nodes and you can soon see why efficiency is a key criterion
     for many companies purchasing computer systems.
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
 - en: Certainly in our own machines we always use the most efficient power supply
@@ -1218,6 +1662,7 @@
     follow similar policies, using highly efficient power supplies, targeting 90%
     plus efficiency. Energy prices are unlikely to do anything other than increase
     over time, so this makes perfect sense.
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
 - en: Liquid-cooled systems provide an interesting option in terms of recycling the
@@ -1229,6 +1674,7 @@
     installed, such as in a company or university computer center, it can really make
     sense to use this waste heat energy to reduce the heating bill elsewhere in the
     organization.
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
 - en: Many supercomputer installations site themselves next to a major river precisely
@@ -1236,6 +1682,7 @@
     to dissipate the waste heat energy. Neither solution is particularly green. Having
     paid for the energy already it makes little sense to simply throw it away when
     it could so easily be used for heating.
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
 - en: When considering power usage, we must also remember that program design actually
@@ -1246,19 +1693,23 @@
     smaller than for poorly written ones, you can see that rewriting old programs
     to make use of new features such as larger shared memory can even reduce operating
     costs in a large data center.
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
 - en: Operating Systems
+  id: totrans-200
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
 - en: Windows
+  id: totrans-201
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
 - en: The CUDA development environment is officially supported by Windows XP, Windows
     Vista, and Windows 7 in both the 32- and 64-bit variants. It is also supported
     by the Windows HPC (high-performance computing) Server edition.
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
 - en: Support for certain features related to rendering on DirectX versions later
@@ -1267,21 +1718,25 @@
     (Operating Systems) perspective and also from the BIOS (Basic Input Output System)
     of the motherboard. Support may vary from one CUDA driver release to another,
     but for the most part it now works.
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
 - en: GPU support when using Windows remote desktop is nonexistent, as the exported
     desktop does not contain any CUDA devices. There are other packages that provide
     SSH (Secure Shell) type connections that do support this, UltraVNC being a very
     common one.
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
 - en: Ease of installation of the drivers on the Windows platform and the availability
     of debugging tools, notably Parallel NSight, is excellent. For multi-GPU solutions,
     a 64-bit version is essential, as the CPU memory space is otherwise limited to
     a total of 4 GB.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
 - en: Linux
+  id: totrans-206
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
@@ -1291,6 +1746,7 @@
     installed for most distributions. This varies by distribution. Refer to [Chapter
     4](CHP004.html) where we covered installation procedures for each of the major
     distributions.
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
 - en: Support for multiple GPUs is much better in Linux than under Windows. It’s also
@@ -1300,21 +1756,25 @@
     into the memory space that is presented by very large numbers of GPUs. If you’d
     like to try this approach, then have a look at the Fastra II project ([*http://fastra2.ua.ac.be/*](http://fastra2.ua.ac.be/)),
     where they used a BIOS with 13 GPUs in a single desktop.
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
 - en: The primary Linux-supported debugger is the GDB package from GNU. This is not
     as comprehensive as the Parallel NSight package that is now also available on
     Linux, but is steadily improving. Other common parallel debuggers for the most
     part already support or are in the process of having support added for CUDA.
+  id: totrans-209
   prefs: []
   type: TYPE_NORMAL
 - en: As with the Windows versions, for multi-GPU solutions a 64-bit version is essential
     because the CPU memory space is otherwise limited to a total of 4 GB. However,
     unlike Windows, the OS footprint is significantly smaller, so more memory is made
     available to the application.
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
 - en: Conclusion
+  id: totrans-211
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
@@ -1327,5 +1787,6 @@
     decide to build your own or buy, by reading this chapter you will be far more
     informed about the key decisions and issues you need to consider before committing
     to the purchase of any hardware.
+  id: totrans-212
   prefs: []
   type: TYPE_NORMAL
