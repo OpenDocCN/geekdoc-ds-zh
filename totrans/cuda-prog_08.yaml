@@ -1,115 +1,153 @@
 - en: Chapter 8
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 第八章
 - en: Multi-CPU and Multi-GPU Solutions
+  id: totrans-1
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 多CPU和多GPU解决方案
 - en: Introduction
+  id: totrans-2
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 介绍
 - en: In modern computing systems it’s common to have multiple devices, both CPUs
     and GPUs. In terms of CPUs we’ll talk about sockets and cores. A socket is a physical
     socket on the motherboard into which a CPU is placed. A CPU may contain one or
     more cores. Each core is effectively a separate entity. A number of CPU and GPU
     sockets are located on a single node or computer system.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在现代计算系统中，通常会有多个设备，包括CPU和GPU。在CPU方面，我们将讨论插槽和核心。插槽是主板上的一个物理插口，用于安装CPU。一个CPU可能包含一个或多个核心。每个核心实际上是一个独立的实体。多个CPU和GPU插槽位于同一个节点或计算机系统中。
 - en: Knowing the physical arrangement of cores, sockets, and nodes allows for far
     more effective scheduling or distribution of tasks.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 了解核心、插槽和节点的物理布局可以实现更有效的任务调度或分配。
 - en: Locality
+  id: totrans-5
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 局部性
 - en: The principle of locality is seen quite well in GPUs and CPUs. Memory closer
     to the device (shared memory on the GPU, cache on the CPU) is quicker to access.
     Communication *within* a socket (i.e., between cores) is much quicker than communication
     to another core in a *different* socket. Communication to a core on another node
     is at least an order of magnitude slower than within the node.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 局部性原则在GPU和CPU中都有很好的体现。更靠近设备的内存（GPU上的共享内存、CPU上的缓存）访问速度更快。插槽内的通信（即核心之间的通信）比不同插槽之间的核心通信要快得多。与另一个节点上的核心通信至少比同一节点内的通信慢一个数量级。
 - en: Clearly, having software that is aware of this can make a huge difference to
     the overall performance of any system. Such socket-aware software can split data
     along the lines of the hardware layout, ensuring one core is working on a consistent
     dataset and cores that need to cooperate are within the same socket or node.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 显然，拥有了解硬件架构的软件可以对任何系统的整体性能产生巨大影响。这样的插槽感知软件可以根据硬件布局划分数据，确保一个核心处理一致的数据集，并且需要协作的核心位于同一插槽或节点内。
 - en: Multi-CPU Systems
+  id: totrans-8
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 多CPU系统
 - en: The most common multi-CPU system people will encounter is the single-socket,
     multicore desktop. Almost any PC you buy today will have a multicore CPU. Even
     in laptops and media PCs, you will find multicore CPUs. If we look at Steam’s
     regular hardware (consumer/gaming) survey, it reveals that as of mid 2012 approximately
     50% of users had dual-core systems and an additional 40% had quad-core or higher
     systems.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 人们最常遇到的多CPU系统是单插槽的多核桌面电脑。几乎任何你今天购买的PC都将配备多核CPU。即使是在笔记本电脑和媒体PC中，你也会找到多核CPU。如果我们查看Steam的常规硬件（消费者/游戏）调查，它显示截至2012年中期，大约50%的用户拥有双核系统，另外40%的用户拥有四核或更高的系统。
 - en: The second type of multi-CPU systems you encounter is in workstations and low-end
     servers. These are often dual-socket machines, typically powered by multicore
     Xeon or Opteron CPUs.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 你遇到的第二种多CPU系统是在工作站和低端服务器中。这些通常是双插槽机器，通常由多核的Xeon或Opteron CPU驱动。
 - en: The final type of multi-CPU systems you come across are data center–based servers
     where you can have typically 4, 8, or 16 sockets, each with a multicore CPU. Such
     hardware is often used to create a virtualized set of machines, allowing companies
     to centrally support large numbers of virtual PCs from one large server.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 你遇到的最终一种多CPU系统是基于数据中心的服务器，这些服务器通常具有4个、8个或16个插槽，每个插槽上都有一个多核CPU。这种硬件通常用于创建虚拟化机器集，使公司能够从一台大型服务器集中支持大量的虚拟PC。
 - en: One of the major problems you have with any multiprocessor system is memory
     coherency. Both CPUs and GPUs allocate memory to individual devices. In the case
     of GPUs, this is the global memory on each GPU card. In the CPU case, this is
     the system memory on the motherboard.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 任何多处理器系统中的一个主要问题是内存一致性。CPU和GPU都会为各自的设备分配内存。对于GPU而言，这是每个GPU卡上的全局内存。对于CPU而言，这是主板上的系统内存。
 - en: When you have independent programs using just a single core, you can scale quite
     well with this approach, as each program can be localized to a given core. The
     program then accesses its own data and makes good use of the CPU core’s cache.
     However, as soon as you have two cores cooperating with one another, you have
     a problem.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你有独立的程序仅使用单个核心时，你可以很好地进行扩展，因为每个程序可以局部化到一个特定的核心。程序接着访问其自己的数据，并充分利用CPU核心的缓存。然而，一旦两个核心开始协作，就会出现问题。
 - en: To speed up access to memory locations, CPUs make extensive use of caches. When
     the value of a parameter is updated (e.g., `x++`), is `x` actually written to
     memory? Suppose two cores need to update `x`, because one core is assigned a debit
     processing task and the other a credit processing task. Both cores must have a
     consistent view of the memory location holding the parameter `x`.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了加速访问内存位置，CPU广泛使用缓存。当一个参数的值被更新时（例如，`x++`），`x`是否真的写入了内存？假设两个核心需要更新`x`，因为一个核心被分配了借记处理任务，另一个分配了贷记处理任务。这两个核心必须对存储参数`x`的内存位置有一致的视图。
 - en: This is the issue of cache coherency and it is what limits the maximum number
     of cores that can practically cooperate on a single node. What happens in the
     hardware is that when core 1 writes to `x`, it informs all other cores that the
     value of `x` has now changed and then does a slow write out to the main memory
     instead of a quick write back to cache access.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是缓存连贯性问题，它限制了在单个节点上能够实际协作的最大核心数量。在硬件中发生的情况是，当核心1写入`x`时，它通知所有其他核心`x`的值已经改变，然后执行一个慢速写入到主内存，而不是快速写回缓存访问。
 - en: In a simple coherency model, the other cores then mark the entry for `x` in
     their caches as invalid. The next access to `x` then causes `x` to be reloaded
     from the slow main memory. As subsequent cores write to `x`, the process is repeated
     and the next core to access parameter `x` must again fetch it from memory and
     write it back again. In effect, the parameter `x` becomes noncached, which on
     a CPU means a huge performance hit.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在一个简单的连贯性模型中，其他核心会将它们缓存中`x`的条目标记为无效。下次访问`x`时，会导致`x`从慢速主内存重新加载。随着后续核心写入`x`，这一过程会重复，接下来访问参数`x`的核心必须再次从内存中获取它并重新写回。实际上，参数`x`变成了非缓存，这在CPU中意味着巨大的性能损失。
 - en: In more complex coherency models, instead of invalidating `x` the invalidation
     request is replaced with an update request. Thus, every write has to be distributed
     to *N* caches. As the number of *N* grows, the time to synchronize the caches
     becomes impractical. This often limits the practical number of nodes you can place
     into a symmetrical multiprocessor (SMP) system.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 在更复杂的连贯性模型中，代替使`x`无效，失效请求被更新请求所取代。因此，每次写入必须分发到*N*个缓存中。随着*N*的增加，同步缓存的时间变得不切实际。这通常限制了你能放入对称多处理器（SMP）系统中的实际节点数量。
 - en: Now remember that caches are supposed to run at high speed. Within a single
     socket, this is not hard. However, as soon as you have to go outside of the socket,
     it’s difficult to maintain the high clock rates and thus everything starts to
     slow down. The more sockets you have, the more difficult it becomes to keep everything
     synchronized.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在记住，缓存应该以高速运行。在单个插槽内，这并不困难。然而，一旦你需要超出插槽的范围，就很难保持高时钟速率，因此一切开始变慢。插槽越多，保持所有内容同步就变得越困难。
 - en: The next major problem we have is memory access time. To make programming such
     machines easier, often the memory is logically arranged as a huge linear address
     space. However, as soon as a core from socket 1 tries to access a memory address
@@ -117,26 +155,34 @@
     address that memory. This is called nonuniform memory access (NUMA). Although
     conceptually it makes a programmer’s life easier, in practice you need to think
     about memory locality or you write programs that perform very slowly.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们面临的下一个主要问题是内存访问时间。为了让编程这样的机器更容易，通常将内存逻辑上安排为一个巨大的线性地址空间。然而，一旦来自插槽1的核心尝试访问插槽2的内存地址，它必须由插槽2来服务，因为只有插槽2可以物理寻址那块内存。这就是所谓的非统一内存访问（NUMA）。尽管从概念上讲，它让程序员的生活更轻松，但在实践中，你需要考虑内存局部性，否则你写出的程序会非常慢。
 - en: Multi-GPU Systems
+  id: totrans-20
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 多GPU系统
 - en: Just like the CPU world, a lot of systems now have multiple GPUs inside them.
     From the enthusiast who has triple- or quad-SLI systems, or has dual cards like
     the 9800GX2, GTX295, GTX590 and GTX690, down to the guy who upgraded his low-powered
     ION desktop with a dedicated GPU card, there are many people with multi-GPU systems.
     As a programmer you should always endeavor to produce the best experience possible
     on whatever hardware is available.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 就像CPU世界一样，许多系统现在内部有多个GPU。从拥有三卡或四卡SLI系统的发烧友，或拥有9800GX2、GTX295、GTX590和GTX690等双卡的用户，到将低功耗ION台式机升级为专用GPU卡的用户，有许多人使用多GPU系统。作为程序员，你应该始终努力在可用的任何硬件上提供最佳的体验。
 - en: If the user has a dual-GPU system and you use only one GPU, you are being as
     lazy as those CPU programmers who can’t be bothered to learn how to use more than
     one core. There are plenty of programs that monitor GPU load. The tech-savvy users
     or reviewers will slate your product for not going that extra mile.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果用户有一个双GPU系统，而你只使用一个GPU，那么你就像那些不愿意学习如何使用多个核心的CPU程序员一样懒惰。有很多程序会监控GPU负载。技术娴熟的用户或评论员会批评你的产品，因为它没有做到额外的努力。
 - en: If you are writing scientific applications or working with known hardware, rather
     than a consumer application, you should also be investigating multi-GPU solutions.
     Almost all PCs support at least two PCI-E slots, allowing at least two GPU cards
@@ -145,34 +191,44 @@
     multiple GPUs in CUDA applications. Adding one additional GPU card, you will typically
     see a doubling in the level of performance, halving the current execution time.
     Rarely do you get such a speedup so easily.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你在编写科学应用程序或使用已知硬件，而不是消费级应用程序，你也应该研究多GPU解决方案。几乎所有PC都至少支持两个PCI-E插槽，这样几乎可以将至少两个GPU卡放入任何PC中。CUDA不使用也不要求SLI（可扩展链接接口），因此没有SLI认证的主板也不会成为在CUDA应用中使用多个GPU的障碍。增加一张额外的GPU卡，你通常会看到性能水平翻倍，当前的执行时间减半。很少有机会能够如此轻松地获得这样的加速。
 - en: Algorithms on Multiple GPUS
+  id: totrans-24
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 多GPU上的算法
 - en: The CUDA environment does not support, natively, a cooperative multi-GPU model.
     The model is based more on a single-core, single-GPU relationship. This works
     really well for tasks that are independent of one another, but is rather a pain
     if you wish to write a task that needs to have the GPUs cooperate in some way.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: CUDA环境本身不支持合作的多GPU模型。该模型更倾向于基于单核心、单GPU的关系。这对于相互独立的任务非常有效，但如果你希望编写一个需要GPU以某种方式合作的任务，这就变得非常麻烦。
 - en: For example, an application like BOINC works well under this model. BOINC is
     an application which allows users to donate spare computing power to solving the
     world’s problems. On a multi-GPU system it spawns *N* tasks, where *N* is equal
     to the number of GPUs in the system. Each task gets a separate data packet or
     job from a central server. As GPUs finish tasks, it simply requests additional
     tasks from the central server (task dispatcher).
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，像BOINC这样的应用程序在这种模式下表现得很好。BOINC是一个允许用户将空闲计算能力捐赠给解决世界问题的应用程序。在多GPU系统中，它会生成*N*个任务，其中*N*等于系统中GPU的数量。每个任务会从中央服务器获取一个单独的数据包或任务。当GPU完成任务时，它会从中央服务器（任务调度器）请求额外的任务。
 - en: Now if you look at a different example, where we need cooperation, the story
     is different. At the simplest level, encoding video is typically done by applying
     a JPEG-type algorithm to each individual frame and then looking for the motion
     vectors between frames. Thus, we have an operation within a frame that can be
     distributed to *N* GPUs, but then an operation that requires the GPUs to share
     data and has a dependency on the first task (JPEG compression) completing.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在如果你看一个不同的例子，在需要合作的情况下，故事就不同了。在最简单的层面上，视频编码通常是通过对每一帧应用类似JPEG的算法，然后寻找帧与帧之间的运动矢量来完成的。因此，我们在每一帧内有一个可以分配给*N*个GPU的操作，但接着会有一个操作需要GPU共享数据，并且依赖于第一个任务（JPEG压缩）完成。
 - en: There are a couple of ways of dealing with this. The easiest is to use two passes,
     one kernel that simply does the JPEG compression on *N* independent frames, and
     a second kernel that does the motion vector analysis–based compression. We can
@@ -181,8 +237,10 @@
     jobs. The downside of this approach, as with any multipass algorithm, is we read
     the data more than once. As the dataset is typically quite large and will involve
     slow mass storage devices, this is generally a bad approach.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 有几种方法可以处理这个问题。最简单的是使用两次传递，一次内核只是对*N*个独立帧做JPEG压缩，第二次内核则做基于运动矢量的压缩。我们之所以能够这样做，是因为基于运动矢量的压缩使用的是有限的帧窗口，所以帧1不会影响帧1000。因此，我们可以将工作分成*N*个独立的任务。采用这种方法的缺点，就像任何多传递算法一样，是我们需要多次读取数据。由于数据集通常非常大，并且涉及到较慢的大容量存储设备，因此这通常不是一个好方法。
 - en: A single-pass method is more efficient, but more difficult to program. You can
     transform the problem, if you consider the set of frames on which you do motion
     vector compression to be the dataset. Each set of frames is independent and can
@@ -191,8 +249,10 @@
     frames, the motion aspects. By using this approach, you have managed to keep the
     data on the GPU card. This eliminates the major bottleneck with this type of problem—that
     of moving data around the system.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 单遍方法效率更高，但编程更为复杂。如果你将做运动矢量压缩的帧集视为数据集，你可以转换问题。每一组帧都是独立的，可以分配到不同的GPU卡上。GPU内核首先对它所提供的每一组帧进行JPEG压缩，然后在这些帧上计算运动相关信息。通过这种方法，你成功地将数据保留在GPU卡上，这消除了此类问题的主要瓶颈——即数据在系统中移动的过程。
 - en: In this instance we managed to restructure the algorithm so it could be broken
     down into independent chunks of data. This may not always be possible and many
     types of problems require at least a small amount of data from the other GPUs.
@@ -200,31 +260,43 @@
     and explicitly sequence the access to that data between the GPUs. Prior to the
     4.0 SDK, there was no support for this in the CUDA environment. If it is at all
     possible to break down the problem into independent chunks, take this approach.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个实例中，我们成功地重构了算法，使其可以被拆分成独立的数据块。这并不总是可行的，许多类型的问题至少需要从其他GPU获取少量数据。一旦你需要另一个GPU的数据，就必须显式地共享该数据，并在GPU之间显式地按顺序访问这些数据。在4.0
+    SDK之前，CUDA环境并不支持这一点。如果有可能将问题拆分成独立的数据块，建议采用这种方法。
 - en: There are a couple of alternatives to this approach. You can use the GPU peer-to-peer
     communication model provided as of the 4.0 SDK version, or you can use CPU-level
     primitives to cooperate at the CPU level. The former does not work on all OSs,
     most noticeably Windows 7 with consumer hardware. The CPU solution requires OS-specific
     communication primitives, unless a common third-party solution is used.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 还有几种替代方法。你可以使用从4.0 SDK版本开始提供的GPU点对点通信模型，或者使用CPU级原语在CPU层面进行协作。前者并不适用于所有操作系统，尤其是在带有消费者硬件的Windows
+    7上。CPU解决方案需要操作系统特定的通信原语，除非使用通用的第三方解决方案。
 - en: Which GPU?
+  id: totrans-32
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 哪个GPU？
 - en: When there is more than one GPU on a system, are they the same or different?
     How does the programmer know? Does it matter?
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 当系统中有多个GPU时，它们是相同的吗？还是不同的？程序员怎么知道？这重要吗？
 - en: Well it often matters, but it depends largely on the application. Embedded in
     the CUDA binary there are usually several binary images, one of each generation
     of GPUs. At a minimum a binary for the lowest compute–capability GPU should be
     present. However, additional binaries, optimized for higher-level compute devices,
     may also be present. The CUDA runtime will automatically select the highest level
     of binary based on the compute device when executing a kernel.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 这通常很重要，但在很大程度上取决于具体应用。在CUDA二进制文件中，通常包含多个二进制镜像，每个镜像对应一代GPU。至少应该包含最低计算能力GPU的二进制文件。然而，针对更高计算设备优化的其他二进制文件也可能存在。CUDA运行时会根据计算设备自动选择最高级别的二进制文件来执行内核。
 - en: Certain functions, such as atomics, are only available on certain compute-level
     devices; running such code on a lower-level compute device results in the kernel
     failing to run. Therefore, for certain programs at least, we have to care which
@@ -232,8 +304,10 @@
     the effects of caching and block size selection by the application. Others may
     have been written to use large numbers of registers on the G80/G200 series devices,
     something that was reduced on the Fermi architecture and then restored with Kepler.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 某些功能，例如原子操作，只在特定计算级别的设备上可用；在低级计算设备上运行这些代码会导致内核无法运行。因此，至少对于某些程序，我们必须关注使用的是哪个GPU。由于缓存和应用程序选择块大小的影响，其他程序在新硬件上运行得更好或更差。还有一些程序可能是为G80/G200系列设备使用大量寄存器编写的，而这一点在Fermi架构上有所减少，之后在Kepler架构中得以恢复。
 - en: Thus, some user or administration-level knowledge is required about which is
     the best platform on which to run a given kernel, or the programmer has to adapt
     the program so it runs well on all platforms. This can be done by either avoiding
@@ -244,153 +318,222 @@
     users with older hardware to justify the extra development and testing effort.
     In terms of the consumer market, as of August 2012, around one quarter of the
     market is still using pre-Fermi hardware. See [Figure 8.1](#F0010).
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，需要一些用户或管理员级别的知识，来了解在哪个平台上运行给定的内核是最好的，或者程序员需要调整程序，以便它能在所有平台上良好运行。这可以通过避免特定于计算设备的例程来完成，这些例程通常会使编程更加困难，或者通过提供一些避免计算级别问题的替代内核来实现。然而，后者通常是由商业考虑驱动的。程序员的时间是有成本的，您需要评估您的目标市场是否包含足够多使用旧硬件的用户，以证明额外开发和测试的工作是值得的。就消费者市场而言，截至2012年8月，大约四分之一的市场仍在使用Fermi之前的硬件。请参阅[图8.1](#F0010)。
 - en: '![image](../images/F000089f08-01-9780124159334.jpg)'
+  id: totrans-37
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../images/F000089f08-01-9780124159334.jpg)'
 - en: FIGURE 8.1 Consumer distribution of compute levels August 2012.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.1 消费者计算水平分布 2012年8月。
 - en: How does the programmer select a GPU device? We’ve seen a number of examples
     so far where we have used four devices and compared the results of each device.
     You should have seen from the various code examples that you need to set a device
     via a call to
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员如何选择GPU设备？到目前为止，我们已经看到了一些例子，其中使用了四个设备并比较了每个设备的结果。从各种代码示例中，您应该已经看到，需要通过调用来设置设备。
 - en: '[PRE0]'
+  id: totrans-40
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: or the simplified version often used in this text,
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 或者是本文中常用的简化版本，
 - en: '`CUDA_CALL(cudaSetDevice(0));`'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: '`CUDA_CALL(cudaSetDevice(0));`'
 - en: 'The parameter `device_num` is a number from zero (the default device) to the
     number of devices in the system. To query the number of devices, simply use the
     following call:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 参数`device_num`是从零（默认设备）到系统中设备数量的一个数字。要查询设备的数量，只需使用以下调用：
 - en: '[PRE1]'
+  id: totrans-44
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: '[PRE2]'
+  id: totrans-45
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Notice in both calls we make use of the `CUDA_CALL` macro we developed in [Chapter
     4](CHP004.html). This simply takes the return value, checks it for an error, prints
     a suitable error message, and exits if there is a failure. See [Chapter 4](CHP004.html)
     on setting up CUDA for more information on exactly how this works.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这两个调用中，我们都使用了在[第4章](CHP004.html)中开发的`CUDA_CALL`宏。这个宏简单地获取返回值，检查是否有错误，打印适当的错误信息，如果失败则退出。有关具体如何工作的更多信息，请参阅[第4章](CHP004.html)中的CUDA设置部分。
 - en: 'Now that we know how many devices there are and how to select one, the question
     is which one to select. For this we need to know the details of a particular device.
     We can query this with the following call:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们知道有多少个设备以及如何选择其中一个，问题是选择哪个设备。为此，我们需要了解特定设备的详细信息。我们可以通过以下调用来查询：
 - en: '[PRE3]'
+  id: totrans-48
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: '[PRE4]'
+  id: totrans-49
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: The structure `properties` is made up of the structure members shown in [Table
     8.1](#T0010).
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构体`properties`由[表8.1](#T0010)中显示的结构成员组成。
 - en: Table 8.1 Device Properties Explained
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 表8.1 设备属性解释
 - en: '![Image](../images/T000089tabT0010.jpg)'
+  id: totrans-52
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../images/T000089tabT0010.jpg)'
 - en: '![Image](../images/T000089tabT0010a.jpg)'
+  id: totrans-53
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../images/T000089tabT0010a.jpg)'
 - en: ^∗Dual-copy engines are supported on Telsa devices only. Consumer-level devices
     are restricted to support only a single-copy engine.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: ^∗双复制引擎仅支持Telsa设备。消费级设备仅支持单复制引擎。
 - en: ^(∗∗)Unified address is supported only on 64-bit platforms. On Windows it requires
     the TCC driver, which in turn requires a Tesla card. On UNIX platforms this is
     not the case.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: ^(∗∗)统一地址仅在64位平台上受支持。在Windows上，它需要TCC驱动程序，而TCC驱动程序又需要Tesla显卡。在UNIX平台上则不是这样。
 - en: Not all of these may be of interest, but certain ones will. The most important
     of these are the major and minor compute-level revisions. Note also that `warpSize`
     is present here, the implication being that warp size will change on different
     devices, although in practice it has remained at 32 for all devices released to
     date.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些并不全都可能引起兴趣，但某些内容会引起关注。最重要的内容是主要和次要计算级别修订。此外，还请注意，`warpSize`出现在这里，这意味着warp大小在不同设备上会有所不同，尽管在实践中，它在迄今发布的所有设备中都保持在32。
 - en: 'When selecting a device, it’s not necessary to check each item to ensure it’s
     what the particular user program needs. You can simply populate the same structure
     with the properties you would like (0 equates to don’t care) and have the CUDA
     runtime select a suitable device for you. For example:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 选择设备时，不必检查每个项是否符合特定用户程序的需求。你只需用你想要的属性（0表示不关心）填充相同的结构体，让CUDA运行时为你选择合适的设备。例如：
 - en: '[PRE5]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: '[PRE6]'
+  id: totrans-59
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: '[PRE7]'
+  id: totrans-60
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: In this code we create a device properties’ structure, clear it with a `memset`
     call, and then request a compute 2.0 device (any Fermi device). We then ask CUDA
     to set the context to the specified device.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这段代码中，我们创建一个设备属性结构体，使用`memset`调用清空它，然后请求一个计算能力为2.0的设备（任何Fermi设备）。接着，我们要求CUDA将上下文设置为指定的设备。
 - en: Single-Node Systems
+  id: totrans-62
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 单节点系统
 - en: In versions of CUDA prior to the 4.0 SDK single-node systems were the only multi-GPU
     model available as shown in [Figure 8.2](#F0015). A single CPU-based task would
     be associated with a single-GPU context. A task in this context would be either
     a process or a thread. Behind the scenes the CUDA runtime would bind the CPU process/thread
     ID to the GPU context. Thus, all subsequent CUDA calls (e.g., `cudaMalloc`) would
     allocate memory on the device that was bound to this context.
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 在CUDA 4.0 SDK之前的版本中，单节点系统是唯一可用的多GPU模型，如[图8.2](#F0015)所示。单个基于CPU的任务会与一个单独的GPU上下文关联。在这个上下文中，一个任务可以是进程也可以是线程。在幕后，CUDA运行时会将CPU进程/线程ID绑定到GPU上下文。因此，所有后续的CUDA调用（例如`cudaMalloc`）都会在绑定到该上下文的设备上分配内存。
 - en: '![image](../images/F000089f08-02-9780124159334.jpg)'
+  id: totrans-64
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000089f08-02-9780124159334.jpg)'
 - en: FIGURE 8.2 Multiple clients, multiple servers.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.2 多客户端，多服务器。
 - en: This approach had a number of drawbacks but some advantages. From a programming
     perspective, the process/thread model on the host side is fragmented by the OS
     type. A process is a program that runs as an independent schedulable unit on a
     CPU and has its own data space. To conserve memory, multiple instances of the
     same process usually share the code space and the OS maintains a set of registers
     (or context) for each process.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法存在一些缺点，但也有一些优点。从编程的角度看，主机端的进程/线程模型被操作系统类型所割裂。进程是一个作为独立可调度单元在CPU上运行的程序，并且拥有自己的数据空间。为了节省内存，同一进程的多个实例通常共享代码空间，操作系统会为每个进程维护一组寄存器（或上下文）。
 - en: A thread, by contrast, is a much more lightweight element of the CPU scheduling.
     It shares both the code *and* data space used by its parent process. However,
     as with a process, each thread requires the OS to maintain a state (instruction
     pointer, stack pointer, registers, etc.).
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程，另一方面，是CPU调度中的一个更轻量的元素。它共享其父进程使用的代码*和*数据空间。然而，与进程一样，每个线程也需要操作系统维护一个状态（指令指针、栈指针、寄存器等）。
 - en: Threads may communicate and cooperate with other threads *within the same process*.
     Processes may communicate and cooperate with other processes through interprocess
     communication. Such communication between processes may be within a CPU core,
     within a CPU socket, within a CPU node, within a rack, within a computer system,
     or even between computer systems.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程可以与同一进程中的其他线程进行通信与协作。进程则可以通过进程间通信与其他进程进行通信与协作。进程之间的这种通信可能发生在同一个CPU核心、同一个CPU插槽、同一个CPU节点、同一个机架、同一个计算机系统中，甚至跨计算机系统进行。
 - en: The actual API changes depending on the level of communication and OS. The API
     used on Windows is entirely different from that used on Linux. POSIX threads,
     or pthreads, is a commonly used threading model on Linux. This is not natively
     supported in Windows, although it is available as a port. The C++ Boost library
     supports a common threading package, `thread`, which provides support for both
     Linux and Windows.
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 实际的API会根据通信的级别和操作系统而有所不同。在Windows上使用的API与Linux上使用的完全不同。POSIX线程，或称pthreads，是Linux上常用的线程模型。Windows本身不原生支持这一模型，尽管它有对应的移植版本。C++
+    Boost库支持一个通用的线程包`thread`，它同时支持Linux和Windows。
 - en: CPU threads are similar to the GPU threads we’ve used when executing kernels,
     except that they don’t execute in groups or warps as the GPU ones do. GPU threads
     communicate via shared memory and explicitly synchronize to ensure every thread
@@ -398,21 +541,30 @@
     threads can only communicate with other threads within the same SM (in theory).
     Because a block is the scheduling unit to an SM, thread communication is actually
     limited to a per-block basis.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU 线程类似于我们在执行内核时使用的 GPU 线程，区别在于它们不像 GPU 线程那样以组或 warp 的形式执行。GPU 线程通过共享内存进行通信，并显式同步，以确保每个线程都已读/写该内存。共享内存是本地于
+    SM 的，这意味着线程只能与同一 SM 内的其他线程进行通信（理论上）。由于块是 SM 的调度单元，线程通信实际上是基于每个块的。
 - en: Processes on the CPU can be thought of in the same way as blocks on the GPU.
     A process is scheduled to run on one of *N* CPU cores. A block is scheduled to
     run one of *N* SMs on the GPU. In this sense the SMs act like CPU cores.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU 上的进程可以被认为与 GPU 上的块类似。一个进程被调度到 *N* 个 CPU 核心中的一个运行。一个块被调度到 GPU 上 *N* 个 SM
+    中的一个运行。从这个意义上讲，SM 就像 CPU 核心一样。
 - en: CPU processes can communicate to one another via host memory on the same socket.
     However, due to processes using a separate memory space, this can only happen
     with the assistance of a third-party interprocess communications library, as neither
     process can physically see the address space of the other. The same is not true,
     however, for GPU blocks, as they access a common address space on the GPU global
     memory.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU 进程可以通过同一插槽上的主机内存互相通信。然而，由于进程使用的是独立的内存空间，这只有在借助第三方进程间通信库的情况下才能发生，因为每个进程无法物理访问对方的地址空间。然而，对于
+    GPU 块来说情况不同，因为它们访问的是 GPU 全局内存上的公共地址空间。
 - en: Systems with multiple CPUs using shared host memory can also communicate with
     one another via this shared host memory, but again with the help of a third-party
     interprocess communication library. Multiple GPUs can communicate to one another
@@ -421,32 +573,47 @@
     supported for 64-bit OSs using Fermi or later cards. For Windows this is only
     supported with the TCC (Tesla compute cluster) driver, which effectively means
     it’s only supported for Tesla cards.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用共享主机内存的多 CPU 系统也可以通过这种共享内存进行相互通信，但仍需要借助第三方进程间通信库。多个 GPU 也可以在同一主机上通过主机内存进行通信，或者从
+    CUDA SDK 4.0 开始，直接通过 PCI-E 总线进行点对点通信。需要注意的是，点对点通信仅支持使用 Fermi 或更高版本显卡的 64 位操作系统。在
+    Windows 系统中，只有使用 TCC（Tesla 计算集群）驱动时才支持，这实际上意味着它仅支持 Tesla 显卡。
 - en: However, as soon as you no longer have the possibility to use shared host memory
     between CPU cores/sockets, you are forced to make use of some other network transport
     mechanism (TCP/IP, InfiniBand, etc.). The standard for this type of communication
     has become MPI (Message Passing Interface). There are also alternatives such as
     ZeroMQ (0MQ) that are less well known but equally effective.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，一旦你无法再使用 CPU 核心/插槽之间的共享主机内存，你就必须使用其他网络传输机制（如 TCP/IP、InfiniBand 等）。这种类型通信的标准已成为
+    MPI（消息传递接口）。还有一些不太为人所知但同样有效的替代方案，如 ZeroMQ（0MQ）。
 - en: Note that both of these make use of shared host memory transfers when communicating
     internally within a single host node. However, models that support threading (e.g.,
     pthreads, ZeroMQ) perform interthread-based communication much quicker than those
     based on the process model such as MPI.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，这两者在同一主机节点内部进行通信时，都利用了共享主机内存传输。然而，支持线程的模型（例如 pthreads、ZeroMQ）比基于进程模型的模型（如
+    MPI）更快速地进行线程间通信。
 - en: We’ll focus here on the case where we have a single CPU socket, running a single-threaded
     CPU program with multiple GPUs present. This is the most common use case with
     consumer-level hardware and therefore the most useful case to cover. See [Chapter
     10](CHP010.html) for more advanced topics such as peer to peer transfers between
     multiple GPUs.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里我们将重点讨论单个 CPU 插槽的情况，运行一个单线程的 CPU 程序并有多个 GPU 存在。这是消费级硬件中最常见的使用场景，因此是最有用的案例。有关多个
+    GPU 之间的点对点传输等更高级的主题，请参见[第 10 章](CHP010.html)。
 - en: Streams
+  id: totrans-77
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 流
 - en: Streams are virtual work queues on the GPU. They are used for asynchronous operation,
     that is, when you would like the GPU to operate separately from the CPU. Certain
     operations implicitly cause a synchronization point, for example, the default
@@ -455,144 +622,224 @@
     instantly do something with those results on the CPU. If the results were to partially
     appear, then the application would work when debugged or single stepped, but fail
     when run at full speed—a debugging nightmare.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 流（Streams）是GPU上的虚拟工作队列。它们用于异步操作，也就是说，当你希望GPU与CPU分开工作时使用。某些操作会隐式地造成同步点，例如默认的内存从主机到设备的复制。大多数情况下，这正是程序员所希望的，因为在将结果从GPU复制回CPU后，它们会立即在CPU上执行。如果结果是部分显示的，那么在调试或单步执行时，应用程序可能能正常工作，但当以全速运行时则会失败——这将是一个调试噩梦。
 - en: By creating a stream you can push work and events into the stream which will
     then execute the work in the order in which it is pushed into the stream. Streams
     and events are associated with the GPU context in which they were created. Thus,
     to show how to create a couple of streams and events on multiple GPUs we will
     setup a small program to demonstrate this.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过创建流，您可以将工作和事件推送到流中，随后它们将按推送顺序执行。流和事件与它们创建时的GPU上下文相关联。因此，为了展示如何在多个GPU上创建几个流和事件，我们将设置一个小程序来演示这一点。
 - en: '[PRE8]'
+  id: totrans-80
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: '[PRE9]'
+  id: totrans-81
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: '[PRE10]'
+  id: totrans-82
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: '[PRE11]'
+  id: totrans-83
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: '[PRE12]'
+  id: totrans-84
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: In the first function we simply fill the array with a value from 0 to `num_elements`.
     The second function simply checks that the GPU result is what we’d expect. Obviously
     both functions would be replaced with real code to do something a little more
     useful, in practice.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第一个函数中，我们只是简单地用从0到`num_elements`的值填充数组。第二个函数则简单地检查GPU的结果是否符合预期。显然，这两个函数最终会被实际的代码替换，以执行一些更有用的操作。
 - en: '[PRE13]'
+  id: totrans-86
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: '`}`'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: '`}`'
 - en: Next we declare the kernel function itself. This does little more than multiply
     every data element by 2\. Nothing very useful, but just something we can easily
     check to ensure every element of the array has been correctly processed.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们声明内核函数本身。这个函数做的不过是将每个数据元素乘以2。虽然没什么实际用处，但它是我们能轻松检查的内容，确保数组中的每个元素都被正确处理。
 - en: '[PRE14]'
+  id: totrans-89
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: '[PRE15]'
+  id: totrans-90
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: '[PRE16]'
+  id: totrans-91
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: '[PRE17]'
+  id: totrans-92
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: '[PRE18]'
+  id: totrans-93
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: '[PRE19]'
+  id: totrans-94
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: Finally, we come to the main part of the program. This function declares a number
     of values, each of which is indexed by `device_num`. This allows us to use the
     same code for every device and just increment the index.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们来到了程序的主部分。这个函数声明了多个值，每个值都由`device_num`索引。这使得我们可以为每个设备使用相同的代码，只需要递增索引即可。
 - en: '[PRE20]'
+  id: totrans-96
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: '[PRE21]'
+  id: totrans-97
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: '[PRE22]'
+  id: totrans-98
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: '[PRE23]'
+  id: totrans-99
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: '` CUDA_CALL(cudaGetDeviceCount(&num_devices));`'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: '` CUDA_CALL(cudaGetDeviceCount(&num_devices));`'
 - en: '[PRE24]'
+  id: totrans-101
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: The first task is to identify how many GPUs we have available with the `cudaGetDeviceCount`
     call. To ensure we don’t have more than we planned, this number is clipped to
     the maximum supported, a simple `#define`. Allowing for four dual GPU cards, eight
     would be better maximum value than the four selected here.
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要使用`cudaGetDeviceCount`调用来确定可用的GPU数量。为了确保不会超过预期的数量，这个数字会被裁剪到最大支持的值，这只是一个简单的`#define`。如果允许使用四张双GPU卡，那么八个将是比这里选择的四个更好的最大值。
 - en: '[PRE25]'
+  id: totrans-103
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: The first section of each loop then sets the current device context to the `device_num`
     parameter to ensure all subsequent calls then work with that device.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 每个循环的第一部分将当前设备上下文设置为`device_num`参数，以确保所有后续的调用都将作用于该设备。
 - en: '[PRE26]'
+  id: totrans-105
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: '[PRE27]'
+  id: totrans-106
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: '[PRE28]'
+  id: totrans-107
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: '[PRE29]'
+  id: totrans-108
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: '[PRE30]'
+  id: totrans-109
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: '[PRE31]'
+  id: totrans-110
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: '[PRE32]'
+  id: totrans-111
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: '`  // asynchronous`'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  // 异步`'
 - en: '[PRE33]'
+  id: totrans-113
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: '[PRE34]'
+  id: totrans-114
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: '[PRE35]'
+  id: totrans-115
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: '[PRE36]'
+  id: totrans-116
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: We create a stream, or work queue, for each GPU present in the system. Into
     this stream we place a copy from the host (CPU) memory to the GPU global memory
     followed by a kernel call and then a copy back to the CPU. They will execute in
     this order, so the kernel will not start executing until the preceding memory
     copy has completed.
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们为系统中每个GPU创建一个流或工作队列。我们将数据从主机（CPU）内存复制到GPU全局内存，并紧接着进行内核调用，之后再复制回CPU。它们将按此顺序执行，因此内核在前面的内存复制完成之前不会开始执行。
 - en: Note the usage of page-locked memory on the host, allocated using `cudaMallocHost`
     instead of the regular C `malloc` function. Page-locked memory is memory that
     cannot be swapped out to disk. As the memory copy operations are being performed
@@ -601,34 +848,54 @@
     out to disk, which would cause a failure if a DMA was attempted to or from it.
     As we used the `cudaMallocHost` function to allocate the memory, you must also
     use the `cudaFreeHost` function to deallocate the memory.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意主机上使用页锁定内存的用法，使用 `cudaMallocHost` 分配，而不是常规的 C `malloc` 函数。页锁定内存是无法交换到磁盘的内存。由于内存复制操作是通过
+    PCI-E 总线的直接内存访问（DMA）执行的，因此 CPU 端的内存必须始终物理地驻留在内存中。使用 `malloc` 分配的内存可能会被交换到磁盘上，如果尝试对其进行
+    DMA 操作，将会失败。由于我们使用 `cudaMallocHost` 函数来分配内存，因此必须使用 `cudaFreeHost` 函数来释放内存。
 - en: '[PRE37]'
+  id: totrans-119
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: '`  CUDA_CALL(cudaSetDevice(device_num));`'
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  CUDA_CALL(cudaSetDevice(device_num));`'
 - en: '[PRE38]'
+  id: totrans-121
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: Finally, once the kernel streams have been filled, it’s time to wait for the
     GPU kernels to complete. At this point the GPU may not have even started, as all
     we’ve done is to push commands into a stream or command queue.
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，一旦内核流被填充，就该等待 GPU 内核完成。此时，GPU 可能甚至还没有开始，因为我们所做的只是将命令推送到流或命令队列中。
 - en: '[PRE39]'
+  id: totrans-123
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: '[PRE40]'
+  id: totrans-124
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: '[PRE41]'
+  id: totrans-125
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: '[PRE42]'
+  id: totrans-126
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: 'The CPU then waits for each device in turn to complete, and when this is done,
     it checks the contents and then frees the GPU and CPU resources associated with
     each stream. However, what happens if the GPU devices in the system are different
@@ -637,124 +904,194 @@
     we have to add events to the work queue. Now events are special in that we can
     query an event regardless of the currently selected GPU. To do this we need to
     declare a start and stop event:'
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，CPU 按顺序等待每个设备完成，完成后它会检查内容，然后释放与每个流相关联的 GPU 和 CPU 资源。然而，如果系统中的 GPU 设备不同，并且它们执行内核所需的时间不同，会发生什么情况呢？首先，我们需要添加一些计时代码，以便实际查看每个内核的执行时间。为此，我们必须在工作队列中添加事件。事件有一个特殊之处，即我们可以查询事件，无论当前选择的是哪个
+    GPU。为此，我们需要声明一个开始事件和一个停止事件：
 - en: '[PRE43]'
+  id: totrans-128
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'Next, they need to be pushed into the stream or work queue:'
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，它们需要被推送到流或工作队列中：
 - en: '[PRE44]'
+  id: totrans-130
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: We push one start event at the start of the memory copy to the device, one prior
     to kernel invocation, one prior to the memory copy back to host, and, finally,
     one at the end of the memory copy. This allows us to see each stage of the GPU
     operations.
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在内存复制到设备开始时推送一个开始事件，在内核调用之前推送一个事件，在内存复制回主机之前推送一个事件，最后，在内存复制结束时推送一个事件。这使我们能够看到每个
+    GPU 操作的各个阶段。
 - en: 'Finally, we need to get the elapsed time and print it to the screen:'
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们需要获取经过的时间并将其打印到屏幕上：
 - en: '[PRE45]'
+  id: totrans-133
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: '[PRE46]'
+  id: totrans-134
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: '[PRE47]'
+  id: totrans-135
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: '[PRE48]'
+  id: totrans-136
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: '[PRE49]'
+  id: totrans-137
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: '[PRE50]'
+  id: totrans-138
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: '[PRE51]'
+  id: totrans-139
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: '[PRE52]'
+  id: totrans-140
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: '[PRE53]'
+  id: totrans-141
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: '[PRE54]'
+  id: totrans-142
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: '[PRE55]'
+  id: totrans-143
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: '`printf("\n");`'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: '`printf("\n");`'
 - en: 'We also need to redefine the kernel so it does considerably more work, so we
     can actually see some reasonable execution times on the kernel:'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还需要重新定义内核，使其能够执行更多的工作，以便我们能够真正看到内核的合理执行时间：
 - en: '[PRE56]'
+  id: totrans-146
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: '[PRE57]'
+  id: totrans-147
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: 'When we run the program we see the following result:'
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们运行程序时，我们会看到以下结果：
 - en: '[PRE58]'
+  id: totrans-149
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: '[PRE59]'
+  id: totrans-150
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: '[PRE60]'
+  id: totrans-151
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: '[PRE61]'
+  id: totrans-152
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: You can see from the results that the memory copy operations are within a small
     tolerance of one another. This is not too surprising as each device is running
     on an x8 PCI-E 2.0 link. The PCI link speed is considerably slower than even the
     slowest device’s memory speed, so we are in fact limited by the PCI-E bus speed
     with regard to such transfers.
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 从结果中可以看出，内存复制操作之间的差异在一个小的容忍范围内。这并不令人惊讶，因为每个设备都在 x8 PCI-E 2.0 链接上运行。PCI 链接速度远远慢于即使是最慢设备的内存速度，因此我们实际上受限于
+    PCI-E 总线速度，尤其是在这样的数据传输中。
 - en: What is interesting, however, is the kernel execution speed varies quite dramatically,
     from 5 seconds to 25 seconds. Thus, if we provide data to each device strictly
     in turn such a cycle would take around 51 seconds (5s + 25s + 14s + 7s). However,
     at the time the program waits for device 1 9800GT, the slowest device, devices
     2 (GTX260) and 3 (GTX460) are already complete. They could have been issued with
     more work in this time period.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，有趣的是，内核执行速度变化非常剧烈，从 5 秒到 25 秒不等。因此，如果我们严格按照顺序为每个设备提供数据，这样的周期大约需要 51 秒（5 秒
+    + 25 秒 + 14 秒 + 7 秒）。然而，当程序等待设备 1（9800GT，最慢的设备）时，设备 2（GTX260）和设备 3（GTX460）已经完成。在这段时间内，它们本可以继续接收更多的工作。
 - en: 'We can solve this problem by querying the end event, rather than simply waiting
     on the end event. That is to say we look to see if the kernel has completed, and
     if not, move onto the next device and come back to the slow device later. This
     can be done using the following function:'
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过查询结束事件来解决这个问题，而不是仅仅等待结束事件。也就是说，我们检查内核是否已完成，如果没有，则跳到下一个设备，稍后再返回处理较慢的设备。这可以通过以下函数来实现：
 - en: '[PRE62]'
+  id: totrans-156
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: This function takes a specified event and returns `cudaSuccess` if the event
     has already happened, or `cudaErrorNotReady` if the event has not yet occurred.
     Note, this means we can’t use the regular `CUDA_CALL` macro, as the `cudaErrorNotReady`
     state is not really an error state, just status information.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个函数接受一个指定的事件，并在事件已经发生时返回`cudaSuccess`，如果事件尚未发生，则返回`cudaErrorNotReady`。注意，这意味着我们不能使用常规的`CUDA_CALL`宏，因为`cudaErrorNotReady`状态并不是真正的错误状态，而只是状态信息。
 - en: 'We also need to specify how CUDA handles its tracking of pending GPU tasks
     via the following call:'
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还需要指定CUDA如何通过以下调用跟踪待处理的GPU任务：
 - en: '[PRE63]'
+  id: totrans-159
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: This call is done prior to any other CUDA calls and simply tells the driver
     that it should in all cases yield the CPU thread to other CPU threads when waiting
     for an operation. This can mean some additional latency in terms of the driver
@@ -762,157 +1099,243 @@
     to progress. The alternative is that the driver spins the CPU thread (polls the
     device), which is certainly not what we want when there are other devices that
     could be ready.
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个调用在任何其他CUDA调用之前进行，它只是告诉驱动程序，在等待操作时，应该始终将CPU线程让给其他CPU线程。这可能会导致一些额外的延迟，因为驱动程序必须等待CPU工作队列中的轮次，但这允许其他CPU任务继续进行。另一种选择是驱动程序旋转CPU线程（轮询设备），这显然不是我们希望的，尤其是在其他设备可能已经准备好的情况下。
 - en: To avoid polling the event queue ourselves and thus having the program behave
     poorly in relation to other CPU tasks, the program needs to put itself to sleep
     and then wake up sometime later and check the event queue again. The process to
     do this in Linux and Windows is slightly different, so we’ll use a custom function,
     snooze, which works on both platforms.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了避免我们自己轮询事件队列，从而使程序在处理其他CPU任务时表现不佳，程序需要进入休眠状态，稍后再醒来检查事件队列。这一过程在Linux和Windows中有所不同，因此我们将使用一个自定义函数`snooze`，它适用于这两个平台。
 - en: '[PRE64]'
+  id: totrans-162
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: 'Finally, we will reorder the processing of the data to remove the `cudaStreamSynchronize`
     call and place this code into a function. We’ll also remove the cleanup code and
     place this outside of the main loop. This particular action is important, as doing
     this within the loop, depending on the function, can cause serialization of the
     driver calls. Thus, the revised code for the querying of the event queue is as
     follows:'
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们将重新排列数据处理顺序，移除`cudaStreamSynchronize`调用，并将此代码放入一个函数中。我们还将移除清理代码并将其放置在主循环外部。这个操作非常重要，因为在循环内部执行此操作可能会根据函数的不同导致驱动程序调用的串行化。因此，查询事件队列的修订代码如下：
 - en: '[PRE65]'
+  id: totrans-164
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: '[PRE66]'
+  id: totrans-165
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: '[PRE67]'
+  id: totrans-166
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: '[PRE68]'
+  id: totrans-167
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: '[PRE69]'
+  id: totrans-168
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE69]'
 - en: '[PRE70]'
+  id: totrans-169
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE70]'
 - en: '[PRE71]'
+  id: totrans-170
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE71]'
 - en: '`   }`'
+  id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: '`   }`'
 - en: '[PRE72]'
+  id: totrans-172
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE72]'
 - en: '[PRE73]'
+  id: totrans-173
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE73]'
 - en: '[PRE74]'
+  id: totrans-174
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE74]'
 - en: 'The `while` loop simply runs until each device has provided results. We set
     up an array, `processed_results[num_devices]`, which holds false initially. As
     each GPU provides the results, the number of results pending is decremented and
     the array-processed results are marked to say this GPU has already provided the
     results. Where results are not yet available from any GPU, the CPU thread sleeps
     for 100 ms and then tries again. This results in the following output:'
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: '`while`循环会一直运行，直到每个设备都提供了结果。我们设置了一个数组`processed_results[num_devices]`，最初所有元素都是false。随着每个GPU提供结果，待处理的结果数量会递减，并且数组中的处理结果会被标记，表示该GPU已经提供了结果。如果某个GPU的结果还不可用，CPU线程将休眠100毫秒，然后再次尝试。最终输出如下：'
 - en: '[PRE75]'
+  id: totrans-176
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE75]'
 - en: '[PRE76]'
+  id: totrans-177
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE76]'
 - en: '[PRE77]'
+  id: totrans-178
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE77]'
 - en: '[PRE78]'
+  id: totrans-179
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE78]'
 - en: '`ID:1 GeForce 9800 GT:Copy To        :    21.19 ms`'
+  id: totrans-180
   prefs: []
   type: TYPE_NORMAL
+  zh: '`ID:1 GeForce 9800 GT:Copy To        :    21.19 ms`'
 - en: '[PRE79]'
+  id: totrans-181
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE79]'
 - en: Notice how the order of the results now comes in as expected. The fastest device,
     the GTX470, takes just 5 seconds, while the slowest, the 9800 GT, takes 25 seconds.
     The CPU thread, for the most part, is idle during this time and could be doing
     something useful such as distributing more work to the GPUs when they finish.
     Let’s look at how this would work in practice.
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意到结果的顺序现在如预期那样排列。最快的设备GTX470只需5秒，而最慢的9800 GT则需要25秒。大部分时间内，CPU线程处于空闲状态，可以做一些有用的工作，比如在GPU完成任务后分配更多工作。我们来看一下在实际操作中如何实现这一点。
 - en: To start with, we need to abstract the task of pushing work into the stream
     or work queue. We can then use this for the initial stream filling, plus filling
     the stream when the work is complete.
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要抽象出将任务推送到流或工作队列中的过程。然后，我们可以利用这个过程进行初始流填充，并在工作完成后继续填充流。
 - en: '[PRE80]'
+  id: totrans-184
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE80]'
 - en: '[PRE81]'
+  id: totrans-185
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE81]'
 - en: '[PRE82]'
+  id: totrans-186
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE82]'
 - en: '[PRE83]'
+  id: totrans-187
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE83]'
 - en: '[PRE84]'
+  id: totrans-188
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE84]'
 - en: '[PRE85]'
+  id: totrans-189
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE85]'
 - en: '[PRE86]'
+  id: totrans-190
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE86]'
 - en: '[PRE87]'
+  id: totrans-191
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE87]'
 - en: '[PRE88]'
+  id: totrans-192
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE88]'
 - en: '[PRE89]'
+  id: totrans-193
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE89]'
 - en: '[PRE90]'
+  id: totrans-194
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE90]'
 - en: '[PRE91]'
+  id: totrans-195
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE91]'
 - en: '[PRE92]'
+  id: totrans-196
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE92]'
 - en: '[PRE93]'
+  id: totrans-197
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE93]'
 - en: '[PRE94]'
+  id: totrans-198
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE94]'
 - en: '[PRE95]'
+  id: totrans-199
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE95]'
 - en: Here the program simply keeps track of the number of active GPU tasks and counts
     down the number of results still to process. This results in the allocation of
     work blocks shown in [Figure 8.3](#F0020) to GPUs when we allocate a total of
     64 work units.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，程序只是简单地跟踪活跃的GPU任务数量，并倒计时剩余的待处理结果。当我们分配总共64个工作单元时，这将导致在[图8.3](#F0020)中所示的工作块分配到GPU。
 - en: '![image](../images/F000089f08-03-9780124159334.jpg)'
+  id: totrans-201
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000089f08-03-9780124159334.jpg)'
 - en: FIGURE 8.3 Distribution of work units to multiple GPUs.
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
+  zh: 图8.3 多个GPU的工作单元分配。
 - en: As you can see from the bar chart, the GTX470 can in the same time process 25+
     units of work compared to the 9800 GT, which can process 5+ units, a ratio of
     5:1\. Simply cycling around and waiting on the stream sync operation would have
@@ -922,8 +1345,10 @@
     scenario. In fact, the lesser cards if taken together contribute 37 work units,
     10 more than the 27 contributed by the main card alone. This, in turn, more than
     doubles the available work throughput on the machine.
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
+  zh: 从条形图中可以看到，GTX470在相同时间内可以处理25个以上的工作单元，而9800 GT只能处理5个以上，二者的比率为5:1。如果仅仅在流同步操作中循环等待，会导致工作分配完全相等，而在许多现实系统中，GPU是混合使用的。许多游戏玩家会使用一张卡片进行游戏（如GTX670），然后通常使用一张旧卡片专门用于PhysX（如GTX260），这正是这种场景。事实上，如果将较差的卡片一起计算，它们贡献了37个工作单元，比主卡单独贡献的27个还多10个。这反过来又使得机器上的工作吞吐量翻倍。
 - en: This is all very well, but we can actually do much better. We’re actually not
     making the best use of each GPU in the system. Streams are designed to both provide
     an alternative to stream 0, the default stream, and provide multiple work queues
@@ -934,31 +1359,41 @@
     be doing a much slower operation such as loading the next work unit from disk.
     In this case we’d like the GPU to remain busy during this period also. For this
     we use a scheme called double buffering.
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
+  zh: 这一切看起来不错，但我们实际上可以做得更好。我们实际上没有充分利用系统中每个GPU的性能。流被设计用来提供对流0（默认流）的替代方案，并为GPU提供多个工作队列进行处理。如果内核过小，无法充分利用整个GPU，这种设计是有用的，尽管这种情况不太可能发生；或者更常见的情况是，CPU可能需要一些时间才能向GPU提供额外的工作。在这里的例子中，CPU只是在检查数组是否符合预期值，但它也可以执行一个更慢的操作，比如从磁盘加载下一个工作单元。在这种情况下，我们希望GPU在此期间也能保持忙碌。为此，我们使用了一种叫做双缓冲的方案。
 - en: Double buffering works by having the GPU work with one buffer while the CPU
     is working with the other buffer. Thus, even while the CPU is processing one dataset,
     the GPU is still performing useful work, rather than waiting on the CPU. The CPU
     process may be something as simple as loading or saving data to disk. It might
     also include some additional processing and/or combination of data from multiple
     GPUs.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
+  zh: 双缓冲技术通过让GPU与一个缓冲区进行工作，而CPU与另一个缓冲区进行工作来实现。因此，即使CPU正在处理一个数据集，GPU仍然可以执行有用的工作，而不是等待CPU。CPU的处理可能只是简单的数据加载或保存到磁盘。它还可能包括一些额外的处理和/或来自多个GPU的数据组合。
 - en: 'To do this we need to introduce another dimension to every array based on `MAX_NUM_DEVICES`.
     For example:'
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
+  zh: 为此，我们需要根据`MAX_NUM_DEVICES`为每个数组引入另一个维度。例如：
 - en: '[PRE96]'
+  id: totrans-207
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE96]'
 - en: Then we have the option to support two or more streams per device. Using two
     streams per device has a small problem, in that if we allocate work units to GPUs
     with equal priority, they all get the same total number of work units. This, in
     practice, means we end up at the end of the work queue, still waiting on the slowest
     device. The solution to this is to allocate work units to the GPUs in proportion
     to their speed.
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们有一个选项来支持每个设备两个或更多流。每个设备使用两个流有一个小问题，如果我们将工作单元分配给优先级相等的GPU，它们都会得到相同数量的工作单元。实际上，这意味着我们最终仍然需要在工作队列的末尾，等待最慢的设备。解决这个问题的方法是按GPU的速度分配工作单元。
 - en: 'If you look back at [Figure 8.3](#F0020), you can see that the GT9800 is the
     slowest device. The GTX260 is approximately twice as fast, the GTX460 twice as
     fast again, and the GTX470 around 20% faster than the GTX460\. Given that we want
@@ -966,18 +1401,24 @@
     of streams allocated in proportion to the speed of the device, we get a work distribution
     that keeps all devices busy for about the same amount of time. We can do this
     with a simply array:'
+  id: totrans-209
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你回顾一下[F图 8.3](#F0020)，你会看到GT9800是最慢的设备。GTX260大约是它的两倍速度，GTX460又是它的两倍速度，而GTX470比GTX460快大约20%。鉴于我们至少需要两个流来实现双缓冲，如果我们按照设备的速度比例增加分配的流数，我们就能得到一个工作分配，使所有设备在差不多相同的时间内保持忙碌。我们可以通过一个简单的数组来实现这一点：
 - en: '[PRE97]'
+  id: totrans-210
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE97]'
 - en: Thus, initially we allocate 10 work units to device 0, the GTX470\. However,
     we allocate only 2 work units to the GT9800, and so on. At the point we run out
     of work units each device has the queue length of approximately the value shown
     in the array. As this equates to approximately the same time, all devices finish
     within a short period of one another.
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，最初我们为设备0（GTX470）分配了10个工作单元。然而，我们只为GT9800分配了2个工作单元，以此类推。当我们工作单元用完时，每个设备的队列长度大致为数组中显示的值。由于这大约等于相同的时间，所以所有设备都会在短时间内完成。
 - en: Here the list of the relative speeds of the various GPUs is constructed statically.
     If you always have the same hardware in the target machine, then this approach
     is fine. However, if you don’t know what the target hardware is, you can do some
@@ -985,8 +1426,10 @@
     to remember is the minimum value in the list should always be at least 2 to achieve
     double buffering. The other values should be some multiple of 2, which reflects
     the relative timing to the slowest device.
+  id: totrans-212
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里各种GPU相对速度的列表是静态构建的。如果目标机器的硬件始终相同，那么这种方法是可行的。然而，如果你不知道目标硬件是什么，你可以进行一些初步的计时运行，然后在运行时完成这样的表格。需要记住的关键点是，列表中的最小值应该始终至少为2，以实现双缓冲。其他值应该是2的倍数，这反映了与最慢设备的相对时序。
 - en: One of the things that can be seen in the previous example, where we just used
     a single stream per GPU, is the GPU load varies. Sometimes it drops to 25% or
     less. In effect, we’re seeing stalls in the GPU workload. Giving it multiple items
@@ -994,45 +1437,59 @@
     continuous 100% and all devices. This also has the benefit of reducing the sensitivity
     of the GPU kernel to CPU loading by other tasks, as it gives each GPU a large
     amount of work to do before the CPU *must* service it again.
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的例子中，我们只给每个GPU使用了一个流，可以看到GPU负载是变化的。有时它会降到25%或更低。实际上，我们看到的是GPU工作负载的停滞。给它多个任务处理，而不再依赖CPU的进一步干预，可以将GPU负载提高到几乎连续的100%，使所有设备都忙碌。这还具有减少GPU内核对其他任务CPU负载敏感性的好处，因为它在CPU*必须*再次服务它之前，给每个GPU提供了大量的工作。
 - en: In fact, if you run the single-stream kernel versus the multiple-stream kernel,
     we see a drop from 151 seconds to 139 seconds, an 8% decrease in execution time.
     The CPU side of the task is quite small, so it’s able to relatively quickly fill
     the single entry queue. However, with a more complex CPU task, the overlapping
     of CPU time and GPU time becomes more important and you’ll see this 8% value grow
     quite considerably.
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 实际上，如果你运行单流内核与多流内核，我们会看到执行时间从151秒下降到139秒，减少了8%。任务的CPU部分相对较小，因此它能够相对快速地填满单个队列。然而，对于更复杂的CPU任务，CPU时间和GPU时间的重叠变得更加重要，你会看到这个8%的值会显著增长。
 - en: As with any additional complexity you add to a program, it costs time to develop
     and can introduce additional errors. For most programs, using at least two streams
     per device will help improve the overall throughput enough to justify the additional
     programming effort.
+  id: totrans-215
   prefs: []
   type: TYPE_NORMAL
+  zh: 与任何你添加到程序中的额外复杂性一样，开发它会花费时间，并且可能引入额外的错误。对于大多数程序，至少每个设备使用两个流将有助于改善整体吞吐量，足以证明额外编程工作的价值。
 - en: Multiple-Node Systems
+  id: totrans-216
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 多节点系统
 - en: A single computer forms a single node on a network. Connect lots of single machines
     together and you have a cluster of machines. Typically, such a cluster will be
     composed of a set of rack-mounted nodes. The rack may then itself be interconnected
     with one or more additional racks.
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
+  zh: 一台计算机构成了网络中的一个单节点。将许多单独的机器连接在一起，就形成了一个机器集群。通常，这样的集群将由一组机架式节点组成。然后，机架本身可能与一个或多个额外的机架互连。
 - en: The largest single GPU system in the world as of 2012, Tianhe-1A, consists of
     over 14,000 CPUs with over 7000 Tesla Fermi GPUs. These are split into 112 cabinets
     (racks), each of which contains 64 compute nodes. It runs a custom interconnect
     that supports up to 160 GB/s of communications bandwidth.
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 截至2012年，世界上最大的单一GPU系统天河-1A由超过14,000个CPU和超过7000个Tesla Fermi GPU组成。这些硬件被分成112个机柜（机架），每个机柜包含64个计算节点。它运行一个定制的互联网络，支持最高160GB/s的通信带宽。
 - en: Now, in practice, most researchers and commercial organizations will never have
     access to something of this scale. However, what they typically will be able to
     purchase is a number networked nodes connected to a single 16 to 48 port gigabit
     Ethernet switch. This will typically take the form of a single 19-inch rack unit
     that is placed in an air conditioned computer room.
+  id: totrans-219
   prefs: []
   type: TYPE_NORMAL
+  zh: 实际上，大多数研究人员和商业组织永远无法接触到如此规模的系统。然而，他们通常能够购买的是一组网络连接的节点，连接到一个16到48端口的千兆以太网交换机。这个系统通常表现为一个19英寸的机架单元，放置在一个空调控制的计算机房中。
 - en: The ideal ratio of CPU cores to GPUs depends on the application and what percentage
     of the code is serial. If it is very little, then the simple one CPU core to multiple
     GPUs works well enough not to have to bother with any additional programming.
@@ -1040,8 +1497,10 @@
     To overcome this we need to allocate less GPUs per CPU core, moving to a 1:2 or
     1:1 ratio as the application demands. The simplest and most scalable method is
     via assigning one process to each set of CPU/GPUs on the node.
+  id: totrans-220
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU核心与GPU的理想比例取决于应用程序以及代码中串行部分的比例。如果串行部分非常少，那么简单的“一核CPU对多个GPU”方案通常足够好，无需额外的编程工作。然而，如果CPU负载较重，可能会限制吞吐量。为了解决这个问题，我们需要为每个CPU核心分配更少的GPU，随着应用程序需求，可以调整为1:2或1:1的比例。最简单且可扩展的方法是为每个节点上的CPU/GPU集群分配一个进程。
 - en: Once we move to this model it allows for much larger scaling, in that we can
     have two nodes, each of which have four GPUs and one or more CPU cores. If the
     problem can be further decomposed into eight blocks instead of four, then we should
@@ -1052,8 +1511,10 @@
     outperform a network with the same number of GPUs distributed to more nodes. Local
     node resources (disk, memory, CPU) can have a big impact on the best topology
     for a given problem.
+  id: totrans-221
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们转向这种模型，它允许更大的扩展，因为我们可以拥有两个节点，每个节点有四个GPU和一个或多个CPU核心。如果问题可以进一步分解为八个块而不是四个块，那么我们应该看到性能翻倍。实际上，正如我们之前看到的，由于引入了通信开销，这种情况不会发生。随着节点数量的增加，网络通信对问题的影响也会增加。因此，通常会发现，具有较多GPU的节点网络会优于将相同数量GPU分布到更多节点的网络。局部节点资源（磁盘、内存、CPU）可能会对特定问题的最佳拓扑结构产生重大影响。
 - en: To move to such a system, we need a communications mechanism that allows us
     to schedule work to a given CPU/GPUs set, regardless of where they are on the
     network. For this we’ll use ZeroMQ, a very lightweight and fairly user-friendly
@@ -1063,8 +1524,10 @@
     but generally needs a bit of setup and is more suited for very controlled environments.
     ZeroMQ handles errors well, allowing nodes to disappear and reappear without bringing
     the whole program down in a nasty mess.
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
+  zh: 要构建这样的系统，我们需要一种通信机制，允许我们将工作调度到指定的CPU/GPU集群，而不管它们在网络上的位置。为此，我们将使用ZeroMQ，这是一个非常轻量级且相对易于使用的通信库。虽然我们也可以使用套接字库，但这会更加底层，并且在大多数情况下，编程上更难以正确实现。我们也可以使用MPI，它是Linux平台上一个相对标准的协议定义，但通常需要一些设置，并且更适用于高度控制的环境。ZeroMQ处理错误的能力很好，它允许节点消失并重新出现，而不会导致整个程序崩溃。
 - en: ZeroMQ (or 0MQ) is a small, lightweight library that you simply link to. There
     are no compiler wrappers or the like, just a simple library. Once initialized,
     ZeroMQ runs in the background and allows the application to use synchronous or
@@ -1072,14 +1535,19 @@
     you’d like to send a 10 MB file to another node, then send it, and ZeroMQ will
     internally handle any buffering. It makes a good interface for writing distributed
     applications. It is available free of charge from [*http://www.zeromq.org/*](http://www.zeromq.org/).
+  id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: ZeroMQ（或 0MQ）是一个小型、轻量级的库，只需链接到它即可使用。没有编译器包装器等，只是一个简单的库。初始化后，ZeroMQ 会在后台运行，并允许应用程序使用同步或异步通信，而无需担心缓冲区管理。如果你想向另一个节点发送一个
+    10 MB 的文件，只需发送，ZeroMQ 会在内部处理任何缓冲。这为编写分布式应用程序提供了一个良好的接口。它可以从[*http://www.zeromq.org/*](http://www.zeromq.org/)免费下载。
 - en: ZeroMQ supports a number of transports between threads (INPROC), between processes
     (IPC), broadcast to many nodes (MULTICAST), and a network-based system (TCP).
     We’ll make use of the latter, as it allows the most flexibility in terms of connecting
     multiple nodes anywhere on the network (or Internet).
+  id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: ZeroMQ 支持多种传输方式，包括线程间（INPROC）、进程间（IPC）、广播到多个节点（MULTICAST）以及基于网络的系统（TCP）。我们将使用后者，因为它在连接网络（或互联网）上多个节点时提供了最大的灵活性。
 - en: The first task we need to cover with ZeroMQ is to set up a connection point.
     We’ll be using the master/worker paradigm, as shown in [Figure 8.4](#F0025). This
     is where we have one master (server) that distributes work packets to the worker
@@ -1089,204 +1557,323 @@
     four GPUs attached with a 1:1 mapping of CPU cores to GPU devices would represent
     four clients. Equally, a quad-core CPU with a 1:4 mapping of CPU cores to GPU
     devices would appear as a single client.
+  id: totrans-225
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要在 ZeroMQ 中完成的第一个任务是设置一个连接点。我们将使用主/工作者模式，如[图 8.4](#F0025)所示。这是指我们有一个主服务器（server），它将工作包分发到工作机（client）。每台客户端机器都会连接到由服务器提供的网络上的特定点，然后等待任务的分配。请注意，这里的客户端是指
+    CPU/GPU 集合，而不是物理节点。因此，一台四核 CPU 配备四个 GPU，且 CPU 核心与 GPU 设备一一映射的情况下，将代表四个客户端。相同地，一台四核
+    CPU 以 1:4 映射关系将显示为单个客户端。
 - en: '![image](../images/F000089f08-04-9780124159334.jpg)'
+  id: totrans-226
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000089f08-04-9780124159334.jpg)'
 - en: FIGURE 8.4 Single server, multiple clients.
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 8.4 单服务器，多客户端。
 - en: In ZeroMQ terminology, the server will `bind` with a port, that is, it will
     create an access point. All clients will then `connect` to that known access point.
     At this point no application data has been transmitted. However, in the background,
     ZeroMQ will have set up an internal queue for each client that connects to the
     port.
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 ZeroMQ 术语中，服务器将与端口`bind`，即它会创建一个访问点。然后，所有客户端将`connect`到这个已知的访问点。此时，尚未传输任何应用数据。然而，在后台，ZeroMQ
+    已为每个连接到该端口的客户端设置了一个内部队列。
 - en: 'The next step is to decide on a messaging pattern, the simplest being the request/reply
     pattern. This is similar to MPI in that we have a `send` and recv function, and
     that for every send, there must be a response. This is done as follows:'
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一步是决定消息传递模式，最简单的就是请求/响应模式。这与 MPI 类似，我们有一个`send`和`recv`函数，对于每次发送，都必须有一个响应。具体步骤如下：
 - en: '[PRE98]'
+  id: totrans-230
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE98]'
 - en: '[PRE99]'
+  id: totrans-231
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE99]'
 - en: '[PRE100]'
+  id: totrans-232
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE100]'
 - en: '[PRE101]'
+  id: totrans-233
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE101]'
 - en: The CPU client then maintains a work queue, usually at least two items to allow
     for GPU double buffering, plus at least one inbound and one outbound network message.
+  id: totrans-234
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU 客户端然后维护一个工作队列，通常至少包含两个项目以便进行 GPU 双重缓冲，此外还至少有一个入站和一个出站的网络消息。
 - en: The protocol used in the application is that the CPU client connects to the
     server and asks the server for a batch of work. The server then responds with
     a range that it would like the client to work on. The client then does any work
     necessary on the CPU to generate data for that work packet. This might be, for
     example, generating all possible combinations for a given model value to test
     against some prediction.
+  id: totrans-235
   prefs: []
   type: TYPE_NORMAL
+  zh: 应用程序中使用的协议是，CPU 客户端连接到服务器并请求服务器提供一批工作。然后，服务器响应一个它希望客户端处理的工作范围。客户端随后在 CPU 上执行必要的工作，以生成该工作包所需的数据。例如，这可能是为给定的模型值生成所有可能的组合，以进行一些预测测试。
 - en: '[PRE102]'
+  id: totrans-236
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE102]'
 - en: '[PRE103]'
+  id: totrans-237
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE103]'
 - en: '[PRE104]'
+  id: totrans-238
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE104]'
 - en: '` u32 num_devices;`'
+  id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: '` u32 num_devices;`'
 - en: '[PRE105]'
+  id: totrans-240
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE105]'
 - en: '[PRE106]'
+  id: totrans-241
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE106]'
 - en: '[PRE107]'
+  id: totrans-242
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE107]'
 - en: '[PRE108]'
+  id: totrans-243
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE108]'
 - en: '[PRE109]'
+  id: totrans-244
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE109]'
 - en: '[PRE110]'
+  id: totrans-245
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE110]'
 - en: '[PRE111]'
+  id: totrans-246
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE111]'
 - en: '[PRE112]'
+  id: totrans-247
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE112]'
 - en: '[PRE113]'
+  id: totrans-248
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE113]'
 - en: '`   fflush(stdout);`'
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: '` fflush(stdout);`'
 - en: '[PRE114]'
+  id: totrans-250
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE114]'
 - en: '[PRE115]'
+  id: totrans-251
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE115]'
 - en: '[PRE116]'
+  id: totrans-252
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE116]'
 - en: '[PRE117]'
+  id: totrans-253
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE117]'
 - en: The client code, after receiving the initial work from the server and generating
     the GPU work queue, runs over a loop until the work is complete. This loop distributes
     work to the available GPUs, processes work that is already complete, and posts
     any completed work to the server. Finally, if it was not able to do any of the
     above, it sleeps for 100 ms and then tries again. We then print a summary of how
     many work units each device processed when the program exits.
+  id: totrans-254
   prefs: []
   type: TYPE_NORMAL
+  zh: 客户端代码在从服务器接收到初始工作并生成GPU工作队列后，会在一个循环中运行直到工作完成。这个循环将工作分配给可用的GPU，处理已完成的工作，并将任何已完成的工作发布到服务器。最后，如果无法完成上述操作，它会休眠100毫秒然后重试。程序退出时，我们会打印每个设备处理了多少工作单元的总结。
 - en: Notice the scheduling is different than it was in the previous example. We now
     need to have some additional buffer space to post out the completed units to the
     server and some time to push the data into the transmission queue. Thus, we no
     longer immediately reschedule work onto the GPU, but schedule additional work
     later. This allows for a simpler approach where we distribute work, collect any
     finished work, process it locally if necessary, and post it to the server.
+  id: totrans-255
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意到调度与之前的示例有所不同。现在我们需要一些额外的缓冲空间，将完成的单元发布到服务器，并需要一些时间将数据推送到传输队列。因此，我们不再立即将工作重新调度到GPU，而是稍后安排额外的工作。这使得我们可以采取更简单的方法：分配工作，收集任何已完成的工作，必要时进行本地处理，然后将其发布到服务器。
 - en: '[PRE118]'
+  id: totrans-256
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE118]'
 - en: '[PRE119]'
+  id: totrans-257
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE119]'
 - en: '[PRE120]'
+  id: totrans-258
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE120]'
 - en: '`          (stream_num < streams_per_device[device_num]) )`'
+  id: totrans-259
   prefs: []
   type: TYPE_NORMAL
+  zh: '`          (stream_num < streams_per_device[device_num]) )`'
 - en: '[PRE121]'
+  id: totrans-260
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE121]'
 - en: '[PRE122]'
+  id: totrans-261
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE122]'
 - en: '[PRE123]'
+  id: totrans-262
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE123]'
 - en: '[PRE124]'
+  id: totrans-263
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE124]'
 - en: '[PRE125]'
+  id: totrans-264
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE125]'
 - en: '[PRE126]'
+  id: totrans-265
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE126]'
 - en: Here we iterate over the `processed_results` array to see if any elements in
     the stream have been processed in the previous cycle and are now free again to
     be used. We then allocate the pending work such that one work unit it allocated
     per GPU device into an available stream slot.
+  id: totrans-266
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里我们遍历`processed_results`数组，查看流中的任何元素是否在上一个周期中已处理，并且现在可以再次使用。然后我们分配待处理的工作，每个GPU设备分配一个工作单元到一个可用的流槽位。
 - en: '[PRE127]'
+  id: totrans-267
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE127]'
 - en: '[PRE128]'
+  id: totrans-268
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE128]'
 - en: '` // Copy in the source data form the host queue`'
+  id: totrans-269
   prefs: []
   type: TYPE_NORMAL
+  zh: '` // 将源数据从主机队列复制进来`'
 - en: '[PRE129]'
+  id: totrans-270
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE129]'
 - en: '[PRE130]'
+  id: totrans-271
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE130]'
 - en: '[PRE131]'
+  id: totrans-272
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE131]'
 - en: '[PRE132]'
+  id: totrans-273
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE132]'
 - en: '[PRE133]'
+  id: totrans-274
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE133]'
 - en: '[PRE134]'
+  id: totrans-275
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE134]'
 - en: '[PRE135]'
+  id: totrans-276
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE135]'
 - en: '[PRE136]'
+  id: totrans-277
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE136]'
 - en: '[PRE137]'
+  id: totrans-278
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE137]'
 - en: '[PRE138]'
+  id: totrans-279
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE138]'
 - en: '` // Push the stop event into the stream`'
+  id: totrans-280
   prefs: []
   type: TYPE_NORMAL
+  zh: '` // 将停止事件推送到流中`'
 - en: '[PRE139]'
+  id: totrans-281
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE139]'
 - en: '[PRE140]'
+  id: totrans-282
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE140]'
 - en: The `push_work_into_stream` function is much the same as before. However, it
     now accepts a `stream_num` parameter, allowing us to fill in any available slot
     in the stream. It also now copies data into CPU memory from `cpu_unprocessed_data`,
@@ -1294,222 +1881,336 @@
     host memory used by the GPU’s aynchronous memory operations. The CPU host needs
     to be free to calculate/update this memory as needed without worrying about synchronizing
     it with the ongoing GPU kernels.
+  id: totrans-283
   prefs: []
   type: TYPE_NORMAL
+  zh: '`push_work_into_stream`函数与之前类似。然而，现在它接受一个`stream_num`参数，使我们能够填充流中的任何空闲槽位。它还将数据从`cpu_unprocessed_data`复制到CPU内存中，`cpu_unprocessed_data`是一个位于CPU主机端的常规内存数组。请注意，这与GPU异步内存操作使用的页面映射主机内存不同。CPU主机需要保持自由，以便根据需要计算/更新该内存，而无需担心与正在进行的GPU内核同步。'
 - en: '[PRE141]'
+  id: totrans-284
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE141]'
 - en: '[PRE142]'
+  id: totrans-285
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE142]'
 - en: '[PRE143]'
+  id: totrans-286
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE143]'
 - en: '[PRE144]'
+  id: totrans-287
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE144]'
 - en: '` }`'
+  id: totrans-288
   prefs: []
   type: TYPE_NORMAL
+  zh: '` }`'
 - en: '[PRE145]'
+  id: totrans-289
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE145]'
 - en: The `collect` result function simply iterates over all devices and each stream
     of every device and calls the `process_result` function to try to process any
     available results.
+  id: totrans-290
   prefs: []
   type: TYPE_NORMAL
+  zh: '`collect`结果函数简单地遍历所有设备及每个设备的每个流，并调用`process_result`函数尝试处理任何可用的结果。'
 - en: '[PRE146]'
+  id: totrans-291
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE146]'
 - en: '[PRE147]'
+  id: totrans-292
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE147]'
 - en: '[PRE148]'
+  id: totrans-293
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE148]'
 - en: '[PRE149]'
+  id: totrans-294
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE149]'
 - en: '[PRE150]'
+  id: totrans-295
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE150]'
 - en: '[PRE151]'
+  id: totrans-296
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE151]'
 - en: '[PRE152]'
+  id: totrans-297
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE152]'
 - en: '[PRE153]'
+  id: totrans-298
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE153]'
 - en: '`memcpy_from_start_event[device_num][stream_num],`'
+  id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: '`memcpy_from_start_event[device_num][stream_num],`'
 - en: '[PRE154]'
+  id: totrans-300
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE154]'
 - en: '[PRE155]'
+  id: totrans-301
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE155]'
 - en: '[PRE156]'
+  id: totrans-302
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE156]'
 - en: '[PRE157]'
+  id: totrans-303
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE157]'
 - en: '[PRE158]'
+  id: totrans-304
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE158]'
 - en: '[PRE159]'
+  id: totrans-305
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE159]'
 - en: '[PRE160]'
+  id: totrans-306
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE160]'
 - en: '[PRE161]'
+  id: totrans-307
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE161]'
 - en: '[PRE162]'
+  id: totrans-308
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE162]'
 - en: '[PRE163]'
+  id: totrans-309
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE163]'
 - en: '[PRE164]'
+  id: totrans-310
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE164]'
 - en: '`  completed_idx++;`'
+  id: totrans-311
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  completed_idx++;`'
 - en: '[PRE165]'
+  id: totrans-312
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE165]'
 - en: '[PRE166]'
+  id: totrans-313
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE166]'
 - en: In the `process_results` function the two conditions for processing a stream
     are that the stream has completed, that is, that we have met the stop event on
     the stream, *and* that the output queue for transmission currently has a free
     slot. If both of these are not true, the function simply returns and does nothing.
+  id: totrans-314
   prefs: []
   type: TYPE_NORMAL
+  zh: 在`process_results`函数中，处理一个流的两个条件是：流已完成，即我们已遇到该流的停止事件，*并且*当前传输的输出队列有一个空闲的槽位。如果这两个条件都不成立，函数会直接返回并不执行任何操作。
 - en: Otherwise, the function collects some timing information and prints it. It then
     copies the received data to the output queue, thus freeing up the page-locked
     memory on the host and freeing up a stream slot on the GPU for subsequent use.
+  id: totrans-315
   prefs: []
   type: TYPE_NORMAL
+  zh: 否则，函数会收集一些时间信息并打印。然后它将接收到的数据复制到输出队列，从而释放主机上锁页内存，并释放GPU上的流槽位以便后续使用。
 - en: Finally, we look at what is necessary to send the data to the server.
+  id: totrans-316
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们查看将数据发送到服务器所需的操作。
 - en: '[PRE167]'
+  id: totrans-317
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE167]'
 - en: '[PRE168]'
+  id: totrans-318
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE168]'
 - en: '[PRE169]'
+  id: totrans-319
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE169]'
 - en: '[PRE170]'
+  id: totrans-320
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE170]'
 - en: '`  // Copy the total message to ZEROMQ data area`'
+  id: totrans-321
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  // 将总消息复制到ZEROMQ数据区域`'
 - en: '[PRE171]'
+  id: totrans-322
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE171]'
 - en: '[PRE172]'
+  id: totrans-323
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE172]'
 - en: '[PRE173]'
+  id: totrans-324
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE173]'
 - en: '[PRE174]'
+  id: totrans-325
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE174]'
 - en: '[PRE175]'
+  id: totrans-326
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE175]'
 - en: To send a message with ZeroMQ we simply use the `zmq::message_t` constructor
     to create both a request and reply message. We then copy the associated element
     from the `cpu_completed_data` array into the payload area of the message, along
     with some header information, allowing the server to see who the sender was. We
     then post the message to the server and wait for an acknowledgment back from the
     server.
+  id: totrans-327
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用ZeroMQ发送消息时，我们只需使用`zmq::message_t`构造函数来创建请求和回复消息。然后，我们将`cpu_completed_data`数组中的相关元素复制到消息的负载区域，并附加一些头信息，使服务器能够看到发送者是谁。然后，我们将消息发送到服务器并等待服务器的确认。
 - en: Now in terms of scheduling and workload, there are some caveats with this approach.
     The main issue is network loading and communication overhead. The amount of data
     we’re sending on the network makes a huge difference regarding performance. The
     time to receive any inbound data, transform it on the CPU, and send it out again
     on the CPU must be smaller than the time taken for the GPU kernel to run. If not,
     then the application will be either CPU or network bound.
+  id: totrans-328
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，关于调度和工作负载，这种方法有一些警告。主要问题是网络负载和通信开销。我们在网络上发送的数据量对于性能有巨大的影响。接收任何传入数据、在CPU上进行转换并重新发送出去的时间，必须小于GPU内核运行所需的时间。如果不是，那么应用程序将受到CPU或网络的限制。
 - en: In the example, the server sends the client a range of data, the assumption
     being that the client knows how to process that data. This may be in terms of
     generating a dataset to work through, or loading some data from the local disk.
     What you need to avoid is simply sending the data itself to the client if at all
     possible. Make use of the local resources on the node, be it CPU, host memory,
     or local storage space, wherever possible.
+  id: totrans-329
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个例子中，服务器向客户端发送一系列数据，假设客户端知道如何处理这些数据。这可能是通过生成一个数据集来进行处理，或者从本地磁盘加载一些数据。你需要避免的做法是尽可能避免直接将数据本身发送到客户端。尽可能利用节点上的本地资源，无论是CPU、主机内存还是本地存储空间。
 - en: Second, the output data is shipped in its entirety back to the server. The problem
     may be such that the output data is not a huge block of data, but simply a single
     value from, say, a reduction operation. Often it’s then the input space that is
     large. However, if the input space can be partitioned and split out to *N* local
     disks, then the network traffic is really quite small and you really start to
     see scaling by using multiple GPU nodes.
+  id: totrans-330
   prefs: []
   type: TYPE_NORMAL
+  zh: 其次，输出数据被完全发送回服务器。问题可能是输出数据并不是一大块数据，而仅仅是一个值，例如，某个归约操作的结果。通常是输入空间比较大。然而，如果输入空间可以被划分并分配到*N*个本地磁盘上，那么网络流量就会非常小，你开始真正看到通过使用多个GPU节点来扩展。
 - en: Conclusion
+  id: totrans-331
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 结论
 - en: We’ve looked at two examples of using multiple GPUs within a computer system.
     In the first one everything is contained in a single box or node. The second allows
     use of multiple nodes with multiple GPUs present on each node. We introduce the
     use of ZeroMQ as a simpler and more flexible alternative to the traditional MPI
     approach.
+  id: totrans-332
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经看过了两种在计算机系统中使用多个GPU的例子。在第一个例子中，一切都包含在一个单独的盒子或节点中。第二个例子允许使用多个节点，并且每个节点上都有多个GPU。我们介绍了使用ZeroMQ作为传统MPI方法的一个更简单、更灵活的替代方案。
 - en: We use streams to implement a double-buffering system, meaning the GPU was always
     busy while the CPU was preparing the next data block and processing the previous
     one. We extended the use of streams from two streams to multiple streams to allow
     us to balance work between differing-speed GPU devices within a single node.
+  id: totrans-333
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们使用流来实现双缓冲系统，这意味着GPU在CPU准备下一个数据块并处理上一个数据块时始终处于繁忙状态。我们将流的使用从两个流扩展到多个流，以便在单个节点内平衡不同速度GPU设备之间的工作负载。
 - en: Using two or four GPUs per node opens up the possibility of doubling or even
     quadrupling the current throughput of a single application that is GPU bound.
     To grow this further you need to use multiple nodes and be crucially aware of
     the amount of data you are then communicating across the network. However, as
     systems like Tianhe-1A show us, you can scale to thousands of GPUs if your problem,
     and budget, allows.
+  id: totrans-334
   prefs: []
   type: TYPE_NORMAL
+  zh: 每个节点使用两个或四个GPU为单个GPU绑定的应用程序带来了将当前吞吐量翻倍甚至四倍的可能性。要进一步增长这一点，你需要使用多个节点，并且必须非常清楚你在网络上发送的数据量。然而，正如像天河一号这样的系统所展示的那样，如果你的问题和预算允许，你可以扩展到数千个GPU。
 - en: Questions
+  id: totrans-335
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 问题
 - en: 1. The example given uses synchronous network communications, and specifically
     a send/acknowledge-based protocol. What are the advantages and disadvantages of
     this approach? How else might this be done and what benefit/cost would this bring?
+  id: totrans-336
   prefs: []
   type: TYPE_NORMAL
+  zh: 1. 给出的示例使用了同步网络通信，特别是基于发送/确认的协议。采用这种方法的优缺点是什么？还有什么其他方式可以实现这一点，这样做会带来什么样的好处或成本？
 - en: 2. What are some of the advantages and drawbacks of using threads versus processes
     when using multiple GPUs?
+  id: totrans-337
   prefs: []
   type: TYPE_NORMAL
+  zh: 2. 使用多个GPU时，使用线程与进程各有什么优缺点？
 - en: 3. In converting the second example from ZeroMQ to MPI, what issues would you
     have to consider?
+  id: totrans-338
   prefs: []
   type: TYPE_NORMAL
+  zh: 3. 将第二个示例从ZeroMQ转换为MPI时，您需要考虑哪些问题？
 - en: Answers
+  id: totrans-339
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 答案
 - en: 1. The synchronous model is the simplest one to work with and debug. However,
     in the same way that there are synchronous and asynchronous memory transfers to
     or from the GPU, we can operate in a synchronous or asynchronous model for communications.
@@ -1517,8 +2218,10 @@
     does not place any load onto the CPU. This has the advantage of freeing the CPU
     to do other tasks, but it adds the program complexity of managing another asynchronous
     device.
+  id: totrans-340
   prefs: []
   type: TYPE_NORMAL
+  zh: 1. 同步模型是最简单的工作方式，也最容易调试。然而，正如在GPU之间进行同步和异步内存传输一样，通信也可以在同步或异步模型中进行。如果内存被固定，网络控制器可以使用DMA模式访问它，这样就不会给CPU带来任何负担。这样做的优点是释放了CPU去做其他任务，但它增加了管理另一个异步设备的程序复杂性。
 - en: As for the send/acknowledge method, this is potentially very costly. You don’t
     see it on a small local area network, but should the server get overloaded and
     take a long time to respond, the client work queue could stall. Simply increasing
@@ -1529,14 +2232,18 @@
     a post method at the client side. Combined with an asynchronous communication
     this lets the client get on with the client’s work, offloading the communications
     work to the communications stack.
+  id: totrans-341
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于发送/确认方法，这可能非常昂贵。在一个小型局域网中看不到这种情况，但如果服务器负载过重并且响应时间很长，客户端工作队列可能会停滞。简单地增加每个设备的流数有帮助，但单个服务器能处理的客户端数量是有限的。还有必须等待确认消息的延迟，而这其实并不是必需的。服务器可以简单地重新发布它没有收到的工作单元。然后我们可以在客户端使用后处理方法。结合异步通信，这可以让客户端继续进行其工作，将通信任务交给通信栈。
 - en: 2. Threads are best used where there is a common data space between the threads,
     akin to using shared memory within an SM. Processes are best used where communication
     will be more formal, for example, using MPI. Processes allow easier scaling when
     using more than one node.
+  id: totrans-342
   prefs: []
   type: TYPE_NORMAL
+  zh: 2. 线程最好用于线程之间有共同数据空间的情况，类似于在一个SM内部使用共享内存。进程则最好用于需要更正式通信的场景，例如使用MPI。当使用多个节点时，进程可以更容易地进行扩展。
 - en: 3. MPI is designed for closed systems, so a client that can drop out, reboot,
     and reappear can be problematic. MPI implementations typically have fixed size
     and limited buffers. Throwing too much data at a message will often crash the
@@ -1546,8 +2253,10 @@
     communication blocks immediately and its asynchronous communications requires
     the application data to remain persistent until MPI is done with it. This means
     less copying of data, but makes programming MPI somewhat more complex.
+  id: totrans-343
   prefs: []
   type: TYPE_NORMAL
+  zh: 3. MPI是为封闭系统设计的，因此客户端如果能够掉线、重启并重新出现，可能会引发问题。MPI实现通常具有固定大小和有限的缓冲区。向消息中投入过多数据通常会导致MPI堆栈崩溃。ZeroMQ是隐式异步的，即您的消息会被复制到本地存储中，然后通过后台线程推送到网络卡。只有当其内部缓冲区达到上限时才会阻塞。MPI的同步通信会立即阻塞，而其异步通信要求应用数据在MPI完成之前保持持久。这意味着数据复制更少，但使得编程MPI稍显复杂。
 - en: In terms of conversion, creating a ZeroMQ context is replaced with the `MPI_Init`
     call. Creating and binding to a socket in ZeroMQ is equivalent to the `MPI_Comm_size
     (MPI_COMM_WORLD)` call. Instead of using PIDs to identify a message (you need
@@ -1556,19 +2265,28 @@
     very similar to the `MPI_Send` and `MPI_Recv` calls. The only additional work
     you need to do on an MPI implementation is to remember to call `MPI_Finalize`
     at the end of the function, something that is not necessary with ZeroMQ.
+  id: totrans-344
   prefs: []
   type: TYPE_NORMAL
+  zh: 在转换方面，创建 ZeroMQ 上下文的操作被 `MPI_Init` 调用所替代。ZeroMQ 中创建并绑定套接字相当于 `MPI_Comm_size
+    (MPI_COMM_WORLD)` 调用。你不再需要使用 PID 来标识消息（在多个节点上你需要 IP 地址和 PID），而是使用简单的 `MPI_Comm_rank`
+    调用来获取整个系统中的唯一 ID。ZeroMQ 的 `send` 和 `recv` 调用与 `MPI_Send` 和 `MPI_Recv` 调用非常相似。在
+    MPI 实现中，你需要做的唯一额外工作是记得在函数结束时调用 `MPI_Finalize`，而 ZeroMQ 中则不需要这样做。
 - en: For the more adventurous, the buffered, asynchronous communications inherent
     in ZeroMQ can be achieved using `MPI_Bsend` along with appropriate buffer management
     at the application level.
+  id: totrans-345
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于更具冒险精神的用户，ZeroMQ 中固有的缓冲区、异步通信可以通过 `MPI_Bsend` 与适当的缓冲区管理结合使用，在应用层面实现。
 - en: Note, as of the SDK 4.0, page-locked memory allocated by CUDA became accessible,
     by default, to other devices such as network cards. Thus, it’s now possible to
     have the same page-locked memory used by both the network card and the GPU, eliminating
     unnecessary copies within host memory that were previously necessary.
+  id: totrans-346
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，从 SDK 4.0 起，CUDA 分配的页面锁定内存默认可以被其他设备（例如网卡）访问。因此，现在可以让网卡和 GPU 共享同一页面锁定内存，避免了之前必须在主机内存中进行的多余复制操作。
 - en: Additionally, on Linux systems or with Fermi Tesla-based Windows systems, it’s
     also possible to directly send data from the GPU to the network card or between
     GPUs without going via the host memory. This can greatly reduce the use of the
@@ -1576,5 +2294,9 @@
     here as it’s not currently supported on all platforms. However, there is a peer-to-peer
     communication example in the SDK which we look at in detail in [Chapter 10](CHP010.html)
     for those wishing to make use of such functionality.
+  id: totrans-347
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，在 Linux 系统或基于 Fermi Tesla 的 Windows 系统上，也可以直接将数据从 GPU 发送到网卡，或在 GPU 之间进行数据传输，而无需经过主机内存。这可以大大减少从主机进出有限的
+    PCI 总线带宽使用。由于这一功能当前并非所有平台都支持，因此我们在此并未详细讨论。不过，SDK 中有一个点对点通信的示例，欲了解此功能的使用者可以参考我们在[第
+    10 章](CHP010.html)中的详细讲解。

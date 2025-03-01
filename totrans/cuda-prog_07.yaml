@@ -2508,11 +2508,13 @@
   id: totrans-332
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二种策略是将寄存器移动到其他类型的内存中：共享内存、常量内存或局部内存。如果在编译时使用`-v`选项，编译器会告诉你每种内存类型使用的数量。共享内存比寄存器慢。常量内存是缓存的，但仍然比寄存器慢。局部内存是Fermi（计算2.x）的L1缓存，而在计算1.x设备上则是全局内存。
 - en: Finally, the compiler can reuse registers if it can correctly identify the scope
     and usage of the registers within a section.
   id: totrans-333
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，编译器可以重用寄存器，只要它能够正确识别寄存器在某个部分的作用范围和使用情况。
 - en: As we push the compiler to use ever fewer registers it eventually spills the
     registers into local memory. Although not too bad on Fermi, performance on our
     compute 1.2 test platform is thus terrible as, in fact, we’re then using global
@@ -2521,6 +2523,7 @@
   id: totrans-334
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们迫使编译器使用越来越少的寄存器时，它最终会将寄存器溢出到局部内存中。虽然在Fermi上这种情况还不算太差，但在我们的计算1.2测试平台上，性能就非常差，因为实际上我们正在使用全局内存。第三个块带来的额外收益不足以克服这种巨大的性能损失。因此，我们看到内核的运行速度变慢了，而不是加速。
 - en: We achieved a 30% execution time reduction simply by setting a compiler switch,
     which is pretty impressive for five minutes of work. However, can we do any better
     by rewriting the C code? What is making the regular compilation take a massive
@@ -2528,6 +2531,7 @@
   id: totrans-335
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们通过设置一个编译器选项，成功实现了30%的执行时间减少，这对于五分钟的工作来说相当令人印象深刻。然而，我们能通过重写C代码做得更好吗？是什么导致常规编译需要使用大量43个寄存器？我们可以做些什么来减少这一点？
 - en: Taking the existing code, we can comment out certain sections. This tells us
     easily what *additional* registers that code section requires. Thus, we start
     by localizing all registers to individual blocks. We can create a new scope level
@@ -2537,6 +2541,7 @@
   id: totrans-336
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过修改现有代码，我们可以注释掉某些部分。这可以轻松告诉我们该代码部分需要哪些*额外*的寄存器。因此，我们首先将所有寄存器本地化到各个块中。通过简单地在代码块周围加上大括号（{}符号），我们可以在C语言中创建一个新的作用域级别。这应该能使变量或常量的作用域被识别，并限定在某个部分内。
 - en: 'It turns out the most expensive part of the code is the mix columns section.
     Looking at the code it’s not too surprising. We calculate 16 `b<n>` values based
     on the 16 `a<n>` values, plus an additional 16 `tmp<n>` values. However, these
@@ -2549,6 +2554,7 @@
   id: totrans-337
   prefs: []
   type: TYPE_NORMAL
+  zh: 事实证明，代码中最昂贵的部分是混合列（mix columns）部分。看代码其实也不难理解。我们基于16个`a<n>`值计算16个`b<n>`值，并加上另外16个`tmp<n>`值。然而，这些值其实只是四个列参数的集合。当编译器构建依赖关系树时，它应该能够看到这些并重新安排执行顺序。因此，它只需要8个寄存器，而不是32个额外的寄存器。然而，它并没有进行这种重排，可能是因为它根本无法高效地建模这么多参数。不管原因是什么，它使用的寄存器比需要的要多得多。因此，我们可以重写混合列部分：
 - en: '[PRE63]'
   id: totrans-338
   prefs: []
@@ -2562,11 +2568,13 @@
   id: totrans-339
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了简化，这里只展示了对单列的操作。然而，这样做将变量的使用更接近于变量或常量的设定位置。这改善了指令混合，同时减少了变量或常量存在的作用域。实际上，我们使得编译器更容易识别和重用这些寄存器。
 - en: 'We also change the reading of the key values. Previously we’d calculate the
     address calculation for each access:'
   id: totrans-340
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还改变了密钥值的读取方式。之前我们会为每次访问计算地址：
 - en: '[PRE64]'
   id: totrans-341
   prefs: []
@@ -2668,6 +2676,7 @@
   id: totrans-353
   prefs: []
   type: TYPE_NORMAL
+  zh: 这确实使编译器仅使用24个寄存器，这是我们可能调度另一个块所需的魔法边界数。节省是显著的，尽管在每个块使用256个线程时，我们并没有引入额外的块。尽管如此，16个块的执行时间确实有所下降。然而，时间变得不稳定且变化较大，一些运行的时间比之前还要长。现在我们开始看到warp之间相互竞争。由于样本量很小（16个密码块），结果在每次运行之间变得非常不稳定。因此，我们将增加密码块的数量到2048K，并对结果进行平均。
 - en: The strategy CUDA adopts when allocating registers is to try for the smallest
     number of registers possible. With our transition from 25 to 24 registers, using
     256 threads per block, we can still only schedule two blocks. However, if we halve
@@ -2678,26 +2687,32 @@
   id: totrans-354
   prefs: []
   type: TYPE_NORMAL
+  zh: CUDA在分配寄存器时采用的策略是尽量使用最小数量的寄存器。通过将寄存器从25个减少到24个，在每个块使用256个线程时，我们仍然只能调度两个块。然而，如果我们将每个块的线程数减半，就可以挤入另一个包含128个线程的块。因此，我们可以在每个SM上运行五个128线程、24寄存器（共640个寄存器）块。与每块使用25个寄存器（共512个线程）的四个块相比，这有何不同？是的，确实有不同（见[表7.3](#T0020)）。
 - en: Table 7.3 Effect of Using Different Numbers of Threads
   id: totrans-355
   prefs: []
   type: TYPE_NORMAL
+  zh: 表7.3 使用不同线程数的效果
 - en: '| 64 Threads | 128 Threads | 256 Threads |'
   id: totrans-356
   prefs: []
   type: TYPE_TB
+  zh: '| 64 线程 | 128 线程 | 256 线程 |'
 - en: '| --- | --- | --- |'
   id: totrans-357
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- |'
 - en: '| 1150 ms | 1100 ms | 1220 ms |'
   id: totrans-358
   prefs: []
   type: TYPE_TB
+  zh: '| 1150 ms | 1100 ms | 1220 ms |'
 - en: '| 100% | 96% | 111% |'
   id: totrans-359
   prefs: []
   type: TYPE_TB
+  zh: '| 100% | 96% | 111% |'
 - en: If we use a 64-thread version as a baseline, we hit the maximum limit of eight
     blocks, which in turn limits us to a total of 512 threads. The 128-thread version
     is limited to five blocks, 640 threads in total. The 256-thread version is limited
@@ -2705,6 +2720,7 @@
   id: totrans-360
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们以64线程版本为基准，我们达到了八个块的最大限制，这反过来又限制了我们总共只能有512个线程。128线程版本限制为五个块，总线程数为640个。256线程版本限制为两个块，依然是512个线程总数。
 - en: You might expect the 64-thread version and the 256-thread version, given they
     both run a total of 512 threads, to take the same time. The 64-thread version
     is faster because it provides a better instruction mix, with different blocks
@@ -2716,23 +2732,27 @@
   id: totrans-361
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能会认为64线程版本和256线程版本，因为它们总共运行512个线程，所需时间应该相同。实际上，64线程版本更快，因为它提供了更好的指令混合，不同的块执行算法的不同部分。而256线程版本往往让所有线程同时执行相同的任务。请记住，在这个计算1.2设备上，没有L1/L2缓存，因此这只是指令和内存吞吐量的比较。由于较小的调度单元，CUDA运行时也更容易在两个SM之间实现更好的负载平衡。
 - en: Squeezing in that extra 64 threads by selecting a small number of threads per
     block gains us 120 ms, a 15% improvement over the 256-thread version on this compute
     1.2 device. We can only do this because we are within the 24 register threshold.
   id: totrans-362
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过选择每个块较少的线程数，挤入额外的64个线程，使我们获得了120毫秒的提升，比在这个计算1.2设备上使用256线程版本提高了15%。我们之所以能够做到这一点，是因为我们仍在24个寄存器的阈值内。
 - en: With a small laptop ION-based GPU, we’re encoding around 1.8 million cipher
     blocks per second, which is approximately 28 MB/s including transfer times. Excluding
     the transfer times, this approximately doubles. This is the next area to address.
   id: totrans-363
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用一台小型的基于ION的笔记本GPU，我们每秒钟编码大约180万个密码块，约合28MB/s（包括传输时间）。如果不计算传输时间，这个速度大约翻倍。这是接下来需要解决的领域。
 - en: Transfer performance
   id: totrans-364
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 传输性能
 - en: It’s necessary to transfer data to the GPU over the PCI-E data bus. Compared
     to access to memory, this bus is very slow. [Chapter 9](CHP009.html) explores
     in detail PCI-E transfer sizes and the effects of using paged or pinned memory.
@@ -2991,6 +3011,7 @@
   id: totrans-402
   prefs: []
   type: TYPE_NORMAL
+  zh: Intel版本的AES与我们目前开发的GPU版本有一个主要区别。AES的原始规范以列格式排列数据，因此A、B、C和D位于同一列。Intel的AES-NI期望这些数据进行转置，因此A、B、C和D都在同一行。由于Intel的字节顺序，AES-NI还要求字节在内存中的顺序与我们现在的顺序相反。
 - en: 'Thus, we have two choices: either restructure the code to match the Intel AES-NI
     ordering, or perform a transformation on the data to convert one to the other.
     To allow memory blocks to be directly compared on the host, we’ll adapt our current
@@ -3001,6 +3022,8 @@
   id: totrans-403
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们有两个选择：要么重构代码以匹配Intel AES-NI的顺序，要么对数据执行转换，将其从一种格式转换为另一种格式。为了允许内存块在主机上直接进行比较，我们将调整当前的解决方案，以匹配AES-NI格式。由于我们还需要AES-NI的支持，因此我们将所有未来的开发工作转移到我们的Sandybridge-E（Core
+    i7 3930K @ 3.2 GHz）平台，并使用GTX470 GPU。因此，之后的任何计时结果将无法与我们迄今为止用于此开发的基于Atom的ION系统进行比较。
 - en: 'The other major issue we should note at this point is the `uint4` type is encoded
     on the GPU as `x`, `y`, `z`, `w` and not `w`, `x`, `y`, `z`. Both my GPU and CPU
     version gave the same wrong answer, as it was based on the same wrong code. This
@@ -3012,6 +3035,7 @@
   id: totrans-404
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个我们需要注意的主要问题是，`uint4`类型在GPU上的编码顺序为`x`、`y`、`z`、`w`，而不是`w`、`x`、`y`、`z`。我的GPU和CPU版本都给出了相同的错误答案，因为它们基于相同的错误代码。一旦理解了`uint4`类型的这种奇怪顺序（通常这是红色、绿色、蓝色、透明度的表示，其中`w`是透明度通道），就很容易纠正了。显然，我们应该基于现有的库来编写CPU版本，或者更早地使用AES-NI库来检测此类问题。AES-NI代码非常简单，如下所示：
 - en: '[PRE80]'
   id: totrans-405
   prefs: []
@@ -3023,6 +3047,7 @@
   id: totrans-406
   prefs: []
   type: TYPE_NORMAL
+  zh: AES代码的接口需要是基于字节的接口。这里展示了一些示例代码，用于基于单个密钥对单个数据块`num_cipher_blocks`进行编码。解码操作使用的是一套类似的代码。
 - en: '[PRE81]'
   id: totrans-407
   prefs: []
@@ -3032,6 +3057,7 @@
   id: totrans-408
   prefs: []
   type: TYPE_NORMAL
+  zh: '`               const u8 ∗ key,`'
 - en: '[PRE82]'
   id: totrans-409
   prefs: []
@@ -3043,6 +3069,7 @@
   id: totrans-410
   prefs: []
   type: TYPE_NORMAL
+  zh: 密钥扩展操作在这个操作中是隐式的，因为我们传递了一个未扩展的仅包含16个字节的密钥。然而，它在内部每次加密/解密阶段仅执行一次。
 - en: We’ll develop a program that will generate a set of four million random data
     blocks (around 64 MB of data), and encode it using a single key. We’ll then decode
     this data and check that the decoded data is the same as the original. We’ll run
@@ -3051,6 +3078,7 @@
   id: totrans-411
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将开发一个程序，生成一组四百万个随机数据块（大约64MB的数据），并使用单个密钥进行编码。然后我们会解码这些数据，并检查解码后的数据是否与原始数据一致。我们将运行AES-NI、串行（Serial）和CUDA版本的这些操作，并交叉验证每个版本的结果，以确保所有实现结果一致。
 - en: Once the GPU and CPU versions matched the AES-NI library, we were able to see
     just how fast the AES-NI instruction set is. On our Sandybridge-E system, the
     software-based serial expand key and decode block operation took 3880 ms, whereas
@@ -3067,6 +3095,7 @@
   id: totrans-412
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦GPU和CPU版本与AES-NI库匹配，我们就能看到AES-NI指令集的速度有多快。在我们的Sandybridge-E系统上，基于软件的串行扩展密钥和解码块操作需要3880毫秒，而硬件支持的AES-NI版本仅需20毫秒。相比之下，CUDA版本在不包括设备间数据传输时间的情况下需要103毫秒。实际上，数据传输到设备和从设备传输分别需要27毫秒和26毫秒。鉴于我们使用的是GTX470作为测试设备，而非Tesla，我们无法同时进行数据传入和传出，因为该设备仅启用了一个内存传输引擎。因此，我们能够实现的最佳情况是将内核执行时间完全隐藏在这些传输操作后面，从而有效地消除它。然而，要做到这一点，我们需要在内核执行时间上实现5倍的改进。因此，让我们来看一下经过修订后的解码内核，它与AES-NI输出字节对字节兼容。
 - en: '[PRE83]'
   id: totrans-413
   prefs: []
@@ -3076,6 +3105,7 @@
   id: totrans-414
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  u32 w1 = key.y;`'
 - en: '[PRE84]'
   id: totrans-415
   prefs: []
@@ -3085,6 +3115,7 @@
   id: totrans-416
   prefs: []
   type: TYPE_NORMAL
+  zh: '`   EXTRACT_WORD_XOR(w1, a4, a5, a6, a7);`'
 - en: '[PRE85]'
   id: totrans-417
   prefs: []
@@ -3094,6 +3125,7 @@
   id: totrans-418
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  }`'
 - en: '[PRE86]'
   id: totrans-419
   prefs: []
@@ -3105,6 +3137,7 @@
   id: totrans-420
   prefs: []
   type: TYPE_NORMAL
+  zh: 该函数首先读取加密数据，然后将其解码成一组16个寄存器。解码函数是编码函数的反向操作。因此，我们从10轮数到0轮。
 - en: The decode side is more complex than encode, mainly because of the Galois multiplication
     that is used. The multiplication is precalculated into a table. Thus, the simple
     series of XOR operations now needs to perform a number of data-dependent lookups
@@ -3113,6 +3146,7 @@
   id: totrans-421
   prefs: []
   type: TYPE_NORMAL
+  zh: 解码过程比编码更复杂，主要是因为使用了Galois乘法。乘法结果被预先计算到一个表格中。因此，原本简单的XOR操作系列现在需要执行若干次数据依赖的查找操作，这些查找操作会访问四个表格中的一个，每个表格的大小为1K字节。然而，这会生成一个较差的分散内存访问模式。
 - en: We then rotate the values in the rows and finally perform the `s_box` substitution
     as before. As with the inverted mix column operation, the `s_box` function generates
     a scattered memory read pattern. Finally, a single 128-byte write is used to write
@@ -3120,6 +3154,7 @@
   id: totrans-422
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们旋转行中的值，最后像以前一样执行`s_box`替代操作。与反向混合列操作类似，`s_box`函数生成了一个分散的内存读取模式。最后，使用一个128字节的写操作将数据写入全局内存。
 - en: Another significant problem with this initial implementation is that this to
     uses far too many registers, 44 in total. It’s a complex kernel. We succeed in
     the goal of keeping the computation within registers until the very last moment.
@@ -3132,6 +3167,7 @@
   id: totrans-423
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个初始实现的另一个显著问题是它使用了太多的寄存器，总共44个。它是一个复杂的内核。我们成功地实现了将计算保持在寄存器内，直到最后一刻。通过强制设置（通过`maxrregcount=42`编译器标志）为42个寄存器，可以将一个额外的块调度到SM中。这反过来将执行时间减少到97毫秒。强制减少寄存器使用意味着更多的数据溢出到全局内存，在这种情况下，我们看到内存带宽的需求增加了25%。这表明通过减少寄存器使用有改进的空间，但需要通过其他方式来实现。
 - en: We can achieve the desired effect of allowing more blocks to get scheduled by
     reducing the number of threads per block. Dropping down from 128 threads to 96
     threads per block allows us to schedule the same number of warps as before, but
@@ -3141,6 +3177,7 @@
   id: totrans-424
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过减少每个块的线程数，我们可以实现允许更多块被调度的效果。从每个块128个线程降到96个线程，可以让我们调度与之前相同数量的warp，但块数从六个增加到八个。这样，执行时间降至96毫秒。由于内核没有同步点，这完全归功于额外块带来的更好的指令组合以及缓存的效果。
 - en: If we look at the memory view in [Figure 7.16](#F0085) from one of the experiments
     Parallel Nsight can run for use, we see that we have very high L1 cache usage,
     but nonetheless 281 MB is spilling out of this to the L2\. Worse still, 205 MB
@@ -3155,14 +3192,19 @@
   id: totrans-425
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们查看[图 7.16](#F0085)中通过Parallel Nsight运行的实验结果，我们看到L1缓存使用率非常高，但有281 MB的数据溢出到L2。更糟糕的是，其中的205
+    MB溢出到全球内存。内核对全球内存进行读写，因此我们会有一定的全球内存流量，但我们应该期待多少流量呢？我们有4,195,328个块，每个块为16字节。因此，我们需要读取67,125,248个字节，或者正好64
+    MB的数据。同样，我们写出一个解密后的块，因此我们需要写出64 MB的数据。全球内存的统计数据显示设备的整体情况，显示我们读取/写入的总量为205 MB。因此，我们生成了必要的全球内存流量的160%，从而限制了性能。
 - en: '![image](../images/F000077f07-16-9780124159334.jpg)'
   id: totrans-426
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000077f07-16-9780124159334.jpg)'
 - en: FIGURE 7.16 Initial memory bandwidth view.
   id: totrans-427
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.16 初始内存带宽视图。
 - en: Currently, the L1 cache is operating at peak efficiency, but there is 16 K of
     shared memory we’re not using at all. It does not have the coalescing requirements
     global memory has, so it would be a good candidate for a small data region with
@@ -3172,6 +3214,7 @@
   id: totrans-428
   prefs: []
   type: TYPE_NORMAL
+  zh: 目前，L1缓存的效率达到峰值，但我们有16 K的共享内存完全没有使用。它没有像全球内存那样的合并要求，因此它非常适合用于具有分散内存模式的小数据区域。然而，不同于L1缓存，共享内存具有每块可见性，这意味着必须为SM上的每个驻留块复制数据。
 - en: The constant memory cache is not shown in [Figure 7.16](#F0085), but it would
     also be large enough to hold the Galios multiplication (`gmul`) and/or `s_box`
     tables. However, the constant cache has only one 32-bit element bandwidth per
@@ -3180,6 +3223,7 @@
   id: totrans-429
   prefs: []
   type: TYPE_NORMAL
+  zh: 常量内存缓存未在[图 7.16](#F0085)中显示，但它的大小也足够容纳Galios乘法（`gmul`）和/或`s_box`表。然而，常量缓存每个时钟周期只有一个32位元素带宽，且其设计是为了每个线程访问相同的元素。因此，共享内存是更好的选择。
 - en: However, let’s first look at the two problem areas, `s_box` and the `gmul` tables.
     Both were declared as 32-bit unsigned types, to avoid huge numbers of instructions
     being added to shift and mask the 32-bit words. Given the memory traffic we’re
@@ -3190,12 +3234,15 @@
   id: totrans-430
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，让我们首先看看两个问题区域，`s_box`和`gmul`表。为了避免大量的指令被添加来进行32位字的移位和掩码，这两个表被声明为32位无符号类型。鉴于我们产生的内存流量，这可能并不是一个好的选择。将其改为`u8`类型后，我们看到离芯片的内存访问从205
+    MB降到183 MB，执行时间从96毫秒降到63毫秒。显然，这造成了全球内存的过多读取，减少这一点有很大帮助。
 - en: With a reduced memory footprint, each `gmul` table is now 256 bytes in size,
     so the four tables fit easily with 1 K. As we can place a maximum of eight blocks
     per SM, 8 K of shared memory is now sufficient to accommodate the `gmul` tables.
   id: totrans-431
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过减小内存占用，每个`gmul`表现在为256字节，因此四个表格可以轻松适配1 K。由于每个SM最多可以放置八个块，8 K的共享内存现在足够容纳`gmul`表。
 - en: Performing this shared memory optimization, however, has a problem. Indeed we
     move 18 GB of memory bandwidth from the L1 cache to the shared memory, and the
     main memory bandwidth drops by 7 MB. However, we have to move 1 K of data at the
@@ -3210,6 +3257,9 @@
   id: totrans-432
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，进行这种共享内存优化有一个问题。的确，我们将18 GB的内存带宽从L1缓存转移到了共享内存，而主内存的带宽下降了7 MB。然而，我们必须在每个块的开始时移动1
+    K的数据，因为共享内存在块之间不是持久的或共享的。然而，L1缓存在块之间是共享的，并且目前在处理这种散布的内存模式时表现非常出色，因为表格完全驻留在缓存中。我们使用8
+    K共享内存的速度净改善几乎为零，因此这个优化被移除，表格保留在L1缓存中。请注意，与全局内存访问相比，这在计算1.x设备上会带来显著的改进，因为那里没有L1/L2缓存。
 - en: Looking back at [Figure 7.16](#F0085), did you notice something interesting?
     Did you notice we were using 1.91 GB of local storage? Local storage is the compiler
     spilling registers to the memory system. Prior to compute 2.0 devices this would
@@ -3219,12 +3269,14 @@
   id: totrans-433
   prefs: []
   type: TYPE_NORMAL
+  zh: 回顾[图 7.16](#F0085)，你注意到什么有趣的事情了吗？你是否注意到我们使用了1.91 GB的局部存储？局部存储是编译器将寄存器溢出到内存系统的地方。在计算2.0设备之前，这部分会实际被转移到全局内存空间。从计算2.0开始，它会尽可能地被限制在L1缓存中，但仍然可能导致大量不必要的全局内存流量。
 - en: 'When compiling, the `-v` option will display a summary of the register usage
     from the kernel. Anytime you see the following message you have local memory being
     used:'
   id: totrans-434
   prefs: []
   type: TYPE_NORMAL
+  zh: 在编译时，`-v`选项将显示内核的寄存器使用摘要。每当你看到以下信息时，表示局部内存正在被使用：
 - en: '[PRE87]'
   id: totrans-435
   prefs: []
@@ -3239,6 +3291,7 @@
   id: totrans-436
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的主要问题是使用了`uint4`类型。由于其他地方高频繁使用寄存器，这个从全局内存加载的`uint4`立即被溢出到局部内存。选择128位的`uint4`加载是故意的，目的是最小化加载到全局内存的事务数量。通过将其溢出到局部内存，而不是保留在寄存器中，编译器不必要地污染了缓存并导致写回到全局内存。
 - en: We can explicitly move this data item into shared memory instead of local memory
     by simply declaring it as an array of `__shared__` and indexing it by `threadIdx.x`.
     As shared memory is a per-block form of local memory, we can move the spilled
@@ -3247,14 +3300,18 @@
   id: totrans-437
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过简单地将数据项声明为`__shared__`数组，并通过`threadIdx.x`进行索引，显式地将其从局部内存移动到共享内存中。由于共享内存是每个块的局部内存形式，我们可以显式地将溢出的寄存器移到共享内存中。移动此参数会生成在[图
+    7.17](#F0090)中显示的内存视图。
 - en: '![image](../images/F000077f07-17-9780124159334.jpg)'
   id: totrans-438
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000077f07-17-9780124159334.jpg)'
 - en: FIGURE 7.17 Memory transfers after using shared memory.
   id: totrans-439
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.17 使用共享内存后的内存传输。
 - en: Notice how simply moving this data item to shared memory drops the local memory
     usage from 1.91 GB to just 256 MB, and the traffic to global memory from 183 MB
     to 133 MB. Our shared memory traffic is approximately double what it was before
@@ -3266,6 +3323,7 @@
   id: totrans-440
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，仅仅将这个数据项移动到共享内存中，就能将局部内存的使用量从1.91 GB降到仅仅256 MB，而全局内存的流量也从183 MB降到133 MB。我们共享内存的流量大约是之前的两倍，主要是由于共享内存银行冲突。这是由于将128位（16字节）值放入32位（4字节）的共享内存系统造成的。然而，编译器仍然坚持创建一个堆栈帧，尽管比以前小得多，但它依然存在。整体执行时间依然顽固地保持在63毫秒。
 - en: To see exactly what parameters are being spilled you have to look at the PTX
     code, the assembly code, generated within a given kernel. Any PTX instructions
     such as `st.local` or `ld.local` are operating on local data. Local data is also
@@ -3275,6 +3333,8 @@
   id: totrans-441
   prefs: []
   type: TYPE_NORMAL
+  zh: 要确切查看哪些参数被溢出，必须查看在给定内核中生成的 PTX 代码、汇编代码。任何 PTX 指令，如`st.local`或`ld.local`，都在操作本地数据。本地数据也通过
+    `local` 前缀进行声明。事实证明，剩余的本地数据实际上是 `__global__` 调用者和 `__device__` 函数之间使用的参数数据，也就是说，
 - en: '[PRE88]'
   id: totrans-442
   prefs: []
@@ -3284,6 +3344,7 @@
   id: totrans-443
   prefs: []
   type: TYPE_NORMAL
+  zh: '` const u32 tid = (blockIdx.x ∗ blockDim.x) + threadIdx.x;`'
 - en: '[PRE89]'
   id: totrans-444
   prefs: []
@@ -3298,6 +3359,8 @@
   id: totrans-445
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将多个参数传递给设备函数，这使得该函数能够被多个全局函数和主机函数调用，从而导致编译器插入了堆栈框架。我们很少希望编译器调用堆栈，反而希望它内联调用设备函数，从而消除使用堆栈的需求。我们可以使用
+    `__forceinline__` 指令在声明函数时实现这一点，如下所示：
 - en: '[PRE90]'
   id: totrans-446
   prefs: []
@@ -3307,6 +3370,7 @@
   id: totrans-447
   prefs: []
   type: TYPE_NORMAL
+  zh: '`}`'
 - en: Recompiling the code no longer produces the stack frame message. Due to the
     function now being a consolidated whole, the compiler can much better apply optimization
     techniques to it. The register usage drops to just 33 instead of the forced 42
@@ -3315,14 +3379,18 @@
   id: totrans-448
   prefs: []
   type: TYPE_NORMAL
+  zh: 重新编译代码后不再生成堆栈框架消息。由于该函数现在是一个整体，编译器可以更好地对其应用优化技术。寄存器的使用量降至仅 33，而不是之前为了容纳 8 个块而强制使用的
+    42 个寄存器。我们可以通过查看[图 7.18](#F0095)中的内存概览来验证不再使用本地内存。
 - en: '![image](../images/F000077f07-18-9780124159334.jpg)'
   id: totrans-449
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000077f07-18-9780124159334.jpg)'
 - en: FIGURE 7.18 Memory usage after stack elimination.
   id: totrans-450
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7.18 堆栈消除后的内存使用情况。
 - en: We can see in [Figure 7.18](#F0095) the local memory traffic now falls to zero.
     What little L2 cache usage there was is eliminated. The global memory usage falls
     by another 5 MB to 128 MB, the magic figure we were expecting the global memory
@@ -3331,6 +3399,8 @@
   id: totrans-451
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[图 7.18](#F0095)中我们可以看到，本地内存流量现在降为零。之前的少量 L2 缓存使用已被消除。全局内存使用量再次减少了 5 MB，降至
+    128 MB，这是我们预期基于处理数据大小的全局内存带宽的理想值。执行时间略微减少，但仍保持在 63 毫秒。
 - en: The kernel makes considerable use of the XOR operation, which is one of the
     instructions that is not available at full rate within the device. Thus, by ensuring
     we keep the maximum number of blocks in the SM, we ensure a good instruction mix
@@ -3339,6 +3409,8 @@
   id: totrans-452
   prefs: []
   type: TYPE_NORMAL
+  zh: 该内核大量使用 XOR 操作，这是设备中无法以全速执行的指令之一。因此，通过确保在 SM 中保持最大数量的块，我们确保了良好的指令混合，避免了所有操作都排队等待执行
+    XOR 操作的单元。
 - en: At 96 threads per block with the previous high 42 register count we could schedule
     eight blocks using 24 warps. This is around 50% of the available capacity of the
     SM in terms of the number of warps it could run. However, we can see from looking
@@ -3354,11 +3426,17 @@
   id: totrans-453
   prefs: []
   type: TYPE_NORMAL
+  zh: 在每个块 96 个线程和之前的高 42 寄存器数目下，我们可以使用 24 个 warp 调度八个块。这大约占 SM 可用容量的 50%，即它能够运行的
+    warp 数量。然而，通过查看 Parallel Nsight 的“问题停顿”实验，我们可以看到实际使用了多少 SM 容量。我们仅停顿了 0.01% 的时间，这意味着
+    SM 已经几乎达到了峰值容量。因此，通过增加可调度 warp 的数量来增加占用率，可能不会显著帮助性能提升。将线程数从 96 增加到 128 使我们能够将可调度
+    warp 的数量从 24 增加到 28。这消除了剩余的小停顿问题，并增加了两个 warp 调度器都有可用 warp 的时间比例，从而使时间减少了 1.5 毫秒。这将总执行时间减少到
+    61.5 毫秒。
 - en: Considerations for running on other GPUs
   id: totrans-454
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 在其他 GPU 上运行的注意事项
 - en: Having now developed a program for a single, modern GPU, how well does i work
     on other GPUs? Often, especially if you are writing commercial applications, your
     program will need to work well on each level of hardware in the marketplace. Although
@@ -3368,6 +3446,8 @@
   id: totrans-455
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在已经为单个现代 GPU 开发了一个程序，那么它在其他 GPU 上的表现如何呢？通常，尤其是当你编写商业应用程序时，你的程序需要在市场上每一层次的硬件上都能良好运行。虽然程序可以在大多数
+    GPU 世代上运行，但你应该了解为了在这些硬件上获得良好的性能，可能需要做哪些适配。我们将通过我们在这里开发的 AES 程序来观察这一点。
 - en: Out first target is the GTX460 card, a compute 2.1 card based on Fermi. Major
     differences are the compute 2.1 architecture (7 SMs × 48 CUDA cores vs. 14 SMs
     × 32 CUDA cores), reduced L2 cache size (512 K vs. 640 K), reduced L1 cache size
@@ -3376,6 +3456,9 @@
   id: totrans-456
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的第一个目标是 GTX460 卡，这是一款基于 Fermi 的计算 2.1 卡。主要区别包括计算 2.1 架构（7 个 SM × 48 个 CUDA
+    核心 vs. 14 个 SM × 32 个 CUDA 核心）、减少的 L2 缓存大小（512K vs. 640K）、每个 CUDA 核心的 L1 缓存大小减少（每
+    48 个 CUDA 核心共享 48K L1 vs. 每 32 个 CUDA 核心共享 48K L1）以及减少的内存带宽（115 GB/s vs. 134 GB/s）。
 - en: Based purely on total CUDA core count (336 vs. 448), we’d expect around 75%
     of the performance. However, adjusting for clock speed differences, this gives
     us a little less than 10% performance difference between the two devices. Memory
@@ -3383,6 +3466,8 @@
   id: totrans-457
   prefs: []
   type: TYPE_NORMAL
+  zh: 单纯从 CUDA 核心总数（336 核 vs. 448 核）来看，我们预计性能大约为 75%。然而，考虑到时钟速度的差异，这使得两个设备之间的性能差异不到
+    10%。GTX460 的内存带宽比 GTX 460 少了 15%。
 - en: For the decrypt function the time actually measured is 100 ms compared with
     61.5ms, which is somewhat disappointing. Looking at the execution profile we see
     that the SMs on the GTX460 are able to clock through more instructions, so the
@@ -3395,6 +3480,9 @@
   id: totrans-458
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于解密函数，实际测量的时间为 100 毫秒，而不是 61.5 毫秒，这有些令人失望。从执行概况来看，我们发现 GTX460 上的 SM 能够执行更多指令，因此数据到达与计算的比率发生了变化。我们再次看到
+    SM 中出现了微小的停顿。每块 128 个线程时，我们设法调度了七个块（28 个 warps）。如果我们能稍微减少寄存器的使用，我们就能执行另一个块，更好地利用
+    SM。因此，我们采用与编码操作相同的技术，将逆混合列操作移近解码操作。于是，
 - en: '[PRE91]'
   id: totrans-459
   prefs: []
@@ -3404,6 +3492,7 @@
   id: totrans-460
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  INV_MIX_COLUMN_PTR2(a12, a13, a14, a15,`'
 - en: '[PRE92]'
   id: totrans-461
   prefs: []
@@ -3413,6 +3502,7 @@
   id: totrans-462
   prefs: []
   type: TYPE_NORMAL
+  zh: 变得
 - en: '[PRE93]'
   id: totrans-463
   prefs: []
@@ -3430,6 +3520,9 @@
   id: totrans-464
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种操作融合使得寄存器的使用降到了神奇的 31 个寄存器，这反过来允许我们调度另一个块，从而在每个 SM 中得到 32 个 warp。这弥补了计算 2.1
+    设备比计算 2.0 设备具有更高的计算与加载/存储单元比的情况。我们看到执行时间从 100 毫秒稍微下降到了 98 毫秒。然而，我们的计算 2.0 设备（GTX470）已经完全使用了它的计算核心。这一变化，虽然引入了更多的测试，但让我们损失了
+    0.5 毫秒，回到了 62 毫秒，尤其是在计算 2.0/计算 2.1 设备中，SM 内部执行单元的平衡有所不同时，你可能会遇到这种情况。
 - en: The second target is the GTX260, a compute 1.3 device. The major difference
     here is the complete lack of L1 and L2 caches. SM architecture is different with
     27 SMs versus 14 SMs, for a total of 216 CUDA cores versus 448 CUDA cores. Memory
@@ -3437,6 +3530,9 @@
   id: totrans-465
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二个目标是 GTX260，它是一个计算 1.3 设备。这里的主要区别是完全没有 L1 和 L2 缓存。SM 架构不同，有 27 个 SM，而不是 14
+    个 SM，总共有 216 个 CUDA 核心，而不是 448 个 CUDA 核心。内存带宽为 112 GB/s，而 134 GB/s，减少了大约 16%，与
+    GTX460 相当。
 - en: The initial run was 650 ms for the decode function, over 10 times slower than
     the GTX470\. Why is this? One of the key reasons is the compute 1.x platform does
     not support a unified addressing mode. Thus, an explicit declaration of intended
@@ -3448,6 +3544,9 @@
   id: totrans-466
   prefs: []
   type: TYPE_NORMAL
+  zh: 初始运行解码函数的时间为 650 毫秒，比 GTX470 慢了 10 倍以上。为什么会这样？其中一个关键原因是计算 1.x 平台不支持统一寻址模式。因此，需要明确声明预期的内存使用情况。在
+    `gmul` 表的情况下，它们通过一个小的计算内核在设备上生成。因此，这些表存在于全局内存中。在计算 2.x 平台上，全局内存是有缓存的，而在计算 1.x
+    平台上，你必须明确将其设为可缓存。我们可以通过几种方式做到这一点。
 - en: First, we need to specify that the memory used for `gmul` is constant, which
     in turn means we can’t write to it from the device. As we have a copy of the data
     on the host we can either copy it to the device via the `cudaMemcpyToSymbol` call
@@ -3460,12 +3559,17 @@
   id: totrans-467
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要指定 `gmul` 使用的内存是常量，这意味着我们无法从设备写入它。由于我们在主机上有一份数据副本，因此我们可以通过 `cudaMemcpyToSymbol`
+    调用将其复制到设备，或者直接在设备上将其声明为常量内存并在那里进行静态初始化。因此，计算 `gmul` 表的代码被替换为对表查找的简单扩展定义。这样，表就存储在常量缓存中。重新运行代码后，我们看到执行时间从
+    650 毫秒下降到 265 毫秒，下降了近 60%。然而，GTX260 仍然比 GTX470 慢 4.2 倍，比 GTX460 慢 2.7 倍。
 - en: Finally, an older GT9800 card has approximately half the number of CUDA cores
     of the GTX260 and half the memory bandwidth. As might be expected, we see the
     265 ms approximately double (1.8×) to 478 ms.
   id: totrans-468
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，一张旧的 GT9800 卡的 CUDA 核心数量大约是 GTX260 的一半，内存带宽也只有一半。正如预期的那样，我们看到 265 毫秒的时间大约是
+    478 毫秒（增加了 1.8 倍）。
 - en: The issue with both GTX260 and GT9800 is the organization of the data. Having
     the data match the format used for AES-NI means the data for a single key value
     is laid out sequentially in memory. To achieve much better performance we need
@@ -3475,10 +3579,13 @@
   id: totrans-469
   prefs: []
   type: TYPE_NORMAL
+  zh: GTX260 和 GT9800 的问题在于数据的组织。将数据与 AES-NI 使用的格式匹配意味着单个密钥值的数据会按顺序布局在内存中。为了获得更好的性能，我们需要组织内存，使得密钥中的每个连续的
+    32 位值在内存中以列的形式出现，而不是按行排列。典型的顺序排列方式虽然对于 CPU 是理想的，但对于 GPU 来说却远非理想。
 - en: 'The actual output of our AES encryption/decryption is shown here:'
   id: totrans-470
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的 AES 加密/解密的实际输出如下所示：
 - en: '[PRE94]'
   id: totrans-471
   prefs: []
@@ -3488,6 +3595,7 @@
   id: totrans-472
   prefs: []
   type: TYPE_NORMAL
+  zh: '`设备加密复制：25.428毫秒`'
 - en: '[PRE95]'
   id: totrans-473
   prefs: []
@@ -3504,6 +3612,9 @@
   id: totrans-474
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，通过加密，我们已经成功将性能提升到接近AES-NI硬件的约2倍，而解密则大约为3倍。我们这里使用的是GTX470，它是常规Sandybridge
+    CPU时期的硬件，而不是更现代的Sandybridge-E设备。常规Sandybridge设备的AES-NI性能大约是Sandybridge-E的一半，这使得我们的性能与Sandybridge-E相近。基于Kepler的GTX680是与Sandybridge-E
+    CPU搭配的代表性设备。这将带来约2倍的性能提升，使得GPU与基于硬件的AES-NI性能相当。
 - en: The issue of what GPUs to support is a tricky one. There are a lot of older
     GPUs in the consumer market, so applications have to work well on these if you
     have a consumer application. Yet in large installations, simply the power bill
@@ -3513,6 +3624,7 @@
   id: totrans-475
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于支持哪些GPU的问题相当棘手。消费者市场上有很多老旧GPU，因此如果你开发的是消费者应用程序，应用程序必须在这些旧设备上运行良好。然而，在大型安装环境中，仅仅电费就意味着，如果能够用更新的GPU替代旧的GPU，继续使用这些旧GPU毫无意义。Kepler的引入将大大加速旧款Tesla显卡的退役。
 - en: If you need to support older hardware, then the best approach is to develop
     on that hardware from day one. You will then have a baseline application that
     will work reasonably well on the later-generation cards. Many of the optimizations
@@ -3522,11 +3634,13 @@
   id: totrans-476
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你需要支持旧硬件，那么最佳方法是从第一天开始就在该硬件上开发。这样，你将有一个在较新一代显卡上也能 reasonably 工作的基础应用程序。为这些显卡做的许多优化，在较新一代显卡上可能获得的好处会显著减少。然而，几乎所有的优化都会带来*某种*程度的好处，关键是你投入的时间能带来怎样的回报。
 - en: Using multiple streams
   id: totrans-477
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 使用多个流
 - en: An example of multistream and multistream/multi-GPU programming is provided
     in [Chapter 8](CHP008.html). We’ll therefore not cover how to implement a streamed
     version of this algorithm. However, we’ll discuss some of the issues you’d need
@@ -3534,6 +3648,7 @@
   id: totrans-478
   prefs: []
   type: TYPE_NORMAL
+  zh: '[第8章](CHP008.html)提供了多流和多流/多GPU编程的示例。因此，我们不会讨论如何实现该算法的流式版本。然而，我们会讨论一些你在实现时需要考虑的问题，无论是针对这个算法还是你自己遇到的某个问题。'
 - en: Multiple streams are useful in that they allow some overlap of kernel execution
     with PCI-E transfers. Their usefulness, however, is seriously hampered by the
     fact that one PCI-E transfer engine is only ever enabled on consumer cards. Only
@@ -3542,6 +3657,7 @@
   id: totrans-479
   prefs: []
   type: TYPE_NORMAL
+  zh: 多个流的作用在于它们可以允许内核执行与PCI-E传输的重叠。然而，它们的有效性受到限制，原因在于只有消费级显卡上才会启用一个PCI-E传输引擎。只有Tesla系列显卡才同时启用了两个PCI-E传输引擎，允许实现双向传输的同时进行。
 - en: We typically want to transfer data to the card, process some data, and then
     transfer the data out of the card. With a single PCI-E transfer engine enabled,
     we have just a single queue for all the memory transfers in the hardware. Despite
@@ -3553,6 +3669,7 @@
   id: totrans-480
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们通常希望将数据传输到显卡，处理一些数据，然后将数据从显卡传出。在启用单个PCI-E传输引擎的情况下，硬件中的所有内存传输只有一个队列。尽管在不同的流中，内存传输请求会被送入Fermi及更早版本硬件上的*单个*队列。因此，从主机到设备的传输、调用内核，然后从设备到主机的传输这种典型工作流模式会导致工作流停滞。设备中的传输会阻塞下一个流中设备的传输。因此，所有流实际上是串行执行的。
 - en: The next issue we need to think about when using multiple streams is the resource
     usage. You need *N* sets of host and device memory, where *N* is the number of
     streams you wish to run. When you have multiple GPUs, this makes a lot of sense,
@@ -3563,6 +3680,8 @@
   id: totrans-481
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用多个流时，我们需要考虑的下一个问题是资源使用。你需要 *N* 组主机和设备内存，其中 *N* 是你希望运行的流的数量。当你使用多个 GPU 时，这样做是很有意义的，因为每个
+    GPU 都会显著贡献于整体结果。然而，对于单一消费者 GPU，增益就不容易量化。只有当 GPU 工作负载的输入或输出相比较小时，并且总传输时间少于内核执行时间时，这种做法才有效。
 - en: In our application, we transfer in a set of blocks to be encoded in a single
     key set to use for the encoding. We transfer out the encoded blocks. The transfer
     in and transfer out are all but identical in size. The kernel execution time is
@@ -3571,6 +3690,7 @@
   id: totrans-482
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的应用中，我们将一组块传入并在单一密钥集下进行编码。我们将编码后的块传出。传入和传出的大小几乎相同。内核执行时间大约是传输时间的两倍。这意味着我们有机会隐藏输入传输时间，仅遭受输出传输时间的影响。
 - en: A single GPU can support up to 16 hardware streams (32 in Kepler), so it would
     be possible to perform 16 inbound transfers, 16 kernels, and then 16 outbound
     transfers and still be within the bounds of the memory on the device and the host.
@@ -3581,41 +3701,51 @@
   id: totrans-483
   prefs: []
   type: TYPE_NORMAL
+  zh: 单个 GPU 最多支持 16 个硬件流（Kepler 中为 32 个），因此可以执行 16 次入站传输、16 个内核计算，然后是 16 次出站传输，并且仍然可以在设备和主机的内存范围内进行。随着我们在[第
+    9 章](CHP009.html)中介绍多个 GPU 进入系统，传输将变得更加复杂。如你所见，随着并发传输越多，传输时间本身可能会因为 PCI-E 总线上的主机资源争用而变得更长。
 - en: AES summary
   id: totrans-484
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: AES 总结
 - en: There were a number of issues we saw with AES that are worth summarizing here.
   id: totrans-485
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在 AES 中遇到了一些值得总结的问题。
 - en: • The ideal memory pattern for the CPU and GPU versions are different. Optimizing
     the memory pattern for the GPU would have brought considerable benefits (typically
     at least 2× on Fermi), especially on the earlier GPUs where this is far more critical.
   id: totrans-486
   prefs: []
   type: TYPE_NORMAL
+  zh: • CPU 和 GPU 版本的理想内存模式是不同的。优化 GPU 的内存模式将带来显著的收益（通常在 Fermi 上至少是 2×），尤其是在早期的 GPU
+    上，这一点尤为重要。
 - en: • For compute 1.x devices read-only memory needs to be explicitly declared as
     constant memory, rather than auto-designated by the compiler.
   id: totrans-487
   prefs: []
   type: TYPE_NORMAL
+  zh: • 对于 compute 1.x 设备，读写内存需要明确声明为常量内存，而不是由编译器自动指定。
 - en: • It may be necessary to reorder or transform the kernel to allow the compiler
     to more easily see optimization opportunities.
   id: totrans-488
   prefs: []
   type: TYPE_NORMAL
+  zh: • 可能需要重新排序或转换内核，以便编译器更容易发现优化机会。
 - en: • Efficient register usage and count were critical to achieving good performance.
   id: totrans-489
   prefs: []
   type: TYPE_NORMAL
+  zh: • 高效的寄存器使用和计数对于实现良好的性能至关重要。
 - en: • You can share read-only data between blocks using the L1 cache, whereas holding
     the same read-only data shared memory necessitates *N* copies where *N* is the
     number of resident blocks.
   id: totrans-490
   prefs: []
   type: TYPE_NORMAL
+  zh: • 你可以通过 L1 缓存在不同块之间共享只读数据，而将相同的只读数据保存在共享内存中则需要 *N* 个副本，其中 *N* 是驻留块的数量。
 - en: • Complex and thread-divergent algorithms, for example, the `gmul` function
     when decoding, can be replaced by nonthread-divergent memory lookups in the cache
     or shared memory. The cache was added specifically for such data-driven scattered
@@ -3623,27 +3753,32 @@
   id: totrans-491
   prefs: []
   type: TYPE_NORMAL
+  zh: • 复杂的线程分歧算法，例如解码时的 `gmul` 函数，可以通过非线程分歧的内存查找在缓存或共享内存中替代。缓存的添加就是为了应对这种数据驱动的分散内存模式。
 - en: • Check the allocation of variables to registers and eliminate stack or local
     memory usage where possible.
   id: totrans-492
   prefs: []
   type: TYPE_NORMAL
+  zh: • 检查变量分配到寄存器中的情况，并在可能的情况下消除栈或本地内存的使用。
 - en: • Always check correctness early in the solution, preferably with code developed
     independently.
   id: totrans-493
   prefs: []
   type: TYPE_NORMAL
+  zh: • 始终在解决方案初期检查正确性，最好使用独立开发的代码进行验证。
 - en: • Always look at the *actual* timing of the program. Your mental model of how
     things work will not always be correct and often you will overlook something.
     Always look to the data for what effect each change has.
   id: totrans-494
   prefs: []
   type: TYPE_NORMAL
+  zh: • 永远要看程序的*实际*时间。你对事物如何运作的心理模型并不总是正确的，而且你经常会忽略某些东西。始终查看数据，了解每个变化带来的效果。
 - en: Conclusion
   id: totrans-495
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 结论
 - en: We’ve looked at a couple of applications of GPU technology, deliberately chosen
     for not being a simple matrix multiply shown in so many other examples of CUDA
     programming. We looked at using GPUs to filter data, which is useful from the
@@ -3654,6 +3789,7 @@
   id: totrans-496
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经研究了GPU技术的几个应用，特意选择了不同于许多CUDA编程示例中的简单矩阵乘法的例子。我们研究了如何利用GPU过滤数据，这在从搜索数据中的有趣事实角度以及从纯信号处理角度来看都非常有用。我们还研究了如何在GPU上实现AES，一个标准的加密算法。即使你从未需要在CUDA中实现这个算法，你现在也应该理解并且对实现或使用这些算法感到自信。
 - en: You should also have picked up on some of the tradeoffs and design points when
     targeting multiple compute levels and how design decisions early on in project
     development can affect the outcome later. Thinking about the usage of registers,
@@ -3663,6 +3799,7 @@
   id: totrans-497
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还应该注意到，当针对多个计算级别时的一些权衡和设计点，以及项目开发早期的设计决策如何影响后续的结果。考虑寄存器、共享内存、缓存的使用，以及访问全局内存的模式，都是设计中的关键方面，这些内容应该在编写第一行代码之前就理解并加以解决。
 - en: One of the biggest issues programmers have today is growing up in a world where
     they are isolated from the hardware on which they are programming. To achieve
     great performance and not just average performance, it pays to understand, and
@@ -3676,6 +3813,7 @@
   id: totrans-498
   prefs: []
   type: TYPE_NORMAL
+  zh: 今天程序员面临的最大问题之一是他们生活在一个与编程硬件隔离的世界里。为了获得卓越的性能，而不仅仅是平均性能，理解并彻底理解你所开发的环境是非常重要的。诸如各种级别的内存层次结构等概念在传统编程语言中并不存在。C语言是在1970年代初期发明的，直到C11（即2011年）标准中，我们才终于看到线程和本地线程存储开始出现。CUDA及其原生语言C遵循信任程序员的原则。它向你暴露硬件的某些方面，因此你应该视其为自己的责任，理解这些特性并将其使用得当。
 - en: With a few examples now covered, we’ll move on to using multiple GPUs and optimizing
     applications, an area where we can extract massive speedups within a node simply
     by plugging more cards into the PCI-E bus and adapting our applications to be
@@ -3685,35 +3823,43 @@
   id: totrans-499
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过几个例子，现在我们将转向使用多个GPU和优化应用程序，这是一个通过将更多显卡插入PCI-E总线并调整我们的应用程序以支持多GPU的方式，从单一节点中提取巨大加速的领域。Kepler
+    Tesla K10产品是首款Tesla双GPU解决方案，也许是我们在未来几年中会看到的众多解决方案之一。在CUDA 4.0之后，多GPU编程其实并不难，正如你将在接下来的章节中看到的那样。
 - en: Questions
   id: totrans-500
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 问题
 - en: 1. What was the main reason why the AES application ran significantly slower
     on the GTX260 and GT9800 cards compared with the GTX460 and GTX470 cards? What
     would you do to address this?
   id: totrans-501
   prefs: []
   type: TYPE_NORMAL
+  zh: 1. 为什么在GTX260和GT9800显卡上，AES应用程序的运行速度明显慢于GTX460和GTX470显卡？你会如何解决这个问题？
 - en: 2. In the AES application, why did changing the `s_box` and `gmul` tables from
     `u32` to `u8` improve performance?
   id: totrans-502
   prefs: []
   type: TYPE_NORMAL
+  zh: 2. 在AES应用程序中，为什么将`u32`类型的`s_box`和`gmul`表转换为`u8`后性能得到了提升？
 - en: 3. What is thread level parallelism? Does it help, and if so why?
   id: totrans-503
   prefs: []
   type: TYPE_NORMAL
+  zh: 3. 什么是线程级并行？它有帮助吗？如果有，为什么？
 - en: 4. What problems are associated with using atomic operations?
   id: totrans-504
   prefs: []
   type: TYPE_NORMAL
+  zh: 4. 使用原子操作有什么问题？
 - en: Answers
   id: totrans-505
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 答案
 - en: 1. The GTX260 and GT9800 cards are compute 1.3 and compute 1.1 cards, respectively.
     As such, they have no level one (L1) or level two (L2) caches as found on the
     compute 2.x cards. In the memory figures shown we were using the L1 cache with
@@ -3722,6 +3868,7 @@
   id: totrans-506
   prefs: []
   type: TYPE_NORMAL
+  zh: 1. GTX260和GT9800卡分别是计算1.3和计算1.1卡。因此，它们没有计算2.x卡上存在的一级（L1）或二级（L2）缓存。在所示的内存图表中，我们使用的是99%命中率的L1缓存。从L1到全局内存意味着我们从TB级的带宽降到只有几百MB的带宽。
 - en: The memory coalescing also radically changes. The compute 2.x hardware fetches
     memory in 128-byte cache lines. If the thread fetches a single 128-byte value,
     `uint4` for example, the hardware can service this. On compute 1.x hardware coalescing
@@ -3729,6 +3876,7 @@
   id: totrans-507
   prefs: []
   type: TYPE_NORMAL
+  zh: 内存合并也发生了根本性变化。计算2.x硬件以128字节缓存行的形式获取内存。如果线程获取单个128字节的值，例如`uint4`，硬件可以处理这个请求。在计算1.x硬件上，合并要求要严格得多。
 - en: The `uint4` type as currently compiled is hurting the algorithm. On compute
     2.x hardware a four-word vector load from memory is used followed by a four-word
     vector to shared memory. On the compute 1.x hardware, the CUDA 4.1 compiler generates
@@ -3738,6 +3886,8 @@
   id: totrans-508
   prefs: []
   type: TYPE_NORMAL
+  zh: 当前编译的`uint4`类型对算法造成了不利影响。在计算2.x硬件上，使用从内存中加载四字长向量，然后将四字长向量存入共享内存。而在计算1.x硬件上，CUDA
+    4.1编译器生成的代码会分别加载每个32位字，因此每个方向的流量是必要流量的四倍。加密的密文数据需要以适合合并的形式存储。
 - en: The constant cache is helpful. However, removing the `uint4` type from the shared
     memory, replacing it with register-held `u32` values, and then using the shared
     memory for the `gmul` and `s_box` tables would be more beneficial. You should
@@ -3746,6 +3896,7 @@
   id: totrans-509
   prefs: []
   type: TYPE_NORMAL
+  zh: 常量缓存很有帮助。然而，如果将`uint4`类型从共享内存中移除，替换为寄存器中持有的`u32`值，然后使用共享内存存储`gmul`和`s_box`表格，将会更有利。你还应该考虑到，在旧设备上，纹理缓存可能是一个值得利用的额外资源。
 - en: 2. The s_box and `gmul` tables are accessed with a data-dependent pattern. We
     have a total of four tables, each of which is 256 entries in size. Using a `u8`
     type means we use 5 K of memory, which fits into both the L1 cache and the constant
@@ -3757,6 +3908,7 @@
   id: totrans-510
   prefs: []
   type: TYPE_NORMAL
+  zh: 2. `s_box`和`gmul`表格的访问模式依赖于数据。我们总共有四个表格，每个表格包含256个条目。使用`u8`类型意味着我们使用5KB内存，这适合L1缓存和常量缓存。使用`u32`值去除了许多`cvt`（类型转换）指令，但会使L1缓存或常量缓存移动四倍的数据。额外的计算开销完全值得为了不移动那么多数据而付出的成本。作为`u32`类型，缓存需要存储20KB的数据，轻松超过了常规16KB的L1缓存分配和8KB常量缓存工作集。
 - en: 3. Thread level parallelism exploits the fact that most hardware is pipelined
     and thus able to accept nondependent instructions on successive clocks without
     blocking. A value of four independent items per thread is typically a good value
@@ -3765,6 +3917,7 @@
   id: totrans-511
   prefs: []
   type: TYPE_NORMAL
+  zh: 3. 线程级并行性利用了大多数硬件是流水线的这一事实，因此能够在连续的时钟周期内接收不依赖的指令而不发生阻塞。每个线程处理四个独立项的值通常是实现线程级并行性的一个好值，这是我们在[第9章](CHP009.html)中讨论的内容。
 - en: 4. There are two main issues to consider. First, atomic operations, if oversubscribed,
     cause serialization. Thus, a warp of 32 values writing to the same memory address,
     be it shared or global memory, will serialize. Atomics, at least on Fermi, are
@@ -3774,6 +3927,7 @@
   id: totrans-512
   prefs: []
   type: TYPE_NORMAL
+  zh: 4. 需要考虑两个主要问题。首先，如果原子操作过度订阅，会导致串行化。因此，32个值的warp写入相同的内存地址（无论是共享内存还是全局内存）将会串行化。至少在Fermi架构中，原子操作是warp级的操作。因此，让warp中的每个线程对独立的可寻址位置执行原子操作，将导致32个原子操作而不发生串行化。
 - en: The second problem is ordering of atomic writes. If all values in a warp write
     to one address, the order of the operation is not defined. You can obviously observe
     the order and it’s likely that this will remain consistent for a given device.
@@ -3782,22 +3936,28 @@
   id: totrans-513
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二个问题是原子写操作的顺序。如果一个warp的所有值都写入同一地址，则操作的顺序是未定义的。显然，你可以观察到顺序，并且很可能在某个设备上这个顺序会保持一致。然而，另一个设备可能会有所不同。因此，在使用此类知识时，你会在应用程序中构建一个失败点。
 - en: References
   id: totrans-514
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 参考文献
 - en: 1\. *Wikipedia, Rijndael Mix Columns*. Available at *[http://en.wikipedia.org/wiki/Rijndael_mix_columns](http://en.wikipedia.org/wiki/Rijndael_mix_columns)*;
     accessed Jan. 31, 2012.
   id: totrans-515
   prefs: []
   type: TYPE_NORMAL
+  zh: 1\. *维基百科，Rijndael混合列*。可在 *[http://en.wikipedia.org/wiki/Rijndael_mix_columns](http://en.wikipedia.org/wiki/Rijndael_mix_columns)*
+    查阅；访问时间：2012年1月31日。
 - en: 2\. *Federal Information Processing Standards Publication 197, Advanced Encryption
     Standard (AES)*. Available at *[http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf](http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf)*;
     accessed Feb. 5, 2012.
   id: totrans-516
   prefs: []
   type: TYPE_NORMAL
+  zh: 2\. *联邦信息处理标准出版物197，高级加密标准（AES）*。可在 *[http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf](http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf)*
+    查阅；访问时间：2012年2月5日。
 - en: '3\. *Toms Hardware, AES-NI Benchmark Results: Bitlocker, Everest, and WinZip
     14*. Available at *[http://www.tomshardware.co.uk/clarkdale-aes-ni-encryption,
     review-31801–7.html](http://www.tomshardware.co.uk/clarkdale-aes-ni-encryption_review-31801-7.html)*;
@@ -3805,3 +3965,6 @@
   id: totrans-517
   prefs: []
   type: TYPE_NORMAL
+  zh: 3\. *Toms Hardware，AES-NI基准测试结果：Bitlocker、Everest和WinZip 14*。可在 *[http://www.tomshardware.co.uk/clarkdale-aes-ni-encryption,
+    review-31801–7.html](http://www.tomshardware.co.uk/clarkdale-aes-ni-encryption_review-31801-7.html)*
+    查阅；访问时间：2012年4月26日。
