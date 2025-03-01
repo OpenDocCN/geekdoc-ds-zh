@@ -1,0 +1,2033 @@
+- en: Chapter 12
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Common Problems, Causes, and Solutions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this chapter we look at some of the issues that plague CUDA developers and
+    how you can avoid or at least mitigate these issues with some relatively simple
+    practices. Issues with CUDA programs often fall into one the following categories:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Errors of usage of various CUDA directives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • General parallel programming errors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Algorithmic errors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we finish this last chapter with a discussion of where to continue
+    your learning. There are many other texts on the subject of CUDA and GPU programming
+    in general, as well as a lot of online material. We provide some pointers for
+    what to read and where to find it. We also briefly discuss NVIDIA’s professional
+    certification program for CUDA developers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Errors With CUDA Directives
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Errors using the CUDA API are by far the most common issue we see with people
+    learning CUDA. It is a new API for many, and therefore mistakes in its usage should
+    be expected and planned for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDA error handling
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In [Chapter 4](CHP004.html), we introduced the `CUDA_CALL` macro. All of the
+    CUDA API functions return an error code. Anything other than `cudaSuccess` generally
+    indicates you did something wrong in calling the API. There are, however, a few
+    exceptions, such as `cudaEventQuery`, which returns the event status as opposed
+    to an error status.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The CUDA API is by nature asynchronous, meaning the error code returned at the
+    point of the query, may have happened at some distant point in the past. In practice,
+    it will usually be as a result of the call immediately prior to the error being
+    detected. You can, of course, force this by synchronizing (i.e., calling the `cudaDeviceSynchronize`
+    function) after every API call. While this strategy might be a good one for debugging,
+    it’s not something that should be in any release version of the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each error code can be turned into a semi-useful error string, rather than a
+    number you have to look up in the API documentation. The error string is a somewhat
+    helpful first attempt to identify the potential cause of the problem. However,
+    it relies on the programmer explicitly checking the return code in the host program.
+    It would be better if the CUDA runtime could trap such exceptions and perform
+    some error indication, as we do explicitly with the `CUDA_CALL` macro, when running
+    the debug version. This would help tremendously in pointing out errors in the
+    user’s program, as and when they are introduced. We see some move toward this
+    in the CUDA v4.1 SDK.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The CUDA error handling can be somewhat rudimentary. Most of the time, you’ll
+    get a useful error message. However, often you will get a not-so-useful message
+    such as `unknown error`, usually after a kernel invocation. This basically means
+    your kernel did something it should not have, for example, writing over the end
+    of the array in global or shared memory. There are debugging tools and methods
+    we cover later in this chapter that help identify this type of problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Kernel launching and bounds checking
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One of the most common failings in CUDA is an array overrun. You should ensure
+    all your kernel invocations start with a check to ensure the data they will access,
+    both for read and write purposes, is guarded by a conditional. For example,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This conditional takes a marginal amount of time, but will save you a lot of
+    debugging effort. You typically see such a problem where you have a number of
+    data elements that are not multiples of the thread block size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Suppose we have 256 threads per block and 1024 data elements. This would invoke
+    four blocks of 256 threads. Each thread would contribute to the result. Now suppose
+    we had 1025 data elements. You would typically have two types of errors here.
+    The first is to not invoke a sufficient number of threads, due to using an integer
+    division. This will usually truncate the number of blocks needed. Typically people
+    write
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will work, but only where the number of elements is an exact multiple of
+    the number of threads. In the 1025 elements case we launch 4 × 256 threads, some
+    1024 threads in total. The last element remains unprocessed. I’ve also seen, as
+    well as other variations, attempts to “get around” this issue. For example,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This does not solve the problem. You cannot have 4.1 blocks. The assignment
+    to integer truncates the number to four blocks. The solution is a simple one.
+    You write the following instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will ensure you always allocate enough blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second issue we commonly see then follows. We now invoke five blocks for
+    a total of 1280 threads. Without such guarded access to the array within the kernel,
+    all but the first thread in block 5 would be accessing an out-of-bounds memory
+    location. The CUDA runtime performs little if any runtime checks, such as array
+    bounds. You will never see it halt the kernel and display a message such as `array
+    overrun in line 252 file kernel.cu`. However, rather than silently fail, which
+    is the worst case, it does at least trap the error in some way and then returns
+    a message such as `unknown error`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Invalid device handles
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The other type of errors you typically see are incorrect mixing of handles,
+    most often pointers. When you allocate memory on the device or on the host, you
+    receive a pointer to that memory. However, that pointer comes with an implicit
+    requirement that *only the host* may access host pointers and *only the device*
+    may access device pointers. There are a few exceptions, such as zero-copy memory,
+    where a host pointer can be converted to a device pointer to host memory, but
+    even in this case you have a separation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the pointers are not interchangeable, one might have hoped that device pointers
+    would be declared using a different type. This would allow for type-based checks
+    on calls to the API to flag such issues at compile time. Unfortunately, a device
+    pointer and a host pointer are the same basic type, which means there is no static-type
+    checking performed by the compiler.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is, of course, no reason why you could not define such a type. You could
+    then develop your own wrapper functions around the API functions that performed
+    type checking. Certainly for those who are starting out writing CUDA, this would
+    be a tremendous help and perhaps something we’ll see as CUDA develops. The Thrust
+    library we looked at in [Chapter 10](CHP010.html) has the concept of a host vector
+    and a device vector. It uses C++ function overloading to ensure that the correct
+    function is always called for the given data type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The standard CUDA runtime checks for this type of incorrect mixing of device
+    and host pointers, in terms of passing a host pointer to a device function are
+    reasonable. The CUDA API checks the pointer’s origin and will generate a runtime
+    error if you pass a host pointer to a kernel function without first converting
+    it to a device pointer to host memory. However, the same cannot be said for the
+    standard C/C++ system libraries. If you call the standard `free` function as opposed
+    to the `cudaFree` function with a device pointer, the system libraries will try
+    to free that memory on the host, and then will likely crash. The host libraries
+    have no concept of a memory space they can’t access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The other type of invalid handle comes from the usage of a type before it’s
+    been initialized. This is akin to using a variable before assigning it a value.
+    For example,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this example we’re missing the call to `cudaStreamCreate` and subsequent
+    `cudaStreamDestroy` functions. The create call performs some initialization to
+    register the event in the CUDA API. The destroy call releases those resources.
+    The correct code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`cudaStreamDestroy(my_stream);`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unfortunately, the CUDA multiple-device model is based on selecting a device
+    context prior to performing an operation. A somewhat cleaner interface would have
+    been to specify an optional `device_num` parameter in each call, which would default
+    to device 0 if not specified. This would then allow the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Although this is moving from C to C++, it provides a somewhat cleaner interface,
+    as resources would be automatically created with a constructor and destroyed with
+    a destructor. You can, of course, easily write such a C++ class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Invalid device handles, however, are not simply caused by forgetting to create
+    them. They can also be caused by destroying them prior to the device finishing
+    usage of them. Try deleting the `cudaStreamSynchronize` call from the original
+    code. This will cause the stream in use by the asynchronous kernel to be destroyed
+    while the kernel is potentially still running on the device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Due to the asynchronous nature of streams, the `cudaStreamDestroy` function
+    will not fail. It will return `cudaSuccess`, so it will not even be detected by
+    the `CUDA_CALL` macro. In fact, you will not get an error until sometime later,
+    from an entirely unrelated call into the CUDA API. One solution to this is to
+    embed the `cudaSynchronizeDevice` call into the `CUDA_CALL` macro. This can help
+    in identifying the exact cause of the problem. However, be careful not to leave
+    this in production code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Volatile qualifiers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The C “volatile” keyword specifies to the compiler that all references to this
+    variable, read or write, must result in a memory reference, and those references
+    must be in the order specified in the program. Consider the following code segment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here we declare a global variable `a` starting at 0\. Every time we call the
+    function it iterates `i` from 0 to 1000 and adds each value to the variable `a`.
+    In the nonoptimized version of this code, it’s likely each write of `a` will result
+    in a physical memory write. However, this is highly unlikely in the optimized
+    code version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The optimizer can apply two approaches here. First, and the most common, would
+    be to load the value of `a` into a register at the start of the loop, run the
+    loop to the end, and then write the resulting register back to memory as a *single*
+    store operation. This is simply an example of the programmer being unaware, or
+    not caring, about the cost of memory access. The C code could have been written
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is effectively what the compiler will likely replace it with. A somewhat
+    more advanced optimizer may be able to unroll the loop, as if it had constant
+    boundaries, to a single expression. As that expression would contain `a` plus
+    a series of constants, the constants could be reduced to a single constant at
+    compile time, eliminating the loop altogether. For example,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: or
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: While many compilers will unroll loops, I’d not expect many, if any, compilers
+    to produce the later, simplified code. However, in theory there is no reason why
+    this could not be the case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Either approach potentially causes problems if some other thread needs to share
+    the value of parameter `a` during any intermediate loop iteration. On the GPU
+    this shared parameter can be either in shared or global memory. For the most part
+    these types of problems are largely hidden from the GPU programmer in that the
+    call to `__syncthreads()` causes an implicit flush of any writes to memory in
+    both shared and global memory for the *current block*. As most shared memory code
+    typically does some action, writes the result, and then synchronizes, the synchronization
+    operation also serves to automatically distribute the data between threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Problems occur when the programmer takes account of the fact that threads within
+    a warp operate in a synchronous manner and thus omits the synchronization primitive.
+    You typically see such optimizations when a reduction operation is in use and
+    the last 32 values don’t need a synchronization primitive. This is true only in
+    the case in which the shared memory is additionally declared as volatile. Otherwise,
+    the compiler does not have to write any values at all to shared memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Shared memory has two purposes: first, to act as a block of local, high-speed,
+    per-thread memory, and second, to facilitate interthread communication within
+    a block. Only in the latter case does shared memory need to be declared as volatile.
+    Thus, the `__shared__` directive does not implicitly declare the parameter as
+    volatile since the programmer may not always wish to enforce reads and writes
+    when the compiler is able to use a register to optimize out some of these. It
+    is perfectly valid practice not to use a `syncthread` call when the threads are
+    cooperating within a warp, but you must realize that the shared memory has no
+    longer been made coherent to every thread in the warp.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When you have interblock communication via global memory, the view each block
+    sees of global memory is again not consistent between blocks without explicit
+    synchronization. We have the same issue as with shared memory, in that the compiler
+    may optimize away intermediate global writes and write only the last one out to
+    memory. This can be overcome by using the volatile keyword for access within a
+    block. However, CUDA does not specify block execution order, so this does not
+    deal with interblock-based dependencies. These are handled in two ways. First,
+    and the most common, is the termination and invocation of another kernel. Implicit
+    in this is a completion of all pending global memory transactions and a flush
+    of all caches. The second method is used where you wish to perform some operation
+    within the same kernel invocation. In this instance you need to call the `__threadfence`
+    primitive, which simply causes, and waits for, any writes from the calling thread
+    to be visible to all affected threads. For shared memory, this equates to the
+    threads within the same block, as only these threads can see the shared memory
+    allocated to a given block. For global memory, this equates to all threads within
+    the device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute level–dependent functions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The compute 2.x hardware supports many additional functions not present in the
+    earlier hardware. The same is true of compute 1.3 devices. If you search through
+    the CUDA programming guide it will list various functions as available only on
+    certain compute levels. For example, `__syncthreads_count` is a compute 2.0 function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unfortunately, the default CUDA projects (e.g., the New Project wizard in Visual
+    Studio) use CUDA 1.0 support. Thus, when you have a Fermi card installed (a compute
+    2.x device) and compile the project using a compute 2.0 directive, the compiler
+    rather unhelpfully states the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: It doesn’t say this function is supported only under the compute 2.0 architecture.
+    This would be at least helpful in helping you identify the problem. It just says
+    it’s undefined, which makes most programmers assume they have missed an include
+    statement or have done something wrong. Thus, they are sent off in the wrong direction
+    searching for a solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The issue is simply resolved by setting the GPU architecture level by changing
+    the properties of the GPU option of the CUDA runtime, as shown in [Figure 12.1](#F0010).
+    This results in the following command line option being added to the compiler
+    invocation command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000120f12-01-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 12.1 Setting the correct architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that you can set, by default, up to three architectures in the standard
+    project created by Visual Studio for CUDA projects. Code can be written for various
+    compute levels using the compiler preprocessor. In fact, this is what is being
+    used to make higher compute level functions visible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDA defines a preprocessor symbol `__CUDA_ARCH__`, which currently holds the
+    value 100, 110, 120, 130, 200, 210, or 300\. Clearly, as future architectures
+    are defined these will increase. Thus, you can write
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alternatively, you can write a single function that uses conditional compilation
+    only where necessary to either make use of the later compute level functions or
+    provide an alternative solution for lower compute level devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many of the compute 2.x functions simplify the programming necessary and therefore
+    make development easier. However, most of these later functions can also be implemented
+    by lower compute level devices in a slower manner or with slightly more programming.
+    By not providing any implementation to provide for backward compatibility, CUDA
+    forces programmers to make a choice of either not using the new features, using
+    them and excluding those customers with older hardware, or using them and writing
+    their own implementation for older hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most consumers will expect your software to work on their hardware. They will
+    not be impressed with a message telling them to swap out their 9800 GT or GTX260
+    for a 400/500/600 series Fermi/Kepler card. Most consumers will have no clue what
+    the compute level is anyway and will have purchased the card to play the latest
+    version of a particular game.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you work in the research or commercial fields, then your hardware is largely
+    defined for you by the institution or company. If you have an input into this,
+    absolutely choose at least compute 2.x hardware or later, as it is much easier
+    to program. You can then largely forget about the evolution of GPUs to date and
+    work with a cache-based system far more familiar to most CPU programmers. If you
+    have a mix of hardware, as do many of our clients, then you need to think about
+    how to achieve the best performance on each generation of hardware and write your
+    program accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Device, global, and host functions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In CUDA you have to specify if a function or data item exists on the host (the
+    CPU side) or the device (the GPU side) of the PCI-E data bus. Thus, there are
+    three specifiers that can be used, as shown in [Table 12.1](#T0010). If you omit
+    the specifier, then the CUDA compiler will assume the function exists on the host
+    and will only allow you to call it from there. This is an error detected at compile
+    time and thus easy to correct. It is possible to specify that a function exists
+    both on the host (CPU) and also on the device (GPU) by using both the `__device__`
+    and `__host__` specifiers. However, it’s not possible to mix `__global__` and
+    `__host__` specifiers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 12.1 GPU and Host Functions
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Specifier | Code Is Located on | May Be Called by |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `__device__` | GPU | A global or device function |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `__global__` | GPU | A host function using a kernel invocation |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `__host__` | Host | A regular C function call |'
+  prefs: []
+  type: TYPE_TB
+- en: This dual specification is useful in that it allows you to write common code
+    on both the GPU and the CPU. You can abstract what data gets processed by what
+    thread to the global function. The global function then calls the device function,
+    passing it a pointer to the data it should perform the task on. The host function
+    can simply call the device function in a loop to achieve the same functionality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In terms of how device and global functions get translated, device functions
+    are similar to static functions in C. That is, the CUDA compiler expects to be
+    able to see the entire scope of a device function at compile time, not link time.
+    This is because device functions, by default, get in-lined into the global function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In-lining is a process where the formal parameters and the call overhead are
+    eliminated and every call to the function is expanded as if the body of the called
+    function was included at the point of the call. This might lead you to think the
+    compiler is wasting code space, as you will have potentially two copies of the
+    same device function in the program memory space. However, usually the context
+    of the call will allow additional optimization strategies to be used, so although
+    the device function is largely duplicated, it may be slightly different in each
+    usage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem this causes for you, the programmer, is that the compiler expects
+    one source file. If you want to have two kernel source files (.cu files) that
+    share a common device function, then you need to `#include` the .cu source file
+    into each caller instead of declaring the usual header file approach and having
+    the linker resolve the call. Note that in the CUDA 5.0 release of the SDK, its
+    new GPU Library Object Linking feature allows for standard object code generation
+    of the device code kernel and even placing this code into static linkable libraries.
+    This allows for much better reuse of existing code and somewhat quicker compile
+    times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Kernels within streams
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Getting an asynchronous operation to work as you intend is actually quite tricky
+    since the stream model is not reflected in the actual hardware, at least up to
+    compute 2.1 devices. Thus, you might create two streams and fill stream A with
+    a number of memory copies and then stream B with a number of memory copies. You
+    might expect that as streams A and B are different, the hardware would interleave
+    copies from each stream. What happens in practice is the hardware has only a single
+    queue and executes commands based on the order in which they were issued. Thus,
+    two streams that implement a `copy to` device, `execute` kernel, and `copy from`
+    device operation will be run in sequence rather than being overlapped with one
+    another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In consumer hardware up to and including compute 3.0 devices there are just
+    two queues—one for the memory copies and one for the kernels. In the memory queue,
+    any preceding operation must complete prior to a new operation being issued. This
+    makes perfect sense, as a single DMA (direct-memory access) engine can do a single
+    transfer at a time. However, this means filling the queues, depth first by stream
+    has the effect of serializing the stream operations, which defeats the object
+    of using streams, to achieve an enhanced level of concurrent kernel/memory transfers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The solution is still to fill the queue depth first, but to exclude the `copy
+    back` memory operations from the queue. Thus, the `copy to` and `kernel` operations
+    will overlap execution with one another. In a situation where the input data is
+    larger than the output data, this works quite well. Once the last kernel in the
+    batch has been pushed into the queue, all of the `copy back` operations are then
+    pushed into the transfer queue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In Fermi devices based on the GF100/GF110 devices (i.e., GTX470, GTX480, GTX570,
+    GTX580, Tesla C2050, C2070, C2075, Tesla M2050/2070) there are two DMA engines.
+    However, only the Tesla devices enable this second transfer engine, known as “async
+    engine count,” in the driver. Thus, on Fermi Tesla devices, the depth-first approach
+    mentioned previously can be improved upon. As we no longer have a single transfer
+    queue, we in fact should issue commands to the stream breadth first. This vastly
+    simplifies stream handling, as we can effectively forget about the hardware handling
+    internally and expect it to work as the logical stream model predicts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, do be aware of one optimization in the hardware that can cause issues.
+    The hardware will tie successive transfers together in terms of when they complete.
+    Thus, launching two memory copies followed by two kernel calls results in both
+    the memory copies having to complete before either kernel gets launched. You can
+    break this behavior by inserting an event into the stream in between the memory
+    copies. Then each copy is handled independently of the ones after it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parallel Programming Issues
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Having gotten over the usage of the API issues, the next pitfalls most CUDA
+    developers fall into are some of the more general problems that plague all parallel
+    software development. We look in this section at some of these issues and how
+    they affect GPU development.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Race hazards
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In a single-thread application, the problem of producer/consumer is quite easy
+    to handle. It’s simply a case of looking at the data flow and seeing if a variable
+    was read before anything wrote to it. Many of the better compilers highlight such
+    issues. However, even with this assistance, complex code can suffer from this
+    issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As soon as you introduce threads into the equation, producer/consumer problems
+    become a real headache if not thought about carefully in advance. The threading
+    mechanism in most operating systems—and CUDA is no exception—tries to operate
+    to achieve the best overall throughput. This usually means threads can run in
+    any order and the program must not be sensitive to this ordering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider a loop where iteration `i` depends on loop iteration `i-1`. If we simply
+    assign a thread to each element of the array and do nothing else, the program
+    will work only when the processor executes one thread at a time according to the
+    thread ID from low to high thread numbers. Reverse this order or execute more
+    than one thread in parallel and the program breaks. However, this is a rather
+    simple example and not all programs break. Many run and produce the answer correctly
+    sometimes. If you ever find you have a correct answer on some runs, but the wrong
+    answer on others, it is likely you have a producer/consumer or race hazard issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A race hazard, as its name implies, occurs when sections of the program “race”
+    toward a critical point, such as a memory read/write. Sometimes warp 0 may win
+    the race and the result is correct. Other times warp 1 might get delayed and warp
+    3 hits the critical section first, producing the wrong answer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The major problem with race hazards is they do not always occur. This makes
+    debugging them and trying to place a breakpoint on the error difficult. The second
+    feature of race hazards is they are extremely sensitive to timing disturbances.
+    Thus, adding a breakpoint and single-stepping the code always delays the thread
+    being observed. This delay often changes the scheduling pattern of other warps,
+    meaning the particular conditions of the wrong answer may never occur.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first question in such a situation is not where in the code is this happening,
+    but requires you to take a step backward and look at the larger picture. Consider
+    under what circumstances the answer can change. If there is some assumption about
+    the ordering of thread or block execution in the design, then we already have
+    the cause of the problem. As CUDA does not provide any guarantee of block ordering
+    or warp execution ordering, any such assumption means the design is flawed. For
+    instance, take a simple sum-based reduction to add all the numbers in a large
+    array. If each run produces a different answer, then this is likely because the
+    blocks are running in a different order, *which is to be expected*. The order
+    should not and must not affect the outcome of the result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In such an example we can fix the ordering issues by sorting the array and combining
+    values from low to high in a defined order. We can and should define an order
+    for such problems. However, the actual execution order in the hardware should
+    be considered as undefined with known synchronization points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Synchronization
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '*Synchronization* in CUDA is the term used for sharing of information between
+    threads within a block, or between blocks within a grid. A thread can access register
+    space or local memory space, both of which are private to the thread. For threads
+    to work together on a problem they will often use the on-chip shared memory. We
+    saw some examples of this in the reduction problem we looked at earlier.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Threads are grouped into warps of 32 threads. Each warp is an independent schedulable
+    unit for the hardware. The SMs themselves have 8, 16, 32, 48, or more CUDA cores
+    within them. Thus, they can schedule at any single point in time a number of warps
+    and will switch warps to maintain the throughput of the device. This causes us
+    some issues in terms of synchronization. Suppose we have 256 threads in a single
+    block. This equates to eight warps. On a compute 2.0 device, with 32 CUDA cores,
+    two warps will be running at any single time. There are two warps running and
+    not one warp because the hardware actually runs two independent halfwarps per
+    shader clock (two full warps per GPU clock). Thus, two warps may make some progress
+    in the program while others remain idle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s assume warps 0 and 1 are the ones that are initially selected by the hardware
+    to run. The SMs do not use a conventional time-slicing method, but run until the
+    warp is blocked or hits a maximum run period. In principle this is all that is
+    needed of the scheduler. As soon as warp 0 issues an operation, arithmetic or
+    memory, it will stall and the warp will switch. If all warps follow the same path
+    this has the effect of pipelining the operations within a block, one warp at a
+    time. This in turn allows for extremely efficient execution of the instruction
+    stream across *N* warps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this arrangement rarely remains for long, as one or more external dependencies
+    will cause one warp to get delayed. For example, let’s assume every warp in the
+    block reads from global memory. All but the last warp hit the L1 cache. The last
+    warp was unlucky and its data is now being fetched from global memory. If we assume
+    a 20-clock-cycle instruction latency and a 600-cycle memory latency, the other
+    warps will have progressed 30 instructions by the time the memory request is satisfied.
+    If the kernel has a loop, then warps 0..6 could be several iterations ahead of
+    warp 7.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s look at an example of this from [Chapter 9](CHP009.html), adding a dataset.
+    To do this we add the following sections of code to the start of the loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` // ( 8192 elements / 256 threads) / 16 blocks = 2 iterations`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: What we’ve done here is to store into shared memory the internal GPU clock at
+    the start of the accumulation, and then again just prior to the synchronization
+    operation. The raw data results are shown in [Table 12.2](#T0015). Notice a few
+    things from this data. First, the first run through the data takes more time.
+    This is because the data is being fetched from memory rather than the cache. Second,
+    notice the actual start time varies between the warps. We can see the even and
+    odd warps being scheduled within a few clocks of one another, as you might expect.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 12.2 Clock Data from Reduction Example
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000120u12-01-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: However, even so, there is still quite some variation in the start time at this
+    very early stage. [Figure 12.2](#F0015) shows a scatter plot of start times for
+    a normalized version. Warps are shown along the *X* axis and cycles on the *Y*
+    axis. Notice how we see the alternate warp schedulers issue warps into the SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000120f12-02-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 12.2 Normalized warp start time distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we might expect, given the warps are executed out of order, the timing variation
+    by the time we hit the synchronization operation is on the order of 4000 clocks.
+    Even though warp 1 started after warp 0, it hits the synchronization point just
+    over 3000 cycles later ([Figure 12.3](#F0020)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000120f12-03-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 12.3 Normalized warp sync time distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clearly, we can see that it is impossible to rely on *any* execution order to
+    achieve correct operation. Synchronization points are needed at any point where
+    the threads within different warps need to exchange data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We see the same issue when we try to exchange data from different blocks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here we have dumped the start time and completion time from thread 0 for those
+    blocks running on SM 0\. You can see that initially SM 0 gets wide distribution
+    of block IDs as the blocks are distributed to many SMs in turn. We’d expect to
+    see that pattern continue, as individual blocks are retired from the SM and new
+    blocks introduced.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice, we see the scheduler add large sets of near linear block IDs to
+    each SM. This would suggest the block scheduler is allocating new blocks only
+    once a certain threshold of free block slots is reached with a given SM. This
+    would be beneficial in terms of localizing the cache accesses, which may in turn
+    improve the L1 cache hit rate. However, it comes at the cost of potentially reducing
+    the number of available warps for scheduling. Thus, we can see that both warps
+    and blocks are distributed in time, and therefore it is essential that any thread-
+    or block-based cooperation allows for all elements of the calculation to complete.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For thread synchronization you need to use the `__syncthreads` primitive and
+    can make use of on-chip shared memory. For block-based synchronization you write
+    the data to global memory and launch a further kernel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One final point that often trips up people with synchronization is that you
+    need to remember that *all* threads in a thread block must reach any barrier synchronization
+    primitive such as `__syncthreads` or else your kernel will hang. Therefore, be
+    careful of using such primitives within an `if` statement or looping construct,
+    as such usage may cause the GPU to hang.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Atomic operations
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As you can see in the previous section, you cannot rely on, or make any assumption
+    about, ordering to ensure an output is correct. However, neither can you assume
+    a read/modify/write operation will be completed synchronously with the other SMs
+    within the device. Consider the scenario of SM 0 and SM 1 both performing a read/modify/write.
+    They must perform it in series to ensure the correct answer is reached. If SM
+    0 and SM 1 both read 10 from a memory address, add 1 to it, and both write 11
+    back, one of the increments to the counter has been lost. As the L1 cache is not
+    coherent, this is a very real possibility if more than one block writes to the
+    same output address within a single kernel call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Atomic operations are used where we have many threads that need to write to
+    a common output. They guarantee that the read/write/modify operation will be performed
+    as an entire serial operation. They, however, do not guarantee any ordering of
+    the read/write/modify operation. Thus, if both SM 0 and SM 1 ask to perform an
+    atomic operation on the same address, which SM goes first is not defined.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s consider the classic parallel reduction algorithm. It can be viewed as
+    a simple tree as shown in [Figure 12.4](#F0025). We have a number of ways to view
+    this operation. We could allocate A, B, C, and D to a single thread and have those
+    threads do an atomic add to an output storing (A,B) and (C,D). We then drop down
+    to two threads, each of which would add the partial result to the final result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000120f12-04-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 12.4 Classic reduction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, we could start with the second line and use two threads. Thread
+    0 would read the contents of A and B and write it as the designated output address.
+    Thread 1 would handle the inputs from C and D. Thread 1 would then drop out, leaving
+    thread 0 to add the two partial results. Equally, we could reduce the problem
+    to a single thread by simply having thread 0 calculate A + B + C + D.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first approach works by considering the destination data writing to a common
+    output, a scatter operation. The other approaches work by considering the source
+    data and gathering it for use in the next stage. The scatter operation, because
+    more than one contributor is writing to the output, requires the use of atomic
+    operations. The gather approach completely eliminates the use of atomic operations
+    and is therefore usually the preferable solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Atomic operations introduce serialization if, in fact, there is more than a
+    single thread trying to perform a write at exactly the same time. If the writes
+    are distributed in time such that there is no conflicting write, then an atomic
+    operation has no significant cost. However, you cannot say with any certainty
+    in a complex system that there will be absolutely no two writes happening at any
+    single point in time. Therefore, even if the writes are expected to be sparsely
+    distributed in time, we need to use atomics to *ensure* this is always the case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given we can replace an atomic write with a gather operation, which does not
+    need any form of data locking, does it makes sense to use atomics at all? The
+    answer in most cases is the gather approach will be quicker. However, this comes
+    at a cost.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our reduction example the addition of two numbers is trivial. Given just
+    four numbers, we could easily eliminate all threads and have a single thread add
+    the four numbers sequentially. This clearly works for trivial amounts of values,
+    but what if we have 32 million values that we have to process in some form of
+    reduction?
+  prefs: []
+  type: TYPE_NORMAL
+- en: We saw in the reduction example from [Chapter 9](CHP009.html) that using a single
+    thread on a CPU was slower than two threads, which itself was slower than three.
+    There is a clear tradeoff here between the amount of work done by a given thread
+    and the overall number of threads running. In the CPU case the maximum throughput
+    on our AMD Phenom II 905e system was effectively limited to three threads due
+    to memory bandwidth issues on the host.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A more modern processor, such as the Sandybridge-E, has higher host memory bandwidth,
+    but at the same time, two additional processor cores (six instead of four). Running
+    the same OpenMP reduction on a Sandybridge-E I7 3930 K system produces the results
+    shown in [Table 12.3](#T0020) and [Figure 12.5](#F0030). Thus, even if we hugely
+    increase the memory bandwidth and increase the core count, we see the same issue
+    as before. Using more threads on CPU-based architecture produces progressively
+    lower returns as we add more and more cores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 12.3 OpenMP Scaling on Sandybridge-E
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000120tabT0020.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000120f12-05-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 12.5 OpenMP scaling on Sandybridge-E.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running only two threads would not make use of the hardware. Running 16 million
+    threads and killing half of them every reduction round would also not be a good
+    approach on a CPU. On a GPU we could adopt this approach since the GPU creates
+    a thread pool that gradually moves through the 32 million threads the programmer
+    requested. We can, of course, manually create a similar thread pool on the CPU,
+    although we have far fewer cores with which we can run threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our approach with the reduction example from [Chapter 9](CHP009.html) is a gather
+    operation mixed with the scatter operation. We schedule a number of blocks based
+    on a multiple of the number of SMs physically present on the device. We then divide
+    the data set into *N* blocks and have each thread gather the necessary data from
+    memory to perform a local, on-chip accumulation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each thread is doing a significant amount of work. We can see from the previous
+    timing example that the wider data bus and double the number of SMs on the GTX470
+    allow it to complete this operation much quicker than the GTX460\. We want to
+    ensure we’re using the parallelism present in the device, be it a GPU or CPU,
+    to the maximum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having calculated the partial sums on a per-thread basis, the issue then is
+    how to combine the partial sums. This is where atomic operations become necessary
+    because the accumulated data is private to the thread. Thus, it’s not possible
+    to gather this data from another thread without the source thread writing its
+    data somewhere.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A typical compute 2.0 GPU has up to 16 SMs, each of which can run up to 48 warps
+    of 32 threads each. Thus, we have up to 24.5 K threads active at any point in
+    time. Atomic operations can be performed in shared memory (from compute 1.1 devices
+    and later) or in global memory. Shared memory atomics are, not surprisingly, significantly
+    faster than having to go all the way out of the SM to global memory for global
+    memory–based atomics. As we have up to 16 SMs, the shared memory–based atomics
+    are 16 times wider than a write to global memory. Therefore, we want to use shared
+    memory atomics wherever possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Atomic functions as a whole are only available on compute 1.1 devices, which
+    is basically any device except the early GTX8800 series cards. 32-bit integer
+    atomic operations on shared memory became available in compute 1.2 (the 9800 series
+    and later). 64-bit integer atomic operations became available in global memory
+    from compute 1.2 devices and in shared memory from compute 2.0 devices (the GTX400
+    series).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Single-precision, floating point–based atomic operations are available only
+    in compute 2.0 and later. Double-precision atomics are not natively supported
+    in any current hardware. However, you can implement them via software. The CUDA
+    programming guide provides an example of how to do this using the atomic CAS (compare
+    and swap) operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding when to use gather operations and when to use scatter operations
+    are often key to achieving both correctness and performance. Think about how best
+    to structure the design to minimize the use of atomics (scatters) and maximize
+    the use of gather operations instead.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Algorithmic Issues
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The final type of problem programmers hit is a tricky one. The program runs
+    and doesn’t produce any errors, but the answer is wrong.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Back-to-back testing
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Testing is something that is key to a programmer being perceived as either someone
+    who writes “good code” or someone who throws together something that occasionally
+    works. As a professional programmer you should strive to deliver the best-quality
+    software you are able to in the timeframe available. How can you achieve this?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Back-to-back testing is a technique that acknowledges that it is much harder
+    to write code that executes in parallel than a functionally equivalent set of
+    code for a serial processor. With this in mind you always develop, in parallel
+    to or prior to the CUDA application, a serial implementation of the problem. You
+    then run the identical dataset through both sets of code and compare the output.
+    Any difference tells you that you may have an issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now why do I only say “may” have an issue? The answer is largely down to if
+    you are using floating-point (single- or double-precision) numbers or not. The
+    issue with floating-point numbers is rounding and precision. Adding a large series
+    of random floating-point numbers on a serial CPU from the lowest array value to
+    the highest array value will result in a different value than if you were to add
+    the same numbers from the highest array index to the lowest array index. Try it
+    and see.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now why is this? Single-precision, floating-point numbers use 24 bits to hold
+    the mantissa value and 8 bits to hold the exponent. If we add 1.1e+38 to 0.1e−38
+    what do you think the result will be? The answer is 1.1e+38\. The tiny value represented
+    by 0.1e−38 is too small to be represented in the mantissa part. Over a large set
+    of numbers there will be many of these types of issues. Therefore, the order in
+    which the numbers are processed becomes important. To preserve accuracy often
+    the best way to solve this issue is to sort the set of numbers and add from the
+    lowest number to the largest. However, this introduces potentially a significant
+    amount of work, in the terms of the sort, for this enhanced precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are also other issues concerning the handling of floating-point values
+    in compute 1.x devices, especially with very small numbers around 0, which may
+    cause them to handle floating-point numbers in different ways than the same code
+    running on the CPU. Thus, it’s often best to compromise and allow a certain threshold
+    of error when dealing with floating-point equivalence tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you have an existing CPU solution, then it is relatively simple to compare
+    the results. With integer-based problems the standard C library function `memcmp`
+    (memory compare) is quite sufficient to see if there is a difference between two
+    sets of outputs. Usually when there is a programming error on the GPU side, the
+    results are not just a little different, but greatly different, so it’s easy to
+    say this code does or does not work and at which point in the output the difference
+    occurs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More difficult are aspects where the results match up until a certain point.
+    Typically this might be the first 256 values. As 256 is often used as a thread
+    count, this points to an error in the block index calculation. Only the first
+    32 values being correct points to an error in the thread index calculation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Without an already existing CPU implementation, you’ll need to write one or
+    use someone else’s implementation that you know works. However, actually writing
+    your own serial implementation allows you to formulate the problem and understand
+    it much better before attempting a parallel implementation. You have to, of course,
+    ensure the serial version produces the expected answer before you start the parallel
+    work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It also provides a useful benchmark to see if using the GPU is providing a good
+    speedup. In this evaluation always consider any transfer times for the PCI-E bus.
+    As with the reduction example, we could write a reduction algorithm on the GPU
+    that runs much faster than its CPU OpenMP equivalent. However, just sending the
+    data to the GPU swamped any execution time saving. Be aware the GPU is not always
+    the best solution. Having a CPU counterpart can let you evaluate this decision
+    easily. The solution should be about maximizing the use of whatever resources
+    are available, CPU and GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the back-to-back test is set up, and there are many such examples where
+    we do this in the various examples in this book, you can instantly see if you
+    introduce an error. As you see this *at the point* you introduce it, it makes
+    finding and identifying the error far easier. Combining this with a version control
+    system, or simply always making a new backup after every major step, allows you
+    to eliminate a lot of hard debugging effort later in the development cycle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Memory leaks
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Memory leaks are a common problem and something that is not just restricted
+    to the CPU domain. A memory leak, as its name suggests, is available memory space
+    simply leaking away as the program runs. The most common cause of this is where
+    a program allocates, or mallocs, memory space but does not free that space later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you have ever left a computer on for weeks at a time, sooner or later it
+    will start to slow down. Sometime afterwards it will start to display out of memory
+    warnings. This is caused by badly written programs that don’t clean up after themselves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Explicit memory management is something you are responsible for within CUDA.
+    If you allocate memory, you are responsible for deallocating that memory when
+    the program completes its task. You are also responsible for not using a device
+    handle or pointer that you previously released back to the CUDA runtime.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Several of the CUDA operations, in particular streams and events, require you
+    to create an instance of that stream. During that initial creation the CUDA runtime
+    may allocate memory internally. Failing to call `cudaStreamDestroy` or `cudaEventDestory`
+    means that memory, which may be both on the host and on the GPU, stays allocated.
+    Your program may exit, but without the explicit release of this data by the programmer,
+    the runtime does not know it should be released.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A nice catchall for this type of problem is the `cudaResetDevice` call, which
+    completely clears all allocations on the device. This should be the last call
+    you make before exiting the host program. Even if you have released all the resources
+    you think you have allocated, with a program of a reasonable size, you or a colleague
+    on the team may have forgotten one or more allocations. It’s a simple and easy
+    way to ensure everything is cleaned up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, a very useful tool available for developers, supported on Linux, Windows,
+    and Mac, is the `cuda-memcheck` tool. This can be integrated into `cuda-gdb` for
+    Linux and Mac users. For Windows users it’s simply run from the command line
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The program will execute your kernel and print appropriate error messages should
+    your kernel contain any of the following issues:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Unspecified launch failures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Out-of-bounds global memory access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Misaligned global memory access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Certain hardware-detected exceptions on compute 2.x GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Errors detected by the `cudaGetLastError` API call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It will run on both debug and release versions of the kernels. In the debug
+    mode, due to the additional information present in the executable, the source
+    line causing the issue in the source can also be identified.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Long kernels
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Kernels that take a long time to execute can cause a number of problems. One
+    of the most noticeable is slow screen updates when the kernel is executing in
+    the background on a device also used to display the screen. To run a CUDA kernel
+    and at the same time support a display, the GPU must context switch between the
+    display updates and the kernel. When the kernels take a short time, the user has
+    little perception of this. However, when they become longer, it can become quite
+    annoying to the point of the user not using the program.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fermi attempted to address this issue, and users with compute 2.x hardware or
+    better suffer far less from this than those with earlier hardware. However, it
+    is still noticeable. Thus, if your application is something like BOINC, which
+    uses “spare” GPU cycles, then it will likely get switched off by the user—clearly
+    not good.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The solution to this issue is to ensure you have small kernels in the first
+    instance. If you consider the display needs to be updated every 60 ms, this means
+    each screen update takes place at approximately 16 ms intervals. You could break
+    up your kernel into sections that would fit within this time period. However,
+    that would likely mean your overall problem execution time would increase considerably,
+    as the GPU would need to continuously switch between the graphics context and
+    the CUDA context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is no easy solution to this particular issue. Lower-powered machines and
+    older (compute 1.x) cards suffer badly from trying to execute CUDA and graphics
+    workloads if the CUDA workload becomes significant. Just be aware of this and
+    test your program on older hardware to ensure it behaves well. Users often prefer
+    slightly slower programs if it means they can still use the machine for other
+    tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finding and Avoiding Errors
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: How many errors does your GPU program have?
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One of the most beneficial development changes we ever made at CudaDeveloper
+    was to move to encapsulating all CUDA API calls in the `CUDA_CALL` macro. We looked
+    at this in [Chapter 4](CHP004.html) on setting up CUDA. This is an incredibly
+    useful way to free yourself of laboriously checking return values, yet see the
+    point in a CUDA program where you introduced an error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are not using such a detection mechanism, the number of errors your kernels
+    generates is shown in tools such as Parallel Nsight. Unfortunately, they do not
+    pinpoint the error for you. They simply tell you the number of errors returned
+    from the execution run. Obviously any value other than zero is not good. Trying
+    to track down those errors is then troublesome. It’s usually a case of you not
+    checking a return value, which is of course bad programming practice. Either the
+    function should handle all errors internally or, if it does not, the caller must
+    handle them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The errors detected by the runtime are the easy issues to fix. Simply using
+    the `CUDA_CALL` macro in every CUDA API, along with `cudaGetLastError()` after
+    the kernel has completed, will pick up most problems. The back-to-back testing
+    against the CPU code will pick up the vast majority of the functional/algorithmic
+    errors in any kernel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tools such as Memcheck and the Memory Checker tool within Parallel Nsight are
+    also extremely useful ([Figure 12.6](#F0035)). One of the most common mistakes
+    that often leads to “Unknown Error” being returned after a kernel call is out-of-bounds
+    memory access. The Memcheck utility we have already covered. However, the Parallel
+    Nsight Debugger can also check for out-of-bounds memory access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000120f12-06-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 12.6 Enabling CUDA Memory Checker tool by default.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Selecting the Nsight→Options menu allows you to enable the memory checker during
+    sessions where Nsight is running as a debugger. If your kernel then writes out
+    of bounds, be it in global memory or shared memory, the debugger will break on
+    the out-of-bounds access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note, however, this does not work where the out-of-bounds memory access occurs
+    on thread local variables, and enabling this feature slows down the overall execution
+    time of the kernel. As it’s only enabled when debugging with Parallel Nsight,
+    this is usually not an issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Enabling this option will also provide some useful information about misaligned
+    accesses to memory. Misaligned accesses are not errors in the strictest sense,
+    but simply point where, if you could make the access aligned, you may considerably
+    improve the kernel’s speed. These messages are written to the Nsight Output window,
+    which is one of the many output windows selectable by a dropdown box in Microsoft
+    Visual Studio. This is the same output window that the compile error messages
+    are written to, usually the bottom pane of the three standard windows that open
+    in a Visual Studio project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Divide and conquer
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The divide-and-conquer approach is a common approach for debugging and is not
+    GPU specific. However, it’s quite effective, which is why we mention it here.
+    It is useful where your kernel is causing some exception that is not handled by
+    the runtime. This usually means you get an error message and the program stops
+    running or, in the worst case, the machine simply hangs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first approach in this sort of problem should be to run through with the
+    debugger, stepping over each line at a high level. Sooner or later you will hit
+    the call that triggers the crash. Start with the host debugger, ensuring you are
+    using the `CUDA_CALL` macro, and see at which point the error occurs. It’s most
+    likely it will be the kernel invocation or the first call into the CUDA API after
+    the kernel invocation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you identify the issue as within the kernel, switch to a GPU debugger such
+    as Parallel Nsight or CUDA-GDB. Then simply repeat the process following a single
+    thread through the kernel execution process. This should allow you to see the
+    top-level call that triggers the fault. If not, the cause may be a thread other
+    than the one you are tracking. Typically the “interesting” threads are threads
+    0 and 32 within any given block. Most CUDA kernel errors that are not otherwise
+    detected are either to do with interwarp or interblock behavior not working as
+    the programmer imagined they would work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Single step through the code and check that the answer for every calculation
+    is what it is expected to be. As soon as you have one wrong answer, you simply
+    have to understand why it’s wrong and often the solution is then clear. What you
+    are attempting to do is a very high level binary search. By stepping over the
+    code until you hit the failure point, you are eliminating a single level of functionality.
+    You can then very quickly identify the problem function/code line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can also use this approach without a debugger if for whatever reason you
+    have no access to such a debugger within your environment or the debugger is in
+    some way interfering with the visibility of the problem. Simply place `#if 0`
+    and `#endif` preprocessor directives around the code you wish to remove for this
+    run. Compile and run the kernel and check the results. When the code runs error
+    free, the error is likely to be somewhere within the section that is removed.
+    Gradually reduce the size of this section until it breaks again. The point it
+    breaks is a clear indicator of the likely source of the issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You may also wish to try the approach of seeing if the program runs with the
+    following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • One block of 1 thread.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • One block of 32 threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • One block of 64 threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Two blocks of 1 thread.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Two blocks of 32 threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Two blocks of 64 threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Sixteen blocks of 1 thread.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Sixteen blocks of 32 threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Sixteen blocks of 64 threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If one or more of these tests fail, it tells you there is some interaction of
+    either the threads within a warp, threads within a block, or blocks within a kernel
+    launch that is causing the issue. It provides a pointer as to what to look for
+    in the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Assertions and defensive programming
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Defensive programming is programming that assumes the caller will do something
+    wrong. For example, what is wrong with the following code?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The code assumes that `malloc` will return a valid pointer to 1024 bytes of
+    memory. Given the small amount of memory we’re requesting, it’s unlikely in reality
+    to fail. If it fails, `malloc` returns a null pointer. For the code to work correctly,
+    the `free()` function also needs to handle null pointers. Thus, the start of the
+    free function might be
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `free()` function needs to consider both receiving a null pointer and also
+    an apparently valid pointer. The `NULL` pointer, however, doesn’t point to a valid
+    area of allocated memory. Typically, if you call `free()` with a null or an invalid
+    pointer, a function that is written defensively will not corrupt the heap storage,
+    but will instead do nothing. Defensive programming is about doing nothing erroneous
+    in the case of bad inputs to a function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this has a rather nasty side effect. While the user no longer sees
+    the program crash, neither does the test or quality assurance department, or the
+    author for that matter. In fact, the program now silently fails, despite the programming
+    errors in the caller. If a function has implicit requirements on the bounds or
+    range of an input, this should be checked. For example, if a parameter is an index
+    into an array, you should absolutely check this value to ensure the array access
+    does not generate an out-of-bounds access. This is a question that is often addressed
+    incorrectly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'C provides a very useful construct that is rarely used, except by those programmers
+    familiar with good software engineering practices—the `assert` directive. When
+    a program fails, to have it fail silently is bad practice. It allows bugs to remain
+    in the code and go undetected. The idea behind `assert` is the opposite. If there
+    is an error with the parameters passed by the caller, there is a programming error.
+    The called function should scream about the issue until it’s fixed. Thus, if a
+    null pointer is not allowed as one of the input parameters to the function, then
+    replace the `if ptr =! NULL` check with the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: This means we no longer require an additional indent, plus we document in the
+    code the precondition for entry into the function. Always make sure you place
+    a comment above the assertion explaining why the assertion is necessary. It will
+    likely fail at some point in the future and you want the caller of that function
+    to understand as quickly as possible why their call to the function is invalid.
+    That caller may very often be yourself, so it’s in your own best interests to
+    ensure it is commented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Six months from now you’ll have forgotten why this precondition was necessary.
+    You will then have to search around trying to remember why it was needed. It also
+    helps prevent future programmers from removing the “incorrect” assertion and therefore
+    making the problem “go away” before the upcoming release. Never do this without
+    entirely understanding why the assertion was put there in the first place. In
+    almost all cases, removing the `assert` check will simply mask an error later
+    in the program.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When using assertions, be careful not to mix handling of programming errors
+    with valid failure conditions. For example, this following code is incorrect:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is a valid condition for `malloc` to return a `NULL` pointer. It does so
+    when the heap space is exhausted. This is something the programmer should have
+    a valid error handling case for, as it’s something that will always happen eventually.
+    Assertions should be reserved for handling an invalid condition, such as index
+    out of bounds, default switch case when processing enumerations, etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the concerns with using defensive programming and assertions is that
+    the processor spends time checking conditions that for the most part will always
+    be valid. It can do this on each and every function call, loop iteration, etc.,
+    depending on how widespread the use of assertions are. The solution to this issue
+    is a simple one—to generate two sets of software, a debug version and a release
+    version. If you’re already using a package such as Visual Studio this is inherent
+    in the default project setup. Older systems, especially non-IDE-based systems,
+    may need this to be set up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once done, you can simply generate a version of the `assert` macro, `ASSERT`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: This simple macro will include the assertion checks only into the debug code,
+    the version you and the quality assurance people test alongside the release version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As of the CUDA 4.1 release, it’s now also possible to place assertions into
+    device code for compute 2.x devices. This was not something that was previously
+    possible due to the inability of the GPU to raise such an exception.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Debug level and printing
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As well as having a single release and debug version, it’s often useful to have
+    a debug level that is easily changeable, for example, by setting the value of
+    a global variable, `#define`, or other constant. You may also wish to allow for
+    setting such a parameter via the command line, for example `-debug=5` to set debug
+    level five, etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'During development, you can add useful information messages to the code, for
+    example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`extern unsigned int GLOBAL_ERROR_LEVEL;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example, we’ve created five levels of debug messages. Where the debug
+    version of the software is not used, these messages are stripped from the executable
+    in a way that does not cause compilation errors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: To call the function, you simply place the macro into the code as shown in the
+    previous example. This will work fine in host code, but will not work on device
+    code without some minor modifications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, you have to be aware of some issues when printing a message within a
+    kernel. Kernel level `printf` is only supported for compute 2.x capability. If
+    you try to use `printf` in a kernel that is being compiled for compute 1.x devices,
+    you will get an error saying you cannot call `printf` from a global or device
+    function. This is not strictly true—it’s simply that it’s not supported for compute
+    1.x devices and the target architecture must be compute 2.x.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s assume you have a Fermi-level device so the `printf` call is supported.
+    Unless you take care not to, the message will be printed from every thread in
+    groups of 32, the warp size. Clearly, as you should be launching tens of thousands
+    of threads, simply printing a single message may result in 10,000 plus lines scrolling
+    off the top of the terminal window. As the `printf` buffer is of a fixed size,
+    and wraps, you will lose the earlier output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the lines can also be printed in any order, we cannot take the order of printing
+    to represent the order of execution without also some reference to the time to
+    confirm exactly when the message originated. Consequently, we need to identify
+    the source of each message and timestamp it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first issue is easily handled, by having one thread in a block or warp print
+    the message. By convention this is usually thread 0\. We might also wish to print
+    a message from every warp, so again we select only the first thread from each
+    warp to print the message. You may also have some other criteria, such as the
+    threads that calculate halo regions, etc. A sample set of code is shown here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: This simply looks for a specified block ID and prints the block ID, warp number,
+    SM we’re executing on, and the raw clock value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`B:00002, W:00, SM:05, CLK:24076570`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here we’re printing the block index, warp ID, SM the warp is executing on, and
+    the raw clock value. You can simply redirect this output to a file and then plot
+    a scatter graph. As we chose to place the device `printf` at the start of the
+    kernel, it shows when each kernel is invoked.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [Figure 12.7](#F0040), the SMs are shown on the vertical axis with absolute
+    clock time on the horizontal axis. We can see all the SMs start at around the
+    same time, except a few SMs that start a little later, again all together. We
+    then see a mostly random distribution of timestamps as each block prints its details
+    at the start of its execution. The distribution depends entirely on the program
+    you execute and the time for external resources to become available, global memory
+    being the primary example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000120f12-07-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 12.7 Warp execution by the 14 SMs (GTX470).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With multiple GPUs or multiple streams, we also have the issue of identification
+    of where the message originated. This again can be simply handled by prefixing
+    the message with a unique identifier. In several examples we have used a string
+    created from the device ID string, `device_prefix`, to do exactly this when using
+    multiple GPUs. However, the API for extracting this information is a host-side
+    call, not a device-side call. This makes sense as we wouldn’t want 30,000 threads
+    each getting the device ID string, as it would be the same for all of them. Therefore,
+    what we can do is provide this host-side information via global or constant memory.
+    If we have one GPU, one stream, this is not necessary, but any nontrivial programs
+    will be using both streams and multiple GPUs where available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of multiple GPUs, you will see a noticeable change in the clock
+    values. Thus, it’s quite easy to see the output streams are from different devices,
+    but which came from device 0, 1, 2, or 3? For identical devices, we can’t say.
+    What if these messages originate from different streams on the same device?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the absolute TID (thread ID) value is sufficient to identify messages
+    for single GPU kernels. However, a combination of device number, TID, and stream
+    number is required where either multiple streams and/or devices are used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The ordering issue is a problem in terms of viewing the output only. You should
+    create a prefix in the following form:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this prefix, it’s possible to redirect the output to a file and simple
+    sort using a sort that preserves the relative ordering. We then end up with all
+    the messages, in order, for each GPU and stream.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that although `printf` is an easy way to display information at the host
+    end, be aware that it’s creating a 1 MB buffer in GPU memory and transferring
+    that buffer back to the host upon certain events.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, the `printf` output will be seen only under the following conditions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1. At the start of a *subsequent* kernel launch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. At the end of a kernel execution if the environment variable `CUDA_LAUNCH_BLOCKING`
+    is set (not recommended if using multiple GPUs or streams).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. As the result of a host side–initiated synchronization point such as synchronizing
+    the device, stream, or an event.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 4. Blocking versions of `cudaMemcpy`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5. Programmer-initiated device reset (`cudaDeviceReset` or driver `cuCtxDestroy`
+    API calls).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, in most cases you will see the output printed. If you do not, simply call
+    `cudaDeviceReset` prior to exiting the host program or `cudaStreamSynchronize`
+    at the end of the set of work from a stream and the missing output should appear.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Should you need a larger buffer, this can be set using the `cudaDeviceSetLimit(cudaLimitPrintFifoSize,
+    new_size_in_bytes)` API call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Version control
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Version control is a key aspect of any professional software development. It
+    does not necessitate using very expensive tools or huge processes that cover who
+    can update what. In large projects version control is absolutely essential. However,
+    even for single-developer projects, something that may apply to many readers,
+    it is important.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider for a moment that debugging a 30,000-thread program is easy. If you
+    laugh at this statement then you realize just how hard a task you are setting
+    yourself up for by not versioning your program, either regularly or whenever a
+    major point is reached. Programmers are generally a fairly overconfident bunch
+    of people and can be sure at the outset that a “simple” change will work without
+    problems. However, when it doesn’t quite work to plan, remembering exactly the
+    set of changes you made can be difficult. Without a working backup of the program
+    it can be difficult if nearly impossible to get back to exactly the working version
+    before the changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most programs in the professional world are developed in teams. A colleague
+    can be extremely helpful in providing a fresh pair of eyes with which to see a
+    problem. If you have a versioned or baselined copy of the working code it makes
+    it relatively easy to look simply at the differences and see what is now breaking
+    the previously working solution. Without these periodic baselines it’s not easy
+    to identify the place where the error might be, and thus instead of a few hundred
+    lines of code, you may have to look at a few thousand.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developing for Future GPUs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Kepler
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The roadmap that NVIDIA has presented from Fermi and later versions is the Kepler
+    GK104 (K10), the Kepler GK110 (K20), and the Maxwell. As of March 2012 the first
+    of the Kepler releases was made, the GK104\. This product was aimed squarely at
+    the consumer market and lacked some of the features that some aspects of the HPC
+    (high-performance computing) market would have liked to see, specifically significant
+    dual-precision math support. Kepler GK110 will almost certainly be a far more
+    HPC-focused product that will likely end up in some form or another as a consumer
+    card. The GK110 is scheduled for release at the end of 2012, but the design is
+    already in use internally at NVIDIA for development of the CUDA 5 release that
+    will accompany it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s look briefly at the changes Kepler brings to the table. First and foremost,
+    it brings energy efficiency. The Kepler GTX680 has a TDP rating of 195 watts as
+    compared with GTX580 at 244 watts. This is just over a 20% reduction in absolute
+    power usage of the top-end single-consumer GPU. Looking more closely at the GTX680
+    it is actually closer to the GTX560 (GF114) in architecture than the GTX580 (GF110),
+    being somewhat like an internally doubled-up version of the GTX560.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If, however, we look at power usage in terms of watts per gigaflop, then you
+    see the Kepler GK104 outperforming Fermi GF110 by a factor of up to two. NVIDIA’s
+    own studies on common consumer games ([NVIDIA, May 18, 2012](#BIB1)) show an average
+    of 1.5× better performance per watt. Many of today’s games are highly complex,
+    and thus it’s reasonable to expect a comparable power usage profile on compute-based
+    applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By being highly selective in terms of binning components, the GTX690 (a dual-GPU
+    version of the GTX680) significantly outperforms even the GTX680 in terms of gigaflops
+    per watt. A doubling or more in terms of performance per watt is a huge achievement
+    on the part of the team at NVIDIA. The GTX690 is the basis of the Tesla K10 range.
+    This is the first time a Tesla product will be a dual-GPU solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although peak global memory bandwidth has remained the same from the GTX580
+    to the GTX680, we have now transitioned from PCI-E 2.0 to the PCI-E 3.0 specification.
+    Thus, transfers to and from the card under a PCI-E 3.0 motherboard with a PCI-E
+    3.0–enabled CPU are double the speed of the PCI-E 2.0 400/500 series cards. This
+    doubling of bandwidth should see significant speedups for certain PCI-E-limited
+    kernels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Kepler GTX680/GTX690 moves us from the compute 2.1 level to the compute
+    3.0 level, with the Kepler GK110 being targeted as a compute 3.5 device. A summary
+    of the new compute levels is shown in [Table 12.4](#T0025).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 12.4 New Compute Levels in Kepler
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000120tabT0025.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: ^∗Plus an additional 64 dual-precision units per SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the major changes in Kepler was the elimination of the shader clock.
+    Prior to Kepler, the GPU ran at a given GPU clock frequency and the shader clock
+    was multiplied internally by a factor of 2\. In previous generations, it was the
+    shader clock and not the GPU clock that drove the execution of the CUDA cores
+    within the device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clock rate is a significant driver of power consumption in any processor design.
+    In eliminating the shader clocker, NVIDIA has to lay out double the number of
+    CUDA cores per SM to achieve the same throughput. This tradeoff significantly
+    reduced overall power consumption and allowed NVIDIA to push the core clock from
+    772 MHz all the way up to just over 1 GHz.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Kepler GK104 design actually increases the number of CUDA cores by four.
+    It doubles the number load/store units (LSUs), special functional units (SFUs),
+    instruction dispatchers, and the size of the register file. The shared memory/L1
+    cache remains unchanged at 64 KB, but can now be split in a 32 K/32 K in addition
+    to the usual 16 K/48 K split.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This choice is interesting in that a large amount of additional compute power
+    has been added. If we look to previous generations, we see the move from the GT200
+    (compute 1.3) to the GF110 (compute 2.0) devices from 24 warps per SM to 48 warps
+    per SM. The Kepler GK104 design increases the total warp count per SM to 64 and
+    the total thread count per SM to 2048.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GTX680 claims a peak performance of 3 teraflops compared with the claimed
+    1.5 teraflops of the GTX580\. This peak performance is based on executing floating-point
+    multiply and add (FMAD) operations. Of course, in any real usage there is a huge
+    variation in instruction makeup and memory access patterns, which ultimately determine
+    real performance levels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, the Kepler GK104 now features dynamic clock adjustment where it
+    will ramp down and up the clock according to the current GPU loading. We’ve seen
+    this feature for years on the CPU side, which helps significantly in saving power,
+    especially when the device itself is not in use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In terms of instruction evolution, the major benefit we see is a shuffle instruction
+    that allows communication between threads within a single warp. This is a huge
+    benefit in that threads within a warp can now cooperate without the need to share
+    data via shared memory. The final stages of reduction operations and prefix sum
+    can be easily accelerated with such operations. Additional compiler intrinsics
+    have become available for hardware-level shift, rotate, and access to the texture
+    memory as a simple additional 48 K read-only cache without the overhead of having
+    to write texture memory code. Four byte, packed vector instructions (`add, subtract,
+    average, abs, min, max`) are also introduced.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Kepler GK110 (K20) has some very attractive features from the compute perspective—the
+    technologies NVIDIA refer to as dynamic parallelism, Hyper-Q, and RDMA. It also
+    almost doubles the number of SMs per device and adds the missing double-precision
+    floating-point units necessary for significant numbers of HPC applications. Initial
+    (NVIDIA) figures indicate in excess of 1 teraflop of double-precision performance.
+    The memory bus has been increased from 256 bits to 384 bits, which if we see similar
+    clocks to the GK104, should result in a memory bandwidth in excess of 250 GB/s.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first of these technologies, dynamic parallelism, allows us for the first
+    time to easily launch additional work from a GPU kernel. Previously, this was
+    implemented by either oversubscribing the thread blocks and leaving some idle
+    or by running multiple kernels. The former is wasteful of resources and works
+    poorly, especially for large problems. The latter means there are periods where
+    the GPU is underutilized and prevents kernels from maintaining data in the high-speed
+    shared memory/cache as this memory is not persistent between kernel launches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second of these technologies is Hyper-Q, which addresses the difference
+    between the programmer exposed stream model and how it’s actually implemented
+    in the hardware. All streams up to and including Kepler GK104 are implemented
+    in the hardware as a single pipe. Thus, a stream of kernels from stream 0 will
+    not be intermixed with a stream of kernels from stream 1, despite the programmer
+    explicitly specifying, via putting these kernels into separate streams, that they
+    are independent work units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hyper-Q breaks this single hardware stream into 32 separate hardware queues.
+    Thus, up to 32 streams from perhaps a set of a few hundred programmer-defined
+    streams are available to be independently run on the hardware. The main benefit
+    of this is in terms of loading the device. With 192 plus cores per SM, the granularity
+    of an SM has increased considerably. The resources within an SM can therefore
+    be wasted if small kernels are run that only partially load an SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, RDMA (remote direct memory access) is also an interesting technology.
+    NVIDIA has been working with certain vendors, noticeably on the Infiniband side,
+    to improve the latency of GPU-to-GPU communications between nodes. Currently,
+    the peer-to-peer function supports communication between GPUs within the node
+    directly over the PCI-E bus. For cards and OSs supporting this, it avoids the
+    need to go indirectly via the CPU memory space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, to send or receive data from a non-GPU device (e.g., an I/O device
+    such as a network card), the best case is a shared area of pinned memory on the
+    host. The RDMA feature changes that in that it allows the GPU to talk over the
+    PCI-E bus directly to other PCI-E cards, not just NVIDIA GPUs. Currently, this
+    is only supported for some Infiniband cards, but it opens up the potential for
+    the use of other cards, such as direct data acquisition, FPGAs, RAID controllers,
+    and the like, to be able to talk directly to a GPU. This will be an interesting
+    technology to watch develop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What to think about
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Developing code that will run many years into the future, or at least be able
+    to be run in the future, is always a difficult issue. The more something is tuned
+    to be fast on one particular set of hardware, the less portable code will be in
+    terms of future development. Thus, one strategy is to ensure any code you develop
+    is parameterized so it can easily be adapted for future GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Often an application will be tailored to a particular architecture. Thus, you
+    might have a code section such as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now what happens if a compute 2.2 or compute 3.0 architecture is released? In
+    the sample program we’ll drop through to the compute 1.x path (the G80/G92/G200
+    series). The users of your program don’t want to replace their Fermi-class GPU
+    with a new Kepler card and find your program runs slower or not at all on their
+    brand-new graphics card. When writing such code, assume you may also come across
+    an unknown computer level and cater for it accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the move from G200 to Fermi there was a transition period, where authors
+    had to reissue programs because the number of blocks executed per SM remained
+    the same between generations, only the number of threads per block increased.
+    If a kernel was already using the maximum number of blocks per SM, which allowed
+    for the best instruction mix and thus good performance, no additional blocks got
+    scheduled onto the SMs. Thus, the new hardware went unused and the existing software
+    did not run any faster on the new hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The major transition between G200 and Fermi was the need to increase the number
+    of threads per block. The maximum number of threads per block, a property that
+    can be queried, went from a maximum of 512 to 1024\. At the same time the number
+    of resident warps has increased from 24 (compute 1.0/1.1) to 32 (compute 1.2/1.3)
+    to 48 (compute 2.0/2.1). Thus, it’s likely in the future we’ll continue to see
+    such a trend, with blocks containing larger and larger thread numbers. Kepler
+    was the first GPU architecture to also increase the block count per SM, doubling
+    it from 8 to 16 blocks. Thus, the optimal number of threads, to schedule the maximum
+    number of blocks, shifts back to 2048 threads ÷ 16 blocks = 128 threads per block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can work out the number of warps available from simply querying the number
+    of threads and the warp size. The `cudaDeviceProp` structure returns `warpSize`
+    and `maxThreadsPerBlock`. Thus, we can call `cudaGetDeviceProperties(&device_props)`
+    API and then divide the number of threads per block by the number of warps to
+    work out the maximum number of warps on a given GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This approach would work well for Kepler GK104 and also the upcoming Kepler
+    GK110\. However, it does not take account of the changes in the programming model
+    that the GK110 will bring. The dynamic parallelism aspect of the GK110, now that
+    it’s public, can clearly be planned for. NVIDIA showed some work at GTC (GPU Technology
+    Conference), where it claimed this feature alone, primarily the elimination of
+    the CPU control overhead, would leads to quite significant speedups on many codes.
+    It also leads to greatly simpler forms of recursion, where the recursive part
+    can increase the amount of parallelism as the number of nodes expands and contracts
+    depending on the data that is encountered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One important aspect that you can implement into programs today to run on Kepler
+    hardware is the use of the dedicated 48 K read-only texture cache without the
+    need to do texture memory programming. This will require only that you declare
+    read-only pointers with the C99 standard `___restrict__` keyword, so for example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this example by adding this keyword we’re saying that any writes to the parameter
+    `out_ptr` will have no effect on the memory region pointed to by `in_ptr`. In
+    effect, we’re saying that the two pointers do not alias one another. This will
+    cause the reads via `in_ptr` to be cached in the texture cache, giving an additional
+    48 K of read-only cache memory. Potentially this could significantly reduce off-chip
+    access to global memory and thus significantly improve memory throughput.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Hyper-Q logic is also something you should think about in terms of what
+    elements of existing kernels can be performed in parallel. For the first time
+    task-level parallelism will be truly possible on the GPU. To prepare for this,
+    if you currently run a series of kernels, split these into independent streams,
+    one stream for every independent task. This will not adversely affect code performance
+    when running on your current platform, but will prepare those kernels to execute
+    better on Kepler once this feature becomes available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, the new K10 Tesla product is a dual GPU, based on the currently available
+    GTX690 consumer card. As with CPUs, if you’re using only a single core you’re
+    wasting 50% plus of the available compute capability. Thus, anyone planning to
+    install the K10 product will need to move their existing code to support multiple
+    GPUs. We covered this in [Chapter 8](CHP008.html). You’ll need to think about
+    where the data resides and if any communication between the GPUs will be necessary.
+    Moving to a multi-GPU solution today will make the transition much easier and
+    provide almost linear scaling for many applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Further Resources
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: There are many CUDA resources available on the Internet and through a large
+    number of universities worldwide. We run sessions for professionals wishing to
+    learn CUDA on an individual or group basis. As such, I try to attend, in person
+    or online, as many courses about CUDA as possible each year. As CUDA is a great
+    passion of mine, I’ve read every book published to date on this subject. I’d,
+    therefore, like to provide some information here about the various CUDA resources
+    for anyone wishing to learn more about CUDA. This information is also available
+    from our website [*www.learncuda.com*](http://www.learncuda.com), a portal for
+    the various CUDA resources available worldwide.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Online courses
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One of the great successes of CUDA is the commitment from NVIDIA to bring CUDA
+    to a wider audience. If we look back in time, there have been many attempts to
+    bring parallel programming to the mainstream and many languages designed to enable
+    the use of parallel constructs. With the exception of perhaps OpenMP, and to a
+    lesser extent MPI, all have failed. This is largely because they never escaped
+    the niche group they were created for, did not have a major backer willing to
+    invest in training, and were often restricted to a small number of machines owned
+    by universities, governments, or corporations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, we start with one of the best resources for CUDA, NVIDIA’s own page on
+    training: [*http://developer.nvidia.com/cuda-training*](http://developer.nvidia.com/cuda-training).
+    Here you can access a number of recorded lectures from various universities, including:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ECE-498AL, [*http://courses.engr.illinois.edu/ece498al/*](http://courses.engr.illinois.edu/ece498al/)
+    — a course taught by Professor Wen-mei W. Hwu, author of the first major textbook
+    on CUDA. Available from the 2010 course are lecture audio recording and slides.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stanford CS193G, [*http://code.google.com/p/stanford-cs193g-sp2010/*](http://code.google.com/p/stanford-cs193g-sp2010/)
+    — a course run by Stanford University based on the ECE-498 course. Includes recorded
+    lecture videos available via iTunes. Taught by Jared Hoberock and David Tarjan.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Winsconsin ME964, [*http://sbel.wisc.edu/Courses/ME964/*](http://sbel.wisc.edu/Courses/ME964/)
+    — a course on high-performance computing applications in engineering, with links
+    to lecture videos and a number of interesting guest lectures. Taught by Dan Negrut.
+  prefs: []
+  type: TYPE_NORMAL
+- en: EE171 Parallel Computer Architecture, [*http://www.nvidia.com/object/cudau_ucdavis*](http://www.nvidia.com/object/cudau_ucdavis)
+    — an excellent course covering data-level parallelism, instruction-level parallelism,
+    and thread-level parallelism from the architecture perspective. Taught by John
+    Owens, University of California—Davis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next major source of online information is the recorded GPU conference archives.
+    Usually every year NVIDIA holds a conference in San Jose, California, where they
+    are based, called the GPU Technology Conference. These are actually held worldwide
+    in various locations. About a month after the conference, the various sessions
+    are uploaded to NVIDIA’s GPU technology portal at [*http://www.gputechconf.com/gtcnew/on-demand-gtc.php*](http://www.gputechconf.com/gtcnew/on-demand-gtc.php).
+    There are far too many sessions to attend since, like many conferences, sessions
+    overlap with one another. You can view almost all of the sessions online going
+    back a number of years. Also available are other conferences where NVIDIA has
+    recorded sessions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The keynotes, especially those by Jen-Hsun Huang, are always very interesting
+    to listen to and give a great insight into the future of GPU technology. The keynote
+    on the DARPA challenge by Sebastian Thrun shows just how wide the range of CUDA
+    applications is, for example, with GPUs being used to autonomously control a car.
+    Various talks by Paulius Micikevicius are available focusing on CUDA optimization,
+    as well as one talk by Vasily Volkov on occupancy, which is also interesting to
+    watch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next major source of online information is the archived webinars provided
+    by NVIDIA that can be found at [*http://developer.nvidia.com/gpu-computing-webinars*](http://developer.nvidia.com/gpu-computing-webinars).
+    The webinar series is aimed at registered CUDA developers. Registration is free
+    and allows you access to the webinars live. Live attendance allows you to ask
+    questions and provide feedback on a particular subject of interest. Sometime after
+    the webinar is over, the archived versions usually become available. The webinar
+    series tends to focus on new innovations in CUDA, the API, and may also have sessions
+    on vendor-specific tools.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are also many other resources available on CUDA and parallel computing.
+    Visit [*www.learncuda.com*](http://www.learncuda.com) for a complete list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Taught courses
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Many universities teach CUDA as part of parallel programming courses. Often
+    it is taught alongside OpenMP and MPI, which are the dominant intercore and intranode
+    programming models used today. NVIDIA provides a very useful tool to identify
+    where CUDA is being taught around the world, so you can find a course near you:
+    [*http://research.nvidia.com/content/cuda-courses-map*](http://research.nvidia.com/content/cuda-courses-map).
+    As of mid-2012, NVIDIA was listing 500 plus universities around the world teaching
+    CUDA.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Books
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'There are a number of books written that cover CUDA. No single book will cover
+    every aspect of CUDA and/or parallel programming. You may wish to read the following
+    additional texts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • *CUDA by Example* by Jason Sanders
+  prefs: []
+  type: TYPE_NORMAL
+- en: • *CUDA Application Design and Development* by Rob Farber
+  prefs: []
+  type: TYPE_NORMAL
+- en: • *Programming Massively Parallel Processors* by D. Kirk and Wen-mei W. Hwu
+  prefs: []
+  type: TYPE_NORMAL
+- en: • *GPU Computing Gems*, Emerald and Jade Editions, by various authors
+  prefs: []
+  type: TYPE_NORMAL
+- en: I’ve ordered these books in terms of how I’d rate them for accessibility to
+    new CUDA/GPU programmers. All of these books are highly rated on consumer sites
+    such as Amazon, so they are well worth the investment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: NVIDIA CUDA certification
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The CUDA certification program is a program run by NVIDIA to allow you to demonstrate
+    to a potential employer that you have achieved a certain level of competence in
+    CUDA. It consists of a number of multiple-choice questions and a number of programming
+    assignments that have to be completed within a given timeframe. The syllabus for
+    the exam is covered at NVIDIA’s website at [*http://developer.nvidia.com/nvidia-cuda-professional-developer-program-study-guide*](http://developer.nvidia.com/nvidia-cuda-professional-developer-program-study-guide)
+    and [*http://developer.nvidia.com/cuda-certification*](http://developer.nvidia.com/cuda-certification).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The material you need to cover largely overlaps with the *Programming Massively
+    Parallel Processors* textbook. The questions are highly programming focused. You
+    are expected to have a good knowledge of CUDA, both in terms of being able to
+    write a number of CUDA kernels from scratch and understanding what makes for efficient
+    and high-performance code. This text you are reading covers many significant aspects
+    of the certification exam, but not everything you might be asked. In many areas
+    this text goes far beyond what is necessary for the certification. Throughout
+    the text there are question and answer sections that require you to think and
+    understand the examples provided in the various chapters. It is through working
+    with such questions and adapting the examples so that you will gain the most understanding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You will also be expected to keep abreast of new developments in CUDA that may
+    not necessarily be listed in the syllabus but are covered by other aspects like
+    webinars and training provided by NVIDIA.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conclusion
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: You have finally reached the end of a book that attempts to cover CUDA from
+    a practitioner’s perspective. I hope you have learned a significant amount about
+    CUDA, GPUs, CPUs, and how to write efficient programs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: I hope too that your view on GPUs and the use of CUDA is one of excitement.
+    The older serial model of programming is dead. Parallel architectures, be it on
+    a GPU or a CPU, are the future of computing. You are at a tipping point in history
+    where parallel computing is finally gathering enough practitioners and is being
+    driven from the computing industry as the only answer to increasing computational
+    throughput.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having to think as programmers in a parallel manner is becoming ever more the
+    norm. Our everyday smart phones now have or are moving to dual-core processors.
+    Most tablet-based PCs are dual core. Of those PCs used for gaming, the vast majority
+    of the home PC market, some 92%, are now multicore machines. Just fewer than 50%
+    of those machines are running NVIDIA GPUs ([Steam, April 14, 2012](#BIB2)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDA has a huge potential to revolutionize parallel processing, both in the
+    consumer arena and the business market. You can purchase a top-end consumer Kepler
+    graphics card (GeForce GTX680) for around $500 USD. The GPU industry is still
+    riding the curve of doubling performance every couple of years and looks set to
+    continue this for at least the near future. It’s an exciting time to be someone
+    learning to program GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '1\. NVIDIA, “NVIDIA’s Next Generation Compute Architecture: Kepler GK110.”
+    Available at [*http://www.nvidia.com/content/PDF/kepler/NVIDIA-Kepler-GK110-Architecture-Whitepaper.pdf*](http://www.nvidia.com/content/PDF/kepler/NVIDIA-Kepler-GK110-Architecture-Whitepaper.pdf),
+    accessed May 18, 2012.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2\. Steam, “Consumer Hardware Survey.” Available at [*http://store.steampowered.com/hwsurvey*](http://store.steampowered.com/hwsurvey),
+    accessed April 14, 2012.
+  prefs: []
+  type: TYPE_NORMAL

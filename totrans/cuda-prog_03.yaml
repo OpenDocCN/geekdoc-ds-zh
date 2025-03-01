@@ -1,0 +1,634 @@
+- en: Chapter 3
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CUDA Hardware Overview
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: PC Architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s start by looking at the typical Core 2 architecture we still find today
+    in many PCs and how it impacts our usage of GPU accelerators ([Figure 3.1](#F0010)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F00003Xf03-01-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3.1 Typical Core 2 series layout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that all GPU devices are connected to the processor via the PCI-E bus.
+    In this case we’ve assumed a PCI-E 2.0 specification bus, which is currently the
+    fastest bus available, giving a transfer rate of 5 GB/s. PCI-E 3.0 has become
+    available at the time of this writing and should significantly improve the bandwidth
+    available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, to get data from the processor, we need to go through the Northbridge
+    device over the slow FSB (front-side bus). The FSB can run anything up to 1600
+    MHz clock rate, although in many designs it is much slower. This is typically
+    only one-third of the clock rate of a fast processor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Memory is also accessed through the Northbridge, and peripherals through the
+    Northbridge and Southbridge chipset. The Northbridge deals with all the high-speed
+    components like memory, CPU, PCI-E bus connections, etc. The Southbridge chip
+    deals with the slower devices such as hard disks, USB, keyboard, network connections,
+    etc. Of course, it’s quite possible to connect a hard-disk controller to the PCI-E
+    connection, and in practice, this is the only true way of getting RAID high-speed
+    data access on such a system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PCI-E (Peripheral Communications Interconnect Express) is an interesting bus
+    as, unlike its predecessor, PCI (Peripheral Component Interconnect), it’s based
+    on guaranteed bandwidth. In the old PCI system each component could use the full
+    bandwidth of the bus, but only one device at a time. Thus, the more cards you
+    added, the less available bandwidth each card would receive. PCI-E solved this
+    problem by the introduction of PCI-E lanes. These are high-speed serial links
+    that can be combined together to form X1, X2, X4, X8, or X16 links. Most GPUs
+    now use at least the PCI-E 2.0, X16 specification, as shown in [Figure 3.1](#F0010).
+    With this setup, we have a 5 GB/s full-duplex bus, meaning we get the same upload
+    and download speed, at the same time. Thus, we can transfer 5 GB/s to the card,
+    while at the same time receiving 5 GB/s from the card. However, this does not
+    mean we can transfer 10 GB/s *to* the card if we’re not receiving any data (i.e.,
+    the bandwidth is not cumulative).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a typical supercomputer environment, or even in a desktop application, we
+    are dealing with a large dataset. A supercomputer may deal with petabytes of data.
+    A desktop PC may be dealing with as little as a several GB high-definition video.
+    In both cases, there is considerable data to fetch from the attached peripherals.
+    A single 100 MB/s hard disk will load 6 GB of data in one minute. At this rate
+    it takes over two and a half hours to read the entire contents of a standard 1
+    TB disk.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If using MPI (Message Passing Interface), commonly used in clusters, the latency
+    for this arrangement can be considerable if the Ethernet connections are attached
+    to the Southbridge instead of the PCI-E bus. Consequently, dedicated high-speed
+    interconnects like InfiniBand or 10 Gigabit Ethernet cards are often used on the
+    PCI-E bus. This removes slots otherwise available for GPUs. Previously, as there
+    was no direct GPU MPI interface, all communications in such a system are routed
+    over the PCI-E bus to the CPU and back again. The GPU-Direct technology, available
+    in the CUDA 4.0 SDK, solved this issue and it’s now possible for certain InfiniBand
+    cards to talk directly to the GPU without having to go through the CPU first.
+    This update to the SDK also allows direct GPU to GPU communication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We saw a number of major changes with the advent of the Nehalem architecture.
+    The main change was to replace the Northbridge and the Southbridge chipset with
+    the X58 chipset. The Nehalem architecture brought us QPI (Quick Path Interconnect),
+    which was actually a huge advance over the FSB (Front Side Bus) approach and is
+    similar to AMD’s HyperTransport. QPI is a high-speed interconnect that can be
+    used to talk to other devices or CPUs. In a typical Nehalem system it will connect
+    to the memory subsystem, and through an X58 chipset, the PCI-E subsystem ([Figure
+    3.2](#F0015)). The QPI runs at either 4.8 GT/s or 6.4 GT/s in the Extreme/Xeon
+    processor versions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F00003Xf03-02-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3.2 Nehalem/X58 system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the X58 and 1366 processor socket, a total of 36 PCI-E lanes are available,
+    which means up to two cards are supported at X16, or four cards at X8\. Prior
+    to the introduction of the LGA2011 socket, this provided the best bandwidth solution
+    for a GPU machine to date.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The X58 design is also available in a lesser P55 chipset where you get only
+    16 lanes. This means one GPU card at X16, or two cards at X8.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the I7/X58 chipset design, Intel moved onto the Sandybridge design, shown
+    in [Figure 3.3](#F0020). One of the most noticeable improvements was the support
+    for the SATA-3 standard, which supports 600 MB/s transfer rates. This, combined
+    with SSDs, allows for considerable input/output (I/O) performance with loading
+    and saving data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F00003Xf03-03-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3.3 Sandybridge design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The other major advance with the Sandybridge design was the introduction of
+    the AVX (Advanced Vector Extensions) instruction set, also supported by AMD processors.
+    AVX allows for vector instructions that provide up to four double-precision (256
+    bit/32 byte) wide vector operations. It’s a very interesting development and something
+    that can be used to considerably speed up compute-bound applications on the CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Notice, however, the big downside of socket 1155 Sandybridge design: It supports
+    only 16 PCI-E lanes, limiting the PCI-E bandwidth to 16 GB/s theoretical, 10 GB/s
+    actual bandwidth. Intel has gone down the route of integrating more and more into
+    the CPU with their desktop processors. Only the socket 2011 Sandybridge-E, the
+    server offering, has a reasonable number of PCI-E lanes (40).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So how does AMD compare with the Intel designs? Unlike Intel, which has gradually
+    moved away from large numbers of PCI-E lanes, in all but their server line, AMD
+    have remained fairly constant. Their FX chipset, provides for either two X16 devices
+    or four X8 PCI-E devices. The AMD3+ socket paired with the 990FX chipset makes
+    for a good workhorse, as it provides SATA 6 GB/s ports paired with up to four
+    X16 PCI-E slots (usually running at X8 speed).
+  prefs: []
+  type: TYPE_NORMAL
+- en: One major difference between Intel and AMD is the price point for the number
+    of cores. If you count only real processor cores and ignore logical (hyperthreaded)
+    ones, for the same price point, you typically get more cores on the AMD device.
+    However, the cores on the Intel device tend to perform better. Therefore, it depends
+    a lot on the number of GPUs you need to support and the level of loading of the
+    given cores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As with the Intel design, you see similar levels of bandwidth around the system,
+    with the exception of bandwidth to main memory. Intel uses triple or quad channel
+    memory on their top-end systems and dual-channel memory on the lower-end systems.
+    AMD uses only dual-channel memory, leading to significantly less CPU host-memory
+    bandwidth being available ([Figure 3.4](#F0025)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F00003Xf03-04-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3.4 AMD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One significant advantage of the AMD chipsets over the Intel ones is the support
+    for up to six SATA (Serial ATA) 6 GB/s ports. If you consider that the slowest
+    component in any system usually limits the overall throughput, this is something
+    that needs some consideration. However, SATA3 can very quickly overload the bandwidth
+    of Southbridge when using multiple SSDs (solid state drives). A PCI-E bus solution
+    may be a better one, but it obviously requires additional costs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPU Hardware
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: GPU hardware is radically different than CPU hardware. [Figure 3.5](#F0030)
+    shows how a multi-GPU system looks conceptually from the other side of the PCI-E
+    bus.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F00003Xf03-05-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3.5 Block diagram of a GPU (G80/GT200) card.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Notice the GPU hardware consists of a number of key blocks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Memory (global, constant, shared)
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Streaming multiprocessors (SMs)
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Streaming processors (SPs)
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main thing to notice here is that a GPU is really an array of SMs, each
+    of which has *N* cores (8 in G80 and GT200, 32–48 in Fermi, 8 plus in Kepler;
+    see [Figure 3.6](#F0035)). This is the key aspect that allows scaling of the processor.
+    A GPU device consists of one or more SMs. Add more SMs to the device and you make
+    the GPU able to process more tasks at the same time, or the same task quicker,
+    if you have enough parallelism in the task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F00003Xf03-06-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3.6 Inside an SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Like CPUs, if the programmer writes code that limits the processor usage to
+    *N* cores, let’s say dual-core, when the CPU manufacturers bring out a quad-core
+    device, the user sees no benefit. This is exactly what happened in the transition
+    from dual- to quad-core CPUs, and lots of software then had to be rewritten to
+    take advantage of the additional cores. NVIDIA hardware will increase in performance
+    by growing a combination of the number of SMs and number of cores per SM. When
+    designing software, be aware that the next generation may double the number of
+    either.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now let’s take a closer look at the SMs themselves. There are number of key
+    components making up each SM, however, not all are shown here for reasons of simplicity.
+    The most significant part is that there are multiple SPs in each SM. There are
+    8 SPs shown here; in Fermi this grows to 32–48 SPs and in Kepler to 192\. There
+    is no reason to think the next hardware revision will not continue to increase
+    the number of SPs/SMs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each SM has access to something called a register file, which is much like a
+    chunk of memory that runs at the same speed as the SP units, so there is effectively
+    zero wait time on this memory. The size of this memory varies from generation
+    to generation. It is used for storing the registers in use within the threads
+    running on an SP. There is also a shared memory block accessible only to the individual
+    SM; this can be used as a program-managed cache. Unlike a CPU cache, there is
+    no hardware evicting cache data behind your back—it’s entirely under programmer
+    control.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each SM has a separate bus into the texture memory, constant memory, and global
+    memory spaces. Texture memory is a special view onto the global memory, which
+    is useful for data where there is interpolation, for example, with 2D or 3D lookup
+    tables. It has a special feature of hardware-based interpolation. Constant memory
+    is used for read-only data and is cached on all hardware revisions. Like texture
+    memory, constant memory is simply a view into the main global memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Global memory is supplied via GDDR (Graphic Double Data Rate) on the graphics
+    card. This is a high-performance version of DDR (Double Data Rate) memory. Memory
+    bus width can be up to 512 bits wide, giving a bandwidth of 5 to 10 times more
+    than found on CPUs, up to 190 GB/s with the Fermi hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each SM also has two or more special-purpose units (SPUs), which perform special
+    hardware instructions, such as the high-speed 24-bit sin/cosine/exponent operations.
+    Double-precision units are also present on GT200 and Fermi hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPUs and GPUs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now that you have some idea what the GPU hardware looks like, you might say
+    that this is all very interesting, but what does it mean for us in terms of programming?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anyone who has ever worked on a large project will know it’s typically partitioned
+    into sections and allocated to specific groups. There may be a specification group,
+    a design group, a coding group, and a testing group. There are absolutely huge
+    benefits to having people in each team who understand completely the job of the
+    person before and after them in the chain of development.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Take, for example, testing. If the designer did not consider testing, he or
+    she would not have included any means to test in software-specific hardware failures.
+    If the test team could only test hardware failure by having the hardware fail,
+    it would have to physically modify hardware to cause such failures. This is hard.
+    It’s much easier for the software people to design a flag that inverts the hardware-based
+    error flag in software, thus allowing the failure functionality to be tested easily.
+    Working on the testing team you might see how hard it is to do it any other way,
+    but with a blinkered view of your discipline, you might say that testing is not
+    your role.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some of the best engineers are those with a view of the processes before and
+    after them. As software people, it’s always good to know how the hardware actually
+    works. For serial code execution, it may be interesting to know how things work,
+    but usually not essential. The vast majority of developers have never taken a
+    computer architecture course or read a book on it, which is a great shame. It’s
+    one of the main reasons we see such inefficient software written these days. I
+    grew up learning BASIC at age 11, and was programming Z80 assembly language at
+    14, but it was only during my university days that I really started to understand
+    computer architecture to any great depth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working in an embedded field gives you a very hands-on approach to hardware.
+    There is no nice Windows operating system to set up the processor for you. Programming
+    is a very low-level affair. With embedded applications, there are typically millions
+    of boxes shipped. Sloppy code means poor use of the CPU and available memory,
+    which could translate into needing a faster CPU or more memory. An additional
+    50 cent cost on a million boxes is half a million dollars. This translates into
+    a lot of design and programming hours, so clearly it’s more cost effective to
+    write better code than buy additional hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parallel programming, even today, is very much tied to the hardware. If you
+    just want to write code and don’t care about performance, parallel programming
+    is actually quite easy. To really get performance out of the hardware, you need
+    to understand how it works. Most people can drive a car safely and slowly in first
+    gear, but if you are unaware that there are other gears, or do not have the knowledge
+    to engage them, you will never get from point A to point B very quickly. Learning
+    about the hardware is a little like learning to change gear in a car with a manual
+    gearbox—a little tricky at first, but something that comes naturally after awhile.
+    By the same analogy, you can also buy a car with an automatic gearbox, akin to
+    using a library already coded by someone who understands the low-level mechanics
+    of the hardware. However, doing this without understanding the basics of how it
+    works will often lead to a suboptimal implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute Levels
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: CUDA supports a number of compute levels. The original G80 series graphics cards
+    shipped with the first version of CUDA. The compute capability is fixed into the
+    hardware. To upgrade to a newer version users had to upgrade their hardware. Although
+    this might sound like NVIDIA trying to force users to buy more cards, it in fact
+    brings many benefits. When upgrading a compute level, you can often move from
+    an older platform to a newer one, usually doubling the compute capacity of the
+    card for a similar price to the original card. Given that NVIDIA typically brings
+    out a new platform at least every couple of years, we have seen to date a huge
+    increase in available compute power over the few years CUDA has been available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A full list of the differences between each compute level can be found in the
+    NVIDIA CUDA Programming Guide, Appendix G, which is shipped as part of the CUDA
+    SDK. Therefore, we will only cover the major differences found at each compute
+    level, that is, what you need to know as a developer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute 1.0
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Compute level 1.0 is found on the older graphics cards, for example, the original
+    8800 Ultras and many of the 8000 series cards as well as the Tesla C/D/S870s.
+    The main features lacking in compute 1.0 cards are those for atomic operations.
+    Atomic operations are those where we can guarantee a complete operation without
+    any other thread interrupting. In effect, the hardware implements a barrier point
+    at the entry of the atomic function and guarantees the *completion* of the operation
+    (add, sub, min, max, logical and, or, xor, etc.) as one operation. Compute 1.0
+    cards are effectively now obsolete, so this restriction, for all intents and purposes,
+    can be ignored.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute 1.1
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Compute level 1.1 is found in many of the later shipping 9000 series cards,
+    such as the 9800 GTX, which were extremely popular. These are based on the G92
+    hardware as opposed to the G80 hardware of compute 1.0 devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One major change brought in with compute 1.1 devices was support, on many but
+    not all devices, for overlapped data transfer and kernel execution. The SDK call
+    to `cudaGetDeviceProperties()` returns the `deviceOverlap` property, which defines
+    if this functionality is available. This allows for a very nice and important
+    optimization called double buffering, which works as shown in [Figure 3.7](#F0040).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F00003Xf03-07-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3.7 Double buffering with a single GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To use this method we require double the memory space we’d normally use, which
+    may well be an issue if your target market only had a 512 MB card. However, with
+    Tesla cards, used mainly for scientific computing, you can have up to 6 GB of
+    GPU memory, which makes such techniques very useful. Let’s look at what happens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Cycle 0:** Having allocated two areas of memory in the GPU memory space,
+    the CPU fills the first buffer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Cycle 1:** The CPU then invokes a CUDA kernel (a GPU task) on the GPU, which
+    returns immediately to the CPU (a nonblocking call). The CPU then fetches the
+    next data packet, from a disk, the network, or wherever. Meanwhile, the GPU is
+    processing away in the background on the data packet provided. When the CPU is
+    ready, it starts filling the other buffer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Cycle 2:** When the CPU is done filling the buffer, it invokes a kernel to
+    process buffer 1\. It then checks if the kernel from cycle 1, which was processing
+    buffer 0, has completed. If not, it waits until this kernel has finished and then
+    fetches the data from buffer 0 and then loads the next data block into the same
+    buffer. During this time the kernel kicked off at the start of the cycle is processing
+    data on the GPU in buffer 1.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Cycle *N*:** We then repeat cycle 2, alternating between which buffer we
+    read and write to on the CPU with the buffer being processed on the GPU.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPU-to-CPU and CPU-to-GPU transfers are made over the relatively slow (5 GB/s)
+    PCI-E bus and this dual-buffering method largely hides this latency and keeps
+    both the CPU and GPU busy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute 1.2
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Compute 1.2 devices appeared with the low-end GT200 series hardware. These were
+    the initial GTX260 and GTX280 cards. With the GT200 series hardware, NVIDIA approximately
+    doubled the number of CUDA core processors on a single card, through doubling
+    the number of multiprocessors present on the card. We’ll cover CUDA cores and
+    multiprocessors later. In effect, this doubled the performance of the cards compared
+    to the G80/G92 range before them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Along with doubling the number of multiprocessors, NVIDIA increased the number
+    of concurrent warps a multiprocessor could execute from 24 to 32\. Warps are blocks
+    of code that execute within a multiprocessor, and increasing the amount of available
+    warps per multiprocessor gives us more scope to get better performance, which
+    we’ll look at later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Issues with restrictions on coalesced access to the global memory and bank conflicts
+    in the shared memory found in compute 1.0 and compute 1.1 devices were greatly
+    reduced. This make the GT200 series hardware far easier to program and it greatly
+    improved the performance of many previous, poorly written CUDA programs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute 1.3
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The compute 1.3 devices were introduced with the move from GT200 to the GT200
+    a/b revisions of the hardware. This followed shortly after the initial release
+    of the GT200 series. Almost all higher-end cards from this era were compute 1.3
+    compatible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The major change that occurs with compute 1.3 hardware is the introduction of
+    support for limited double-precision calculations. GPUs are primarily aimed at
+    graphics and here there is a huge need for fast single-precision calculations,
+    but limited need for double-precision ones. Typically, you see an order of magnitude
+    drop in performance using double-precision as opposed to single-precision floating-point
+    operations, so time should be taken to see if there is any way single-precision
+    arithmetic can be used to get the most out of this hardware. In many cases, a
+    mixture of single and double-precision operations can be used, which is ideal
+    since it exploits both the dedicated single-precision and double-precision hardware
+    present.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute 2.0
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Compute 2.0 devices saw the switch to Fermi hardware. The original guide for
+    tuning applications for the Fermi architecture can be found on the NVIDIA website
+    at [http://developer.nvidia.com/cuda/nvidia-gpu-computing-documentation](http://developer.nvidia.com/cuda/nvidia-gpu-computing-documentation).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Some of the main changes in compute 2.x hardware are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Introduction of 16 K to 48 K of L1 cache memory on each SP.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Introduction of a shared L2 cache for all SMs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Support in Tesla-based devices for ECC (Error Correcting Code)-based memory
+    checking and error correction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Support in Tesla-based devices for dual-copy engines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Extension in size of the shared memory from 16 K per SM up to 48 K per SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • For optimum coalescing of data, it must be 128-byte aligned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • The number of shared memory banks increased from 16 to 32.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s look at the implications of some of these changes in detail. First, let’s
+    pick up on the introduction of the L1 cache and what this means. An L1 (level
+    one) cache is a cache present on a device and is the fastest cache type available.
+    Compute 1.x hardware has no cache, except for the texture and constant memory
+    caches. The introduction of a cache makes it much easier for many programmers
+    to write programs that work well on GPU hardware. It also allows for applications
+    that do not follow a known memory pattern at compile time. However, to exploit
+    the cache, the application either needs to have a sequential memory pattern or
+    have at least some data reuse.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The L2 cache is up to 768 K in size on Fermi and, importantly, is a unified
+    cache, meaning it is shared and provides a consistent view for all the SMs. This
+    allows for much faster interblock communication through global atomic operations.
+    Compared to having to go out to the global memory on the GPU, using the shared
+    cache is an order of magnitude faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Support for ECC memory is a must for data centers. ECC memory provides for automatic
+    error detection and correction. Electrical devices emit small amounts of radiation.
+    When in close proximity to other devices, this radiation can change the contents
+    of memory cells in the other device. Although the probability of this happening
+    is tiny, as you increase the exposure of the equipment by densely packing it into
+    data centers, the probability of something going wrong rises to an unacceptable
+    level. ECC, therefore, detects and corrects single-bit upset conditions that you
+    may find in large data centers. This reduces the amount of available RAM and negatively
+    impacts memory bandwidth. Because this is a major drawback on graphics cards,
+    ECC is only available on Tesla products.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dual-copy engines allow you to extend the dual-buffer example we looked at earlier
+    to use multiple streams. Streams are a concept we’ll look at in detail later,
+    but basically, they allow for *N* independent kernels to be executed in a pipeline
+    fashion as shown in [Figure 3.8](#F0045).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F00003Xf03-08-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 3.8 Stream pipelining.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice how the kernel sections run one after another in the figure. The copy
+    operations are hidden by the execution of a kernel on another stream. The kernels
+    and the copy engines execute concurrently, thus making the most use of the relevant
+    units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the dual-copy engines are physically available on almost all the top-end
+    Fermi GPUs, such as the GTX480 or GTX580 device. However, only the Tesla cards
+    make both engines visible to the CUDA driver.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shared memory also changed drastically, in that it was transformed into a combined
+    L1 cache. The L1 cache size is 64 K. However, to preserve backward compatibility,
+    a minimum of 16 K must be allocated to the shared memory, meaning the L1 cache
+    is really only 48 K in size. Using a switch, shared memory and L1 cache usage
+    can be swapped, giving 48 K of shared memory and 16 K of L1 cache. Going from
+    16 K of shared memory to 48 K of shared memory is a huge benefit for certain programs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alignment requirements for optimal use became more strict than in previous generations,
+    due to the introduction of the L1 and L2 cache. Both use a cache line size of
+    128 bytes. A cache line is the *minimum* amount of data the memory can fetch.
+    Thus, if your program fetches subsequent elements of the data, this works really
+    well. This is typically what most CUDA programs do, with groups of threads fetching
+    adjacent memory addresses. The one requirement that comes out of this change is
+    to have 128-byte alignment of the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, if your program has a sparse and distributed memory pattern per thread,
+    you need to disable this feature and switch to the 32-bit mode of cache operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, one of the last major changes we’ll pick up on is the increase of shared
+    memory banks from 16 to 32 bits. This is a major benefit over the previous generations.
+    It allows each thread of the current warp (32 threads) to write to exactly one
+    bank of 32 bits in the shared memory without causing a shared bank conflict.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute 2.1
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Compute 2.1 is seen on certain devices aimed specifically at the games market,
+    such as the GTX460 and GTX560\. These devices change the architecture of the device
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 48 CUDA cores per SM instead of the usual 32 per SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Eight single-precision, special-function units for transcendental per SM instead
+    of the usual four.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Dual-warp dispatcher instead of the usual single-warp dispatcher.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The x60 series cards have always had a very high penetration into the midrange
+    games market, so if your application is targeted at the consumer market, it is
+    important to be aware of the implication of these changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Noticeably different on the compute 2.1 hardware is the sacrifice of dual-precision
+    hardware to increase the number of CUDA cores. For single-precision and integer
+    calculation–dominated kernels, this is a good tradeoff. Most games make little
+    use of double-precision floating-point data, but significant use of single-precision
+    floating-point and integer math.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Warps, which we will cover in detail later, are groups of threads. On compute
+    2.0 hardware, the single-warp dispatcher takes two clock cycles to dispatch instructions
+    of an entire warp. On compute 2.1 hardware, instead of the usual two instruction
+    dispatchers per two clock cycles, we now have four. In the hardware, there are
+    three banks of 16 CUDA cores, 48 CUDA cores in total, instead of the usual two
+    banks of 16 CUDA cores. If NVIDIA could have just squeezed in another set of 16
+    CUDA cores, you’d have an ideal solution. Maybe we’ll see this in future hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The compute 2.1 hardware is actually a superscalar approach, similar to what
+    is found on CPUs from the original Pentium CPU onwards. To make use of all the
+    cores, the hardware needs to identify instruction-level parallelism (ILP) within
+    a *single* thread. This is a significant divergence from the universal thread-level
+    parallelism (TLP) approach recommended in the past. For ILP to be present there
+    need to be instructions that are independent of one another. One of the easiest
+    ways to do this is via the special vector class covered later in the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performance of compute 2.1 hardware varies. Some well-known applications like
+    Folding at Home perform really well with the compute 2.1 hardware. Other applications
+    such as video encoding packages, where it’s harder to extract ILP and memory bandwidth
+    is a key factor, typically perform much worse.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The final details of Kepler and the new compute 3.0 platform were, at the time
+    of writing, still largely unreleased. A discussion of the Kepler features already
+    announced can be found in [Chapter 12](CHP012.html), under ‘Developing for Future
+    GPUs’.
+  prefs: []
+  type: TYPE_NORMAL

@@ -1,0 +1,3421 @@
+- en: Chapter 6
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Memory Handling with CUDA
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the conventional CPU model we have what is called a linear or flat memory
+    model. This is where any single CPU core can access any memory location without
+    restriction. In practice, for CPU hardware, you typically see a level one (L1),
+    level two (L2), and level three (L3) cache. Those people who have optimized CPU
+    code or come from a high-performance computing (HPC) background will be all too
+    familiar with this. For most programmers, however, it’s something they can easily
+    abstract away.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Abstraction has been a trend in modern programming language, where the programmer
+    is further and further removed from the underlying hardware. While this can lead
+    to higher levels of productivity, as problems can be specified at a very high
+    level, it relies hugely on clever compilers to implement these abstractions into
+    a level understood by the hardware. While this is great in theory, the reality
+    can be somewhat less than the marketing dream. I’m sure in the decades to come
+    we’ll see huge improvements in compilers and languages such that they will take
+    advantage of parallel hardware automatically. However, until this point, and certainly
+    until we get there, the need to understand how the hardware functions will be
+    key to extracting the best performance from any platform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For real performance on a CPU-based system, you need to understand how the cache
+    works. We’ll look at this on the CPU side and then look at the similarities with
+    the GPU. The idea of a cache is that most programs execute in a serial fashion,
+    with various looping constructs, in terms of their execution flow. If the program
+    calls a function, the chances are the program will call it again soon. If the
+    program accesses a particular memory location, the chances are most programs will
+    access that same location again within a short time period. This is the principle
+    of *temporal locality*, that it is highly likely that you will reuse data and
+    reexecute the same code having used/executed it once already.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fetching data from DRAM, the main memory of a computer system is very slow.
+    DRAM has historically always been very slow compared to processor clock speeds.
+    As processor clock speeds have increased, DRAM speeds have fallen further and
+    further behind.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DDR-3 DRAM in today’s processors runs up to 1.6 Ghz as standard, although this
+    can be pushed to up to 2.6 Ghz with certain high speed modules and the correct
+    processor. However, each of the CPU cores is typically running at around 3 GHz.
+    Without a cache to provide quick access to areas of memory, the bandwidth of the
+    DRAM will be insufficient for the CPU. As both code and data exist in the DRAM
+    space, the CPU is effectively instruction throughput limited (how many instructions
+    it executes in a given timeframe) if it cannot fetch either the program or data
+    from the DRAM fast enough.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the concept of *memory bandwidth*, the amount of data we can read or
+    store to DRAM in a given period of time. However, there is another important concept,
+    *latency*. Latency is the amount of time it takes to respond to a fetch request.
+    This can be hundreds of processor cycles. If the program wants four elements from
+    memory it makes sense therefore to issue all requests together and then wait for
+    them to arrive, rather than issue one request, wait until it arrives, issue the
+    next request, wait, and so on. Without a cache, a processor would be very much
+    memory bandwidth *and* latency limited.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To think of bandwidth and latency in everyday terms, imagine a supermarket checkout
+    process. There are *N* checkouts available in a given store, not all of which
+    may be staffed. With only two checkouts active (staffed), a big queue will form
+    behind them as the customers back up, having to wait to pay for their shopping.
+    The throughput or bandwidth is the number of customers processed in a given time
+    period (e.g., one minute). The time the customer has to wait in the queue is a
+    measure of the latency, that is, how long after joining the queue did the customer
+    wait to pay for his or her shopping and leave.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the queue becomes large, the shop owner may open more checkout points and
+    the queue disperses between the new checkout points and the old ones. With two
+    new checkout points opened, the bandwidth of the checkout area is doubled, because
+    now twice as many people can be served in the same time period. The latency is
+    also halved, because, on average, the queue is only half as big and everyone therefore
+    waits only half the time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this does not come for free. It costs money to employ more checkout
+    assistants and more of the retail space has to be allocated to checkout points
+    rather than shelf space for products. The same tradeoff occurs in processor design,
+    in terms of the memory bus width and the clock rate of the memory devices. There
+    is only so much silicon space on the device and often the width of the external
+    memory bus is limited by the number of physical pins on the processor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One other concept we also need to think about is *transaction overhead*. There
+    is a certain overhead in processing the payment for every customer. Some may have
+    two or three items in a basket while others may have overflowing shopping carts.
+    The shop owners love the shopping cart shoppers because they can be processed
+    efficiently, that is, more of the checkout person’s time is spent checking out
+    groceries, rather than in the overhead of processing the payment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We see the same in GPUs. Some memory transactions are lightweight compared to
+    the fixed overhead to process them. The number of memory cells fetched relative
+    to the overhead time is low, or, in other words, the percentage of peak efficiency
+    is poor. Others are large and take a bunch of time to serve, but can be serviced
+    efficiently and achieve near peak memory transfer rates. These translate to byte-based
+    memory transactions at one end of the spectrum and to long word-based transactions
+    at the other end. To achieve peak memory efficiency, we need lots of large transactions
+    and very few, if any, small ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caches
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A cache is a high-speed memory bank that is physically close to the processor
+    core. Caches are expensive in terms of silicon real estate, which in turn translates
+    into bigger chips, lower yields, and more expensive processors. Thus, the Intel
+    Xeon chips with the huge L3 caches found in a lot of server machines are far more
+    expensive to manufacture than the desktop version that has less cache on the processor
+    die.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The maximum speed of a cache is proportional to the size of the cache. The L1
+    cache is the fastest, but is limited in size to usually around 16 K, 32 K, or
+    64 K. It is usually allocated to a single CPU core. The L2 cache is slower, but
+    much larger, typically 256 K to 512 K. The L3 cache may or may not be present
+    and is often several megabytes in size. The L2 and/or L3 cache may be shared between
+    processor cores or maintained as separate caches linked directly to given processor
+    cores. Generally, at least the L3 cache is a shared cache between processor cores
+    on a conventional CPU. This allows for fast intercore communication via this shared
+    memory within the device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The G80 and GT200 series GPUs have no equivalent CPU-like cache to speak of.
+    They do, however, have a hardware-managed cache that behaves largely like a read-only
+    CPU cache in terms of constant and texture memory. The GPU relies instead primarily
+    on a programmer-managed cache, or shared memory section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Fermi GPU implementation was the first to introduce the concept of a nonprogrammer-managed
+    data cache. The architecture additionally has, per SM, an L1 cache that is both
+    programmer managed and hardware managed. It also has a shared L2 cache across
+    all SMs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So does it matter if the cache is shared across processor cores or SMs? Why
+    is this arrangement relevant? This has an interesting implication for communicating
+    with other devices using the same shared cache. It allows interprocessor communication,
+    without having to go all the way out to global memory. This is particularly useful
+    for atomic operations where, because the L2 cache is unified, all SMs see a consistent
+    version of the value at a given memory location. The processor does not have to
+    write to the slow global memory, to read it back again, just to ensure consistency
+    between processor
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-01-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.1 SM L1/L2 data path.
+  prefs: []
+  type: TYPE_NORMAL
+- en: cores. On G80/GT200 series hardware, where there is no unified cache, we see
+    exactly this deficiency and consequently quite slow atomic operations compared
+    with Fermi and later hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caches are useful for most programs. Significant numbers of programmers either
+    care little for or have a limited understanding of how to achieve good performance
+    in software. Introducing a cache means most programs work reasonably well and
+    the programmer does not have to care too much about how the hardware works. This
+    ease of programming is useful for initial development, but in most cases you can
+    do somewhat better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The difference between a novice CUDA programmer and someone who is an expert
+    can be up to an order of magnitude. I hope that through reading this book, you’ll
+    be able to get several times speedup from your existing code and move toward being
+    routinely able to write CUDA code, which significantly outperforms the equivalent
+    serial code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Types of data storage
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: On a GPU, we have a number of levels of areas where you can place data, each
+    defined by its potential bandwidth and latency, as shown in [Table 6.1](#T0010).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.1 Access Time by Memory Type
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0010.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: At the highest and most preferred level are registers inside the device. Then
+    we have shared memory, effectively a programmer-managed L1 cache, constant memory,
+    texture memory, regular device memory, and finally host memory. Notice how the
+    order of magnitude changes between the slowest and fastest type of storage. We
+    will now look at the usage of each of these in turn and how you can maximize the
+    gain from using each type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Traditionally, most texts would start off by looking at global memory, as this
+    often plays a key role in performance. If you get the global memory pattern wrong
+    then you can forget anything else until you get the correct pattern. We take a
+    different approach here, in that we look first at how to use the device efficiently
+    internally, and from there move out toward global and host memory. Thus, you will
+    understand efficiency at each level and have an idea of how to extract it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most CUDA programs are developed progressively, using global memory exclusively
+    at least initially. Once there is an initial implementation, then the use of other
+    memory types such as zero copy and shared, constant, and ultimately registers
+    is considered. For an optimal program, you need to be thinking about these issues
+    while you are developing a program. Thus, instead of the faster memory types being
+    an afterthought, they are considered at the outset and you know exactly where
+    and how to improve the program. You should be continuously thinking about not
+    only how to access global memory efficiently, but also how those accesses, especially
+    for data that is reused in some way, can be eliminated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Register Usage
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The GPU, unlike its CPU cousin, has thousands of registers per SM (streaming
+    multiprocessor). An SM can be thought of like a multithreaded CPU core. On a typical
+    CPU we have two, four, six, or eight cores. On a GPU we have *N* SM cores. On
+    a Fermi GF100 series, there are 16 SMs on the top-end device. The GT200 series
+    has up to 32 SMs per device. The G80 series has up to 16 SMs per device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It may seem strange that Fermi has less SMs than its predecessors. This is until
+    you realize that each Fermi SM contains more SPs (streaming processors) and that
+    it is these that do the “grunt” work. Due to the different number of SPs per core,
+    you see a major difference in the number of threads per core. A typical CPU will
+    support one or two hardware threads per core. A GPU by contrast has between 8
+    and 192 SPs per core, meaning each SM can at any time be executing this number
+    of concurrent hardware threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice on GPUs, application threads are pipelined, context switched, and
+    dispatched to multiple SMs, meaning the number of active threads across all SMs
+    in a GPU device is usually in the tens of thousands range.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One major difference we see between CPU and GPU architectures is how CPUs and
+    GPUs map registers. The CPU runs lots of threads by using register renaming and
+    the stack. To run a new task the CPU needs to do a context switch, which involves
+    storing the state of all registers onto the stack (the system memory) and then
+    restoring the state from the last run of the new thread. This can take several
+    hundred CPU cycles. If you load too many threads onto a CPU it will spend all
+    of the time simply swapping out and in registers as it context switches. The effective
+    throughput of *useful* work rapidly drops off as soon as you load too many threads
+    onto a CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GPU by contrast is the exact opposite. It uses threads to hide memory fetch
+    and instruction execution latency, so too few threads on the GPU means the GPU
+    will become idle, usually waiting on memory transactions. The GPU also does not
+    use register renaming, but instead dedicates real registers to each and every
+    thread. Thus, when a context switch is required, it has near zero overhead. All
+    that happens on a context switch is the selector (or pointer) to the current register
+    set is updated to point to the register set of the next warp that will execute.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice I used the concept of warps here, which was covered in detail in the
+    [Chapter 5](CHP005.html) on threading. A warp is simply a grouping of threads
+    that are scheduled together. In the current hardware, this is 32 threads. Thus,
+    we swap in or swap out, and schedule, groups of 32 threads within a single SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each SM can schedule a number of blocks. Blocks at the SM level are simply logical
+    groups of independent warps. The number of registers per kernel thread is calculated
+    at compile time. All blocks are of the same size and have a known number of threads,
+    and the register usage per block is known and fixed. Consequently, the GPU can
+    allocate a fixed set of registers for each block scheduled onto the hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At a thread level, this is transparent to the programmer. However, a kernel
+    that requests too many registers per thread can limit the number of blocks the
+    GPU can schedule on an SM, and thus the total number of threads that will be run.
+    Too few threads and you start underutilizing the hardware and the performance
+    starts to rapidly drop off. Too many threads can mean you run short of resources
+    and whole blocks of threads are dropped from being scheduled to the SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Be careful of this effect, as it can cause sudden performance drops in the application.
+    If previously the application was using four blocks and now it uses more registers,
+    causing only three blocks to be available, you may well see a one-quarter drop
+    in GPU throughput. You can see this type of problem with various profiling tools
+    available, covered in [Chapter 7](CHP007.html) in the profiling section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Depending on the particular hardware you are using, there is 8 K, 16 K, 32 K
+    or 64 K of register space per SM for *all threads* within an SM. You need to remember
+    that one register is required *per thread*. Thus, a simple local float variable
+    in C results in *N* registers usage, where *N* is the number of threads that are
+    scheduled. With the Fermi-level hardware, you get 32 K of register space per SM.
+    With 256 threads per block, you would have ((32,768/4 bytes per register)/256
+    threads) = 32 registers per thread available. To achieve the maximum number of
+    registers available on Fermi, 64 (128 on G80/GT200), you’d need to half the thread
+    count to just 128 threads. You could have a single block per SM, with the maximum
+    permitted number of registers in that block. Equally, you could have eight blocks
+    of 32 threads (8 × 32 = 256 threads in total), each using the maximum number of
+    registers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you can make use of the maximum number of registers, for example, using them
+    to work on a section of an array, then this approach can work quite well. It works
+    because such a set of values is usually *N* elements from a dataset. If each element
+    is independent, you can create instruction-level parallelism (ILP) within a single
+    thread. This is exploited by the hardware in terms of pipelining many independent
+    instructions. You’ll see later an example of this working in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, for most kernels, the number of registers required is somewhat lower.
+    If you drop your register requirements from 128 to 64, you can schedule another
+    block into the same SM. For example, with 32 registers, you can schedule four
+    blocks. In doing so, you are increasing the total thread count. On Fermi, you
+    can have up to 1536 threads per SM and, for the general case, the higher the level
+    of occupancy you can achieve, the faster your program will execute. You will reach
+    a point where you have enough thread-level parallelism (TLP) to hide the memory
+    latency. To continue to increase performance further, you either need to move
+    to larger memory transactions or introduce ILP, that is, process more than one
+    element of the dataset within a single thread.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is, however, a limit on the number of warps that can be scheduled to an
+    SM. Thus, dropping the number of registers from 32 to 16 does not get eight blocks.
+    For that we are limited to 192 threads, as shown in [Table 6.2](#T0015).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.2 Register Availability by Thread Usage on Fermi
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0015.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[Table 6.2](#T0015) refers to the Fermi architecture. For the Kepler architecture,
+    simply double the number of registers and blocks shown here. We’ve used 192 and
+    256 threads here as they provide good utilization of the hardware. Notice that
+    the kernel usage of 16 versus 20 registers does not introduce any additional blocks
+    to the SM. This is due to the limit on the number of warps that can be allocated
+    to an SM. So in this case, you can easily increase register usage without impacting
+    the total number of threads that are running on a given SM.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You want to use registers to avoid usage of the slower memory types, but you
+    have to be careful that you use them effectively. For example, suppose we had
+    a loop that set each bit in turn, depending on the value of some Boolean variable.
+    Effectively, we’d be packing and unpacking 32 Booleans into 32 bits of a word.
+    We could write this as a loop, each time modifying the memory location by the
+    new Boolean, shifted to the correct position within the word, as shown in the
+    following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here we are reading array element `i` from an array of elements to pack into
+    an integer, `packed_result`. We’re left shifting the Boolean by the necessary
+    number of bits and then using a bitwise `or` operation with the previous result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the parameter `packed_result` exists in memory, you’d be doing 32 memory
+    read and writes. We could equally place the parameter `packed_result` in a local
+    variable, which in turn the compiler would place into a register. As we accumulate
+    into the register instead of in main memory, and later write only the *result*
+    to main memory, we save 31 of the 32 memory reads and writes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Looking back at [Table 6.1](#T0010), you can see it takes several hundred cycles
+    to do a global memory operation. Let’s assume 500 cycles for one global memory
+    read or write operation. For every value you’d need to read, apply the `or` operation,
+    and write the result back. Therefore, you’d have 32 × read + 32 × write = 64 ×
+    500 cycles = 32,000 cycles. The register version would eliminate 31 read and 32
+    write operations, replacing the 500-cycle operations with single-cycle operations.
+    Thus, you’d have
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065si1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065si2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Clearly, this is a huge reduction in the number of cycles. We have a 31 times
+    improvement to perform a relatively common operation in certain problem domains.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We see similar relationships with common reduction operations like `sum`, `min`,
+    `max`, etc. A reduction operation is where a dataset is reduced by some function
+    to a smaller set, typically a single item. Thus, `max (10, 12, 1, 4, 5)` would
+    return a single value, 12, the maximum of the given dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accumulating into a register saves huge numbers of memory writes. In our bit
+    packing example, we reduce our memory writes by a factor of 31\. Whether you are
+    using a CPU or GPU, this type of register optimization will make a huge difference
+    in the speed of execution of your programs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this burdens the programmer with having to think about which parameters
+    are in registers and which are in memory, which registers need to be copied back
+    to memory, etc. This might seem like quite a bit of trouble to go to, and for
+    the average programmer, often it is. Therefore, we see a proliferation of code
+    that works directly on memory. For the most part, cache memory you find on CPUs
+    significantly masks this problem. The accumulated value is typically held in the
+    L1 cache. If a write-back policy is used on the cache, where the values do not
+    need to be written out to main memory until later, the performance is not too
+    bad. Note that the L1 cache is still slower than registers, so the solution will
+    be suboptimal and may be several times slower than it could be.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some compilers may detect such inefficiencies and implement a load into a register
+    during the optimizer phase. Others may not. Relying on the optimizer to fix poor
+    programming puts you at the mercy of how good the compiler is, or is not. You
+    may find that, as the optimization level is increased, errors creep into the program.
+    This may not be the fault of the compiler. The C language definition is quite
+    complex. As the optimization level is increased, subtle bugs may appear due to
+    a missed volatile qualifier or the like. Automatic test scripts and back-to-back
+    testing against a nonoptimized version are good solutions to ensure correctness.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You should also be aware that optimizing compiler vendors don’t always choose
+    to implement the best solution. If just 1% of programs fail when a certain optimization
+    strategy is employed by the compiler vendor, then it’s unlikely to be employed
+    due to the support issues this may generate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GPU has a computation rate many times in excess of its memory bandwidth
+    capacity. The Fermi hardware has around 190 GB/s peak bandwidth to memory, with
+    a peak compute performance of over one teraflop. This is over five times the memory
+    bandwidth. On the Kepler GTX680/Tesla K10 the compute power increases to 3 Teraflops,
+    yet with a memory bandwidth almost identical to the GTX580\. In the bit packing
+    example, without register optimization and on a system with no cache, you would
+    require one read and one write per loop iteration. Each integer or floating-point
+    value is 4 bytes in length. The best possible performance we could, theoretically,
+    achieve in this example, due to the need to read and write a total of 8 bytes,
+    would be one-eighth of the memory bandwidth. Using the 190 GB/s figure, this would
+    equate to around 25 billion operations per second.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice you’d never get near this, because there are loop indexes and iterations
+    to take into account as well as simply the raw memory bandwidth. However, this
+    sort of back-of-the-envelope calculation provides you with some idea of the upper
+    bounds of your application before you start coding anything.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applying our factor of 31 reductions to the number of memory operations allows
+    you to achieve a theoretical peak of 31 times this figure, some 775 billion iterations
+    per second. We’ll in practice hit other limits, within the device. However, you
+    can see we’d easily achieve many times better performance than a simple global
+    memory version by simply accumulating to or making use of registers wherever possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To get some real figures here, we’ll write a program to do this bit packing
+    on global memory and then with registers. The results are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The two kernels to generate these are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  }`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: The only difference in the two kernels is that one uses a global variable, `d_tmp`,
+    while the other uses a local register. Looking at the results you can see the
+    speedups in [Table 6.3](#T0020). You see an average speedup of 7.7 times. Perhaps,
+    most surprisingly, the fastest speedup comes from the devices that have the largest
+    number of SMs, which points to a problem that I hope you may have spotted. In
+    the global memory version of the kernel, every thread from every block reads and
+    writes to `d_tmp`. There is no guarantee as to in which order this will happen,
+    so the program’s output is indeterminate. The kernel executes perfectly well,
+    with no CUDA errors detected, yet the answer will always be nonsense. This type
+    of error is a remarkably common type of mistake when converting serial code to
+    parallel code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.3 Speedup Using Registers over GMEM
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0020.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Strange answers should always point you toward something being wrong. So how
+    is this issue corrected? In the register version, each thread writes to a unique
+    register. In the GMEM (Global Memory) version, it must do the same. Therefore,
+    you simply replace the original definition of `d_tmp:`
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: With
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The kernel needs to be updated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now each thread gets to read and write from an independent area of global memory.
+    What of the speedup now? See [Table 6.4](#T0025).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.4 Real Speedup from Using Registers over GMEM
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0025.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see from [Table 6.4](#T0025), the average speedup drops to just 1.7
+    times. If it were not for the 9800GT (a compute 1.1 device) you’d see the average
+    almost hit two times speedup in this simple piece of code. Where possible, you
+    always need to avoid global memory writes through some other means. Converging
+    on a single memory address, as in the first example, forces the hardware to serialize
+    the memory operations, leading to terrible performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now it’s quite easy to make this code even faster. Loops are typically very
+    inefficient, in that they cause branching, which can cause pipeline stalls. More
+    importantly, they consume instructions that don’t contribute to the final result.
+    The loop code will contain an increment for the loop counter, a test of the end
+    loop condition, and a branch for every iteration. In comparison, the useful instructions
+    per iteration will load the value from `pack_array`, shift it left *N* bits, and
+    `or` it with the existing `d_tmp` value. Just looking at the operations, we see
+    50% or so of the operations are based around the loop. You can look directly at
+    the following PTX (Parallel Thread eXecution) code to verify this. The instructions
+    that perform the loop, to make reading the virtual assembly code easier, are highlighted
+    in bold.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` or.b32  %r20, %r18, %r19;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Thus, the PTX code first tests if the `for` loop will actually enter the loop.
+    This is done in the block labeled `$LDWbeginblock_180_5`. The code at the `$Lt_0_1794`
+    label then performs the loop operation, jumping back to label `$L_0_3330` until
+    such time as the loop has completed 32 iterations. The other code in the section
+    labeled `$L_0_3330` performs the operation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Notice, in addition to the loop overhead, because `packed_array` is indexed
+    by a variable the code has to work out the address on every iteration of the loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is rather inefficient. Compare this to a loop unrolled version and we
+    see something quite interesting:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` .reg .u64 %rd<6>;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Almost all the instructions now contribute to the result. The loop overhead
+    is gone. The address calculation for `packed_array` is reduced to a compile time–resolved
+    base plus offset type address. Everything is much simpler, but much longer, both
+    in the C code and also in the virtual PTX assembly code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The point here is not to understand PTX, but to see the vast difference small
+    changes in C code can have on the virtual assembly generated. It’s to understand
+    that techniques like loop unrolling can be hugely beneficial in many cases. We
+    look at PTX and how it gets translated in the actual code that gets executed in
+    more detail in [Chapter 9](CHP009.html) on optimization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So what does this do in terms of speedup? See [Table 6.5](#T0030). You can see
+    that on the 9800GT or the GTX260, there was no effect at all. However, on the
+    more modern compute 2.x hardware, the GTX460 and GTX470, you see a 2.4× and 3.4×
+    speedup, respectively. If you look back to the pure GMEM implementation, on the
+    GTX470 this is a 6.4× speedup. To put this in perspective, if the original program
+    took six and a half hours to run, then the optimized version would take just one
+    hour.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.5 Effects of Loop Unrolling
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0030.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Register optimization can have a huge impact on your code execution timing.
+    Take the time to look at the PTX code being generated for the *inner loops* of
+    your program. Can you unroll the loop to expand it into a single, or set, of expressions?
+    Think about this with your code and you’ll see a huge performance leap. It is
+    better to register usage, such as eliminating memory accesses, or provide additional
+    ILP as one of the best ways to speed up a GPU kernel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shared Memory
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Shared memory is effectively a user-controlled L1 cache. The L1 cache and shared
+    memory share a 64 K memory segment per SM. In Kepler this can be configured in
+    16 K blocks in favor of the L1 or shared memory as you prefer for your application.
+    In Fermi the choice is 16 K or 48K in favor of the L1 or shared memory. Pre-Fermi
+    hardware (compute 1.×) has a fixed 16 K of shared memory and no L1 cache. The
+    shared memory has in the order of 1.5 TB/s bandwidth with extremely low latency.
+    Clearly, this is hugely superior to the up to 190 GB/s available from global memory,
+    but around one-fifth of the speed of registers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice, global memory speeds on low-end cards are as little as one-tenth
+    that of the high-end cards. However, the shared memory speed is driven by the
+    core clock rate, which remains much more consistent (around a 20% variation) across
+    the entire range of GPUs. This means that to get the most from any card, not just
+    the high-end cards, you must use shared memory effectively in addition to using
+    registers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact, just by looking at the bandwidth figures—1.5 TB/s for shared memory
+    and 190 GB/s for the best global memory access—you can see that there is a 7:1
+    ratio. To put it another way, there is potential for a 7× speedup if you can make
+    effective use of shared memory. Clearly, shared memory is a concept that every
+    CUDA programmer who cares about performance needs to understand well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the GPU operates a load-store model of memory, in that any operand
+    must be loaded into a register prior to any operation. Thus, the loading of a
+    value into shared memory, as opposed to just loading it into a register, must
+    be justified by data reuse, coalescing global memory, or data sharing between
+    threads. Otherwise, better performance is achieved by directly loading the global
+    memory values into registers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shared memory is a bank-switched architecture. On Fermi it is 32 banks wide,
+    and on G200 and G80 hardware it is 16 banks wide. Each bank of data is 4 bytes
+    in size, enough for a single-precision floating-point data item or a standard
+    32-bit integer value. Kepler also introduces a special 64 bit wide mode so larger
+    double precision values no longer span two banks. Each bank can service only a
+    *single* operation per cycle, regardless of how many threads initiate this action.
+    Thus, if every thread in a warp accesses a separate bank address, every thread’s
+    operation is processed in that single cycle. Note there is no need for a one-to-one
+    sequential access, just that every thread accesses a separate bank in the shared
+    memory. There is, effectively, a crossbar switch connecting any single bank to
+    any single thread. This is very useful when you need to swap the words, for example,
+    in a sorting algorithm, an example of which we’ll look at later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is also one other very useful case with shared memory and that is where
+    every thread in a warp reads the *same* bank address. As with constant memory,
+    this triggers a broadcast mechanism to all threads within the warp. Usually thread
+    zero writes the value to communicate a common value with the other threads in
+    the warp. See [Figure 6.2](#F0015).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-02-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.2 Shared memory patterns.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, if we have *any other pattern*, we end up with bank conflicts of varying
+    degrees. This means you stall the other threads in the warp that idle while the
+    threads accessing the shared memory address queue up one after another. One important
+    aspect of this is that it is *not* hidden by a switch to another warp, so we do
+    in fact stall the SM. Thus, bank conflicts are to be avoided if at all possible
+    as the SM will idle until all the bank requests have been fulfilled.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this is often not practical, such as in the histogram example we looked
+    at in [Chapter 5](CHP005.html). Here the data is unknown, so which bank it falls
+    into is entirely dependent on the data pattern.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The worst case is where every thread writes to the same bank, in which case
+    we get 32 serial accesses to the same bank. We see this typically where the thread
+    accesses a bank by a stride other than 32\. Where the stride decreases by a power
+    of two (e.g., in a parallel reduction), we can also see this, with each successive
+    round causing more and more bank conflicts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sorting using shared memory
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Let’s introduce a practical example here, using sorting. A sorting algorithm
+    works by taking a random dataset and generating a sorted dataset. We thus need
+    *N* input data items and *N* output data items. The key aspect with sorting is
+    to ensure you minimize the number of reads and writes to memory. Many sorting
+    algorithms are actually multipass, meaning we read every element of *N*, *M* times,
+    which is clearly not good.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The quicksort algorithm is the preferred algorithm for sorting in the serial
+    world. Being a divide-and-conquer algorithm, it would appear to be a good choice
+    for a parallel approach. However, by default it uses recursion, which is only
+    supported in CUDA compute 2.x devices. Typical parallel implementations spawn
+    a new thread for every split of the data. The current CUDA model (see also discussion
+    on Kepler’s Dynamic Parallelism in [Chapter 12](CHP012.html)) requires a specification
+    of the total number of threads at kernel launch, or a series of kernel launches
+    per level. The data causes significant branch divergence, which again is not good
+    for GPUs. There are ways to address some of these issues. However, these issues
+    make quicksort not the best algorithm to use on a pre-Kepler GK110/ Tesla K20
+    GPU. In fact, you often find the best serial algorithm is not the best parallel
+    algorithm and it is better to start off with an open mind about what will work
+    best.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One common algorithm found in the parallel world is the merge sort ([Figure
+    6.3](#F0020)). It works by recursively partitioning the data into small and smaller
+    packets, until eventually you have only two values to sort. Each sorted list is
+    then merged together to produce an entire sorted list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-03-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.3 Simple merge sort example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recursion is not supported in CUDA prior to compute 2.×, so how can such an
+    algorithm be performed? Any recursive algorithm will at some point have a dataset
+    of size *N*. On GPUs the thread block size or the warp size is the ideal size
+    for *N*. Thus, to implement a recursive algorithm all you have to do is break
+    the data into blocks of 32 or larger elements as the smallest case of *N*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With merge sort, if you take a set of elements such as {1,5,2,8,9,3,2,1} we
+    can split the data at element four and obtain two datasets, {1,5,2,8} and {9,3,2,1}.
+    You can now use two threads to apply a sorting algorithm to the two datasets.
+    Instantly you have gone from *p* = 1 to *p* = 2, where *p* is the number of parallel
+    execution paths.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Splitting the data from two sets into four sets gives you {1,5}, {2,8}, {9,3},
+    and {2,1}. It’s now trivial to execute four threads, each of which compares the
+    two numbers and swaps them if necessary. Thus, you end up with four sorted datasets:
+    {1,5}, {2,8}, {3,9}, and {1,2}. The sorting phase is now complete. The maximum
+    parallelism that can be expressed in this phase is *N*/2 independent threads.
+    Thus, with a 512 MB dataset, you have 128K 32-bit elements, for which we can use
+    a maximum of 64K threads (*N* = 128K, *N*/2 = 64K). Since a GTX580 GPU has 16
+    SMs, each of which can support up to 1536 threads, we get up to 24K threads supported
+    per GPU. With around two and a half passes, you can therefore iterate through
+    the 64K data pairs that need to be sorted with such a decomposition.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, you now run into the classic problem with merge sort, the merge phase.
+    Here the lists are combined by moving the smallest element of each list into the
+    output list. This is then repeated until all members of the input lists are consumed.
+    With the previous example, the sorted lists are {1,5}, {2,8}, {3,9}, and {1,2}.
+    In a traditional merge sort, these get combined into {1,2,5,8} and {1,2,3,9}.
+    These two lists are then further combined in the same manner to produce one final
+    sorted list, {1,1,2,2,3,5,8,9}.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, as each merge stage is completed, the amount of available parallelism
+    halves. As an alternative approach where *N* is small, you can simply scan *N*
+    sets of lists and immediately place the value in the correct output list, skipping
+    any intermediate merge stages as shown in [Figure 6.4](#F0025). The issue is that
+    the sort performed at the stage highlighted for elimination in [Figure 6.4](#F0025)
+    is typically done with two threads. As anything below 32 threads means we’re using
+    less than one warp, this is inefficient on a GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-04-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.4 Merging *N* lists simultaneously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The downside of this approach if that it means you would need to read the first
+    element of the sorted list set from every set. With 64 K sets, this is 64 K reads,
+    or 256 MB of data that has to be fetched from memory. Clearly, this is not a good
+    solution when the number of lists is very large.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, our approach is to try to achieve a much better solution to the merge
+    problem by limiting the amount of recursion applied to the original problem and
+    stopping at the number of threads in a warp, 32, instead of two elements per sorted
+    set, as with a traditional merge sort. This reduces the number of sets in the
+    previous example from 64 K sorted sets to just 4 K sets. It also increases the
+    maximum amount of parallelism available from *N*/2 to *N*/32\. In the 128 K element
+    example we looked at previously, this would mean we would need 4 K processing
+    elements. This would distribute 256 processing elements (warps) to every SM on
+    a GTX580\. As each Fermi SM can execute a maximum of 48 warps, multiple blocks
+    will need to be iterated through, which allows for smaller problem sizes and speedups
+    on future hardware. See [Figure 6.5](#F0030).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-05-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.5 Shared memory–based decomposition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shared memory is bank switched. We have 32 threads within a single warp. However,
+    if any of those threads access the same bank, there will be a bank conflict. If
+    any of the threads diverge in execution flow, you could be running at up to 1/32
+    of the speed in the worst case. Threads can use registers that are private to
+    a thread. They can only communicate with one another using shared memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By arranging a dataset in rows of 32 elements in the shared memory, and accessing
+    it in columns by thread, you can achieve bank conflict–free access to the memory
+    ([Figure 6.6](#F0035)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-06-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.6 Shared memory bank access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For coalesced access to global memory, something we’ll cover in the next section,
+    you’d need to fetch the data from global memory in rows of 32 elements. Then you
+    can apply any sorting algorithm to the column without worrying about shared memory
+    conflicts. The only thing you need to consider is branch divergence. You need
+    to try to ensure that every thread follows the same execution flow, even though
+    they are processing quite different data elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One side effect of this strategy is we will end up having to make a tradeoff.
+    Assuming we have a single warp per SM, we will have no shared memory bank conflicts.
+    However, a single warp per SM will not hide the latency of global memory reads
+    and writes. At least for the memory fetch and write-back stage, we need lots of
+    threads. However, during the sort phase, multiple warps may conflict with one
+    another. A single warp would not have any bank conflicts, yet this would not hide
+    the instruction execution latency. So in practice, we’ll need multiple warps in
+    all phases of the sort.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Radix sort
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'One algorithm that has a fixed number of iterations and a consistent execution
+    flow is the radix sort. It works by sorting based on the least significant bit
+    and then working up to the most significant bit. With a 32-bit integer, using
+    a single radix bit, you will have 32 iterations of the sort, no matter how large
+    the dataset. Let’s consider an example with the following dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The binary representation of each of these would be
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` 9 = 00001001`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the first pass of the list, all elements with a 0 in the least significant
+    bit (the right side) would form the first list. Those with a 1 as the least significant
+    bit would form the second list. Thus, the two lists are
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: The two lists are appended in this order, becoming
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The process is then repeated for bit one, generating the next two lists based
+    on the ordering of the previous cycle:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The combined list is then
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: Scanning the list by bit two, we generate
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: And so the program continues until it has processed all 32 bits of the list
+    in 32 passes. To build the list you need *N* + 2*N* memory cells, one for the
+    source data, one of the 0 list, and one of the 1 list. We do not strictly need
+    2*N* additional cells, as we could, for example, count from the start of the memory
+    for the 0 list and count backward from the end of the memory for the 1 list. However,
+    to keep it simple, we’ll use two separate lists.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The serial code for the radix sort is shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   {`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: The code works by being passed two values, a pointer to the data to sort and
+    the number of elements in the dataset. It overwrites the unsorted data so the
+    returned set is sorted. The outer loop iterates over all 32 bits in a 32-bit integer
+    word and the inner loop iterates over all elements in the list. Thus, the algorithm
+    requires 32*N* iterations in which the entire dataset will be read and written
+    32 times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Where the size of the data is less than 32 bits (e.g., with 16- or 8-bit integer
+    values), the sort runs two or four times faster due to having to do one-half and
+    one-quarter of the work, respectively. An implementation of the radix sort is
+    available in the Thrust library shipped with v4.0 onwards of the CUDA SDK so you
+    don’t have to implement your own radix sort ([Figure 6.7](#F0040)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-07-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.7 Simple radix sort.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within the inner loop the data is split into two lists, the 0 list and the 1
+    list depending on which bit of the word is being processed. The data is then reconstructed
+    from the two lists, the 0 list always being written before the 1 list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GPU version is a little more complex, in that we need to take care of multiple
+    threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: The GPU kernel is written here as a device function, a function only capable
+    of being called within a GPU kernel. This is the equivalent of declaring a function
+    as “static” in C or “private” in C++.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice the inner loop has changed and instead of incrementing by one, the program
+    increments by `num_lists` a value passed into the function. This is the number
+    of independent lists of data the radix sort should produce. This value should
+    equal the number of threads used to invoke the kernel block. The ideal value to
+    avoid bank conflicts will be the warp size, 32\. However, this is a less than
+    ideal value in terms of hiding instruction and memory latency.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What this GPU version of this radix sort will produce is `num_lists` of independent
+    sorted lists using `num_lists` threads. Since the SM in the GPU can run 32 threads
+    at the same speed as just one thread and it has 32 shared memory banks, you might
+    imagine the ideal value for `num_lists` would be 32\. See [Table 6.6](#T0035)
+    and [Figure 6.8](#F0045).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.6 Parallel Radix Sort Results (ms)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0035.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065f06-08-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.8 Parallel radix sort graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see from the table and figure, the radix sort is actually very efficient.
+    You see an approximate linear speedup, up to 128 threads. This is not too surprising
+    because each doubling of the number of threads results in each thread processing
+    half as much data as before. The point of interest is where this linear relationship
+    stops because it shows us when we have hit some limit in the hardware. At 256
+    threads it starts to tail off with only a two-thirds speedup, so we know the ideal
+    case is 128 threads. However, we also have to consider how using 128 threads might
+    limit the usage in the SM, in particular in compute 2.x hardware. Therefore, we
+    might select 256 threads depending on how multiple blocks interact. As it happens,
+    shared memory is the main factor we need to consider limiting the number of blocks
+    we’re likely to be able to put into each SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at the initial radix sort function, it is not very efficient. How
+    would you optimize this function? The most obvious change is that you do not need
+    separate 0 and 1 lists. The 0 list can be created from reusing the space in the
+    original list. This not only allows you to discard the 1 list, but also removes
+    a copy back to the source list. This saves a lot of unnecessary work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, did you notice that the bit mask is actually constant within a single
+    iteration of the `bit` loop? It is thus an invariant within the `i` loop and can
+    be moved out to the `bit` loop. This is a standard compiler optimization called
+    invariant analysis. Most compilers would move this outside the `i` loop. Compiler
+    optimization is notoriously badly documented and can change from one compiler
+    to another and even between versions of compilers. Relying on optimization steps
+    of compilers is therefore, generally, bad programming practice and best avoided.
+    Therefore, we’ll explicitly move the calculation to ensure it gets executed in
+    the correct place. See [Chapter 9](CHP009.html) on optimization for coverage of
+    typical compiler optimizations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The slightly more optimal code we end up with is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  // Copy data back to source from the one’s list`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: There are further optimizations that can be made, but the key issue here is
+    that we’re now using only one temporary storage area, which in turn allows the
+    processing of more elements. This is important because, as we’ll see later, the
+    number of lists is an important factor. So how do these changes affect the performance
+    of the radix sort?
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at [Table 6.7](#T0040), you’ll see the worst case, using a single
+    thread, has come down from 82 ms to 52 ms. The best case in the previous run,
+    0.26 ms, has come down to 0.21 ms, which is about a 20% improvement in execution
+    speed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.7 Optimized Radix Sort Results (ms)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0040.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Merging lists
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Merge lists of sorted elements is another algorithm that is commonly used in
+    parallel programming. However, let’s start by looking at some serial code to merge
+    an arbitrary number of sorted lists into a single sorted list, as this is the
+    simplest case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` for (u32 i=0; i<num_elements;i++)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Assuming there are `num_lists` lists to collect data from, you need some way
+    to track where we are in the list. The program uses the array `list_indexes` for
+    this. As the number of lists is likely to be small, you can use the stack and
+    thus declare the array as a local variable. Note this would be a bad idea with
+    a GPU kernel, as the stack allocation may get placed into slow global memory,
+    depending on the particular GPU variant. Shared memory would likely be the optimal
+    location on the GPU, depending on the number of lists needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-09-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.9 Multiple lists partially merged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, the index values are all set to zero. Then the program iterates over
+    all elements and assigns the value in the sorted array from the result of a function,
+    `find_min`. The `find_min` function identifies the smallest value from a set of
+    `num_lists` values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: The function works by iterating through the lists of sorted values and maintaining
+    an index into where it is in each list. If it identifies a smaller value than
+    `min_val`, it simply updates `min_val` to this new value. When it has scanned
+    all the lists, it increments the relevant list index and returns the value it found.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now let’s look at the GPU implementation of this algorithm. First, the top-level
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` const u32 tid = (blockIdx.x ∗ blockDim.x) + threadIdx.x;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is quite a simple program for now. It will be invoked with a single block
+    of *N* threads. We’ll develop this as an example of how to use shared memory.
+    Looking at the first function, we see the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here the program reads data from global memory in rows and not columns into
+    the shared memory. This step is important for two reasons. First, the program
+    will repeatedly read and write from this memory. Therefore, you want the fastest
+    store possible, so we need to use shared memory instead of global memory. Second,
+    global memory provides the best performance when accessed by rows. Column access
+    produces a scattered memory pattern that the hardware is unable to coalesce, unless
+    every thread accesses the same column value and these addresses are adjacent.
+    Thus, in most cases the GPU has to issue far more memory fetch operations than
+    are necessary and the speed of the program will drop by an order of magnitude.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When you compile this program, if you have the `-v` flag set on the nvcc compiler
+    options, it will print an innocent looking message saying it created a stack frame.
+    For example,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When a function makes a call into a subfunction and passes parameters, those
+    parameters must somehow be provided to the called function. The program makes
+    just such a call:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`dest_array[i] = find_min(src_array,`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are two options that can be employed, to pass the necessary values through
+    registers, or to create an area of memory called a stack frame. Most modern processors
+    have a large register set (32 or more registers). Thus, for a single level of
+    calls, often this is enough. Older architectures use stack frames and push the
+    values onto the stack. The called function then pops the values off the stack.
+    As you require memory to do this, on the GPU this would mean using “local” memory,
+    which is local only in terms of which thread can access it. In fact, “local” memory
+    can be held in global memory, so this is hugely inefficient, especially on the
+    older architectures (1.x) where it’s not cached. At this point we need to rewrite
+    the merge routine to avoid the function call. The new routine is thus:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`     const u32 data = src_array[src_idx];`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: This function now combines the original `merge_arrary` function and its `find_min`
+    function. Recompiling now results in no additional stack frame. Running the code,
+    we find the results shown in [Table 6.8](#T0045). If you graph this, it’s somewhat
+    easier to see ([Figure 6.10](#F0055)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.8 Initial Single-Thread Merge Sort Results
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0045.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065f06-10-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.10 Initial single-thread merge sort graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is surprising from this graph is the worst performer is actually the GTX260,
+    which is slower than the previous generation 9800GT. It’s interesting to also
+    note the GTX460 is faster than the GTX470 in this particular test. To understand
+    this, you need to look at the specific devices used, as shown in [Table 6.9](#T0050).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.9 Device Clock Rate and Bandwidth
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0050.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see the 9800GT has a higher internal clock rate than the GTX260\. The
+    same is true of the GTX460 and GTX470\. Since the program is using just a single
+    SM, and memory access is dominated by shared memory access time, this is entirely
+    to be expected.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, perhaps the most interesting feature you can see from the graph is
+    that increasing the number of threads beyond a certain point actually makes the
+    calculation go slower. This initially seems counterintuitive if you have never
+    seen this relationship before. What this type of result points to is that there
+    is some conflict of resources or the problem does not scale in a linear manner
+    when you increase the number of threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem is the latter. The merge step is single thread and must look at
+    *N* lists for every element. As the number of lists are increased, the problem
+    space becomes 2*N*, 4*N*, 8*N,* etc. in line with the number of threads. The optimal
+    point for this algorithm, based on the timings, is actually between four and eight
+    lists of data. This is not very good, as it considerably limits the potential
+    amount of parallelism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parallel merging
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: For better performance, clearly more than one thread in the merge stage is required.
+    However, this introduces a problem, in that we’re writing to a single list. To
+    do this, the threads need to cooperate in some manner. This makes the merge somewhat
+    more complex.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` // Wait for list_indexes[tid] to be cleared`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  __syncthreads();`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: This version uses `num_lists` threads to do the merge operation. However, only
+    a single thread writes to the output data list at a time, thus ensuring the single
+    output list is correct at all times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It makes use of the `atomicMin` function. Instead of one thread reading all
+    the values from the lists and computing the minimum, each thread calls `atomicMin`
+    with the value of its list entry. Once all threads have called the `atomicMin`
+    function, each thread reads it back and compares this with the value it tried
+    to write. If the values are the same, then the thread was the winning thread.
+    However, there is one further problem in that there may be several winning threads,
+    because the data item can be repeated in one or more lists. Thus, a second elimination
+    step is required by only those threads with identical data. Most of the time,
+    this second step will not be necessary. However, in the worst case of sorting
+    a list of identical numbers, it would cause every thread to have to go through
+    two elimination steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So how does this version perform? As you can see from [Table 6.10](#T0055) and
+    [Figure 6.11](#F0060), we have reduced the total execution time using the larger
+    number of threads (128 and 256 threads) by a factor of 10\. However, single-thread
+    timing is unchanged. More important, however, is the fastest time has moved from
+    the 8- to the 16-thread version and has halved in terms of absolute time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.10 `atomicMin` Parallel Merge Sort Results (ms)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0055.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065f06-11-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.11 `atomicMin` parallel merge sort graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One thing I should mention here is that `atomicMin` on shared memory requires
+    a compute 1.2 device or higher. The 9800GT is only a compute 1.1 device, so is
+    not shown here as it cannot run the kernel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we look a little closer at the hardware counters with a tool like Parallel
+    Nsight, we can see that beyond 32 threads the number of divergent branches and
+    the number of shared memory accesses start to grow very rapidly. We currently
+    have a good solution, but what alternative approaches are there and are they any
+    quicker?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parallel reduction
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One common approach to this problem is parallel reduction. This can be applied
+    for many problems, a `min` operation being just one of them. It works by using
+    half the number of threads of the elements in the dataset. Every thread calculates
+    the minimum of its own element and some other element. The resultant element is
+    forwarded to the next round. The number of threads is then reduced by half and
+    the process repeated until there is just a single element remaining, which is
+    the result of the operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With CUDA you must remember that the execution unit for a given SM is a warp.
+    Thus, any amount of threads less than one warp is underutilizing the hardware.
+    Also, while divergent threads must all be executed, divergent warps do not have
+    to be.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When selecting the “other element” for a given thread to work with, you can
+    do so to do a reduction within the warp, thus causing significant branch divergence
+    within it. This will hinder the performance, as each divergent branch doubles
+    the work for the SM. A better approach is to drop whole warps by selecting the
+    other element from the other half of the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [Figure 6.12](#F0065) you see the item being compared with one from the other
+    half of the dataset. Shaded cells show the active threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-12-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.12 Final stages of GPU parallel reduction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  // emptied then ignore it`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   __syncthreads();`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code works by creating a temporary list of data in shared memory, which
+    it populates with a dataset from each cycle from the `num_list` datasets. Where
+    a list has already been emptied, the dataset is populated with `0xFFFFFFFF`, which
+    will exclude the value from the list. The `while` loop gradually reduces the number
+    of active threads until there is only a single thread active, thread zero. This
+    then copies the data and increments the list indexes to ensure the value is not
+    processed twice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice the use of the `__syncthreads` directive within the loop and at the end.
+    The program needs to sync across warps when there are more than 32 threads (one
+    warp) in use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So how does this perform? As you can see from [Table 6.11](#T0060) and [Figure
+    6.13](#F0070), this approach is significantly slower than the `atomicMin` version,
+    the fastest reduction being 8.4 ms versus the 5.86 ms `atomicMin` (GTX460, 16
+    threads). This is almost 50% slower than the `atomicMin` version. However, one
+    thing to note is that it’s a little under twice the speed of the `atomicMin` when
+    using 256 threads (12.27 ms versus 21.58 ms). This is, however, still twice as
+    slow as the 16-thread version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.11 Parallel Reduction Results (ms)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0060.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065f06-13-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.13 Parallel reduction graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although this version is slower, it has the advantage of not requiring the use
+    of the `atomicMin` function. This function is only available on compute 1.2 devices,
+    which is generally only an issue if you need to consider the consumer market or
+    you need to support *really* old Tesla systems. The main issue, however, is that
+    `atomicMin` can only be used with integer values. A significant number of real-world
+    problems are floating-point based. In such cases we need both algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, what we can take from both the `atomicMin` and the parallel reduction
+    method is that the traditional merge sort using two lists is not the ideal case
+    on a GPU. You get increasing performance from the increasing parallelism in the
+    radix sort as you increase the number of lists. However, you get decreasing performance
+    from the merge stage as you increase the parallelism and move beyond 16 lists.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A hybrid approach
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'There is potential here to exploit the benefits of both algorithms by creating
+    a hybrid approach. We can rewrite the merge sort as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` const u32 num_reductions = num_lists >> REDUCTION_SIZE_BIT_SHIFT;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   }`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: One of the main problems of the simple 1-to-*N* reduction is it becomes increasingly
+    slower as the value of *N* increases. We can see from previous tests that the
+    ideal value of *N* is around 16 elements. The kernel works by creating a partial
+    reduction of *N* values and then a final reduction of those *N* values into a
+    single value. In this way it’s similar to the reduction example, but skips most
+    of the iterations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that `min_val` has been extended from a single value into an array of
+    shared values. This is necessary so each independent thread can minimize the values
+    over its dataset. Each `min` value is 32 bits wide so it exists in a separate
+    shared memory bank, meaning there are no bank conflicts provided the maximum number
+    of first-level reductions results in 32 or less elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The value of `REDUCTION_SIZE` has been set to eight, which means the program
+    will do a `min` over groups of eight values prior to a final `min`. With the maximum
+    of 256 elements, we get exactly 32
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-14-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.14 Hybrid parallel reduction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: seperate banks being used to do the reduction. In the 256 elements we have a
+    256:32:1 reduction. With a 128-element list we have a 128:16:1 reduction, etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The other major change is now only the thread that writes out the winning element
+    reads a new value into `data`, a register-based value that is per thread. Previously,
+    all threads re-read in the value from their respective lists. As only one thread
+    won each round, only one list pointer changed. Thus, as *N* increased, this became
+    increasingly inefficent. However, this doesn’t help as much as you might at first
+    imagine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So how does this version perform? Notice in [Table 6.12](#T0065) that the minimum
+    time, 5.86 ms from the `atomicMin` example, has fallen to 5.67 ms. This is not
+    spectacular, but what is interesting to note is the shape of the graph ([Figure
+    6.15](#F0080)). No longer is the graph such an inclined U shape. Both the 32-
+    and 64-thread versions beat the simple `atomicMin` based on 16 threads. We’re
+    starting to smooth out the upward incline introduced by the merge step as shown
+    in [table 6.12](#T0065) and [figure 6.15](#F0080).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.12 Hybrid Atomic and Parallel Reductions Results (ms)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0065.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065f06-15-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.15 Hybrid atomic and parallel reduction graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shared memory on different GPUs
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Not all GPUs are created equal. With the move to compute 2.x devices, the amount
+    of shared memory became configurable. By default, compute 2.x (Fermi) devices
+    are configured to provide 48K of shared memory instead of the 16 K of shared memory
+    on compute 1.x devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The amount of shared memory can change between hardware releases. To write
+    programs that scale in performance with new GPU releases, you have to write portable
+    code. To support this, CUDA allows you to query the device for the amount of shared
+    memory available with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: Having more shared memory available allows us to select one of two strategies.
+    We can either extend the amount of shared memory used from 16 K to 48 K or we
+    can simply schedule more blocks into a single SM. The best choice will really
+    depend on the application at hand. With our sorting example, 48 K of shared memory
+    would allow the number of lists per SM to be reduced by a factor of three. As
+    we saw earlier, the number of lists to merge has a significant impact on the overall
+    execution time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Shared memory summary
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: So far we have looked only at sorting within a single SM, in fact within a single
+    block. Moving from a single-block version to a multiple-block version introduces
+    another set of merges. Each block will produce an independent sorted list. These
+    lists then have to be merged, but this time in global memory. The list size moves
+    outside that which can be held in shared memory. The same then becomes true when
+    using multiple GPUs—you generate *N* or more sorted lists where *N* equals the
+    number of GPUs in the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ve looked primarily at interthread cooperation with shared memory in this
+    section. The merging example was selected to demonstrate this in a manner that
+    was not too complex and easy to follow. Parallel sorting has a large body of research
+    behind it. More complex algorithms may well be more efficient, in terms of the
+    memory usage and/or SM utilization. The point here was to use a practical example
+    that could be easily followed and process lots of data that did not simply reduce
+    to a single value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ll continue to look at sorting later and look at how interblock communication
+    and coordination can be achieved in addition to thread-level communication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions on shared memory
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. Looking at the `radix_sort` algorithm, how might the use of shared memory
+    be reduced? Why would this be useful?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. Are all the synchronization points necessary? In each instance a synchronization
+    primitive is used. Discuss why. Are there conditions where they are not necessary?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. What would be the effect of using C++ templates in terms of execution time?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 4. How would you further optimize this sorting algorithm?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Answers for shared memory
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. There are a number of solutions. One is to use only the memory allocated
+    to the sort. This can be done using an MSB radix sort and swapping the 1s with
+    elements at the end of the list. The 0 list counts forward and the 1 list counts
+    backward. When they meet, the next digit is sorted until the LSB is sorted. Reducing
+    the memory usage is useful because it allows larger lists in the shared memory,
+    reducing the total number of lists needed, which significantly impacts execution
+    time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. The main concept to understand here is the synchronization points are necessary
+    only when more than one warp is used. Within a warp all instructions execute synchronously.
+    A branch causes the nonbranched threads to stall. At the point the branch converges,
+    you are guaranteed all instructions are in sync, although the warps can then instantly
+    diverge again. Note that memory must be declared as volatile or you must have
+    syncthread points within the warp if you wish to guarantee visibility of writes
+    between threads. See [Chapter 12](CHP012.html) on common problems for a discussion
+    on the use of the volatile qualifier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. Templates would allow much of the runtime evaluation of the `num_lists` parameter
+    to be replaced with compile time substitution. The parameter must always be a
+    power of 2, and in practice will be limited to a maximum of 256\. Thus, a number
+    of templates can be created and the appropriate function called at runtime. Given
+    a fixed number of iterations known at compiler time instead of runtime, the compiler
+    can efficiently unroll loops and substitute variable reads with literals. Additionally,
+    templates can be used to support multiple implementations for different data types,
+    for example, using the `atomicMin` version for integer data while using a parallel
+    reduction for floating-point data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 4. This is rather an open-ended question. There are many valid answers. As the
+    number of sorted lists to merge increases, the problem becomes significantly larger.
+    Elimination of the merge step would be a good solution. This could be achieved
+    by partially sorting the original list into *N* sublists by value. Each sublist
+    can then be sorted and the lists concatenated, rather than merged. This approach
+    is the basis of another type of sort, sample sort, an algorithm we look at later
+    in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider also the size of the dataset in the example, 1024 elements. With 256
+    threads there are just four elements per list. A radix sort using a single bit
+    is very inefficient for this number of elements, requiring 128 iterations. A comparison-based
+    sort is much quicker for such small values of *N.*
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this example, we used a single bit for the radix sort. Multiple bits can
+    be used, which reduces the number of passes over the dataset at the expense of
+    more intermediate storage. We currently use an iterative method to sort elements
+    into sequential lists. It’s quite possible to work where the data will move to
+    by counting the radix bits and using a `prefix sum` calculation to work out the
+    index of where the data should be written. We look at `prefix sum` later in this
+    chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Constant Memory
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Constant memory is a form of virtual addressing of global memory. There is no
+    special reserved constant memory block. Constant memory has two special properties
+    you might be interested in. First, it is cached, and second, it supports broadcasting
+    a single value to all the elements within a warp.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Constant memory, as its name suggests, is for read-only memory. This is memory
+    that is either declared at compile time as read only or defined at runtime as
+    read only by the host. It is, therefore, constant only in respect of the GPU’s
+    view onto memory. The size of constant memory is restricted to 64 K.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To declare a section of memory as constant at compile time, you simply use
+    the `__constant__` keyword. For example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: To change the contents of the constant memory section at runtime, you simply
+    use the `cudaCopyToSymbol` function call prior to invoking the GPU kernel. If
+    you do not define the constant memory at either compile time or host runtime then
+    the contents of the memory section are undefined.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Constant memory caching
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Compute 1.x devices
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: On compute 1.x devices (pre-Fermi), constant memory has the property of being
+    cached in a small 8K L1 cache, so *subsequent* accesses can be very fast. This
+    is providing that there is some potential for data reuse in the memory pattern
+    the application is using. It is also highly optimized for broadcast access such
+    that threads accessing the same memory address can be serviced in a single cycle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a 64 K segment size and an 8 K cache size, you have an 8:1 ratio of memory
+    size to cache, which is really very good. If you can contain or localize accesses
+    to 8 K chunks within this constant section you’ll achieve very good program performance.
+    On certain devices you will find localizing the data to even smaller chunks will
+    provide higher performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a nonuniform access to constant memory a cache miss results in *N* fetches
+    from global memory in addition to the fetch from the constant cache. Thus, a memory
+    pattern that exhibits poor locality and/or poor data reuse should not be accessed
+    as constant memory. Also, each divergence in the memory fetch pattern causes serialization
+    in terms of having to wait for the constant memory. Thus, a warp with 32 separate
+    fetches to the constant cache would take at least 32 times longer than an access
+    to a single data item. This would grow significantly if it also included cache
+    misses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Single-cycle access is a huge improvement on the several hundred cycles required
+    for a fetch from global memory. However, the several hundred–cycle access to global
+    memory will likely be hidden by task switches to other warps, if there are enough
+    available warps for the SM to execute. Thus, the benefit of using constant memory
+    for its cache properties relies on the time taken to fetch data from global memory
+    and the amount of data reuse the algorithm has. As with shared memory, the low-end
+    devices have much less global memory bandwidth, so they benefit proportionally
+    more from such techniques than the high-end devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most algorithms can have their data broken down into “tiles” (i.e., smaller
+    datasets) from a much larger problem. In fact, as soon as you have a problem that
+    can’t physically fit on one machine, you have to do tiling of the data. The same
+    tiling can be done on a multicore CPU with each one of the *N* cores taking 1/*N*
+    of the data. You can think of each SM on the GPU as being a core on a CPU that
+    is able to support hundreds of threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Imagine overlaying a grid onto the data you are processing where the total number
+    of cells, or blocks, in the grid equals the number of cores (SMs) you wish to
+    split the data into. Take these SM-based blocks and further divide them into at
+    least eight additional blocks. You’ve now decomposed your data area into *N* SMs,
+    each of which is allocated *M* blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice, this split is usually too large and would not allow for future
+    generations of GPUs to increase the number of SMs or the number of available blocks
+    and see any benefit. It also does not work well where the number of SMs is unknown,
+    for example, when writing a commercial program that will be run on consumer hardware.
+    The largest number of SMs per device to date has been 32 (GT200 series). The Kepler
+    and Fermi range aimed at compyte have a maximum of 15 and 16 SMs respectively.
+    The range designed primarily for gaming have up to 8 SMs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One other important consideration is what interthread communication you need,
+    if any. This can only reasonably be done using threads and these are limited to
+    1024 per block on Fermi and Kepler, less on earlier devices. You can, of course,
+    process multiple items of data per thread, so this is not such a hard limit as
+    it might first appear.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, you need to consider load balancing. Many of the early card releases
+    of GPU families had non power of two numbers of SMs (GTX460 = 7, GTX260 = 30,
+    etc.). Therefore, using too few blocks leads to too little granularity and thus
+    unoccupied SMs in the final stages of computation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tiling, in terms of constant memory, means splitting the data into blocks of
+    no more than 64 K each. Ideally, the tiles should be 8 K or less. Sometimes tiling
+    involves having to deal with halo or ghost cells that occupy the boundaries, so
+    values have to be propagated between tiles. Where halos are required, larger block
+    sizes work better than smaller cells because the area that needs to communicated
+    between blocks is much smaller.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When using tiling there is actually quite a lot to think about. Often the best
+    solution is simply to run through all combinations of number of threads, elements
+    processed per thread, number of blocks, and tile widths, and search for the optimal
+    solution for the given problem. We look at how to do this in [Chapter 9](CHP009.html)
+    on optimization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute 2.x devices
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: On Fermi (compute 2.x) hardware and later, there is a level two (L2) cache.
+    Fermi uses an L2 cache shared between each SM. All memory accesses are cached
+    automatically by the L2 cache. Additionally, the L1 cache size can be increased
+    from 16 K to 48 K by sacrificing 32 K of the shared memory per SM. Because all
+    memory is cached on Fermi, how constant memory is used needs some consideration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fermi, unlike compute 1.x devices, allows *any* constant section of data to
+    be treated as constant memory, even if it is not explicitly declared as such.
+    Constant memory on 1.x devices has to be explicitly managed with special-purpose
+    calls like `cudaMemcpyToSymbol` or declared at compile time. With Fermi, any nonthread-based
+    access to an area of memory declared as constant (simply with the standard `const`
+    keyword) goes through the constant cache. By nonthread-based access, this is an
+    access that does not include `threadIdx.x` in the array indexing calculation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you need access to constant data on a per-thread-based access, then you need
+    to use the compile time (`__constant__`) or runtime function (`cudaMemcpyToSymbol`)
+    as with compute 1.x devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, be aware that the L2 cache will still be there and is much larger than
+    the constant cache. If you are implementing a tiling algorithm that needs halo
+    or ghost cells between blocks, the solution will often involve copying the halo
+    cells into constant or shared memory. Due to Fermi’s L2 cache, this strategy will
+    usually be slower than simply copying the tiled cells to shared or constant memory
+    and then accessing the halo cells from global memory. The L2 cache will have collected
+    the halo cells from the prior block’s access of the memory. Therefore, the halo
+    cells are quickly available from the L2 cache and come into the device much quicker
+    than you would on compute 1.x hardware where a global memory fetch would have
+    to go all the way out to the global memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Constant memory broadcast
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Constant memory has one very useful feature. It can be used for the purpose
+    of distributing, or broadcasting, data to every thread in a warp. This broadcast
+    takes place in just a *single* cycle, making this ability very useful. In comparison,
+    a coalesced access to global memory on compute 1.x hardware would require a memory
+    fetch taking hundreds of cycles of latency to complete. Once it has arrived from
+    the memory subsystem, it would be distributed in the same manner to all threads,
+    but only after a significant wait for the memory subsystem to provide the data.
+    Unfortunately, this is an all too common problem, in that memory speeds have failed
+    to keep pace with processor clock speeds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Think of fetching data from global memory in the same terms as you might consider
+    fetching data from disk. You would never write a program that fetched the data
+    from disk multiple times, because it would be far too slow. You have to think
+    about what data to fetch, and once you have it, how to reuse that data as much
+    as possible, while some background process triggers the next block of data to
+    be brought in from the disk.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By using the broadcast mechanism, which is also present on Fermi for L2 cache–based
+    accesses, you can distribute data very quickly to multiple threads within a warp.
+    This is particularly useful where you have some common transformation being performed
+    by all threads. Each thread reads element *N* from constant memory, which triggers
+    a broadcast to all threads in the warp. Some processing is performed on the value
+    fetched from constant memory, perhaps in combination with a read/write to global
+    memory. You then fetch element *N* + 1 from constant memory, again via a broadcast,
+    and so on. As the constant memory area is providing almost L1 cache speeds, this
+    type of algorithm works well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, be aware that if a constant is really a literal value, it is better
+    to define it as a literal value using a `#define` statement, as this frees up
+    constant memory. So don’t place literals like PI into constant memory, rather
+    define them as literal `#define` instead. In practice, it makes little difference
+    in speed, only memory usage, as to which method is chosen. Let’s look at an example
+    program:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  }`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   char device_prefix[261];`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   // printf("\nConst Elapsed time: %.3fms", delta_time2);`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: This program consists of two GPU kernels, `const_test_gpu_literal` and `const_test_gpu_const`.
+    Notice how each is declared with the `__global__` prefix to say this function
+    has public scope. Each of these kernels fetches some data as either constant data
+    or literal data within the `for` loop, and uses it to manipulate the local variable
+    `d`. It then writes this manipulated value out to global memory. This is necessary
+    only to avoid the compiler optimizing away the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next section of code gets the number of CUDA devices present and iterates
+    through the devices using the `cudaSetDevice` call. Note that this is possible
+    because at the end of the loop the host code calls `cudaDeviceReset` to clear
+    the current context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having set the device, the program allocates some global memory and creates
+    two events, a start and a stop timer event. These events are fed into the execution
+    stream, along with the kernel call. Thus, you end up with the stream containing
+    a start event, a kernel call, and a stop event. These events would normally happen
+    asynchronously with the CPU, that is, they do not block the execution of the CPU
+    and execute in parallel. This causes some problems when trying to do timing, as
+    a CPU timer would see no elapsed time. The program, therefore, calls `cudaEventSynchronize`
+    to wait on the last event, the kernel stop event, to complete. It then calculates
+    the delta time between the start and stop events and thus knows the execution
+    time of the kernel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is repeated for the constant and literal kernels, including the execution
+    of a warm-up call to avoid any initial effects of filling any caches. The results
+    are shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`ID:0 GeForce GTX 470:Constant version is faster by: 14.30ms (C=345.23ms, L=330.94ms)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'What is interesting to note is that there is very little, if any, difference
+    in the execution time if you look at this as a percentage of the total execution
+    time. Consequently we see a fairly random distribution as to which version, the
+    constant or the literal, is faster. Now how does this compare with using global
+    memory? To test this, we simply replace the literal kernel with one that uses
+    global memory as shown in the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  data[tid] = d;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that to declare a global variable in the GPU memory space, you simply
+    prefix it by a `__device__` specifier. We have fairly much the same kernel as
+    before, reading four values from memory *N* times. However, in this example, I’ve
+    had to reduce `KERNEL_LOOP` from 64 K down to 4 K as otherwise the kernel takes
+    a *very* long time to execute. So when comparing the timings, remember we’re doing
+    just one-sixteenth of the work. The results are interesting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that on every generation of hardware the constant cache performs better
+    than the global memory access. On the compute 1.1 hardware (9800GT) you have a
+    40:1 speedup. On the compute 1.3 hardware (GTX260) you have a 3:1 speedup. On
+    the compute 2.0 hardware (GTX470) you have a 1.8:1 speedup. On the compute 2.1
+    hardware (GTX460) you have a 1.6:1 speedup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is perhaps most interesting is that the Fermi devices (GTX460 and GTX470)
+    would appear to show significant speedups using the constant cache, rather than
+    the L1/L2 cache used for global memory access. Thus, even with Fermi, the use
+    of constant cache appears to significantly improve throughput. However, is this
+    really the case?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To examine this further, you need to look at the PTX (virtual assembly) code
+    generated. To see this, you need to use the `-keep` option for the compiler. For
+    the constant kernel, the PTX code for this single function is shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` .loc 16 50 0`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: Understanding the exact meaning of the assembly code is not necessary. We’ve
+    shown the function in full to give you some idea of how a small section of C code
+    actually expands to the assembly level. PTX code uses the format
+  prefs: []
+  type: TYPE_NORMAL
+- en: <operator> <destination register> <source reg A> <source reg B>
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'takes the value in register 15 and does a 32-bit, bitwise `xor` operation with
+    the literal value 1431655765\. It then stores the result in register 16\. Notice
+    the numbers highlighted in bold within the previous PTX listing. The compiler
+    has replaced the constant values used on the kernel with literals. This is why
+    it’s always worthwhile looking into what is going on if the results are not what
+    are expected. An extract of the GMEM PTX code for comparison is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The program is now loading a value from global memory. The constant version
+    was not actually doing any memory reads at all. The compiler had done a substitution
+    of the constant values for literal values when translating the C code into PTX
+    assembly. This can be solved by declaring the constant version as an array, rather
+    than a number of scalar variables. Thus, the new function becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the generated PTX code you now see
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: You now have an indexed address from the start of the constant array, which
+    is what you’d expect to see. How does this affect the results?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we see the results we’d expect to see: On Fermi (compute 2.x hardware),
+    global memory accesses that are within the L1 cache and constant memory accesses
+    are the same speed. Constant memory, however, shows significant benefits on compute
+    1.x devices where the global memory is not cached.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Constant memory updates at runtime
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Constant memory of the GPU is not really constant memory, in that there is no
+    dedicated special area of memory set aside for constant memory. The 64 K limit
+    is exactly a 16-bit offset, allowing very quick 16-bit addressing. This presents
+    some opportunities and some problems. First, constant memory can be updated in
+    chunks or tiles of up to 64 K at a time. This is done with the `cudaMemcpyToSymbol`
+    API call. Revising our constant program somewhat, let’s look at how this works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`#define CUDA_CALL(x) {const cudaError_t a = (x); if (a != cudaSuccess) { printf("\nCUDA
+    Error: %s (err_num=%d) \n", cudaGetErrorString(a), a); cudaDeviceReset(); assert(0);}
+    }`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` char ch;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  CUDA_CALL(cudaEventCreate(&kernel_start1));`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   CUDA_CALL(cudaEventRecord(kernel_start2,0));`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice how the `cudaMemcpyToSymbol` call works. You can copy to any named global
+    symbol on the GPU, regardless of whether that symbol is in global memory or constant
+    memory. Thus, if you chunk the data to 64 K chunks, you can access it from the
+    constant cache. This is very useful if all threads are accessing the same data
+    element, as you get the broadcast and cache effect from the constant memory section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice also that the memory allocation, creation of events, destruction of the
+    events and freeing of device memory is now done outside the main loop. CUDA API
+    calls such as these are actually very costly in terms of CPU time. The CPU load
+    of this program drops considerably with this simple change. Always try to set
+    up everything at the start and destroy or free it at the end. Never do this in
+    the loop body or it will greatly slow down the application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Constant question
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. If you have a data structure that is 16 K in size and exhibits a random pattern
+    of access per block but a unified access pattern per warp, would it be best to
+    place it into registers, constant memory, or shared memory? Why?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Constant answer
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. Although it is a little tricky to get a large array into registers, tiling
+    into blocks of registers per thread would allow for the fastest access, regardless
+    of access pattern. However, you are limited to 32 K (compute < 1.2), 64 K (compute
+    1,2, 1.3), or 128 K (compute 2.x) or 256 K (compute 3.x) register space per SM.
+    You have to allocate some of this to working registers on a per-thread basis.
+    On Fermi you can have a maximum of 64 registers per thread, so with 32 allocated
+    to data and 32 as the working set, you would have just 128 active threads, or
+    four active warps. As soon as the program accessed off-chip memory (e.g., global
+    memory) the latency may stall the SM. Therefore, the kernel would need a high
+    ratio of operations on the register block to make this a good solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Placing it into shared memory would likely be the best case, although depending
+    on the actual access pattern you may see shared memory bank conflicts. The uniform
+    warp access would allow broadcast from the shared memory to all the threads in
+    a single warp. It is only in the case where the warp from two blocks accessed
+    the same bank that would you get a shared memory conflict.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, 16 K of shared memory would consume entirely the shared memory in one
+    SM on compute 1.x devices and limit you to three blocks maximum on compute 2.x/3.x
+    hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Constant memory would also be a reasonable choice on compute 1.x devices. Constant
+    memory would have the benefit of broadcast to the threads. However, the 16 K of
+    data may well swamp the cache memory. Also, and more importantly, the constant
+    cache is optimized for linear access, that is, it fetches cache lines upon a single
+    access. Thus, accesses near the original access are cached. Accesses to a noncached
+    cache line result in a cache miss penalty that is larger than a fetch to global
+    memory without a cache miss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Global memory may well be faster on compute 2.x/3.x devices, as the unified
+    access per warp should be translated by the compiler into the uniform warp-level
+    global memory access. This provides the broadcast access constant memory would
+    have provided on compute 1.x devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Global Memory
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Global memory is perhaps the most interesting of the memory types in that it’s
+    the one you absolutely have to understand. GPU global memory is global because
+    it’s writable from both the GPU and the CPU. It can actually be accessed from
+    any device on the PCI-E bus. GPU cards can transfer data to and from one another,
+    directly, without needing the CPU. This peer-to-peer feature, introduced in the
+    CUDA 4.x SDK, is not yet supported on all platforms. Currently, the Windows 7/Vista
+    platforms are only supported on Tesla hardware, via the TCC driver model. Those
+    using Linux or Windows XP can use this feature with both consumer and Tesla cards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The memory from the GPU is accessible to the CPU host processor in one of three
+    ways:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Explicitly with a blocking transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Explicitly with a nonblocking transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Implicitly using zero memory copy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The memory on the GPU device sits on the other side of the PCI-E bus. This is
+    a bidirectional bus that, in theory, supports transfers of up to 8 GB/s (PCI-E
+    2.0) in each direction. In practice, the PCI-E bandwidth is typically 4–5 GB/s
+    in each direction. Depending on the hardware you are using, nonblocking and implicit
+    memory transfers may not be supported. We’ll look at these issues in more detail
+    in [Chapter 9](CHP009.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The usual model of execution involves the CPU transferring a block of data to
+    the GPU, the GPU kernel processing it, and then the CPU initiating a transfer
+    of the data back to the host memory. A slightly more advanced model of this is
+    where we use streams (covered later) to overlap transfers and kernels to ensure
+    the GPU is always kept busy, as shown in [Figure 6.16](#F0085).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-16-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.16 Overlapping kernel and memory transfers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once you have the data in the GPU, the question then becomes how do you access
+    it efficiently on the GPU? Remember the GPU can be rated at over 3 teraflops in
+    terms of compute power, but typically the main memory bandwidth is in the order
+    of 190 GB/s down to as little as 25 GB/s. By comparison, a typical Intel I7 Nehalem
+    or AMD Phenom CPU achieves in the order of 25–30 GB/s, depending on the particular
+    device speed and width of the memory bus used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graphics cards use high-speed GDDR, or graphics dynamic memory, which achieves
+    very high sustained bandwidth, but like all memory, has a high latency. Latency
+    is the time taken to return the first byte of the data access. Therefore, in the
+    same way that we can pipeline kernels, as is shown in [Figure 6.16](#F0085), the
+    memory accesses are pipelined. By creating a ratio of typically 10:1 of threads
+    to number of memory accesses, you can hide memory latency, but only if you access
+    global memory in a pattern that is coalesced.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So what is a coalescable pattern? This is where all the threads access a contiguous
+    and aligned memory block, as shown in [Figure 6.17](#F0090). Here we have shown
+    `Addr` as the logical address offset from the base location, assuming we are accessing
+    byte-based data. TID represents the thread number. If we have a one-to-one sequential
+    and aligned access to memory, the address accesses of each thread are combined
+    together and a single memory transaction is issued. Assuming we’re accessing a
+    single precision float or integer value, each thread will be accessing 4 bytes
+    of memory. Memory is coalesced on a warp basis (the older G80 hardware uses half
+    warps), meaning we get 32 × 4 = 128 byte access to memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-17-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.17 Addresses accessed by thread ID.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coalescing sizes supported are 32, 64, and 128 bytes, meaning warp accesses
+    to byte, 16- and 32-bit data will always be coalesced if the access is a sequential
+    pattern and aligned to a 32-byte boundary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The alignment is achieved by using a special malloc instruction, replacing
+    the standard `cudaMalloc` with `cudaMallocPitch`, which has the following syntax:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: This translates to `cudaMallocPitch` (pointer to device memory pointer, pointer
+    to pitch, desired width of the row in bytes, height of the array in bytes).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, if you have an array of 100 rows of 60 float elements, using the conventional
+    `cudaMalloc`, you would allocate 100 × 60 × sizeof(float) bytes, or 100 × 60 ×
+    4 = 24,000 bytes. Accessing array index `[1][0]` (i.e., row one, element zero)
+    would result in noncoalesced access. This is because the length of a single row
+    of 60 elements would be 240 bytes, which is of course not a power of two.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first address in the series of addresses from each thread would not meet
+    the alignment requirements for coalescing. Using the `cudaMallocPitch` function
+    the size of each row is padded by an amount necessary for the alignment requirements
+    of the given device ([Figure 6.18](#F0095)). In our example, it would in most
+    cases be extended to 64 elements per row, or 256 bytes. The pitch the device actually
+    uses is returned in the pitch parameters passed to `cudaMallocPitch`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-18-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.18 Padding achieved with `cudaMallocPitch`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s have a look at how this works in practice. Nonaligned accesses result
+    in multiple memory fetches being issued. While waiting for a memory fetch, all
+    threads in a warp are stalled until *all* memory fetches are returned from the
+    hardware. Thus, to achieve the best throughput you need to issue a small number
+    of large memory fetch requests, as a result of aligned and sequential coalesced
+    accesses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So what happens if you have data that is interleaved in some way, for example,
+    a structure?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[Figure 6.19](#F0100) shows how C will lay this structure out in memory.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-19-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.19 Array elements in memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Elements are laid out in memory in the sequence in which they are defined within
+    the structure. The access pattern for such a structure is shown in [Figure 6.20](#F0105).
+    As you can see from the figure, the addresses of the structure elements are not
+    contiguous in memory. This means you get no coalescing and the memory bandwidth
+    suddenly drops off by an order of magnitude. Depending on the size of our data
+    elements, it may be possible to have each thread read a larger value and then
+    internally within the threads mask off the necessary bits. For example, if you
+    have byte-based data you can do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-20-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.20 Words accessed by thread (no coalescing).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: It’s also possible to maintain the one thread to one data element mapping by
+    simply treating the array of structure elements as an array of words. We can then
+    allocate one thread to each element of the structure. This type of solution is,
+    however, not suitable if there is some data flow relationship between the structure
+    members, so thread 1 needs the *x*, *y*, and *z* coordinate of a structure, for
+    example. In this case, it’s best to reorder the data, perhaps in the loading or
+    transfer phase on the CPU, into *N* discrete arrays. In this way, the arrays individually
+    sit concurrently in memory. We can simply access array `a`, `b`, `c`, or `d` instead
+    of the `struct->a` notation we’d use with a structure dereference. Instead of
+    an interleaved and uncoalesced pattern, we get four coalesced accesses from each
+    thread into different memory regions, maintaining optimal global memory bandwidth
+    usage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s look at an example of global memory reads. In this example, we’ll sum
+    the values of all the elements in the structure using the two methods. First,
+    we’ll add all the values from an array of structures and then from a structure
+    of arrays.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this section of code, we declare two types; the first is `INTERLEAVED_T`,
+    an array of structures of which the members are `a` to `d`. We then declare `NON_INTERLEAVED_T`
+    as a structure that contains four arrays, `a` to `d`. As the types are named,
+    with the first one we expect the data to be interleaved in memory. With the second
+    one, we expect a number of contiguous memory areas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s look first at the CPU code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` const float delta = get_time() - start_time;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: The two functions to add the data are broadly similar. Each function iterates
+    over all elements in the list `iter` times and adds into the destination data
+    structure a value from the source data structure. Each function also returns the
+    time it takes to execute. As these will run on the CPU, we use the wall clock
+    time on the CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GPU code is largely similar, with the outer loop, `tid`, replaced with *N*
+    threads from invoking a kernel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   dest_ptr->d[tid] += src_ptr->d[tid];`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: The caller of the GPU function is a fairly standard copy to device and time
+    routine. I’ll list here only the interleaved version, as the two functions are
+    largely identical.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When we run this code, we achive the following results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: What we see is quite interesting, and largely to be expected. The interleaved
+    memory access pattern has an execution time three to four times longer than the
+    noninterleaved pattern on compute 2.x hardware. The compute 1.3 GTX260 demonstrates
+    a 3× slow down when using the interleaved memory pattern. The compute 1.1 9800GT,
+    however, exhibits an 11× slow down, due to the more stringent coalescing requirements
+    for these older devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can look a bit deeper into the memory access pattern between the slow interleaved
+    pattern and the much faster noninterleaved pattern with a tool such as Parallel
+    Nsight. We can see that the number of memory transactions (CUDA Memory Statistics
+    experiment) used in the noninterleaved version is approximately one-quarter that
+    of the interleaved version, resulting in the noninterleaved version shifting one-quarter
+    of the data to/from memory than the interleaved version does.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One other interesting thing to note is the CPU shows exactly the opposite effect.
+    This may seem strange, until you think about the access pattern and the cache
+    reuse. A CPU accessing element `a` in the interleaved example will have brought
+    structure elements `b`, `c`, and `d` into the cache on the access to `a` since
+    they will likely be in the same cache line. However, the noninterleaved version
+    will be accessing memory in four seperate and physically dispersed areas. There
+    would be four times the number of memory bus transactions and any read-ahead policy
+    the CPU might be using would not be as effective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, if your existing CPU application uses an interleaved arrangement of structure
+    elements, simply copying it to a GPU will work, but at a considerable cost due
+    to poor memory coalescing. Simply reordering the declarations and access mechanism,
+    as we’ve done in this example, could allow you to achieve a significant speedup
+    for very little effort.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Score boarding
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One other interesting property of global memory is that it works with a scoreboard.
+    If we initiate a load from global memory (e.g., `a=some_array[0]`), then all that
+    happens is that the memory fetch is initiated and local variable `a` is listed
+    as having a pending memory transaction. Unlike traditional CPU code, we do not
+    see a stall or even a context switch to another warp until such time as the variable
+    `a` is later used in an expression. Only at this time do we actually need the
+    contents of variable `a`. Thus, the GPU follows a lazy evaluation model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can think of this a bit like ordering a taxi and then getting ready to leave.
+    It may take only five minutes to get ready, but the taxi may take up to 15 minutes
+    to arrive. By ordering it before we actually need it, it starts its journey while
+    we are busy on the task of getting ready to leave. If we wait until we are ready
+    before ordering the taxi, we serialize the task of getting ready to leave with
+    waiting for the taxi.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The same is true of the memory transactions. By comparison, they are like the
+    slow taxi, taking forever in terms of GPU cycles to arrive. Until such time as
+    we actually need the memory transaction to have arrived, the GPU can be busy calculating
+    other aspects of the algorithm. This is achieved very simply by placing the memory
+    fetches at the start of the kernel, and then using them much later during the
+    kernel. We, in effect, overlap the memory fetch latency with useful GPU computations,
+    reducing the effect of memory latency on our kernel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Global memory sorting
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Picking up from where we left off with shared memory sorting, how do you think
+    the same algorithm would work for global memory–based sorting? What needs to be
+    considered? First and foremost, you need to think about memory coalescing. Our
+    sorting algorithm was specifically developed to run with the 32 banks of shared
+    memory and accesses the shared memory in columns. If you look again at [Figure
+    6.8](CHP006.html#F0045), you’ll see this also achieves coalesced access to global
+    memory if all threads were to read at once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The coalesced access occurs during the radix sort, as each thread marches through
+    its own list. Every thread’s access is coalesced (combined) together by the hardware.
+    Writes are noncoalesced as the 1 list can vary in size. However, the zeros are
+    both read and written to the same address range, thus providing coalesced access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the merge phase, during the startup condition one value from each list is
+    read from global into shared memory. In every iteration of the merge, a single
+    value is written out to global memory, and a single value is read into shared
+    memory to replace the value written out. There is a reasonable amount of work
+    being done for every memory access. Thus, despite the poor coalescing, the memory
+    latency should be largely hidden. Let’s look at how this works in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What you can see from [Table 6.13](#T0070) and [Figure 6.21](#F0110) is that
+    32 threads work quite well, but this is marginally beaten by 64 threads on all
+    the tested devices. It’s likely that having another warp to execute is hiding
+    a small amount of the latency and will also improve slightly the memory bandwidth
+    utilization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.13 Single SM GMEM Sort (1K Elements)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0070.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065f06-21-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.21 Graph of single SM GMEM sort (1K elements).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moving beyond 64 threads slows things down, so if we now fix the number of threads
+    at 64 and increase the dataset size what do we see? See [Table 6.14](#T0075) and
+    [Figure 6.22](#F0115) for the results. In fact we see an almost perfect linear
+    relationship when using a single SM, as we are currently doing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.14 GMEM Sort by Size
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0075.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065f06-22-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.22 GMEM graph sorted by size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As [Table 6.14](#T0075) shows, 1024 KB (1 MB) of data takes 1486 ms to sort
+    on the GTX460\. This means we can sort 1 MB of data in around 1.5 seconds (1521
+    ms exactly) and around 40 MB per minute, regardless of the size of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A 1 GB dataset would therefore take around 25–26 minutes to sort, which is not
+    very impressive. So what is the issue? Well currently we’re using just a single
+    block, which in turn limits us to a single SM. The test GPUs consists of 14 SMs
+    on the GTX470, 27 SMs on the GTX260, and 7 SMs on the GTX460\. Clearly, we’re
+    using a small fraction of the real potential of the card. This has been done largely
+    to simplify the solution, so let’s look now at using multiple blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output of one SM is a single linear sorted list. The output of two SMs is
+    therefore two linear sorted lists, which is not what we want. Consider the following
+    dump of output from a two-block version of the sort. The original values were
+    in reverse sorting order from `0x01` to `0x100`. The first value shown is the
+    array index, followed by the value at that array index.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see there are two sorted lists here, one from `0x41` to `0x80` and the
+    other from `0x01` to `0x40`. You might say that’s not a great problem, and we
+    just need to merge the list again. This is where we hit the second issue; think
+    about the memory access on a per-thread basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Assume we use just two threads, one per list. Thread 0 accesses element 0\.
+    Thread 1 accesses element 64\. It’s not possible for the hardware to coalesce
+    the two accesses, so the hardware has to issue two independent memory fetches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even if we were to do the merge in zero time, assuming we have a maximum of
+    16 SMs and using all of them did not flood the bandwidth of the device, in the
+    best case we’d get 16 × 40 MB/min = 640 MB/min or around 10.5 MB/s. Perhaps an
+    alternative approach is required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample sort
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Sample sort tries to get around the problem of merge sort, that is, that you
+    have to perform a merge step. It works on the principle of splitting the data
+    into *N* independent blocks of data such that each block is partially sorted and
+    we can guarantee the numbers in block *N* are less than those in block *N* + 1
+    and larger than those in block *N* − 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ll look first at an example using three processors sorting 24 data items.
+    The first phase selects *S* equidistant samples from the dataset. *S* is chosen
+    as a fraction of *N*, the total number of elements in the entire dataset. It is
+    important that *S* is representative of the dataset. Equidistant points are best
+    used where the data is reasonably uniformly distributed over the data range. If
+    the data contains large peaks that are not very wide in terms of sample points,
+    a higher number of samples may have to be used, or one where the samples concentrate
+    around the known peaks. We’ll chose equidistant points and assume the more common
+    uniform distribution of points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The samples are then sorted such that the lowest value is first in the list,
+    assuming an ascending order sort. The sample data is then split into bins according
+    to how many processors are available. The data is scanned to determine how many
+    samples fit in each bin. The number of samples in each bin is then added to form
+    a prefix sum that is used to index into an array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A prefix sum is simply the sum of all elements prior to the current element.
+    Looking at the example, we can see nine elements were allocated to bin 0\. Therefore,
+    the start of the second dataset is element 9\. The next list size, as it happens
+    from the dataset, was also nine. Nine plus the previous sum is 18, and thus we
+    know the index of the next dataset and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The data is then shuffled, so all the bin 0 elements are written to the first
+    index of the prefix sum (zero), bin 1 written to the next, and so on. This achieves
+    a partial sort of the data such that all the samples in bin *N* − 1 are less than
+    those in bin *N*, which in turn are less than those in bin *N* + 1\. The bins
+    are then dispatched to *P* processors that sort the lists in parallel. If an in-place
+    sort is used, then the list is sorted once the last block of data is sorted, without
+    any merge step. [Figure 6.24](#F0125) is this same example using six processing
+    elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-23-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.23 Sample sort using three processors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-24-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.24 Sample sort using six processors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that when we used three processors based on six samples, the bin sizes
+    were 9, 9, 6\. With six processors the bin sizes are 6, 3, 5, 4, 1, 5\. What we’re
+    actually interested in is the largest value, as on *P* processors the largest
+    block will determine the total time taken. In this example, the maximum is
+  prefs: []
+  type: TYPE_NORMAL
+- en: reduced from nine elements to six elements, so a doubling of the number of processors
+    has reduced the maximum number of data points by only one-third.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The actual distribution will depend very much on the dataset. The most common
+    dataset is actually a mostly sorted list or one that is sorted with some new data
+    items that must be added. This tends to give a fairly equal distribution for most
+    datasets. For problem datasets it’s possible to adjust the sampling policy accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a GPU we don’t just have six processors; we have *N* SMs, each of which
+    we need to run a number of blocks on. Each block would ideally be around 256 threads
+    based simply on ideal memory latency hiding, although we saw that 64 threads worked
+    best with the radix sort we developed earlier in the chapter. With the GTX470
+    device, we have 14 SMs with a maximum of eight blocks per SM. Therefore, we need
+    at least 112 blocks just to keep every SM busy. We’ll find out in practice which
+    is the best in due course. It is likely we will need substantially more blocks
+    to load balance the work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first task, however, is to develop a CPU version of the sample sort algorithm
+    and to understand it. We’ll look at each operation in turn and how it could be
+    converted to a parallel solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To follow the development of the code in the subsequent sections, it’s important
+    you understand the sample sort algorithm we just covered. It’s one of the more
+    complex sorting algorithms and was chosen both for performance reasons and also
+    because it allows us to look at a real problem involving difficult issues in terms
+    of GPU implementation. If you browsed over the algorithm, please re-read the last
+    few pages until you are sure you understand how the algorithm works before proceeding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Selecting samples
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: The first part of the sample sort is to select *N* samples from the source data.
+    The CPU version works with a standard loop where the source data loop index is
+    incremented by `sample_interval` elements. The sample index counter, however,
+    is incremented only by one per iteration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` u32 ∗ const sample_data,`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the GPU version we can use a classic loop elimination method and simply create
+    one thread per sample point, spread across as many blocks as necessary. Thus,
+    the first statement
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: simply takes the block index and multiplies it by the number of threads per
+    block and then adds in the current thread to our combined thread index.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` cuda_error_check(prefix, "Error invoking select_samples_gpu_kernel");`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, to work out the index into the source data we simply multiply our sample
+    data index (`tid`) by the size of the sample interval. For the sake of simplicity
+    we’ll only look at the case where the dataset sizes are multiples of one another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice both the CPU and GPU versions return the time taken for the operation,
+    something we’ll do in each section of the sort to know the various timings of
+    each operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sorting the samples
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Next we need to sort the samples we’ve selected. On the CPU we can simply call
+    the `qsort` (quicksort) routine from the standard C library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: On the GPU, however, these standard libraries are not available, so we’ll use
+    the radix sort we developed earlier. Note, radix sort is also provided by the
+    Thrust library, so you don’t have to write it as we’ve done here. I won’t replicate
+    the code here since we’ve already looked at it in detail in the shared memory
+    section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One thing to note, however, is the version we developed before does a radix
+    sort on a single SM in shared memory and then uses a shared memory reduction for
+    the merge operation. This is not an optimal solution, but we’ll use it for at
+    least the initial tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Counting the sample bins
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Next we need to know how many values exist in each sample bin. The CPU code
+    for this is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` for (u32 src_idx=0; src_idx<num_elements; src_idx++)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE87]'
+  prefs: []
+  type: TYPE_PRE
+- en: To count the values in each bin we simply iterate over the source dataset and
+    for every element call a search function that identifies in which bin a given
+    data value will belong. We then increment the bin counter for that given index.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the search we have two options: a binary search or a sequential search.
+    A binary search takes advantage of the fact we have a sorted list of samples from
+    the previous step. It works by dividing the list into two halves and asking whether
+    the value it seeks is in the top or bottom half of the dataset. It then divides
+    the list again and again until such time as it finds the value.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The worst case sort time for a binary search is log[2](*N*). We’ll hit the worst
+    case in many instances because most of the data is missing from the sample list.
+    Therefore, we’ll assume we’ll hit the worst case in all cases when comparing the
+    two approaches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The sequential search worst case is *N*. That is, we start at the beginning
+    of the list and do not find the item at all, having transversed the list from
+    start to finish. However, with a sorted list and a uniform distribution of data
+    the most likely case is *N*/2\. Thus, for a sample set of 1024 elements, a binary
+    search would take just 10 iterations compared with 512 iterations for the sequential
+    search. Clearly, the binary search is the best approach in terms of the search
+    space covered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, we have to consider that a binary search is not very good for a GPU
+    from the perspective of coalesced memory accesses and branch divergence. As soon
+    as one thread diverges in a warp, the hardware needs two control paths. We may
+    well have the situation where the warps diverge such that we have entirely independent
+    control for each thread. In this case we can multiply the time taken by the number
+    of divergent threads. This will always be a maximum of the number of iterations,
+    which is the log[2](*N*). Thus, our sample size needs to be huge before we see
+    anything like the maximum amount of divergence—all threads in a warp.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each thread is accessing potentially a different area of memory in the sample
+    set, so there is no coalescing and therefore there is a drop of an order of magnitude
+    in terms of global memory bandwidth. In practice, this should be largely hidden
+    by the L1 and L2 cache on compute 2.x devices, depending on the size of the sample
+    space. We could also store the sample space in shared memory, meaning we can discount
+    the coalescing issues.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The standard C library again provides a `bsearch` function, which returns the
+    value it finds in the array. However, we’re not interested in the nearest value,
+    but actually the array index. Therefore, we’ll write a basic binary search function
+    and use this on both the GPU and CPU. Notice the use of both `__host__` and `__device__`
+    specifiers to run the identical source, but not binary, code on both the CPU and
+    GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE88]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` const u32 search_value,`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE89]'
+  prefs: []
+  type: TYPE_PRE
+- en: The binary search routine works by reducing the `size` parameter to zero. It
+    returns the index or the bin in which the search value should be placed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE90]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`__host__ TIMER_T count_bins_gpu(`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE91]'
+  prefs: []
+  type: TYPE_PRE
+- en: Unlike the function to select samples where the maximum number of threads was
+    limited by the number of samples, here we are limited only by the number of elements
+    in the source array. Thus, the host function launches a kernel that contains one
+    thread per element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The kernel function works out its element, and reads it from the source dataset
+    in a nice coalesced manner. Using more threads per block here allows for increased
+    read bandwidth from the global memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each thread of a warp will jump off into the binary search, and will, after
+    not too many iterations, return. With a random list of elements you get some thread
+    divergence. However, in the more common case of a mostly sorted list, all threads
+    tend to follow the same route, thus causing very little thread divergence in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When all the threads of a warp have returned from the binary search, they increment
+    the values in one of *N* bins held in global memory via an atomic write. Atomic
+    operations to global memory are operations that are guaranteed to complete, uninterrupted,
+    regardless of which thread on which SM initiated the action. Thus, we can safely
+    have many threads write to the same address. Obviously only one can physically
+    write, so any clash of values results in serialization of the requests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately with a mostly sorted list we find that, because blocks are allocated
+    in turn, most active blocks are in a similar area of memory. While this is very
+    good for locality, it does mean all the threads are hitting the same memory area
+    for the writes. With a sorted list we thus see a degradation of speed in this
+    approach, but not a significant one, as we’ll see later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Prefix sum
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: A prefix sum is useful in that it can be used to create a table of values that
+    index into an array that has variable-length records. The size of each bin in
+    our case is a variable length and each bin is stored sequentially in memory one
+    after another. Thus, we can calculate a prefix sum array and then use array element
+    0 to access the start of bin 0, array element one to access the start of bin one, etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The code for the prefix sum on the CPU is quite simple:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE92]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here we simply iterate over the array `bin_count`, which contains how many elements
+    there are in each bin. The prefix sum starts at zero and we store to the array
+    `prefix_sum` the sum of the bin counts the loop has seen so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main problem with this piece of code and with prefix sum in general is that
+    at first it seems like an inherently serial problem. You cannot calculate the
+    last value without its prior value. A loop iterating over all elements is actually
+    a very efficient way to calculate this for a single-processor system. So how can
+    a prefix sum be calculated in a parallel way so we can make use of more than just
+    one SM?
+  prefs: []
+  type: TYPE_NORMAL
+- en: It turns out that this simple implementation of prefix sum is actually quite
+    fast for small numbers of elements. However, as the number of sample elements
+    becomes larger (4096 plus), a somewhat faster and more complex approach is needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can calculate prefix sum in parallel by splitting the array into a number
+    of blocks and calculating the prefix sum on those blocks. The end point of each
+    prefix sum block is placed into another array. Another prefix sum is then done,
+    in place, on this array. The result of this prefix sum is then added to each element
+    in the original prefix sum calculation. This produces a parallel prefix sum that
+    we can easily use on the GPU ([Figure 6.25](#F0130)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-25-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.25 Parallel prefix sum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the prefix sum blocks we’ll use a single thread per block. As each thread
+    processes the same number of elements and simply iterates around a loop, there
+    is no thread divergence. However, the read memory access is poorly coalesced because
+    thread 0 will be accessing addresses starting at a zero offset, while thread 1
+    will be accessing addresses starting at a `(NUM_SAMPLES/NUM_BLOCKS)` offset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We want to run this on multiple SMs, which in turn means having to create multiple
+    blocks. We need a synchronization point in the center where we do a prefix sum.
+    This can’t happen until all the blocks have completed. Therefore, we will need
+    to launch a kernel to do the initial prefix sum, another to do the prefix sum
+    over the results, and a final kernel to do the addition step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is actually quite beneficial as it gives us the opportunity to change the
+    number of blocks and threads used. While we might use one thread per prefix sum
+    block, the addition kernel parallelism is limited only by the number of sample
+    points. Thus, we can run *N* blocks of *M* threads where *N* × *M* is the number
+    of samples, maximizing the usage of the GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As with most algorithms that are more complex, there is a tradeoff point where
+    the simpler algorithm is faster. For the serial prefix sum versus the blocked
+    prefix sum, this is around 4096 sample points. We could take this further and
+    implement a more complex prefix sum in the first phase, but unless we have really
+    large datasets, the prefix sum will not be a key factor in the sorting time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s look at the GPU code in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE93]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` {`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE94]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, we calculate our `tid` number based on the block and thread. Then we
+    calculate the `tid_offset` based on the number of samples a thread will be calculating
+    the prefix sum for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then for the first block the result must be zero. For the others, we include
+    the first element of the bin count. We then simply implement the code we saw earlier,
+    but add in `tid_offset` to read/write to the appropriate elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE95]'
+  prefs: []
+  type: TYPE_PRE
+- en: The addition kernel is very simple. The program simply calculates the threads
+    individual `tid` and uses this to index into the destination array. The value
+    to add is taken from the block count. Implicit in this implementation is the assumption
+    the caller invokes *N* threads where *N* is the number of samples per thread used
+    in the previous kernel. We do this explicitly because it allows the use of `blockIdx.x`
+    (the block number) without the need to access a thread index. This allows the
+    fetch to fall into the unified constant cache and cause a broadcast operation
+    to all elements within the thread block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, we have the simple prefix sum kernel, called when there are a small
+    number of elements to process. The parallel version, because it has to do an additional
+    block prefix step, another addition, plus synchronization, takes longer in such
+    cases. Only with larger block sizes where we can make better use of the hardware
+    do we see a significant speedup with the more complex version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE96]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And finally the host function that sequences the kernels:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE97]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  // Calculate prefix for the block sums`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE98]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this function we first check if it is best to use the simple prefix sum or
+    the more complex prefix sum calculation. For the more complex solution, we work
+    out how many elements each thread will initially process. We then call the three
+    kernels in sequence. The function parameterized `num_threads_per_block` and `num_blocks`
+    allow us to vary these parameters to allow for tuning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At 4K sample points we see a transition between the two functions where the
+    simpler version is around the same speed as the more complex version. As we get
+    up to 16 K samples, the more complex version is already faster by a factor of
+    four.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sorting into bins
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'To avoid the merge operation, the samples must be pre-sorted into *N* bins.
+    This involves at least one run through the entire array and a shuffle of data
+    into the correct bins. The CPU code for this is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE99]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  const u32 bin = bin_search3(sample_data,`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE100]'
+  prefs: []
+  type: TYPE_PRE
+- en: Each data point in the source array needs to be placed into one of *N* bins
+    that are linear in memory. The start and end of each bin has been calculated as
+    an offset into the array. We need to preserve this data, but at the same time
+    create *N* index pointers that track where we are in each bin. Thus, initially
+    a copy of the `dest_bin_idx` array, the array storing the prefix indexes, must
+    be made.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then iterate over all the source points. For every source point a binary
+    search is used to identify in which bin the data point should be placed. We then
+    copy the data to the appropriate bin and increment the bin index pointer for that
+    bin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When trying to convert this algorithm to a parallel one, you hit the common
+    problem of multiple threads trying to write to the same data item. There are two
+    choices in this case. The first is to separate the data into *N* separate blocks
+    and process each separately and then merge the final output. This was the approach
+    used in the prefix sum kernel we looked at previously. There is, however, an alternative
+    approach, which we’ll use here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE101]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`                             data,`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE102]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is the approach of using atomics that in most cases allows for a much simpler
+    implementation. However, this usually comes at the cost of performance. We can,
+    of course, at a later date simply replace the atomic usage with an algorithm that
+    splits and then merges the data. It’s a tradeoff between programming effort in
+    terms of higher complexity, which means longer development time and a higher number
+    of errors, versus the sometimes very small gain in performance. If you have sufficient
+    time, try both approaches. At the very least this provides a solution for older
+    hardware where atomic support is somewhat limited.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The atomic `sort_to_bins_gpu_kernel` function simply unrolls the loop construct
+    over the number of source elements from the CPU code into *N* parallel threads.
+    These are then implemented as a combination of threads and blocks to invoke one
+    thread per data element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The thread reads the source element and does a binary search on the sample data
+    space to find the appropriate bin for the element. We, however, then need single-thread
+    access to increment the counter that stores the index into which the element must
+    be written. You cannot simply increment the counter as shown in the CPU code,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE103]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Instead, we use an atomic call, `atomicAdd`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE104]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `atomicAdd` function, when used on global memory, will add the second formal
+    parameter, in this case 1, to the value at the address of the first parameter.
+    If more than one thread calls this function, we’re guaranteed that every addition
+    will be completed. The `atomicAdd` function returns the value that it held prior
+    to the addition. Thus, we can use the return value as a unique index into the
+    array to write the new value to the bin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, be aware that this algorithm will change the ordering of the elements
+    within the bins, as the blocks may run in any order. Thus, this is not a simple
+    memory copy, due to the potential for more than one thread to try to write to
+    the same bin at once. Also note that with a mostly sorted list, most threads will
+    be hitting the same atomic address. This causes a slower execution, as you might
+    expect, compared with that where the data is uniformly distributed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sorting the bins
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Having sorted the data into bins, we then need to sort each individual bin in
+    some parallel manner. On the CPU side we simply call `qsort` (quick sort) on each
+    bin. On the GPU side we use the radix sort.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`__host__ TIMER_T sort_bins_gpu(`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE105]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use a host function to invoke `num_samples` threads that are split into blocks
+    depending on the number of threads requested per block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE106]'
+  prefs: []
+  type: TYPE_PRE
+- en: The kernel is a two-level kernel, as the array `dest_bin_idx` holds only the
+    start index. For the last element, accessing `[tid+1]` would cause an array overflow
+    issue, so the very last thread needs to be handled slightly differently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sorting the multiple blocks is done with a modified version of the `radix_sort`
+    kernel we developed in [Chapter 5](CHP005.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE107]'
+  prefs: []
+  type: TYPE_PRE
+- en: The radix sort simply iterates over the dataset it has been provided for a given
+    block. For each bit it places the value into either the 0 or 1 list. The caller
+    defines the start and end indexes of the array over which the sort will take place.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Analyzing the results
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'With a sample size of 16 K and a source dataset size of 1 MB we see the following
+    results on a mostly sorted list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE108]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`Qsort Time   - CPU: 186.13 GPU:N/A`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice how the entire sort process (224–245 ms) is dominated by the sorting
+    of the sample dataset on the GPU (~125 ms). As the sample dataset becomes large
+    the sort-and-merge approach used for this phase doesn’t work well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One solution to this problem would be to run the sample sort on the sample data;
+    where the sample dataset is large, this is a good approach. However, for a 16
+    K sample set, it takes around 9 ms to run the sample sort compared with a 2 ms
+    quick sort time from the CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It always makes sense to use whatever device works best at a given solution.
+    For small sample sizes, the CPU will usually be faster than the GPU. The GPU requires
+    reasonably sized datasets, after which point it easily surpasses the CPU. Therefore,
+    the optimal solution is simply to run quick sort on the sample set on the CPU
+    and then transfer this to the GPU for the large-scale parallel “grunt” work of
+    the sorting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we use this approach the timings drop significantly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE109]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can see the sample sort time is around 55% of the time of the quick sort
+    on the CPU with a 16 K sample size (101 ms GPU, 185 ms CPU). If we vary the sample
+    size, we increase the amount of available parallelism in the problem. See [Table
+    6.15](#T0080) and [Figure 6.26](#F0135).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.15 Sample Sort Results (ms)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0080.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![image](../images/F000065f06-26-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.26 Graph of sample sort results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What you can see from [Table 6.15](#T0080) and [Figure 6.26](#F0135) is that
+    as the number of samples increases, the time drops dramatically. The best time
+    is achieved for the GTX460 at 128K samples, or one-eighth of the number of the
+    data to be sorted. The GTX470, with its much larger number of SMs, starts to rapidly
+    outperform the GTX460 from 2048 sample points onward. The GTX260 by comparison
+    (the previous generation of hardware) needs many more sample points to come close
+    to the Fermi performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At 128K sample points the sorting of the samples again becomes significant (see
+    [Table 6.16](#T0085)) and our strategy of using quick sort on the CPU becomes
+    the bottleneck. If we look in detail at the results from the GTX470, we see that
+    at 256K sample points up to 50% of the time is spent sorting the sample data.
+    At this point a sample sort of the sample data becomes a good option ([Table 6.16](#T0085)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.16 GTX470 Sample Sort Results (Mostly Sorted Data)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0085.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: To give some comparison with almost sorted data versus entirely random data,
+    we’ll run the same test over a random dataset ([Table 6.17](#T0090)). Various
+    tests have shown the best performance was achieved with 128 threads per block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 6.17 Sample Sort on Random Data
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000065tabT0090.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see from [Table 6.17](#T0090) the faster run was the GTX470 at 67
+    ms. This is five times faster than the serial quick sort on the CPU host. Around
+    32 K samples with 128 threads per block would appear to be the optimal launch
+    configuration for 1 MB of data. See [Figure 6.27](#F0140).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-27-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.27 Chart of sample sort on random data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions on global memory
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. Discuss the reasons why sample sort is quicker when the list is mostly sorted?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. How might you improve the sample sort algorithm presented here?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. Do you foresee any problems using larger dataset sizes? What might you have
+    to change to run larger datasets?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Answers on global memory
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. Sample sort is quicker when using a mostly sorted list because the thread
+    divergence is significantly less. Each bin has almost the same number of values.
+    We end up with a near-optimal distribution of work to each of the SMs providing
+    there are enough samples chosen from the dataset to generate a reasonable number
+    of blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. One of the key issues with the algorithm is the noncoalesced access to global
+    memory during the radix sort. This is caused by doing an in-place sort using the
+    prefix calculation and the lower and upper bounds for each block. If you instead
+    split each sample set so that it was interleaved by the number of threads, as
+    was the radix sort in the shared memory example, we’d get coalesced access for
+    most of the sort. The drawback of this is potentially wasted memory since some
+    lists are a few entries long and others can be hundreds of entries long.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The other obvious solution is to improve the sorting of the samples. At 128
+    K samples, the sorting of sample data is contributing 43% of the total sort time.
+    However, in practice, we’d never want to use so many samples, and the 32 K results
+    are a more realistic use case. At this point sorting the samples contributes just
+    7% (see [Table 6.16](#T0085)). The largest contributors are sorting the bins (62%),
+    sorting to the bins (14%), and counting the bins (14%). The radix sort is clearly
+    the place to start.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. As the data size increases, you rapidly hit the maximum number of allowed
+    blocks (65,535 on compute 2.x or lower platforms) using a single dimension. At
+    this point you need to convert the `num_block` calculation in the various kernel
+    invocations to a `dim3` type to include an `x` and `y` components in the block
+    layout and possibly multiple grids, if the data size is really large. You then,
+    of course, also need to modify the kernels to calculate correctly the block index
+    based on block dimension and grid size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Texture Memory
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Texture memory is not something we will cover in any detail in this text. However,
+    we will mention it for some of the special uses it has in case it may be of some
+    use in your applications. Texture memory can be used for two primary purposes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Caching on compute 1.x and 3.x hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Hardware-based manipulation of memory reads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Texture caching
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As compute 1.x hardware has no cache to speak of, the 6–8K of texture memory
+    per SM provides the only method to truly cache data on such devices. However,
+    with the advent of Fermi and its up to 48 K L1 cache and up to 768 K shared L2
+    cache, this made the usage of texture memory for its cache properties largely
+    obsolete. The texture cache is still present on Fermi to ensure backward compatibility
+    with previous generations of code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The texture cache is optimized for locality, that is, it expects data to be
+    provided to adjacent threads. This is largely the same cache policy as the L1
+    cache on Fermi. Unless you are using the other aspects of texture memory, texture
+    memory brings you little benefit for the considerable programming effort required
+    to use it on Fermi. However, on Kepler, the texture cache gets a special compute
+    path, removing the complexity associated with programming it. See Kepler in [Chapter
+    12](CHP012.html) for details. Note the constant memory cache is the only other
+    cache on compute 1.x hardware that is organized for broadcast access, that is,
+    all threads accessing the same memory address.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On compute 1.x hardware, however, the texture cache can be of considerable use.
+    If you consider a memory read that exhibits some locality, you can save a considerable
+    number of memory fetches. Suppose we needed to perform a gather operation from
+    memory, that is, to read an out-of-sequence set of memory addresses into *N* threads.
+    Unless the thread pattern creates an aligned and sequential memory pattern, the
+    coalescing hardware will issue multiple reads. If we instead load the data via
+    the texture memory, most of the reads will hit the texture cache, resulting in
+    a considerable performance benefit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can, of course, equally use shared memory for this purpose, reading in a
+    coalesced way from memory and then performing a read from the shared memory. As
+    the shared memory of a compute 1.x device is limited to 16 K, you may decide to
+    allocate shared memory to a specific purpose and use texture memory where the
+    memory pattern is not so deterministic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hardware manipulation of memory fetches
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The second and perhaps more useful aspect of texture-based memory is that it
+    allows some of the hardware aspects of GPUs to be automatically applied when accessing
+    memory cells.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One useful feature is a low-resolution linear interpolation in hardware. Typically,
+    linear interpolation is used to represent a function where the output is not easy
+    or is computationally expensive to express mathematically. Thus, the input from
+    a sensor might have a correction applied to its value at the low or high end of
+    its range. Rather than model this you simply place a number of points in a table
+    that represent discrete values across the range. For the points falling between
+    the real points you use linear interpolation to work out the approximate value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider an interpolation table of
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE110]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we have a new value, 5 for `X`, what is its interpolated value of `P`? The
+    value 5 falls exactly halfway between the two points we have defined, 2 and 4\.
+    As the value for 2 is 20 and the value for 4 is 40 we can easily calculate the
+    value for 5 as 30\. See [Figure 6.28](#F0145).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000065f06-28-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 6.28 Interpolation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With texture memory, you can set it up such that `P` is defined as an array
+    normalized from the value 0 to 1 or −1 to +1\. Fetches are then automatically
+    interpolated in hardware. Combined with the cache properties, this can be a quick
+    method of handling data that is not easily represented as a pure calculation.
+    Bilinear and trilinear interpolation in hardware is also supported for two-dimensional
+    and three-dimensional arrays, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One other nice feature of textures is the automatic handling of boundary conditions
+    on array indexes. You can configure the handling of texture arrays to either wrap
+    around or clamp at the array boundary. This can be useful, as it allows the normal
+    case to be handled for all elements without having to embed special edge handling
+    code. Special case code typically causes thread divergence and may not be necessary
+    at all with the caching features of Fermi (see [Chapter 9](CHP009.html) on optimization).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Restrictions using textures
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Textures come from the graphics world of the GPU and therefore are less flexible
+    than the standard CUDA types. Textures must be declared as a fixed type, i.e.
+    one of the various aligned vector types (u8, u16, u32, s8, s16, s32) at compile
+    time. How the values are interpreted is specified at runtime. Texture memory is
+    read only to the GPU kernel and must be explicitly accessed via a special texture
+    API (e.g., `tex1Dfetch()`, etc.) and arrays bound to textures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Textures have their uses, especially on compute 1.x hardware. The uses for textures
+    are quite specific and not always worth the trouble of learning yet another API.
+    Thus, we have not covered the API side in this section, but simply stated some
+    of the typical uses for textures. Concentrate on getting global/shared memory
+    and register usage mastered and then look at texture memory, if it’s applicable
+    to your application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For further information on textures, see the CUDA C Programming Guide.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conclusion
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We’ve looked at some of the aspects of using the different memory systems within
+    the GPU. Program performance, both in the CPU and GPU domains, is generally dominated
+    by memory throughput. You should have understood the principle of locality (i.e.,
+    the closer to the device the data is, the faster it can be accessed) and the cost
+    of accessing off-chip resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the three major classes of storage available—registers, shared
+    memory, and global memory—should allow you to write programs that use each type
+    efficiently and correctly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With global memory you need to think about generating patterns that provide
+    for good coalescing of data and reduce the number of transactions the device needs
+    to issue to the memory subsystem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider using constant memory when you are going to be distributing the same
+    value to many threads, or the same value to many blocks of thread.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With shared memory you need to think about data reuse. If there is no data reuse,
+    then use registers and read directly from constant/global memory. Where there
+    is potential for reuse or you need more register space, use shared memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Always use registers when possible, that is, declare data as local variables
+    when possible. Think about each read to memory and if it will be reused. Avoid
+    multiple writes to memory by writing to a register and writing back to memory
+    later. Registers are the only way of achieving near full throughput of the device,
+    but are a scarce and valuable resource. Be aware that excessive register usage
+    can cause slowdowns due to spilling of registers to ‘local’ memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you understand the principles of these memory types, we will, in subsequent
+    chapters, look more at optimization and how these memory types can be used in
+    practice.
+  prefs: []
+  type: TYPE_NORMAL

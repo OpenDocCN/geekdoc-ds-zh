@@ -1,0 +1,1580 @@
+- en: Chapter 8
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Multi-CPU and Multi-GPU Solutions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In modern computing systems it’s common to have multiple devices, both CPUs
+    and GPUs. In terms of CPUs we’ll talk about sockets and cores. A socket is a physical
+    socket on the motherboard into which a CPU is placed. A CPU may contain one or
+    more cores. Each core is effectively a separate entity. A number of CPU and GPU
+    sockets are located on a single node or computer system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Knowing the physical arrangement of cores, sockets, and nodes allows for far
+    more effective scheduling or distribution of tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Locality
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The principle of locality is seen quite well in GPUs and CPUs. Memory closer
+    to the device (shared memory on the GPU, cache on the CPU) is quicker to access.
+    Communication *within* a socket (i.e., between cores) is much quicker than communication
+    to another core in a *different* socket. Communication to a core on another node
+    is at least an order of magnitude slower than within the node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clearly, having software that is aware of this can make a huge difference to
+    the overall performance of any system. Such socket-aware software can split data
+    along the lines of the hardware layout, ensuring one core is working on a consistent
+    dataset and cores that need to cooperate are within the same socket or node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-CPU Systems
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The most common multi-CPU system people will encounter is the single-socket,
+    multicore desktop. Almost any PC you buy today will have a multicore CPU. Even
+    in laptops and media PCs, you will find multicore CPUs. If we look at Steam’s
+    regular hardware (consumer/gaming) survey, it reveals that as of mid 2012 approximately
+    50% of users had dual-core systems and an additional 40% had quad-core or higher
+    systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second type of multi-CPU systems you encounter is in workstations and low-end
+    servers. These are often dual-socket machines, typically powered by multicore
+    Xeon or Opteron CPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The final type of multi-CPU systems you come across are data center–based servers
+    where you can have typically 4, 8, or 16 sockets, each with a multicore CPU. Such
+    hardware is often used to create a virtualized set of machines, allowing companies
+    to centrally support large numbers of virtual PCs from one large server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the major problems you have with any multiprocessor system is memory
+    coherency. Both CPUs and GPUs allocate memory to individual devices. In the case
+    of GPUs, this is the global memory on each GPU card. In the CPU case, this is
+    the system memory on the motherboard.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When you have independent programs using just a single core, you can scale quite
+    well with this approach, as each program can be localized to a given core. The
+    program then accesses its own data and makes good use of the CPU core’s cache.
+    However, as soon as you have two cores cooperating with one another, you have
+    a problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To speed up access to memory locations, CPUs make extensive use of caches. When
+    the value of a parameter is updated (e.g., `x++`), is `x` actually written to
+    memory? Suppose two cores need to update `x`, because one core is assigned a debit
+    processing task and the other a credit processing task. Both cores must have a
+    consistent view of the memory location holding the parameter `x`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the issue of cache coherency and it is what limits the maximum number
+    of cores that can practically cooperate on a single node. What happens in the
+    hardware is that when core 1 writes to `x`, it informs all other cores that the
+    value of `x` has now changed and then does a slow write out to the main memory
+    instead of a quick write back to cache access.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a simple coherency model, the other cores then mark the entry for `x` in
+    their caches as invalid. The next access to `x` then causes `x` to be reloaded
+    from the slow main memory. As subsequent cores write to `x`, the process is repeated
+    and the next core to access parameter `x` must again fetch it from memory and
+    write it back again. In effect, the parameter `x` becomes noncached, which on
+    a CPU means a huge performance hit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In more complex coherency models, instead of invalidating `x` the invalidation
+    request is replaced with an update request. Thus, every write has to be distributed
+    to *N* caches. As the number of *N* grows, the time to synchronize the caches
+    becomes impractical. This often limits the practical number of nodes you can place
+    into a symmetrical multiprocessor (SMP) system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now remember that caches are supposed to run at high speed. Within a single
+    socket, this is not hard. However, as soon as you have to go outside of the socket,
+    it’s difficult to maintain the high clock rates and thus everything starts to
+    slow down. The more sockets you have, the more difficult it becomes to keep everything
+    synchronized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next major problem we have is memory access time. To make programming such
+    machines easier, often the memory is logically arranged as a huge linear address
+    space. However, as soon as a core from socket 1 tries to access a memory address
+    from socket 2, it has to be serviced by socket 2, as only socket 2 can physically
+    address that memory. This is called nonuniform memory access (NUMA). Although
+    conceptually it makes a programmer’s life easier, in practice you need to think
+    about memory locality or you write programs that perform very slowly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-GPU Systems
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Just like the CPU world, a lot of systems now have multiple GPUs inside them.
+    From the enthusiast who has triple- or quad-SLI systems, or has dual cards like
+    the 9800GX2, GTX295, GTX590 and GTX690, down to the guy who upgraded his low-powered
+    ION desktop with a dedicated GPU card, there are many people with multi-GPU systems.
+    As a programmer you should always endeavor to produce the best experience possible
+    on whatever hardware is available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the user has a dual-GPU system and you use only one GPU, you are being as
+    lazy as those CPU programmers who can’t be bothered to learn how to use more than
+    one core. There are plenty of programs that monitor GPU load. The tech-savvy users
+    or reviewers will slate your product for not going that extra mile.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are writing scientific applications or working with known hardware, rather
+    than a consumer application, you should also be investigating multi-GPU solutions.
+    Almost all PCs support at least two PCI-E slots, allowing at least two GPU cards
+    to be put into almost any PC. CUDA does not use or require SLI (Scalable Link
+    Interface), so not having an SLI-certified motherboard is no obstacle to using
+    multiple GPUs in CUDA applications. Adding one additional GPU card, you will typically
+    see a doubling in the level of performance, halving the current execution time.
+    Rarely do you get such a speedup so easily.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Algorithms on Multiple GPUS
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The CUDA environment does not support, natively, a cooperative multi-GPU model.
+    The model is based more on a single-core, single-GPU relationship. This works
+    really well for tasks that are independent of one another, but is rather a pain
+    if you wish to write a task that needs to have the GPUs cooperate in some way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, an application like BOINC works well under this model. BOINC is
+    an application which allows users to donate spare computing power to solving the
+    world’s problems. On a multi-GPU system it spawns *N* tasks, where *N* is equal
+    to the number of GPUs in the system. Each task gets a separate data packet or
+    job from a central server. As GPUs finish tasks, it simply requests additional
+    tasks from the central server (task dispatcher).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now if you look at a different example, where we need cooperation, the story
+    is different. At the simplest level, encoding video is typically done by applying
+    a JPEG-type algorithm to each individual frame and then looking for the motion
+    vectors between frames. Thus, we have an operation within a frame that can be
+    distributed to *N* GPUs, but then an operation that requires the GPUs to share
+    data and has a dependency on the first task (JPEG compression) completing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are a couple of ways of dealing with this. The easiest is to use two passes,
+    one kernel that simply does the JPEG compression on *N* independent frames, and
+    a second kernel that does the motion vector analysis–based compression. We can
+    do this because motion vector–based compression uses a finite window of frames,
+    so frame 1 does not affect frame 1000\. Thus, we can split the work into *N* independent
+    jobs. The downside of this approach, as with any multipass algorithm, is we read
+    the data more than once. As the dataset is typically quite large and will involve
+    slow mass storage devices, this is generally a bad approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A single-pass method is more efficient, but more difficult to program. You can
+    transform the problem, if you consider the set of frames on which you do motion
+    vector compression to be the dataset. Each set of frames is independent and can
+    be dispatched to a separate GPU card. The GPU kernel first does JPEG compression
+    on all frames within the set it was provided. It then calculates, over those same
+    frames, the motion aspects. By using this approach, you have managed to keep the
+    data on the GPU card. This eliminates the major bottleneck with this type of problem—that
+    of moving data around the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this instance we managed to restructure the algorithm so it could be broken
+    down into independent chunks of data. This may not always be possible and many
+    types of problems require at least a small amount of data from the other GPUs.
+    As soon as you require another GPU’s data, you have to explicitly share that data
+    and explicitly sequence the access to that data between the GPUs. Prior to the
+    4.0 SDK, there was no support for this in the CUDA environment. If it is at all
+    possible to break down the problem into independent chunks, take this approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are a couple of alternatives to this approach. You can use the GPU peer-to-peer
+    communication model provided as of the 4.0 SDK version, or you can use CPU-level
+    primitives to cooperate at the CPU level. The former does not work on all OSs,
+    most noticeably Windows 7 with consumer hardware. The CPU solution requires OS-specific
+    communication primitives, unless a common third-party solution is used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which GPU?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: When there is more than one GPU on a system, are they the same or different?
+    How does the programmer know? Does it matter?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Well it often matters, but it depends largely on the application. Embedded in
+    the CUDA binary there are usually several binary images, one of each generation
+    of GPUs. At a minimum a binary for the lowest compute–capability GPU should be
+    present. However, additional binaries, optimized for higher-level compute devices,
+    may also be present. The CUDA runtime will automatically select the highest level
+    of binary based on the compute device when executing a kernel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Certain functions, such as atomics, are only available on certain compute-level
+    devices; running such code on a lower-level compute device results in the kernel
+    failing to run. Therefore, for certain programs at least, we have to care which
+    GPU is used. Other programs run much better or worse on newer hardware, due to
+    the effects of caching and block size selection by the application. Others may
+    have been written to use large numbers of registers on the G80/G200 series devices,
+    something that was reduced on the Fermi architecture and then restored with Kepler.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, some user or administration-level knowledge is required about which is
+    the best platform on which to run a given kernel, or the programmer has to adapt
+    the program so it runs well on all platforms. This can be done by either avoiding
+    compute device–specific routines, which can often make things much harder to program,
+    or by providing some alternative kernels that avoid the compute-level issue. However,
+    the latter is often driven by commercial concerns. Programmer time costs money
+    and you have to assess if the market segment you are targeting contains enough
+    users with older hardware to justify the extra development and testing effort.
+    In terms of the consumer market, as of August 2012, around one quarter of the
+    market is still using pre-Fermi hardware. See [Figure 8.1](#F0010).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000089f08-01-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 8.1 Consumer distribution of compute levels August 2012.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How does the programmer select a GPU device? We’ve seen a number of examples
+    so far where we have used four devices and compared the results of each device.
+    You should have seen from the various code examples that you need to set a device
+    via a call to
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: or the simplified version often used in this text,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`CUDA_CALL(cudaSetDevice(0));`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The parameter `device_num` is a number from zero (the default device) to the
+    number of devices in the system. To query the number of devices, simply use the
+    following call:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice in both calls we make use of the `CUDA_CALL` macro we developed in [Chapter
+    4](CHP004.html). This simply takes the return value, checks it for an error, prints
+    a suitable error message, and exits if there is a failure. See [Chapter 4](CHP004.html)
+    on setting up CUDA for more information on exactly how this works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we know how many devices there are and how to select one, the question
+    is which one to select. For this we need to know the details of a particular device.
+    We can query this with the following call:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The structure `properties` is made up of the structure members shown in [Table
+    8.1](#T0010).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 8.1 Device Properties Explained
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000089tabT0010.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![Image](../images/T000089tabT0010a.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: ^∗Dual-copy engines are supported on Telsa devices only. Consumer-level devices
+    are restricted to support only a single-copy engine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ^(∗∗)Unified address is supported only on 64-bit platforms. On Windows it requires
+    the TCC driver, which in turn requires a Tesla card. On UNIX platforms this is
+    not the case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Not all of these may be of interest, but certain ones will. The most important
+    of these are the major and minor compute-level revisions. Note also that `warpSize`
+    is present here, the implication being that warp size will change on different
+    devices, although in practice it has remained at 32 for all devices released to
+    date.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When selecting a device, it’s not necessary to check each item to ensure it’s
+    what the particular user program needs. You can simply populate the same structure
+    with the properties you would like (0 equates to don’t care) and have the CUDA
+    runtime select a suitable device for you. For example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this code we create a device properties’ structure, clear it with a `memset`
+    call, and then request a compute 2.0 device (any Fermi device). We then ask CUDA
+    to set the context to the specified device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Single-Node Systems
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In versions of CUDA prior to the 4.0 SDK single-node systems were the only multi-GPU
+    model available as shown in [Figure 8.2](#F0015). A single CPU-based task would
+    be associated with a single-GPU context. A task in this context would be either
+    a process or a thread. Behind the scenes the CUDA runtime would bind the CPU process/thread
+    ID to the GPU context. Thus, all subsequent CUDA calls (e.g., `cudaMalloc`) would
+    allocate memory on the device that was bound to this context.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000089f08-02-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 8.2 Multiple clients, multiple servers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This approach had a number of drawbacks but some advantages. From a programming
+    perspective, the process/thread model on the host side is fragmented by the OS
+    type. A process is a program that runs as an independent schedulable unit on a
+    CPU and has its own data space. To conserve memory, multiple instances of the
+    same process usually share the code space and the OS maintains a set of registers
+    (or context) for each process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A thread, by contrast, is a much more lightweight element of the CPU scheduling.
+    It shares both the code *and* data space used by its parent process. However,
+    as with a process, each thread requires the OS to maintain a state (instruction
+    pointer, stack pointer, registers, etc.).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Threads may communicate and cooperate with other threads *within the same process*.
+    Processes may communicate and cooperate with other processes through interprocess
+    communication. Such communication between processes may be within a CPU core,
+    within a CPU socket, within a CPU node, within a rack, within a computer system,
+    or even between computer systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The actual API changes depending on the level of communication and OS. The API
+    used on Windows is entirely different from that used on Linux. POSIX threads,
+    or pthreads, is a commonly used threading model on Linux. This is not natively
+    supported in Windows, although it is available as a port. The C++ Boost library
+    supports a common threading package, `thread`, which provides support for both
+    Linux and Windows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPU threads are similar to the GPU threads we’ve used when executing kernels,
+    except that they don’t execute in groups or warps as the GPU ones do. GPU threads
+    communicate via shared memory and explicitly synchronize to ensure every thread
+    has read/written to that memory. The shared memory is local to an SM, which means
+    threads can only communicate with other threads within the same SM (in theory).
+    Because a block is the scheduling unit to an SM, thread communication is actually
+    limited to a per-block basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Processes on the CPU can be thought of in the same way as blocks on the GPU.
+    A process is scheduled to run on one of *N* CPU cores. A block is scheduled to
+    run one of *N* SMs on the GPU. In this sense the SMs act like CPU cores.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPU processes can communicate to one another via host memory on the same socket.
+    However, due to processes using a separate memory space, this can only happen
+    with the assistance of a third-party interprocess communications library, as neither
+    process can physically see the address space of the other. The same is not true,
+    however, for GPU blocks, as they access a common address space on the GPU global
+    memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Systems with multiple CPUs using shared host memory can also communicate with
+    one another via this shared host memory, but again with the help of a third-party
+    interprocess communication library. Multiple GPUs can communicate to one another
+    on the same host, using host memory, or, as of CUDA SDK 4.0, directly via the
+    PCI-E bus peer-to-peer communication model. Note, however, peer-to-peer is only
+    supported for 64-bit OSs using Fermi or later cards. For Windows this is only
+    supported with the TCC (Tesla compute cluster) driver, which effectively means
+    it’s only supported for Tesla cards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, as soon as you no longer have the possibility to use shared host memory
+    between CPU cores/sockets, you are forced to make use of some other network transport
+    mechanism (TCP/IP, InfiniBand, etc.). The standard for this type of communication
+    has become MPI (Message Passing Interface). There are also alternatives such as
+    ZeroMQ (0MQ) that are less well known but equally effective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that both of these make use of shared host memory transfers when communicating
+    internally within a single host node. However, models that support threading (e.g.,
+    pthreads, ZeroMQ) perform interthread-based communication much quicker than those
+    based on the process model such as MPI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ll focus here on the case where we have a single CPU socket, running a single-threaded
+    CPU program with multiple GPUs present. This is the most common use case with
+    consumer-level hardware and therefore the most useful case to cover. See [Chapter
+    10](CHP010.html) for more advanced topics such as peer to peer transfers between
+    multiple GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Streams
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Streams are virtual work queues on the GPU. They are used for asynchronous operation,
+    that is, when you would like the GPU to operate separately from the CPU. Certain
+    operations implicitly cause a synchronization point, for example, the default
+    memory copies to and from the host or device. For the most part this is what the
+    programmer wants, in that after copying the results back from the GPU they will
+    instantly do something with those results on the CPU. If the results were to partially
+    appear, then the application would work when debugged or single stepped, but fail
+    when run at full speed—a debugging nightmare.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By creating a stream you can push work and events into the stream which will
+    then execute the work in the order in which it is pushed into the stream. Streams
+    and events are associated with the GPU context in which they were created. Thus,
+    to show how to create a couple of streams and events on multiple GPUs we will
+    setup a small program to demonstrate this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the first function we simply fill the array with a value from 0 to `num_elements`.
+    The second function simply checks that the GPU result is what we’d expect. Obviously
+    both functions would be replaced with real code to do something a little more
+    useful, in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`}`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next we declare the kernel function itself. This does little more than multiply
+    every data element by 2\. Nothing very useful, but just something we can easily
+    check to ensure every element of the array has been correctly processed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, we come to the main part of the program. This function declares a number
+    of values, each of which is indexed by `device_num`. This allows us to use the
+    same code for every device and just increment the index.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` CUDA_CALL(cudaGetDeviceCount(&num_devices));`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first task is to identify how many GPUs we have available with the `cudaGetDeviceCount`
+    call. To ensure we don’t have more than we planned, this number is clipped to
+    the maximum supported, a simple `#define`. Allowing for four dual GPU cards, eight
+    would be better maximum value than the four selected here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first section of each loop then sets the current device context to the `device_num`
+    parameter to ensure all subsequent calls then work with that device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  // asynchronous`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: We create a stream, or work queue, for each GPU present in the system. Into
+    this stream we place a copy from the host (CPU) memory to the GPU global memory
+    followed by a kernel call and then a copy back to the CPU. They will execute in
+    this order, so the kernel will not start executing until the preceding memory
+    copy has completed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the usage of page-locked memory on the host, allocated using `cudaMallocHost`
+    instead of the regular C `malloc` function. Page-locked memory is memory that
+    cannot be swapped out to disk. As the memory copy operations are being performed
+    via a direct memory access (DMA) over the PCI-E bus, the memory at the CPU end
+    must always physically be in memory. Memory allocated with `malloc` can be swapped
+    out to disk, which would cause a failure if a DMA was attempted to or from it.
+    As we used the `cudaMallocHost` function to allocate the memory, you must also
+    use the `cudaFreeHost` function to deallocate the memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  CUDA_CALL(cudaSetDevice(device_num));`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, once the kernel streams have been filled, it’s time to wait for the
+    GPU kernels to complete. At this point the GPU may not have even started, as all
+    we’ve done is to push commands into a stream or command queue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The CPU then waits for each device in turn to complete, and when this is done,
+    it checks the contents and then frees the GPU and CPU resources associated with
+    each stream. However, what happens if the GPU devices in the system are different
+    and they take differing amounts of time to execute the kernel? First, we need
+    to add some timing code to see how long each kernel takes in practice. To do this
+    we have to add events to the work queue. Now events are special in that we can
+    query an event regardless of the currently selected GPU. To do this we need to
+    declare a start and stop event:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, they need to be pushed into the stream or work queue:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: We push one start event at the start of the memory copy to the device, one prior
+    to kernel invocation, one prior to the memory copy back to host, and, finally,
+    one at the end of the memory copy. This allows us to see each stage of the GPU
+    operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we need to get the elapsed time and print it to the screen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`printf("\n");`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We also need to redefine the kernel so it does considerably more work, so we
+    can actually see some reasonable execution times on the kernel:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When we run the program we see the following result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can see from the results that the memory copy operations are within a small
+    tolerance of one another. This is not too surprising as each device is running
+    on an x8 PCI-E 2.0 link. The PCI link speed is considerably slower than even the
+    slowest device’s memory speed, so we are in fact limited by the PCI-E bus speed
+    with regard to such transfers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is interesting, however, is the kernel execution speed varies quite dramatically,
+    from 5 seconds to 25 seconds. Thus, if we provide data to each device strictly
+    in turn such a cycle would take around 51 seconds (5s + 25s + 14s + 7s). However,
+    at the time the program waits for device 1 9800GT, the slowest device, devices
+    2 (GTX260) and 3 (GTX460) are already complete. They could have been issued with
+    more work in this time period.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can solve this problem by querying the end event, rather than simply waiting
+    on the end event. That is to say we look to see if the kernel has completed, and
+    if not, move onto the next device and come back to the slow device later. This
+    can be done using the following function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: This function takes a specified event and returns `cudaSuccess` if the event
+    has already happened, or `cudaErrorNotReady` if the event has not yet occurred.
+    Note, this means we can’t use the regular `CUDA_CALL` macro, as the `cudaErrorNotReady`
+    state is not really an error state, just status information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We also need to specify how CUDA handles its tracking of pending GPU tasks
+    via the following call:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: This call is done prior to any other CUDA calls and simply tells the driver
+    that it should in all cases yield the CPU thread to other CPU threads when waiting
+    for an operation. This can mean some additional latency in terms of the driver
+    having to wait for its turn in the CPU work queue, but allows for other CPU tasks
+    to progress. The alternative is that the driver spins the CPU thread (polls the
+    device), which is certainly not what we want when there are other devices that
+    could be ready.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To avoid polling the event queue ourselves and thus having the program behave
+    poorly in relation to other CPU tasks, the program needs to put itself to sleep
+    and then wake up sometime later and check the event queue again. The process to
+    do this in Linux and Windows is slightly different, so we’ll use a custom function,
+    snooze, which works on both platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we will reorder the processing of the data to remove the `cudaStreamSynchronize`
+    call and place this code into a function. We’ll also remove the cleanup code and
+    place this outside of the main loop. This particular action is important, as doing
+    this within the loop, depending on the function, can cause serialization of the
+    driver calls. Thus, the revised code for the querying of the event queue is as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   }`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `while` loop simply runs until each device has provided results. We set
+    up an array, `processed_results[num_devices]`, which holds false initially. As
+    each GPU provides the results, the number of results pending is decremented and
+    the array-processed results are marked to say this GPU has already provided the
+    results. Where results are not yet available from any GPU, the CPU thread sleeps
+    for 100 ms and then tries again. This results in the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`ID:1 GeForce 9800 GT:Copy To        :    21.19 ms`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice how the order of the results now comes in as expected. The fastest device,
+    the GTX470, takes just 5 seconds, while the slowest, the 9800 GT, takes 25 seconds.
+    The CPU thread, for the most part, is idle during this time and could be doing
+    something useful such as distributing more work to the GPUs when they finish.
+    Let’s look at how this would work in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To start with, we need to abstract the task of pushing work into the stream
+    or work queue. We can then use this for the initial stream filling, plus filling
+    the stream when the work is complete.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE87]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE88]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE89]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE90]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE91]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE92]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE93]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE94]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE95]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here the program simply keeps track of the number of active GPU tasks and counts
+    down the number of results still to process. This results in the allocation of
+    work blocks shown in [Figure 8.3](#F0020) to GPUs when we allocate a total of
+    64 work units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000089f08-03-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 8.3 Distribution of work units to multiple GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see from the bar chart, the GTX470 can in the same time process 25+
+    units of work compared to the 9800 GT, which can process 5+ units, a ratio of
+    5:1\. Simply cycling around and waiting on the stream sync operation would have
+    caused an exactly equal work distribution when, as you find in many real-world
+    systems, there is a mix of GPUs. Many gamers will have one card for gaming (GTX670)
+    and then usually an older card dedicated to PhysX (GTX260), giving just such a
+    scenario. In fact, the lesser cards if taken together contribute 37 work units,
+    10 more than the 27 contributed by the main card alone. This, in turn, more than
+    doubles the available work throughput on the machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is all very well, but we can actually do much better. We’re actually not
+    making the best use of each GPU in the system. Streams are designed to both provide
+    an alternative to stream 0, the default stream, and provide multiple work queues
+    for the GPU to work on. This is useful if the kernel is too small to exploit the
+    full GPU, which is unlikely, or the more common case where the CPU may take some
+    time to provide the GPU with additional work. In the example we have here, the
+    CPU is simply checking the array against a set of expected values, but it could
+    be doing a much slower operation such as loading the next work unit from disk.
+    In this case we’d like the GPU to remain busy during this period also. For this
+    we use a scheme called double buffering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Double buffering works by having the GPU work with one buffer while the CPU
+    is working with the other buffer. Thus, even while the CPU is processing one dataset,
+    the GPU is still performing useful work, rather than waiting on the CPU. The CPU
+    process may be something as simple as loading or saving data to disk. It might
+    also include some additional processing and/or combination of data from multiple
+    GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To do this we need to introduce another dimension to every array based on `MAX_NUM_DEVICES`.
+    For example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE96]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then we have the option to support two or more streams per device. Using two
+    streams per device has a small problem, in that if we allocate work units to GPUs
+    with equal priority, they all get the same total number of work units. This, in
+    practice, means we end up at the end of the work queue, still waiting on the slowest
+    device. The solution to this is to allocate work units to the GPUs in proportion
+    to their speed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you look back at [Figure 8.3](#F0020), you can see that the GT9800 is the
+    slowest device. The GTX260 is approximately twice as fast, the GTX460 twice as
+    fast again, and the GTX470 around 20% faster than the GTX460\. Given that we want
+    at least two streams to allow for double buffering, if we increase the number
+    of streams allocated in proportion to the speed of the device, we get a work distribution
+    that keeps all devices busy for about the same amount of time. We can do this
+    with a simply array:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE97]'
+  prefs: []
+  type: TYPE_PRE
+- en: Thus, initially we allocate 10 work units to device 0, the GTX470\. However,
+    we allocate only 2 work units to the GT9800, and so on. At the point we run out
+    of work units each device has the queue length of approximately the value shown
+    in the array. As this equates to approximately the same time, all devices finish
+    within a short period of one another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here the list of the relative speeds of the various GPUs is constructed statically.
+    If you always have the same hardware in the target machine, then this approach
+    is fine. However, if you don’t know what the target hardware is, you can do some
+    initial timing runs and then complete such a table at runtime. The important point
+    to remember is the minimum value in the list should always be at least 2 to achieve
+    double buffering. The other values should be some multiple of 2, which reflects
+    the relative timing to the slowest device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the things that can be seen in the previous example, where we just used
+    a single stream per GPU, is the GPU load varies. Sometimes it drops to 25% or
+    less. In effect, we’re seeing stalls in the GPU workload. Giving it multiple items
+    to process without further CPU intervention increases the GPU load to an almost
+    continuous 100% and all devices. This also has the benefit of reducing the sensitivity
+    of the GPU kernel to CPU loading by other tasks, as it gives each GPU a large
+    amount of work to do before the CPU *must* service it again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact, if you run the single-stream kernel versus the multiple-stream kernel,
+    we see a drop from 151 seconds to 139 seconds, an 8% decrease in execution time.
+    The CPU side of the task is quite small, so it’s able to relatively quickly fill
+    the single entry queue. However, with a more complex CPU task, the overlapping
+    of CPU time and GPU time becomes more important and you’ll see this 8% value grow
+    quite considerably.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As with any additional complexity you add to a program, it costs time to develop
+    and can introduce additional errors. For most programs, using at least two streams
+    per device will help improve the overall throughput enough to justify the additional
+    programming effort.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multiple-Node Systems
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A single computer forms a single node on a network. Connect lots of single machines
+    together and you have a cluster of machines. Typically, such a cluster will be
+    composed of a set of rack-mounted nodes. The rack may then itself be interconnected
+    with one or more additional racks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The largest single GPU system in the world as of 2012, Tianhe-1A, consists of
+    over 14,000 CPUs with over 7000 Tesla Fermi GPUs. These are split into 112 cabinets
+    (racks), each of which contains 64 compute nodes. It runs a custom interconnect
+    that supports up to 160 GB/s of communications bandwidth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, in practice, most researchers and commercial organizations will never have
+    access to something of this scale. However, what they typically will be able to
+    purchase is a number networked nodes connected to a single 16 to 48 port gigabit
+    Ethernet switch. This will typically take the form of a single 19-inch rack unit
+    that is placed in an air conditioned computer room.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ideal ratio of CPU cores to GPUs depends on the application and what percentage
+    of the code is serial. If it is very little, then the simple one CPU core to multiple
+    GPUs works well enough not to have to bother with any additional programming.
+    However, if the CPU load is significant, it’s likely this will limit the throughput.
+    To overcome this we need to allocate less GPUs per CPU core, moving to a 1:2 or
+    1:1 ratio as the application demands. The simplest and most scalable method is
+    via assigning one process to each set of CPU/GPUs on the node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once we move to this model it allows for much larger scaling, in that we can
+    have two nodes, each of which have four GPUs and one or more CPU cores. If the
+    problem can be further decomposed into eight blocks instead of four, then we should
+    see a doubling of performance. In practice, as we have seen before, this will
+    not happen due to the introduction of communications overhead. As the number of
+    nodes grows, so does the impact of network communications on the problem. Therefore,
+    you generally find a network of nodes with a higher number of GPUs per node will
+    outperform a network with the same number of GPUs distributed to more nodes. Local
+    node resources (disk, memory, CPU) can have a big impact on the best topology
+    for a given problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To move to such a system, we need a communications mechanism that allows us
+    to schedule work to a given CPU/GPUs set, regardless of where they are on the
+    network. For this we’ll use ZeroMQ, a very lightweight and fairly user-friendly
+    communications library. Now we could use a sockets library, but this would be
+    a lot more low level and for the most part harder to program correctly. We could
+    also use MPI, which is a fairly standard protocol definition on Linux platforms,
+    but generally needs a bit of setup and is more suited for very controlled environments.
+    ZeroMQ handles errors well, allowing nodes to disappear and reappear without bringing
+    the whole program down in a nasty mess.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ZeroMQ (or 0MQ) is a small, lightweight library that you simply link to. There
+    are no compiler wrappers or the like, just a simple library. Once initialized,
+    ZeroMQ runs in the background and allows the application to use synchronous or
+    asynchronous communication without having to worry about buffer management. If
+    you’d like to send a 10 MB file to another node, then send it, and ZeroMQ will
+    internally handle any buffering. It makes a good interface for writing distributed
+    applications. It is available free of charge from [*http://www.zeromq.org/*](http://www.zeromq.org/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: ZeroMQ supports a number of transports between threads (INPROC), between processes
+    (IPC), broadcast to many nodes (MULTICAST), and a network-based system (TCP).
+    We’ll make use of the latter, as it allows the most flexibility in terms of connecting
+    multiple nodes anywhere on the network (or Internet).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first task we need to cover with ZeroMQ is to set up a connection point.
+    We’ll be using the master/worker paradigm, as shown in [Figure 8.4](#F0025). This
+    is where we have one master (server) that distributes work packets to the worker
+    (client) machines. Each client machine connects to a specific point on the network,
+    provided by the server, and then waits for work to be given to it. Note that a
+    client here is a CPU/GPUs set, not a physical node. Thus, a quad-core CPU with
+    four GPUs attached with a 1:1 mapping of CPU cores to GPU devices would represent
+    four clients. Equally, a quad-core CPU with a 1:4 mapping of CPU cores to GPU
+    devices would appear as a single client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000089f08-04-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 8.4 Single server, multiple clients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In ZeroMQ terminology, the server will `bind` with a port, that is, it will
+    create an access point. All clients will then `connect` to that known access point.
+    At this point no application data has been transmitted. However, in the background,
+    ZeroMQ will have set up an internal queue for each client that connects to the
+    port.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next step is to decide on a messaging pattern, the simplest being the request/reply
+    pattern. This is similar to MPI in that we have a `send` and recv function, and
+    that for every send, there must be a response. This is done as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE98]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE99]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE100]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE101]'
+  prefs: []
+  type: TYPE_PRE
+- en: The CPU client then maintains a work queue, usually at least two items to allow
+    for GPU double buffering, plus at least one inbound and one outbound network message.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The protocol used in the application is that the CPU client connects to the
+    server and asks the server for a batch of work. The server then responds with
+    a range that it would like the client to work on. The client then does any work
+    necessary on the CPU to generate data for that work packet. This might be, for
+    example, generating all possible combinations for a given model value to test
+    against some prediction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE102]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE103]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE104]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` u32 num_devices;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE105]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE106]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE107]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE108]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE109]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE110]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE111]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE112]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE113]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   fflush(stdout);`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE114]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE115]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE116]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE117]'
+  prefs: []
+  type: TYPE_PRE
+- en: The client code, after receiving the initial work from the server and generating
+    the GPU work queue, runs over a loop until the work is complete. This loop distributes
+    work to the available GPUs, processes work that is already complete, and posts
+    any completed work to the server. Finally, if it was not able to do any of the
+    above, it sleeps for 100 ms and then tries again. We then print a summary of how
+    many work units each device processed when the program exits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice the scheduling is different than it was in the previous example. We now
+    need to have some additional buffer space to post out the completed units to the
+    server and some time to push the data into the transmission queue. Thus, we no
+    longer immediately reschedule work onto the GPU, but schedule additional work
+    later. This allows for a simpler approach where we distribute work, collect any
+    finished work, process it locally if necessary, and post it to the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE118]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE119]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE120]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`          (stream_num < streams_per_device[device_num]) )`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE121]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE122]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE123]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE124]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE125]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE126]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here we iterate over the `processed_results` array to see if any elements in
+    the stream have been processed in the previous cycle and are now free again to
+    be used. We then allocate the pending work such that one work unit it allocated
+    per GPU device into an available stream slot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE127]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE128]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` // Copy in the source data form the host queue`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE129]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE130]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE131]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE132]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE133]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE134]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE135]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE136]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE137]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE138]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` // Push the stop event into the stream`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE139]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE140]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `push_work_into_stream` function is much the same as before. However, it
+    now accepts a `stream_num` parameter, allowing us to fill in any available slot
+    in the stream. It also now copies data into CPU memory from `cpu_unprocessed_data`,
+    an array of regular memory on the CPU host side. Note this is not the page-mapped
+    host memory used by the GPU’s aynchronous memory operations. The CPU host needs
+    to be free to calculate/update this memory as needed without worrying about synchronizing
+    it with the ongoing GPU kernels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE141]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE142]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE143]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE144]'
+  prefs: []
+  type: TYPE_PRE
+- en: '` }`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE145]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `collect` result function simply iterates over all devices and each stream
+    of every device and calls the `process_result` function to try to process any
+    available results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE146]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE147]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE148]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE149]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE150]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE151]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE152]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE153]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`memcpy_from_start_event[device_num][stream_num],`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE154]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE155]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE156]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE157]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE158]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE159]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE160]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE161]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE162]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE163]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE164]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  completed_idx++;`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE165]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE166]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the `process_results` function the two conditions for processing a stream
+    are that the stream has completed, that is, that we have met the stop event on
+    the stream, *and* that the output queue for transmission currently has a free
+    slot. If both of these are not true, the function simply returns and does nothing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Otherwise, the function collects some timing information and prints it. It then
+    copies the received data to the output queue, thus freeing up the page-locked
+    memory on the host and freeing up a stream slot on the GPU for subsequent use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we look at what is necessary to send the data to the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE167]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE168]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE169]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE170]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  // Copy the total message to ZEROMQ data area`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE171]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE172]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE173]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE174]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE175]'
+  prefs: []
+  type: TYPE_PRE
+- en: To send a message with ZeroMQ we simply use the `zmq::message_t` constructor
+    to create both a request and reply message. We then copy the associated element
+    from the `cpu_completed_data` array into the payload area of the message, along
+    with some header information, allowing the server to see who the sender was. We
+    then post the message to the server and wait for an acknowledgment back from the
+    server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now in terms of scheduling and workload, there are some caveats with this approach.
+    The main issue is network loading and communication overhead. The amount of data
+    we’re sending on the network makes a huge difference regarding performance. The
+    time to receive any inbound data, transform it on the CPU, and send it out again
+    on the CPU must be smaller than the time taken for the GPU kernel to run. If not,
+    then the application will be either CPU or network bound.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the example, the server sends the client a range of data, the assumption
+    being that the client knows how to process that data. This may be in terms of
+    generating a dataset to work through, or loading some data from the local disk.
+    What you need to avoid is simply sending the data itself to the client if at all
+    possible. Make use of the local resources on the node, be it CPU, host memory,
+    or local storage space, wherever possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Second, the output data is shipped in its entirety back to the server. The problem
+    may be such that the output data is not a huge block of data, but simply a single
+    value from, say, a reduction operation. Often it’s then the input space that is
+    large. However, if the input space can be partitioned and split out to *N* local
+    disks, then the network traffic is really quite small and you really start to
+    see scaling by using multiple GPU nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conclusion
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We’ve looked at two examples of using multiple GPUs within a computer system.
+    In the first one everything is contained in a single box or node. The second allows
+    use of multiple nodes with multiple GPUs present on each node. We introduce the
+    use of ZeroMQ as a simpler and more flexible alternative to the traditional MPI
+    approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use streams to implement a double-buffering system, meaning the GPU was always
+    busy while the CPU was preparing the next data block and processing the previous
+    one. We extended the use of streams from two streams to multiple streams to allow
+    us to balance work between differing-speed GPU devices within a single node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using two or four GPUs per node opens up the possibility of doubling or even
+    quadrupling the current throughput of a single application that is GPU bound.
+    To grow this further you need to use multiple nodes and be crucially aware of
+    the amount of data you are then communicating across the network. However, as
+    systems like Tianhe-1A show us, you can scale to thousands of GPUs if your problem,
+    and budget, allows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. The example given uses synchronous network communications, and specifically
+    a send/acknowledge-based protocol. What are the advantages and disadvantages of
+    this approach? How else might this be done and what benefit/cost would this bring?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. What are some of the advantages and drawbacks of using threads versus processes
+    when using multiple GPUs?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. In converting the second example from ZeroMQ to MPI, what issues would you
+    have to consider?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Answers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. The synchronous model is the simplest one to work with and debug. However,
+    in the same way that there are synchronous and asynchronous memory transfers to
+    or from the GPU, we can operate in a synchronous or asynchronous model for communications.
+    If the memory is pinned, a network controller can access it using DMA mode, which
+    does not place any load onto the CPU. This has the advantage of freeing the CPU
+    to do other tasks, but it adds the program complexity of managing another asynchronous
+    device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As for the send/acknowledge method, this is potentially very costly. You don’t
+    see it on a small local area network, but should the server get overloaded and
+    take a long time to respond, the client work queue could stall. Simply increasing
+    the number of streams per device would help, but there is an ultimate limit on
+    the number of clients a *single* server can handle. There is also the latency
+    of having to wait for the acknowledge message, which isn’t really needed. The
+    server could simply reissue work units that it did not receive. We can then use
+    a post method at the client side. Combined with an asynchronous communication
+    this lets the client get on with the client’s work, offloading the communications
+    work to the communications stack.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. Threads are best used where there is a common data space between the threads,
+    akin to using shared memory within an SM. Processes are best used where communication
+    will be more formal, for example, using MPI. Processes allow easier scaling when
+    using more than one node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. MPI is designed for closed systems, so a client that can drop out, reboot,
+    and reappear can be problematic. MPI implementations typically have fixed size
+    and limited buffers. Throwing too much data at a message will often crash the
+    MPI stack. ZeroMQ is implicitly asynchronous, in that your message is copied to
+    local storage and then pushed out to the network card by a background thread.
+    It only blocks when its internal buffer reaches the high water mark. MPI synchronous
+    communication blocks immediately and its asynchronous communications requires
+    the application data to remain persistent until MPI is done with it. This means
+    less copying of data, but makes programming MPI somewhat more complex.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In terms of conversion, creating a ZeroMQ context is replaced with the `MPI_Init`
+    call. Creating and binding to a socket in ZeroMQ is equivalent to the `MPI_Comm_size
+    (MPI_COMM_WORLD)` call. Instead of using PIDs to identify a message (you need
+    an IP plus a PID on multiple nodes) you have a simple `MPI_Comm_rank` call to
+    get a unique ID across the whole system. The ZeroMQ `send` and `recv` calls are
+    very similar to the `MPI_Send` and `MPI_Recv` calls. The only additional work
+    you need to do on an MPI implementation is to remember to call `MPI_Finalize`
+    at the end of the function, something that is not necessary with ZeroMQ.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the more adventurous, the buffered, asynchronous communications inherent
+    in ZeroMQ can be achieved using `MPI_Bsend` along with appropriate buffer management
+    at the application level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note, as of the SDK 4.0, page-locked memory allocated by CUDA became accessible,
+    by default, to other devices such as network cards. Thus, it’s now possible to
+    have the same page-locked memory used by both the network card and the GPU, eliminating
+    unnecessary copies within host memory that were previously necessary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Additionally, on Linux systems or with Fermi Tesla-based Windows systems, it’s
+    also possible to directly send data from the GPU to the network card or between
+    GPUs without going via the host memory. This can greatly reduce the use of the
+    limited PCI bus capacity to or from the host. This is not something we’ve covered
+    here as it’s not currently supported on all platforms. However, there is a peer-to-peer
+    communication example in the SDK which we look at in detail in [Chapter 10](CHP010.html)
+    for those wishing to make use of such functionality.
+  prefs: []
+  type: TYPE_NORMAL

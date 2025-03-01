@@ -1,0 +1,1331 @@
+- en: Chapter 11
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Designing GPU-Based Systems
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Introduction
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Server environments are typically large, specially air conditioned rooms, often
+    sealed against the excessive noise they generate. They consume hundreds of kilowatts
+    to many megawatts of power. Typically, the computers are arranged by 1U, 2U, or
+    4U nodes, which slot into a large rack unit. These racks are often interconnected
+    using a high-speed interconnect, such as InfiniBand, as shown in [Figure 11.1](#F0010).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-01-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.1 Typical high-performance computing (HPC) setup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each node is connected to every other node within a given server by a high-speed
+    switch. This can be something as simple as gigabit Ethernet. Most motherboards
+    ship with two gigabit Ethernet ports, allowing one internal and one external connection
+    per node. All the external connections go to a common switch, which itself sits
+    on a high-speed backbone network such as InfiniBand.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This arrangement has one very interesting property: Communication from one
+    node to another within the server rack may be considerably faster than communication
+    with a node in another server rack. This type of arrangement leads to a nonuniform
+    memory access (NUMA) architecture. As a programmer, you have to deal with this
+    transition. You can simply choose to ignore the problem, but this leads to poor
+    performance. You need to think about where the data resides and what data sharing
+    is needed between nodes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at a multi-GPU system, you will see it’s actually quite similar
+    to a single-server box shown in [Figure 11.1](#F0010). Instead of a gigabit Ethernet
+    connection between nodes, each node is a GPU card that is connected to a central
+    PCI-E bus. Each group of GPU cards make up a much more powerful node, which is
+    connected via a high-speed link to other such nodes, as shown in [Figure 11.2](#F0015).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-02-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.2 GPU HPC setup.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice in the figure a total of seven GPUs within a single node. In practice,
+    this is only possible using specialist racks or liquid-cooled GPU systems. One
+    such example we built at CudaDeveloper is shown in [Figure 11.3](#F0020).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-03-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.3 3x GTX290 (6 GPUs) liquid-cooled machine built at CudaDeveloper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most GPU cards are dual-slot cards, with the exception of some of the older
+    G80-based systems. Most motherboards support only up to a maximum of four PCI-E
+    slots, meaning for any air-cooled system you are limited to four GPUs per node
+    if you have a desktop form factor. Given that each Kepler series card is on the
+    order of 3 teraflops of processing power, that’s 12 teraflops on the desktop,
+    not in a remote server room.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the main issues limiting the use of high-speed computing these days is
+    power and heat. As the clock rate increases, so does the heat generated. As the
+    heat goes up, the power consumed for the same clock rate also rises. The thermal
+    envelope is exceeded at just over 212°F (100°C) for Fermi devices. A system with
+    more than two GPUs next to one another can easily start to rapidly climb toward
+    this threshold if there is poor airflow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hold your hand behind the exhaust of a modern GPU and it’s somewhat like putting
+    your hand near a hair dryer. Multiply this four times and very rapidly most small
+    offices find they have a nice heating system included with their teraflop workstation
+    free of charge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The 580 series Fermi cards (GF110) introduced a much better vapor chamber cooling
+    system later dropped on the GTX680 due to the lower heat output. With this, hollow
+    copper pipes contain a liquid that quickly takes the heat away to the cooling
+    fins and fans. This is very similar to liquid-cooled systems, except the heat
+    still has to be dissipated from the fins using fans inside the small area of the
+    GPU card. Keeping the GPUs cooler means less power consumption and less heat generation.
+    However, there are limits to how far you can go with air-based cooling and ultimately
+    this will limit the ability of GPUs to grow significantly from where they currently
+    are. A typical 480/580 series card can draw up to 250 W per card. Thus, a four-card
+    system is easily exceeding 1 kW per node. The Kepler GTX680 comes in at just under
+    200 W per card with the dual GTX690 managing to come in at under 300 W.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the GPU is not the only component in a typical high-speed workstation
+    or server. We’ll look at each one of these in turn and see how they impact the
+    system design. The key aspect to remember in designing any system is the slowest
+    component will limit the overall throughput no matter what speed GPUs you have.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPU Processor
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The choice of processor is primarily one between Intel and AMD. Ignoring obsolete
+    processors, you have a choice today of the Intel I7 series or the AMD Phenom series.
+    Note, the Sandybride socket 1156/1155 designs are not considered here due to the
+    limited PCI-E lanes provided. Looking at these options, we have:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Intel I7 Nehalem (Socket 1366; [Figure 11.4](#F0025)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 4 to 6 Cores
+  prefs: []
+  type: TYPE_NORMAL
+- en: • QPI-based DDR-3 triple-bank memory interface
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 125 W thermal design
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 36 PCI-E 2.0 Lanes
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-04-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.4 Typical I7 Nehalem layout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intel I7 Sandybridge-E (Socket 2011)
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 4 to 6 Cores (up to 8 on the Xeon variant)
+  prefs: []
+  type: TYPE_NORMAL
+- en: • QPI-based DDR-3 quad-bank memory interface
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 130 W thermal design
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 40 PCI-E 2.0 Lanes
+  prefs: []
+  type: TYPE_NORMAL
+- en: AMD Phenom II / FX
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Hypertransport-based DDR-2/DDR-3 memory interface
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 125 W thermal design
+  prefs: []
+  type: TYPE_NORMAL
+- en: • 42 PCI-E 2.0 Lanes
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performance wise, the Intel parts are typically faster than the AMD parts for
+    a similar number of cores and clock speed. Price wise, the AMD part is significantly
+    cheaper Low Power versions are also available and are certainly attractive for
+    machines in constant operation. However, the choice of motherboards supporting
+    four or more PCI-E slots is limited, meaning you might have to settle for less
+    GPUs per node, which may be an issue. The Sandybridge-E platform is significantly
+    faster than either of the other solutions, but brings a significant price premium
+    both in terms of processor and motherboard.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You typically allocate one thread core per GPU in applications that require
+    significant CPU involvement. This gives the opportunity to fix a thread or process
+    to a physical core. Unless you have more than four GPUs, or you have significant
+    extra workload for a CPU core, the additional two cores in the hex core device
+    may well be wasted. The I7 in this instance is a clear winner on the performance
+    side. However, with six GPUs, slotting in a six-core device may well prove advantageous.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One other alternative is the recently released IvyBridge based Intel processor
+    line. This supports PCI-E 3.0 standard. With the socket 2011 Ivybridge-E scheduled
+    for release late 2012 this will finally bring a PCI-E 3.0 solution with enough
+    PCI-E lanes for GPU based computing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPU Device
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The GPU in a GPU machine is obviously the most important consideration in any
+    design. GPUs change generations about every 12–24 months, a slightly faster rate
+    than the CPU side. So far we’ve seen an approximate doubling of GPU performance
+    every 18–24 months, exactly following Moore’s law, for now anyway. The CPUs did
+    this for many years, but there are limits to just how fast you can make a single
+    core go. As long as there is sufficient parallelism in the problem domain, GPUs
+    should continue this scaling for quite a few years to come, mirroring the multicore
+    growth seen in CPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So what are the major considerations of a GPU? First, there is no point in having
+    the last generation of hardware. With a doubling of performance in every major
+    hardware generation for approximately the same power budget, there is little point
+    in keeping old hardware around unless you already have acceptable performance.
+    Going from 2 minutes to 1 minute is no big deal, but from 10 hours to 5 hours,
+    or 10 days to 5 days can make a huge difference, both in terms of usability and
+    power and space budget.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The GPU market is driven by the gamers—thank them, for they have brought parallel
+    hardware to the masses at commodity prices. GPU hardware is split into two major
+    areas, the gaming GPUs and the server GPUs. NVIDIA provides the Tesla range of
+    GPUs for the server and workstation market with a number of key advantages over
+    their desktop cousins:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Large memory support
+  prefs: []
+  type: TYPE_NORMAL
+- en: • ECC memory support (Fermi onward)
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Tesla compute cluster driver
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Higher double-precision math
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Large memory bus width
+  prefs: []
+  type: TYPE_NORMAL
+- en: • SMI (system management interrupt)
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Status LEDs
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s look at what these are and why they are important for the server market.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Large memory support
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Shipping data onto and off of a GPU is slow. You have, at best, a 5 GB/s bidirectional
+    PCI-E bus (10 GB/s total) bandwidth to the main CPU memory. The larger the memory
+    on the GPU, the more data you can leave on the GPU. This avoids the need to transfer
+    data to or from the GPU. Tesla cards typically come with 4 GB to 6 GB of memory.
+    With the introduction of Fermi, we finally moved away from the 32-bit limit on
+    memory space, allowing GPUs to have up to 6 GB of memory. Given a maximum 4 GPUs
+    per CPU, that is a total of 24 GB of RAM, easily within the limit on memory size
+    you’ll find on most server boards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ECC memory support
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: ECC memory is a special type of memory used in server environments, or where
+    the memory may be subject to corruption. With large amounts of electromagnetic
+    interference, it’s possible that memory cells may be changed to some random value
+    with regular memory. The higher the density of electronics around the device,
+    the more electromagnetic radiation is generated and the higher the error rate.
+    Placing lots of GPUs into a rack and then placing that rack next to several other
+    racks generates a significant amount of electronic noise. For years now, servers
+    on the CPU side have used ECC. ECC can both detect and correct errors found within
+    the memory, making it ideal for this type of environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Memory corruption of the data on the GPU doesn’t generally matter for gamers
+    and would usually go entirely unnoticed. It may result in an odd pixel, or a strangely
+    appearing object. However, as the frame buffer is typically redrawn 50 to 60 times
+    a second, completely from scratch, it’s very hard to see any single pixel getting
+    corrupted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When you shift this to the compute world, however, corruption of the data memory
+    means the wrong answer for one or more elements in the output dataset, which is
+    clearly not acceptable. You can tackle this in a number of ways, either using
+    ECC or running every calculation twice to check the result. The latter choice
+    requires you to double up on the hardware, which effectively means twice the initial
+    investment and twice the operating costs—a less-than-optimal solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tesla compute cluster driver (TCC)
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: This is a Tesla-only supported driver. The Tesla cards have no graphics output
+    and are designed for compute only. There is a considerable overhead and latency
+    on the kernel calls due to the need to support the graphics interface. By removing
+    this, the TCC drivers produce a significant increase in performance over the standard
+    GeForce driver. There are also certain parts of the hardware that are enabled
+    only on Tesla devices, such as ECC and dual PCI-E copy engines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The TCC driver is included in the standard NVIDIA driver download package, but
+    can only be enabled on Tesla-based hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Higher double-precision math
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As most games have very little, if any, double-precision math present, the Fermi
+    range of cards comes with one of the two double-precision units within each SM
+    disabled. Thus, the standard GeForce Fermi cards have around half of the double-precision
+    performance of the equivalent Tesla cards. Single-float performance is comparable,
+    and in many cases faster on the GeForce cards due to the higher clock rates. However,
+    if double precision is important in your application, as it is in many financial
+    applications, it makes sense to install only Telsa-based GPUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Larger memory bus width
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The Tesla cards, being the top-end cards, are usually the ones with all the
+    SMs enabled. NVIDIA charges much more for the server-level cards, so they can
+    afford to “bin” the GPUs according to how many SMs are functional. Those with
+    nonfunctional SMs can be sold as cheaper GeForce cards where having one or two
+    SM units disabled make little difference to overall game performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having all the SMs enabled usually also means the full bus width is available
+    for transfers to or from the global memory on the card. As memory bandwidth is
+    often the single limiting factor in a lot of algorithms, having 512 bits as opposed
+    to 448 bits can make a significant difference. In the older G200 series cards,
+    you often saw a reasonable performance increase at a considerable cost increase,
+    by using a 285 card over a 275 card, due to this additional bus bandwidth. The
+    GeForce 480 and 580 cards have the same issue, with 320 bits versus 384 bits,
+    a 20% improvement on memory bus bandwidth alone, not to mention the additional
+    SM unit. The Kepler targeted for compute, the Tesla K20 model, will also have
+    a 384 bit bus as compared with the 256 bit bus found on the GTX680.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SMI
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: SMI is a useful feature for remotely querying devices over a network. In a large
+    data center you may have thousands of GPUs installed. There are already existing
+    centrally managed solutions for CPU nodes and adding SMI support simply extends
+    this to GPUs as well. Thus, the GPU has the capability to respond to a request
+    and report a number of useful pieces of information to the central management
+    system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Status LEDs
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The Tesla cards have a number of LEDs on the back of the card that show the
+    card’s status. With the exception of the GeForce 295 cards, these LEDs are not
+    present on any standard GeForce card. They allow a technician to walk around an
+    installation of GPUs and identify the GPU that is failing. In a data center with
+    a thousand GPUs, being able to quickly see if any node has a problem is a huge
+    benefit to the IT people looking at the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PCI-E Bus
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The Intel system uses the Northbridge/Southbridge chipset design. The Northbridge
+    is basically a fast switch, connecting all the high-speed peripherals. The slower
+    Southbridge handles all the mundane requests, like USB, mouse, keyboards, etc.
+    On AMD-based systems, and also the later Intel designs, some aspects of the PCI-E
+    bus controller are integrated into the CPU, rather than being a completely separate
+    device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the Intel I7 Nehalem systems, you get a total of 36 (40 on Sandybridge-E)
+    lines of PCI-E bus bandwidth available. These are combined into groups of 16 lines
+    to form a single PCI-E 2.0 X16 link. This is what the GPU will utilize, giving
+    a total of 4 GB/s in either direction. A single I7 or AMD processor supports up
+    to two GPUs in full X16 mode. As you add more GPUs, the number of lanes, and thus
+    the bandwidth allocated to each GPU, is reduced. With four GPUs, you’re running
+    an X8 link, or 2 GB/s in either direction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most motherboards do not support more than 4 PCI-E slots. However, some do,
+    using a special NVIDIA multiplexer device (NF200) to multiplex up the number of
+    lanes. Motherboards such as the ASUS supercomputer are an example. This board
+    supports seven PCI-E slots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When designing a system, remember that other devices may also need to sit on
+    the PCI-E bus. The six GPU workstations shown in [Figure 11.3](#F0020) also has
+    a 24-channel PCI-E raid card in the last PCI-E slot. Other systems may use InfiniBand
+    or gigabit Ethernet network cards in the spare PCI-E slots, so it’s not just GPUs
+    that need to be considered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PCI-E 3.0 is also now available on many motherboards. This will significantly
+    boost the current bus bandwidth available to each GPU because the same number
+    of lanes on PCI-E 3.0 equates to double that of PCI-E 2.0\. However, PCI-E 3.0
+    is only supported on the Kepler line of graphics cards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GeForce cards
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: An alternative to the Tesla cards are the GeForce cards. The Tesla cards are
+    aimed at the server and corporate market. If you are a student or an engineer
+    learning CUDA on your own and do not have access to these cards through your company
+    or university, a GeForce card is entirely suitable for developing CUDA code. If
+    you are developing for the consumer market, clearly these are what you need to
+    develop on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The consumer cards vary primarily in terms of compute level. Currently, almost
+    any card you purchase from the 400 or 500 series will contain a Fermi-class GPU.
+    The 600 series cards are mostly Kepler based designs. If you specifically want
+    an older card, the previous generations (compute 1.3) are numbered in the 200
+    series. The compute 1.1/1.2 cards are typically numbered in the 9000 series. Finally,
+    the 8000 series are usually compute 1.0 cards, which are actually pretty difficult
+    to program well compared with the more modern designs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Within a generation of the cards, the cards vary by the number of SMs and the
+    global memory present. You should purchase a card with at least 1 GB of memory.
+    Currently, the largest memory capacity of a GeForce card is 4 GB. Be aware that
+    most GPU cards are noisy compared with a typically quiet PC. If this is an issue
+    for you, select one of the less powerful cards, or opt for a card with a customized
+    cooler such as the MSI Frozr series. Note the later 500 series cards are typically
+    quieter than the 400 series cards as they are based on a revision of the silicon
+    that reduced both power consumption and heat. The Kepler based cards tend to be
+    marginally quieter than the 500 series cards due to generating less heat. However,
+    as with anything, you get what you pay for. Thus, a card near the top end of the
+    price scale for a given series (560, 570, 580, etc.) will typically be quieter
+    than one at the very low end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In terms of card design, almost all the cards produced are based on the standard
+    NVIDIA layout. Thus, they are largely identical and vary in terms of brand, accessories,
+    and software provided. The exceptions to this are the very high-end cards where
+    the manufacturers have actually innovated. The Gigabyte SOC (Super OverClock)
+    brand is perhaps the best example of this. The typical stock single-fan cooler
+    is replaced by a three-fan cooler. The GPUs have been speed-binned to select those
+    that work reliably at a higher speed, typically a 10% overclock. Power circuitry
+    has been redesigned to provide additional power to reliably drive the GPU to this
+    specification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In terms of a low-end card, the GTX520/GTX610 is one of the cheapest cards at
+    less than $50 USD, or around £30 or 35 Euros. It doesn’t require any special power
+    connectors and will fit in just about any PC. It’s an ideal low-budget card to
+    do some CUDA development on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the liquid cooling side, the Zoltac Infinity Edition card is perhaps the
+    most useful in that it comes with a sealed and self-contained liquid cooling system,
+    similar to some systems available for the CPU. As such, all you need to do is
+    replace the existing exhaust fan with the provided radiator and fan. It is ideal
+    for a single-card solution, but not a good choice for a multi-GPU system. The
+    Point of View (POV) TGT Beast GTX580 Liquid cooled edition comes with 3 GB of
+    RAM and a prefitted water block that can be easily connected to additional blocks.
+    Pre-fitted liquid cooled cards are also available from EVGA, MSI and PNY.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPU Memory
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: CPU memory may not seem like such a consideration. However, any transfer of
+    data must come from somewhere and eventually return to the sender. At the maximum
+    4 GB/s of PCI-E 2.0 bandwidth in both directions, each GPU card can use up to
+    8 GB/s of memory bandwidth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The amount of bandwidth you need depends a lot on your data structures and how
+    much you can keep on the GPU cards. You may have a large input dataset but a tiny
+    output dataset, or vice versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Assuming a balanced dataset, having three GPU cards (total 24 GB/s peak bandwidth)
+    can saturate the CPU memory bandwidth without the CPU itself actually doing any
+    work. Four or more cards means you may need the server edition of the I7 Nehalem
+    or the Sandybridge-E processor with the 6 GT/s QPI bus connector just to keep
+    the cards supplied with data if your application has large input and output bandwidth
+    requirements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Standard 1066/1333 MHz memory clocks will be a bottleneck on multi-GPU systems
+    if there is a lot of data needing to be transferred. For applications that are
+    primarily compute bound, it will make little difference. DDR-3 memory can be safely
+    clocked up to 2 GHz on the I7 platform, but rarely this high on the AMD platform.
+    Officially neither device supports memory clocks beyond 1333 MHz. Memory also
+    comes with certain timing information, sometimes abbreviated to CL7, CL8, or CL9\.
+    This broadly measures the response time to requests for data. Thus, the same CL7
+    memory at 1066 MHz may also be sold as CL9 memory at 1333 MHz. As with most computer
+    hardware, the higher the clock rate and the lower the response time, the more
+    expensive the memory becomes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Special memory DIMMs containing embedded information (Intel XMP) are available.
+    With the appropriate motherboard support, they can automatically be used to safely
+    clock the memory to an optimum rate. Of course, this certified memory, due to
+    the licensing costs associated with such a brand, is more expensive than the noncertified
+    memory that may in all other respects be identical.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Be aware, however, the higher the clock rate, the more heat and power is consumed.
+    Memory devices are the same in this respect. Typically, you should budget for
+    around 1 W of power per gigabyte of DDR-3 present on the motherboard.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As well as the speed of the memory, you need to consider the total capacity
+    of memory you will likely need. The fastest transfers are achieved using page-locked
+    memory, which is where a dedicated block of memory is allocated to each card in
+    the system. Using the Tesla cards, you may wish to transfer up to 6 GB to the
+    card, the full memory capacity of the card. As Tesla cards are headless (have
+    no monitor) a typical desktop configuration will use three Tesla cards and one
+    dedicated graphics card. Thus, in terms of page-locked memory alone, you could
+    need up to 18 GB of memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The OS also needs around 1–2 gigabytes of memory for its own purposes. Around
+    another 2 GB or so should be allocated to a disk cache. Thus, for a three-card
+    Tesla system, you can see we need around 20 GB of memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, the DDR3 memory system is typically a triple or quad bank on the Intel
+    system and dual bank on the AMD system. Most Intel systems have between four and
+    eight DIMMs, and most AMD systems have four DIMM sockets. You generally have to
+    use the same size memory in each slot: 4 GB DIMMs are fairly standard now, with
+    8 GB DIMMS also being available at around twice the cost per gigabyte of the 4
+    GB DIMMs. Thus, with four slots you typically find up to 16 GB/32 GB AMD systems
+    and up to 16 GB/24 GB/32 GB/64 GB Intel systems. Note that 4 GB 32-bit systems
+    are still the most common consumer-level platform.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With non-Tesla cards, we typically have up to 2 GB memory capacity on the card,
+    meaning the total footprint of memory we need to allocate to page-locked memory
+    is much less. With four cards, we need just 8 GB. With the maximum of seven cards,
+    we need 14 GB, well within the capacity you’d find on a typical high-end motherboard.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Air Cooling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Heat and power are the bane of any system designer. As you increase the clock
+    speed, the power needed increases, which in turn generates more heat. The hotter
+    the device, the more power is required to drive the gates. The higher the clock
+    speed, the more of a problem it becomes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPU designers gave up pushing the 4 GHz limit some time ago and went down the
+    parallel core route. Hardened overclockers will tell you they can run systems
+    reliably at 4 GHz and beyond. However, the amount of heat generated and the power
+    consumption is huge compared to the standard clock and power footprint of the
+    device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPUs have always drawn a lot of power and generated a lot of heat. This is not
+    because they are inefficient, but because they contain so many cores on one device.
+    A CPU has four cores typically, but up to 16 in some high-end server devices.
+    When you start to consider that the top-end GPUs have 512 CUDA cores to keep cool,
+    you start to understand the problem. It’s arguable whether a fair comparison with
+    CPU cores is at the SM level or at the CUDA core level. Whichever measure is used,
+    the GPU devices end up with many times more cores than a CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A retail CPU typically comes with a fairly basic heat sink and fan unit. They
+    are low-cost, mass-produced units. Replace the standard heat sink and fan with
+    an advanced one and the CPU temperature can easily drop by 20 degrees or more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPUs come typically as a dual-height board (two PCI-E slots) with the top part
+    being an air cooler. When taken apart, you can usually see quite a substantial
+    cooler ([Figure 11.5](#F0030)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-05-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.5 Heat sink from a GTX295 (dual-GPU) board.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GeForce 580 design even features vapor chamber cooler, where the copper
+    surface next to the GPU is filled with a liquid to aid transfer of heat from the
+    GPU to the set of cooling fins. This is highly advanced technology just to cool
+    a GPU. However, one of the problems you find is the GPUs’ coolers work well *only*
+    when surrounded by cool air, but if you put one next to another and you will suffocate
+    their air supply.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Put four GPU cards in a standard PC case and it sounds like a hovercraft and
+    does a good job replacing a storage heater. Unfortunately, it will most likely
+    start to overheat after as little as 10 minutes once you start loading the GPUs.
+    Overheating will eventually translate into errors in the calculations and operators
+    who have to come to work in t-shirts and shorts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The only way to run four GPUs with air cooling is either to feed in air conditioned
+    air (costly) or to purchase special cards with custom coolers ([Figure 11.6](#F0035)).
+    Most server environments do the former and the servers are kept in specially air
+    conditioned server rooms. The custom cooler solution is more suitable for office
+    workstation usage. This, however, means you can’t use the Tesla cards, or can
+    use at most two of them with a gap between them if you’d like a machine next to
+    your desk and expect the machine to be silent. With larger cases, motherboards
+    such as the ASRock X58 Extreme6 work well due to the three-slot spacing of the
+    PCI-E sockets, making a three-card air-cooled system a real possibility.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-06-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.6 Four GPU air-cooled system (various consumer GPU cards).
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many review sites on the Internet that review the GeForce cards and
+    almost all of them will measure the noise output of the cards. MSI, Gigabyte,
+    and Gainward produce some very interesting cooling solutions for air-cooled GPUs.
+    The regular stock cooler that comes with most solutions (GPU or CPU) should generally
+    be avoided at all costs, as they are often far too noisy for usage next to a desk.
+    Spending $20 USD more on a custom cooling solution will often make your life far
+    quieter and keep the GPU far cooler, saving on running costs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Liquid Cooling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Liquid has two interesting properties over air when considered for cooling.
+    It is both thermally more conductive and has a higher thermal mass. This means
+    it both more easily absorbs heat and can carry more of it away.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Liquid cooling may sound like an exotic solution to the heat problem, but it’s
+    actually quite a practical one. One of the major breakthroughs in cooling in the
+    early days of supercomputers was the use of nonconductive liquids. The Cray-II,
+    for example, used a special nonconductive liquid made by 3M called Fluorinert
+    into which the entire circuit boards were immersed. The liquid was pumped through
+    the system and then to an external cooling unit where the heat was dispersed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For GPU computing, we’ve moved on a little. Although immersing an entire motherboard
+    and GPU in a nonconductive liquid such as commonly available oils works, it’s
+    not a good solution. The liquid can eventually penetrate sensitive components,
+    which ultimately results in system failure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Liquid cooling enthusiasts came up with the idea of liquid cooling blocks. These
+    are hollow blocks of copper through which liquid runs and never makes physical
+    contact with anything electrical ([Figure 11.7](#F0040)). You can buy nonconductive
+    liquids, which we use in our liquid-cooled systems, minimizing the risk of any
+    damage to components should some spillage occur.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-07-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.7 Single CPU and GPU water cooling loop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A modern liquid-cooled system consists of a number of heat collectors, a CPU
+    block, one or more GPU blocks, and, optionally, memory and chipset blocks. The
+    hollow copper blocks have liquid pumped through them, which is fed from a reservoir.
+    The output of the heated liquid is then fed into a cooling system, usually one
+    or more radiators or a heat exchanger. The typical layout is shown in [Figure
+    11.8](#F0045).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-08-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.8 Typical liquid-cooled loop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many variations on this type of layout. The more units there are in
+    a serial run like the one shown in [Figure 11.8](#F0045), the higher the resistance
+    to the flow of the liquid. There are parallel flow solutions that overcome this,
+    but it’s actually quite hard to ensure exactly the same flow goes through each
+    parallel route, as the liquid will always pick the route of least resistance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main issue with liquid cooling is that it doesn’t really solve the heat
+    generation issue. It only allows you to move the heat to somewhere it can be dispersed
+    more easily. Thus, the radiator may be a large external one, or even mounted internally
+    within the workstation if only a small amount of cooling is required.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The key aspect of any water cooling system is actually the radiator and more
+    importantly the size and the amount and temperature of the airflow. One of the
+    best radiators is the external Watercool MO-RA3, available in a 9 × 120 mm or
+    4 × 180 mm form factor. Internal radiators should be the largest size (height,
+    width, depth) that can fit within the case and should exhaust the air out of the
+    case. Always try to ensure you consider the laws of physics, specifically that
+    heat rises. A top-mount radiator is often the best solution, but will require
+    some method to purge the residual air when initially filling the system. Place
+    the pump as low as possible and the reservoir as high as possible to ensure the
+    pump is always pumping liquid and never air. Think about how you will fill and
+    empty such a system and where any air may accumulate. Often included are a drain
+    point and an air purge point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Liquid cooling connectors come in many sizes. Most liquid cooling systems use
+    G1/4-threaded connectors. These have a 10 mm intertube diameter (ID). Thus, 13
+    mm/10 mm (3/8 inch ID) tubing is commonly used. The first size is the outertube
+    diameter (OD) followed by the ID. The connectors may be a barb, push fit, or compression-type
+    fitting. Compression and barb fittings use a system that requires a reasonable
+    force to remove the connector even if it is not sealed. The compression seal slides
+    over the barb and screws into place, ensuring it’s pretty much impossible to remove
+    without unscrewing the top. The barb fitting instead uses a hose clip that is
+    not so tight, but is often easier to maneuver into place in smaller cases. Compression
+    fittings are the least likely to leak or work free of the connector and are highly
+    recommended. See [Figure 11.9](#F0050).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-09-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.9 CPU liquid cooling block with barb and compression fitting side
+    by side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As for liquids, many people use various premixed fluids. These often contain
+    the necessary antibacterial agents to prevent algae growth. Some are nonconductive,
+    although most are at least somewhat electrically conductive. Alternatively, distilled
+    or deionized water may be used, but never tap water as it contains all sorts of
+    things you’d not want in a liquid cooling loop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multiple GPUs in the system have to be connected together. This is done with
+    a dedicated connector block, such as the AquaComputer twin connect and other similar
+    systems. These consist of a solid plastic connector to which all the cards sit
+    at a 90-degree angle. These are far preferable to the metal bar–type SLI connectors
+    as they provide a nice grip for the cards and ensure the correct spacing. See
+    [Figure 11.10](#F0055).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000119f11-10-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: FIGURE 11.10 Twin liquid-cooled GPU cards fitted in solid connector block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main advantage of liquid cooling is that it allows you to create an almost
+    silent workstation, but also to cool components far better than an air-cooled
+    system. This in turn means lower power consumption. It also allows the increase
+    in the clock speed beyond the original clock specification, so-called overclocking.
+    Such overclocked GeForce cards can, on single-precision tasks, easily outperform
+    Tesla cards found in workstations and server environments by around 20% or more.
+    You can even purchase liquid-cooled versions of many cards out of the box, either
+    as components or self-contained sealed systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The downside is twofold. First, there is the additional cost and effort required
+    to plumb in all the components. Second, there is a risk of a leak of coolant,
+    which is generally only a major issue when the system is first put together. Maintenance
+    is also higher in that most liquids must be replaced on an annual basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Desktop Cases and Motherboards
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: People interested in building their own GPU system will need to house it in
+    a case of some description. A case has to be something that is a suitable size.
+    The main criteria will be how many GPUs you wish to fit into the case and also
+    the form factor of the motherboard. Most motherboards are ATX or E-ATX designs,
+    meaning they will fit most desktop cases. Some smaller cases, however, do not
+    support E-ATX.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A number of motherboards that support four PCI-E or more connectors are larger
+    than the E-ATX specification, EVGA being a typical example. EVGA sells the only
+    dual-X58 motherboard, the EVGA Classified SR-2, which accepts two Xeon-based Nehalem
+    I7 processors and up to 48 GB of RAM. However, selecting such a motherboard limits
+    the case choice to just a few models (see EVGA’s website at [*http://www.evga.com*](http://www.evga.com)
+    for an up-to-date list).
+  prefs: []
+  type: TYPE_NORMAL
+- en: ASUS was among the first to produce a dedicated compute platform motherboard
+    aimed at CUDA with its P6T7 WS supercomputer motherboard. This is an X58 platform
+    (Nehalem I7) supporting four double-spaced PCI-E 2.0 sockets at full x16 PCI-E
+    2.0 speed. Note this board is a CEB form factor, which generally means it will
+    fit most E-ATX cases. It’s one of the few boards that supports the x16 speed on
+    all four slots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ASUS Rampage III Extreme is also a good E-ATX design, although it only supports
+    x8 PCI-E speeds with four cards. The ASUS Extreme V board is one of the few Ivybridge
+    compatible PCI-E 3.0 boards supporting 4 PCI-E connectors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: MSI produce the BigBang series of motherboards aimed at power users, sporting
+    seven physical PCI-E sockets. However, when populated with four cards, as is the
+    case for most motherboards, only X8 PCI-E bus speed is supported. MSI is one of
+    the few vendors supporting four double-spaced PCI-E sockets on the AMD platform,
+    for example, the MSI 890FXA-GD70.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ASRock X58 supercomputer design provides for four PCI-E 2.0 sockets running
+    at x8 speed with up to 24 GB of RAM. Its designs since this have improved tremendously,
+    especially with its latest socket 2011 (Sandybridge-E) design. The ASRock X79
+    Extreme9 is one of the best designs for the Sandybridge-E platform we’ve seen
+    to date (see [Figure 11.9](#F0050)). It supports five PCI-E x8 sockets, eight
+    SATA-3 ports, the PCI-E 3.0 standard, and up to 64 GB of RAM while still being
+    an ATX form factor design. ASROCK recently released the socket 2011, Extreme 11
+    board which boasts 7 PCI-E 3.0 x16 slots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gigabyte is also a well-respected manufacturer. Its UD9-X58 platform, as with
+    the ASUS supercomputer, has dual NF200 chips, meaning it supports four full-speed
+    x16 PCI-E 2.0 slots. Its GA-990FXA-UD7 AMD platform supports the latest 990 chipset,
+    providing SATA-3 support and four PCI-E 2.0 sockets up to x8 speed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having decided on the motherboard, you need a case that supports the form factor,
+    but also the number of PCI-E slots you plan to use. Standard PC cases only come
+    with seven PCI-E slots, which causes an issue if you in fact have four double-height
+    PCI-E cards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Heat and airflow should be big considerations in selecting a case, especially
+    with multiple GPUs present. Silverstone produces a number of cases that rotate
+    the motherboard 90 degrees and thus vent the hot air from the CPU and GPUs directly
+    up and out of the case. [Figure 11.3](#F0020) shows a design used with Raven’s
+    RV02 case. We’ve found this design to be the most effective in terms of cooling.
+    The upward-flowing air design drops the internal case temperature by several degrees.
+    Raven’s Fortress FT02 and Temjin TJ11 cases follow similar designs. The Raven
+    cases have an aesthetic you either love or hate. The Fortress and Temjin designs
+    are much more traditional, although all three cases are quite large. Note, the
+    newer edition Raven (the RV02-evolution) and Fortress cases support only seven
+    PCI-E slots, whereas the Temjin supports nine slots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an alternative, the Coolermaster HAF and Antec 1200 series cases also have
+    very good airflow. However, both support only seven PCI-E slots. The Raven RV03
+    is a much more compact version of Raven RV02\. It supports a full set of eight
+    PCI-E slots and is one of the cheapest cases on the market.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In terms of liquid-cooled cases, most are aimed at single CPU–based cooling,
+    so there is a lack of necessary space for a multi-GPU liquid-cooled configuration.
+    With four GPUs and an I7 CPU you are burning in excess of 1 kW of power, a significant
+    amount of which is heat. Such systems are best cooled externally. As an approximate
+    guide, you’ll need one 120 mm radiator capacity to cool each device (CPU or GPU).
+    The Silverstone Temjin TJ11 allows you to remove the internal hard drive section
+    at the bottom of the case and replace it with a 4 × 140 mm radiator and pump assembly.
+    This is perhaps one of the best, but most expensive, cases currently on the market.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mass Storage
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Motherboard-based I/O
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The mass storage subsystem is something that is quite important. You need to
+    be able to easily import and export data from a system. If you consider that each
+    GPU has a maximum of 5 GB/s input bandwidth and 5 GB/s output bandwidth, you will
+    have a problem supplying such a large amount of data from a mass storage device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A typical hard disk has a transfer rate of around 160 MB/s maximum. Due to the
+    construction of hard disks, the density of the data is diminished as you approach
+    the center of the disk. As such, the data rate drops off to around half of the
+    maximum rate at the outside of the disk as it becomes full and starts to use the
+    inner part of the drive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most Intel I7 motherboards come with an built-in controller that supports up
+    to six SATA-based hard disks. This is part of the Southbridge chipset, which controls
+    the slow devices such as keyboards and mice. It also handles the SATA hard disks
+    and network interfaces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The SATA-2 standard defines a speed of up to 300 MB/s per SATA channel. The
+    new SATA-3 standard supports twice this. The built-in controller supports up to
+    six hard drives, meaning you could theoretically achieve a transfer capability
+    of 1.8 GB/s from the SATA ports to the main memory. With SATA-2 SSD disks exceeding
+    300 MB/s read speeds, you might expect to be able to simply connect up to six
+    disks and get a reasonable input data rate, but even this is only half the bandwidth
+    of a *single* PCI-E X16 graphics card.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, life is never that easy. In practice, Southbridge-based built-in controllers
+    will peak out at about 600 MB/s to 700 MB/s, which is nowhere near close to the
+    1.8 GB/s you’d need to support all hard drives at the full data rate. For 160
+    MB/s physical hard disks, this may work, but for SSD drives that can match or
+    exceed the SATA-2 interface speeds, the standard motherboard SATA controller will
+    not be of much use. With just four SSD drives present, the controller is already
+    a bottleneck in the system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The more modern boards have now entirely moved to SATA-3 on the AMD platforms
+    and a mixture of SATA-2 and SATA-3 on the Intel platforms. SATA-3 doubles the
+    SATA-2 speed, meaning an SSD drive can peak at up to 550 MB/s (SATA-3 speed is
+    600 MB/s). With six of these, peak speeds are rapidly approaching the speeds we
+    need for a single GPU. However, as with the SATA-2 controllers, most on-board
+    SATA3 controllers peak at around 1GB/s transfer rates and thus cannot support
+    large numbers of SSDs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dedicated RAID controllers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: For faster input of data you need to turn to a dedicated hard disk controller,
+    which sits on the PCI-E bus. However, this approach conflicts with our need to
+    have the graphics compute cards on exactly this same bus. With air based cooling,
+    all the GPUs are double-slot cards. You may have to remove a GPU card to be able
+    to insert a dedicated hard disk controller card and/or a high-speed network card.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With liquid-cooled systems it’s a little easier, because each card is single
+    slot. However, you are still limited by the overall power consumption of a PC,
+    typically up to 1.5 kW. This in effect means, at least with the high-end cards,
+    there will be spare PCI-E slots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Assuming you have a 550 MB/s SATA-3 SSD drive subsystem, to achieve the 5 GB/s
+    input capacity for a single GPU card, you need 10 SSD drives. If the RAID card
+    you are using supports simultaneous transfers to and from the PCI-E bus, then
+    you’d need a total of 20 SATA-3 SSD drives to support the full bandwidth of a
+    single PCI-E X16 RAID controller.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So to be able to supply and store in real time the full bandwidth of a *single*
+    GPU card, even using SSDs, it will take 20 SSDs. Even with four 6 SSDs per drive
+    bay, you’d need 4 drive bays to support this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at a high-end GPU setup, the solution is a four GPU liquid-cooled
+    solution based on a motherboard that supports seven PCI-E bus connectors. With
+    no additional cards, all GPUs run at the X8 speed (2.5 GB/s in, 2.5 GB/s out)
+    with four GPU cards and X16 with two GPU cards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a liquid-cooled system, you have spare slots between the cards, as most
+    liquid-cooled solutions are single slot. As soon as you add a RAID controller
+    card, the associated slot drops to X8 or X4 for both the GPU and RAID card. This
+    is unless you dedicate an X16 slot to the RAID controller, something we’d recommend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is a physical limit on the number of drive bays that can be included in
+    a workstation format. Even a motherboard with seven PCI-E slots, often dubbed
+    supercomputer motherboards, have only three slots left available once four liquid-cooled
+    GPUs are present. This allows for two RAID controllers and a single high-speed
+    network card to be squeezed into such systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RAID, however, is not simply about speed, although the RAID-0 mode is used for
+    this. RAID-1 supports mirroring, where the data is completely duplicated onto
+    another disk. Failure of one disk then means the system falls back to the remaining
+    disk without significant impact on the operation of the system. Clearly, however,
+    the faulty disk needs to be replaced as soon as possible. It saves you the case
+    where several weeks of compute time could be lost due to a faulty hard drive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a small cluster, hard drives fail rarely enough that it’s not that much
+    of a problem. However, in a larger setup, with thousands of active drives, you
+    will be changing drives regularly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RAID-5 is a system that balances storage usage with redundancy, allowing data
+    to be split over multiple drives in a safe manner. One of the drives in a set
+    is a dedicated parity drive that, if one drive fails, can be used to recover the
+    RAID array. RAID is something you definitely need to consider if restarting your
+    job on another machine and losing the computations to date is not acceptable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Check pointing is a system that is often used to avoid the effects of failure.
+    After a certain period, the entire results to data are check-pointed or dumped
+    to permanent storage. Thus, the job can be moved to another node by simply moving
+    the check-pointed data and the associated program code. In designing applications
+    that run for some period of time, you should always consider building a check
+    pointing system into the application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: HDSL
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: HDSL is a standard from a company called OCZ that has developed a number of
+    innovative products in the SSD market. Most notable of these is the RevoDrive
+    range, a product that is basically a number of SSD drives on a PCI-E card with
+    a built-in hard disk controller. This original card achieved on the order of 500
+    MB/s, which is quite reasonable; the high-end cards (the R4 C series) claim 2800
+    MB/s. You would need a SATA-3 controller and at least five top-end SSDs to achieve
+    the same sort of bandwidth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The HDSL drive offered by OCZ is also an interesting product and an insight
+    into where storage is likely to go. It embeds four older-style SSD drives into
+    a standard 3.5 inch hard disk, with an embedded RAID-0 controller. A special controller
+    card is used that basically extends four lanes of the PCI-E bus through a cable
+    directly to the drive interface. Four PCI-E 2.0 lanes equates to around 1 GB/s
+    in both directions, vastly superior to the unidirectional SATA-3 interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Being a new technology, it has some way to go before the drives themselves match
+    this bandwidth. Currently, the drive peaks at around 750 MB/s, which is somewhat
+    shy of the 1000 MB/s capacity of the link. The drive ships with a single-port
+    X4 HDSL controller, but dual- and quad-port X8 and X16 controllers are planned.
+    Assuming the drive picks up a little in speed to the full bandwidth of the interface,
+    which is almost certain given the march of technology, this will be a very interesting
+    technology to see evolve.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the drives themselves are a 3.5 inch format, this means more drives can be
+    put in the same physical space. Allocating two X8 slots would support four HDSL
+    drives, giving a read/write capacity of around 3 GB/s.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mass storage requirements
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As well as speed of input from the mass storage devices, we have the total storage
+    capacity. Take one of the largest users of data in the world, Google. In 2008
+    they were processing 20 petabytes of data *per day*. A petabyte is 1000 terabytes,
+    which is itself 1000 gigabytes. Given that the largest single mass storage drive
+    available today is around 4 terabytes, just to store that amount of data would
+    require (20 × 1000) ÷ 4 = 5000 hard disk drives!
+  prefs: []
+  type: TYPE_NORMAL
+- en: So clearly one consideration in designing any node is mass storage needs. In
+    practice, most large installations use dedicated storage nodes that do not have
+    any compute functionality. Thus, the compute nodes need only the storage capacity
+    necessary for a single compute run. They can download data over a high-speed interconnect
+    from a central data cluster, meaning you can design them with high-speed, small-capacity
+    SSD drives, which we’ve done with some of our test machines at CudaDeveloper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Networking
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Networking is one of the key issues when you consider a system that contains
+    more than a single node. Clusters of nodes have become very common in universities
+    and commercial organizations as the availability of cheap commodity hardware has
+    become commonplace. It is relatively straightforward to configure a small network
+    of machines and have them work together on a problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You typically see two types of networks: those based on gigabit Ethernet and
+    those using somewhat faster, but considerably more expensive, InfiniBand networks.
+    Gigabit Ethernet is cheap, usually comes as free on the motherboard, and can be
+    connected to a 16-, 24-, or 32-port switch with relative ease. Some motherboards
+    offer dual-gigabit Ethernet connections, which often include a feature called
+    Link Aggregation. This, when supported by the switch, allows for the two physical
+    links to be used as one, doubling the amount of bandwidth available to and from
+    that node.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How critical networking is to your problem depends greatly on the amount of
+    data that needs to be shared. If you can stay within a single node and go down
+    the multiple-GPU route, this will be far, far more effective than going down the
+    multiple-node route in most cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Systems like Google’s MapReduce is one example where, due to the huge amount
+    of data being used, you are forced to split the data between multiple nodes. MapReduce
+    works on the principle of a shared and distributed file system, making the file
+    system appear as one very large disk. The data itself is located in chunks on
+    the local storage of each node. Instead of bringing the data to the program, MapReduce
+    sends the program to where the data is physically located. Hadoop is an open-source
+    implementation of MapReduce, allowing you to set up a very similar framework for
+    distributing and scheduling such jobs. Typically the dataset is very large and
+    the program very small, so this type of approach works really well in greatly
+    reducing network traffic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dedicated communication with something like MPI is also typically how such a
+    system is set up. However, as soon as network communication becomes the dominant
+    feature of the program, in terms of time, you need to move to a faster network
+    architecture such as InfiniBand. This obviously incurs cost, which you may be
+    able to avoid through clever programming, such as asynchronous communication,
+    compressing data packets, etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Peer-to-peer communication within a node between the GPUs is now supported with
+    the CUDA 4.0 SDK. In addition, the GPUs can talk directly to certain InfiniBand
+    cards in the same way, without the interaction of the host CPU. Thus, for larger-scale
+    GPU installations, InfiniBand and other higher-speed interconnects can become
+    a necessity if network traffic plays a significant role.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Power Considerations
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Power usage is a big consideration when designing machines that constantly run.
+    Often the operating costs of running a supercomputer over just a few years can
+    equate to the cost of installing it in the first place. Certainly, the cost of
+    running such a machine over its lifetime will easily exceed the original installation
+    costs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Power usage comes from the components themselves, but also from the cooling
+    necessary to allow such computers to operate. Even one high-end workstation with
+    four GPUs requires some planning on how to keep it cool. Unless you live in a
+    cold climate and can banish the computer to somewhere cold, it will do a nice
+    job of heating up the office for you. Put a number of such machines into one room,
+    and very rapidly the air temperature in that room will start to rise to quite
+    unacceptable levels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A significant amount of power is therefore expended on installing air conditioning
+    systems to ensure computers remain cool and can operate without producing errors.
+    This is especially so where summer temperatures can reach 85°F/ 30°C or higher.
+    Air conditioning is expensive to run. Significant thought should be given to how
+    best to cool such a system and if the heat energy can in some way be reused. Liquid-cooled
+    systems are very efficient in this way in that the liquid can be circulated through
+    a heat exchanger and into a conventional heating system without any chance of
+    the two liquids ever mixing. I’m always amazed by the lack of thought that goes
+    into how to reuse waste heat in computer installations. With the ever-increasing
+    costs of natural resources, and the increasing pressures on companies to be seen
+    as green, simply pumping the heat out the window is no longer economically or
+    socially acceptable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at the top-end GPU cards, they typically come in around the 250
+    W mark in terms of power consumption. A typical CPU is around 125 W by comparison.
+    A typical power budget for a four-GPU system might therefore be as shown in [Table
+    11.1](#T0010).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 11.1 Typical Power Usage
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000119tabT0010.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see from the table, you can be drawing up 1250 W (1.3 kW) of power
+    per node with such a configuration. Off-the-shelf power supplies top out at around
+    the 1.5 kW mark, after which you’re looking at a very expensive, custom solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Selection of the GPU can make a huge difference to overall power consumption.
+    If you look at watts per core and gigaflops per core we see something interesting
+    ([Table 11.2](#T0015)). Notice how the architectural improvements in the 500 series
+    Fermi cards produce much better performance, both in terms of watts and gigaflops.
+    Fermi devices also automatically clock down much lower than the older G80 or G200
+    series cards, using a lot less power when idle. In fact, one of the best performing
+    cards in terms of gigaflops per watt is the GF114-based 560 Ti range. The 560
+    Ti is aimed squarely at the game market and comes with a high internal clock speed,
+    producing some 1.2 gigaflops versus the almost 1.6 gigaflops of the 580\. However,
+    it does this at just 170 W compared with the 240 W of the 580, giving it by far
+    the best performance per watt. Note the 560 Ti was relaunched at the end of 2011
+    as a 448-core device based on the 570 design. The GTX680 is based on the 560 design.
+    The dual GPU 690 contains two of these devices, specially binned and clocked to
+    achieve 300 W, giving this card the best overall GFlops per watt ratio.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 11.2 Gigaflops per Core
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000119tabT0015.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: One important consideration when selecting a power supply is to realize that
+    not all power supplies are made equal. A lot of the cheaper power supplies claim
+    a certain power rating, but fail to provide this on the 12v rails, which is where
+    the primary power draw is in such a system (from the graphics cards). Also, others
+    do not provide enough PCI-E connectors to support more than a small number of
+    cards.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, one of the most important issues to be concerned about is the efficiency
+    of a power supply. This can be as low as 80% or as high as 96%. That difference
+    of 16% is effectively a cost of $0.16 cents on every dollar (Euro/pound/franc)
+    spent on electricity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Power supplies are rated according to an efficiency rating. Those meeting the
+    80-plus standard guarantee a minimum of 80% efficiency across the entire power
+    range. More efficient models are rated bronze (82%), silver (85%), gold (87%),
+    platinum (89%), and titanium (91%) in terms of efficiency at 100% usage. Efficiency
+    is typically a few percent higher at 50% load and slightly higher with the European
+    240v power supplies than the U.S. 115v standard. See the website [*http://www.80plus.org*](http://www.80plus.org)
+    for a list of certified power supplies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you take the typical European cost of electricity at, say, 0.20 Euros per
+    kilowatt hour, a 1.3 kW machine costs 0.20 × 1.3 = 0.26 per hour to run. That
+    is 6.24 Euros per day, 43.48 Euros a week, or 2271 Euros a year to constantly
+    run in terms of electricity cost alone. This assumes you have a 100% efficient
+    power supply, something that just doesn’t exist. See [Table 11.3](#T0020).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 11.3 Typical Costs per Year by Power Consumption
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000119tabT0020.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: With an 80% efficient power supply, for 1.3 kW output, you’d need to put in
+    1.625 kW of power, an additional 325 W, which is wasted. This increases the annual
+    bill from 2271 Euros to 2847 Euros, some 216 Euros. With a 92% efficient power
+    supply, you’d need just 1.413 kW (212 W less), which costs you 2475 Euros per
+    year. This is a savings of around 400 Euros a year, which easily covers the additional
+    costs of a high-efficiency power supply.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In terms of the U.S. market, electricity is somewhat cheaper at around $0.12
+    cents per kW. Thus, a 1.3 kW machine with an 80% efficient power supply (1.625
+    kW input power) would cost around $0.19 per hour to run. With a 92% efficient
+    supply (1.413 kW input power) it would cost $0.17 per hour. That little $0.02
+    cents per hour translates into $175 per year when the machine is constantly run.
+    Multiply that by *N* nodes and you can soon see why efficiency is a key criterion
+    for many companies purchasing computer systems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Certainly in our own machines we always use the most efficient power supply
+    available at the time any development machine is built. Companies such as Google
+    follow similar policies, using highly efficient power supplies, targeting 90%
+    plus efficiency. Energy prices are unlikely to do anything other than increase
+    over time, so this makes perfect sense.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Liquid-cooled systems provide an interesting option in terms of recycling the
+    waste heat energy. While an air-cooled system can only be used to heat the immediate
+    area it is located in, heat from liquid-based coolants can be pumped elsewhere.
+    By using a heat exchanger, the coolant can be cooled using conventional water.
+    This can then be pumped into a heating system or even used to heat an outdoor
+    swimming pool or other large body of water. Where a number of such systems are
+    installed, such as in a company or university computer center, it can really make
+    sense to use this waste heat energy to reduce the heating bill elsewhere in the
+    organization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many supercomputer installations site themselves next to a major river precisely
+    because they need a ready supply of cold water. Others use large cooling towers
+    to dissipate the waste heat energy. Neither solution is particularly green. Having
+    paid for the energy already it makes little sense to simply throw it away when
+    it could so easily be used for heating.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When considering power usage, we must also remember that program design actually
+    plays a very big role in power consumption. The most expensive operation, power
+    wise, is moving data on and off chip. Thus, simply making efficient use of the
+    registers and shared memory within the device vastly reduces power usage. If you
+    also consider that the total execution time for well-written programs is much
+    smaller than for poorly written ones, you can see that rewriting old programs
+    to make use of new features such as larger shared memory can even reduce operating
+    costs in a large data center.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Operating Systems
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Windows
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The CUDA development environment is officially supported by Windows XP, Windows
+    Vista, and Windows 7 in both the 32- and 64-bit variants. It is also supported
+    by the Windows HPC (high-performance computing) Server edition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Support for certain features related to rendering on DirectX versions later
+    than version 9 are not supported on XP due to the lack of support for DirectX
+    10 and 11\. Support for more than four GPUs can be problematic, both from an OS
+    (Operating Systems) perspective and also from the BIOS (Basic Input Output System)
+    of the motherboard. Support may vary from one CUDA driver release to another,
+    but for the most part it now works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPU support when using Windows remote desktop is nonexistent, as the exported
+    desktop does not contain any CUDA devices. There are other packages that provide
+    SSH (Secure Shell) type connections that do support this, UltraVNC being a very
+    common one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Ease of installation of the drivers on the Windows platform and the availability
+    of debugging tools, notably Parallel NSight, is excellent. For multi-GPU solutions,
+    a 64-bit version is essential, as the CPU memory space is otherwise limited to
+    a total of 4 GB.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Linux
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: CUDA is supported for most major Linux distributions. However, one of the key
+    differences between the Linux distribution and the Windows distribution is the
+    expected level of the installer’s knowledge. The CUDA drivers need to be explicitly
+    installed for most distributions. This varies by distribution. Refer to [Chapter
+    4](CHP004.html) where we covered installation procedures for each of the major
+    distributions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Support for multiple GPUs is much better in Linux than under Windows. It’s also
+    possible with a custom BIOS to get around some of the BIOS issues found when booting
+    a system containing more than four GPUs. The problem encountered is that most
+    older BIOS designs are 32 bit and thus cannot map such a large amount of memory
+    into the memory space that is presented by very large numbers of GPUs. If you’d
+    like to try this approach, then have a look at the Fastra II project ([*http://fastra2.ua.ac.be/*](http://fastra2.ua.ac.be/)),
+    where they used a BIOS with 13 GPUs in a single desktop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The primary Linux-supported debugger is the GDB package from GNU. This is not
+    as comprehensive as the Parallel NSight package that is now also available on
+    Linux, but is steadily improving. Other common parallel debuggers for the most
+    part already support or are in the process of having support added for CUDA.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As with the Windows versions, for multi-GPU solutions a 64-bit version is essential
+    because the CPU memory space is otherwise limited to a total of 4 GB. However,
+    unlike Windows, the OS footprint is significantly smaller, so more memory is made
+    available to the application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conclusion
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this chapter we looked at some of the aspects of building GPU-based machines,
+    both from the perspective of using GPUs in a data center and considerations for
+    building your own GPU machines. If you’re a researcher and you want a superfast
+    machine, building one yourself is a very useful experience in setting everything
+    up. For those wishing for an out-of-the-box solution, NVIDIA provides prebuilt
+    desktop and server systems, tested and certified to work reliably. Whether you
+    decide to build your own or buy, by reading this chapter you will be far more
+    informed about the key decisions and issues you need to consider before committing
+    to the purchase of any hardware.
+  prefs: []
+  type: TYPE_NORMAL

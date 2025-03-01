@@ -1,0 +1,1814 @@
+- en: Chapter 5
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Grids, Blocks, and Threads
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What it all Means
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: NVIDIA chose a rather interesting model for its scheduling, a variant of SIMD
+    it calls SPMD (single program, multiple data). This is based on the underlying
+    hardware implementation in many respects. At the heart of parallel programming
+    is the idea of a thread, a single flow of execution through the program in the
+    same way a piece of cotton flows through a garment. In the same way threads of
+    cotton are woven into cloth, threads used together make up a parallel program.
+    The CUDA programming model groups threads into special groups it calls warps,
+    blocks, and grids, which we will look at in turn.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Threads
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A thread is the fundamental building block of a parallel program. Most C programmers
+    are familiar with the concept if they have done any multicore programming. Even
+    if you have never launched a thread in any code, you will be familiar with executing
+    at least one thread, the single thread of execution through any serial piece of
+    code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the advent of dual, quad, hex core processors, and beyond, more emphasis
+    is explicitly placed on the programmer to make use of such hardware. Most programs
+    written in the past few decades, with the exception of perhaps the past decade,
+    were single-thread programs because the primary hardware on which they would execute
+    was a single-core CPU. Sure, you had clusters and supercomputers that sought to
+    exploit a high level of parallelism by duplicating the hardware and having thousands
+    of commodity servers instead of a handful of massively powerful macines. However,
+    these were mostly restricted to universities and large institutions, not generally
+    available to the masses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thinking in terms of lots of threads is hard. It’s much easier to think in terms
+    of one task at a time. Serial programming languages like C/C++ were born from
+    a time when serial processing speed doubled every few years. There was little
+    need to do the hard parallel programming. That stopped almost a decade ago, and
+    now, like it or not, to improve program speed requires us to think in terms of
+    parallel design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Problem decomposition
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Parallelism in the CPU domain tends to be driven by the desire to run more than
+    one (single-threaded) program on a single CPU. This is the task-level parallelism
+    that we covered earlier. Programs, which are data intensive, like video encoding,
+    for example, use the data parallelism model and split the task in *N* parts where
+    *N* is the number of CPU cores available. You might, for example, have each CPU
+    core calculate one “frame” of data where there are no interdependencies between
+    frames. You may also choose to split each frame into *N* segments and allocate
+    each one of the segments to an individual core.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the GPU domain, you see exactly these choices when attempting to speed up
+    rendering of 3D worlds in computer games by using more than one GPU. You can send
+    complete, alternate frames to each GPU ([Figure 5.1](#F0010)). Alternatively,
+    you can ask one GPU to render the different parts of the screen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-01-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.1 Alternate frame rendering (AFR) vs. Split Frame Rendering (SFR).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, there is a trade off here. If the dataset is self-contained, you can
+    use less memory and transfer less data by only providing the GPU (or CPU) with
+    the subset of the data you need to calculate. In the SFR GPU example used here,
+    there may be no need for GPU3, which is rendering the floor to know the content
+    of data from GPU0, which is probably rendering the sky. However, there may be
+    shadows from a flying object, or the lighting level of the floor may need to vary
+    based on the time of day. In such instances, it might be more beneficial to go
+    with the alternate frame rendering approach because of this shared data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We refer to SFR type splits as coarse-grained parallelism. Large chunks of data
+    are split in some way between *N* powerful devices and then reconstructed later
+    as the processed data. When designing applications for a parallel environment,
+    choices at this level seriously impact the performance of your programs. The best
+    choice here is very much linked to the actual hardware you will be using, as you
+    will see with the various applications we develop throughout this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a small number of powerful devices, such as in CPUs, the issue is often
+    how to split the workload evenly. This is often easier to reason with because
+    you are typically talking about only a small number of devices. With huge numbers
+    of smaller devices, as with GPUs, they average out peaks in workload much better,
+    but suffer from issues around synchronization and coordination.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the same way as you have macro (large-scale) and micro (small-scale) economics,
+    you have coarse and fine-grained parallelism. However, you only really find fine-grained
+    parallelism at the programmer level on devices that support huge numbers of threads,
+    such as GPUs. CPUs, by contrast, also support threads, but with a large overhead
+    and thus are considered to be useful for more coarse-grained parallelism problems.
+    CPUs, unlike GPUs, follow the MIMD (Multiple Instruction Multiple Data) model
+    in that they support multiple independent instruction streams. This is a more
+    flexible approach, but incurs additional overhead in terms of fetching multiple
+    independent instruction streams as opposed to amortizing the single instruction
+    stream over multiple processors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To put this in context, let’s consider a digital photo where you apply an image
+    correction function to increase the brightness. On a GPU you might choose to assign
+    one thread for every pixel in the image. On a quad-core CPU, you would likely
+    assign one-quarter of the image to each CPU core.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How CPUs and GPUs are different
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: GPUs and CPUs are architecturally very different devices. CPUs are designed
+    for running a small number of potentially quite complex tasks. GPUs are designed
+    for running a large number of quite simple tasks. The CPU design is aimed at systems
+    that execute a number of discrete and unconnected tasks. The GPU design is aimed
+    at problems that can be broken down into thousands of tiny fragments and worked
+    on individually. Thus, CPUs are very suitable for running operating systems and
+    application software where there are a vast variety of tasks a computer may be
+    performing at any given time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CPUs and GPUs consequently support threads in very different ways. The CPU has
+    a small number of registers per core that must be used to execute any given task.
+    To achieve this, they rapidly context switch between tasks. Context switching
+    on CPUs is expensive in terms of time, in that the entire register set must be
+    saved to RAM and the next one restored from RAM. GPUs, by comparison, also use
+    the same concept of context switching, but instead of having a single set of registers,
+    they have multiple banks of registers. Consequently, a context switch simply involves
+    setting a bank selector to switch in and out the current set of registers, which
+    is several orders of magnitude faster than having to save to RAM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Both CPUs and GPUs must deal with stall conditions. These are generally caused
+    by I/O operations and memory fetches. The CPU does this by context switching.
+    Providing there are enough tasks and the runtime of a thread is not too small,
+    this works reasonably well. If there are not enough processes to keep the CPU
+    busy, it will idle. If there are too many small tasks, each blocking after a short
+    period, the CPU will spend most of its time context switching and very little
+    time doing useful work. CPU scheduling policies are often based on time slicing,
+    dividing the time equally among the threads. As the number of threads increases,
+    the percentage of time spent context switching becomes increasingly large and
+    the efficiency starts to rapidly drop off.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPUs are designed to handle stall conditions and expect this to happen with
+    high frequency. The GPU model is a data-parallel one and thus it needs thousands
+    of threads to work efficiently. It uses this pool of available work to ensure
+    it always has something useful to work on. Thus, when it hits a memory fetch operation
+    or has to wait on the result of a calculation, the streaming processors simply
+    switch to another instruction stream and return to the stalled instruction stream
+    sometime later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the major differences between CPUs and GPUs is the sheer number of processors
+    on each device. CPUs are typically dual- or quad-core devices. That is to say
+    they have a number of execution cores available to run programs on. The current
+    Fermi GPUs have 16 SMs, which can be thought of a lot like CPU cores. CPUs often
+    run single-thread programs, meaning they calculate just a single data point per
+    core, per iteration. GPUs run in parallel by default. Thus, instead of calculating
+    just a single data point per SM, GPUs calculate 32 per SM. This gives a 4 times
+    advantage in terms of number of cores (SMs) over a typical quad core CPU, but
+    also a 32 times advantage in terms of data throughput. Of course, CPU programs
+    can also use all the available cores and extensions like MMX, SSE, and AVX. The
+    question is how many CPU applications actually use these types of extensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPUs also provide something quite unique—high-speed memory next to the SM, so-called
+    shared memory. In many respects this implements the design philosophy of the Connection
+    Machine and the Cell processor, in that it provides local workspace for the device
+    outside of the standard register file. Thus, the programmer can leave data in
+    this memory, safe in the knowledge the hardware will not evict it behind his or
+    her back. It is also the primary mechanism communication between threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Task execution model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: There are two major differences in the task execution model. The first is that
+    groups of *N* SPs execute in a lock-step basis ([Figure 5.3](#F0020)), running
+    the *same* program but on different data. The second is that, because of this
+    huge register file, switching threads has effectively *zero* overhead. Thus, the
+    GPU can support a very large number of threads and is designed in this way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-02-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.2 Coarse-grained parallelism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-03-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.3 Lock-step instruction dispatch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now what exactly do we mean by lock-step basis? Each instruction in the instruction
+    queue is dispatched to every SP within an SM. Remember each SM can be thought
+    of as single processor with *N* cores (SPs) embedded within it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A conventional CPU will fetch a separate instruction stream for each CPU core.
+    The GPU SPMD model used here allows an instruction fetch for *N* logical execution
+    units, meaning you have 1/*N* the instructions memory bandwidth requirements of
+    a conventional processor. This is a very similar approach to the vector or SIMD
+    processors found in many high-end supercomputers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this is not without its costs. As you will see later, if the program
+    does not follow a nice neat execution flow where all *N* threads follow the same
+    control path, for each branch, you will require additional execution cycles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Threading on GPUs
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: So coming back to threads, let’s look at a section of code and see what this
+    means from a programming perspective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: This piece of code is very simple. It stores the result of a multiplication
+    of `b` and `c` value for a given index in the result variable `a` for that same
+    index. The `for` loop iterates 128 times (indexes 0 to 127). In CUDA you could
+    translate this to 128 threads, each of which executes the line
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is possible because there is no dependency between one iteration of the
+    loop and the next. Thus, to transform this into a parallel program is actually
+    quite easy. This is called loop parallelization and is very much the basis for
+    one of the more popular parallel language extensions, OpenMP.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On a quad-core CPU you could also translate this to four blocks, where CPU core
+    1 handles indexes 0–31, core 2 indexes 32–63, core 3 indexes 64–95, and core 4
+    indexes 96–127\. Some compilers will either automatically translate such blocks
+    or translate them where the programmer marks that this loop can be parallelized.
+    The Intel compiler is particularly good at this. Such compilers can be used to
+    create embedded SSE instructions to vectorize a loop in this way, in addition
+    to spawning multiple threads. This gives two levels of parallelism and is not
+    too different from the GPU model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In CUDA, you translate this loop by creating a kernel function, which is a function
+    that executes on the GPU *only* and cannot be executed directly on the CPU. In
+    the CUDA programming model the CPU handles the serial code execution, which is
+    where it excels. When you come to a computationally intense section of code the
+    CPU hands it over to the GPU to make use of the huge computational power it has.
+    Some of you might remember the days when CPUs would use a floating-point coprocessor.
+    Applications that used a large amount of floating-point math ran many times faster
+    on machines fitted with such coprocessors. Exactly the same is true for GPUs.
+    They are used to accelerate computationally intensive sections of a program.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The GPU kernel function, conceptually, looks identical to the loop body, but
+    with the loop structure removed. Thus, you have the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice you have lost the loop and the loop control variable, `i`. You also have
+    a `__global__` prefix added to the C function that tells the compiler to generate
+    GPU code and not CPU code when compiling this function, and to make that GPU code
+    globally visible from within the CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The CPU and GPU have separate memory spaces, meaning you cannot access CPU parameters
+    in the GPU code and vice versa. There are some special ways of doing exactly this,
+    which we’ll cover later in the book, but for now we will deal with them as separate
+    memory spaces. As a consequence, the global arrays `a`, `b`, and `c` at the CPU
+    level are no longer visible on the GPU level. You have to declare memory space
+    on the GPU, copy over the arrays from the CPU, and pass the kernel function pointers
+    to the GPU memory space to both read and write from. When you are done, you copy
+    that memory back into the CPU. We’ll look at this a little later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next problem you have is that `i` is no longer defined; instead, the value
+    of `i` is defined for you by the thread you are currently running. You will be
+    launching 128 instances of this function, and initially this will be in the form
+    of 128 threads. CUDA provides a special parameter, different for each thread,
+    which defines the thread ID or number. You can use this to directly index into
+    the array. This is very similar to MPI, where you get the process rank for each
+    process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The thread information is provided in a structure. As it’s a structure element,
+    we will store it in a variable, `thread_idx` for now to avoid having to reference
+    the structure every time. Thus, the code becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note, some people prefer `idx` or `tid` as the name for the thread index since
+    these are somewhat shorter to type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is happening, now, is that for thread 0, the `thread_idx` calculation returns
+    0\. For thread 1, it returns 1, and so on, up to thread 127, which uses index
+    127\. Each thread does exactly two reads from memory, one multiply and one store
+    operation, and then terminates. Notice how the code executed by each thread is
+    identical, but the data changes. This is at the heart of the CUDA and SPMD model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In OpenMP and MPI, you have similar blocks of code. They extract, for a given
+    iteration of the loop, the thread ID or thread rank allocated to that thread.
+    This is then used to index into the dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A peek at hardware
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Now remember you only actually have *N* cores on each SM, so how can you run
+    128 threads? Well, like the CPU, each thread group is placed into the SM and the
+    *N* SPs start running the code. The first thing you do after extracting the thread
+    index is fetch a parameter from the `b` and `c` array. Unfortunately, this doesn’t
+    happen immediately. In fact, some 400–600 GPU clocks can go by before the memory
+    subsystem comes back with the requested data. During this time the set of *N*
+    threads gets suspended.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Threads are, in practice, actually grouped into 32 thread groups, and when all
+    32 threads are waiting on something such as memory access, they are suspended.
+    The technical term for these groups of threads is a warp (32 threads) and a half
+    warp (16 threads), something we’ll return to later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, the 128 threads translate into four groups of 32 threads. The first set
+    all run together to extract the thread ID and then calculate the address in the
+    arrays and issue a memory fetch request (see [Figure 5.4](#F0025)). The next instruction,
+    a multiply, requires both operands to have been provided, so the thread is suspended.
+    When all 32 threads in that block of 32 threads are suspended, the hardware switches
+    to another warp.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-04-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.4 Cycle 0.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [Figure 5.5](#F0030), you can see that when warp 0 is suspended pending its
+    memory access completing, warp 1 becomes the executing warp. The GPU continues
+    in this manner until all warps have moved to the suspended state (see [Figure
+    5.6](#F0035)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-05-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.5 Cycle 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-06-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.6 Cycle 8.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Prior to issuing the memory fetch, fetches from consecutive threads are usually
+    coalesced or grouped together. This reduces the overall latency (time to respond
+    to the request), as there is an overhead associated in the hardware with managing
+    each request. As a result of the coalescing, the memory fetch returns with the
+    data for a whole group of threads, usually enough to enable an entire warp.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These threads are then placed in the ready state and become available for the
+    GPU to switch in the next time it hits a blocking operation, such as another memory
+    fetch from another set of threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having executed all the warps (groups of 32 threads) the GPU becomes idle waiting
+    for any one of the pending memory accesses to complete. At some point later, you’ll
+    get a sequence of memory blocks being returned from the memory subsystem. It is
+    likely, but not guaranteed, that these will come back in the order in which they
+    were requested.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s assume that addresses 0–31 were returned at the same time. Warp 0 moves
+    to the ready queue, and since there is no warp currently executing, warp 0 automatically
+    moves to the executing state (see [Figure 5.7](#F0040)). Gradually all the pending
+    memory requests will complete, resulting in all of the warp blocks moving back
+    to the ready queue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-07-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.7 Cycle 9.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once warp 0 has executed, its final instruction is a write to the destination
+    array `a`. As there are no dependent instructions on this operation, warp 0 is
+    then complete and is retired. The other warps move through this same cycle and
+    eventually they have all issued a store request. Each warp is then retired, and
+    the kernel completes, returning control to the CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDA kernels
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now let’s look a little more at how exactly you invoke a kernel. CUDA defines
+    an extension to the C language used to invoke a kernel. Remember, a kernel is
+    just a name for a function that executes on the GPU. To invoke a kernel you use
+    the following syntax:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are some other parameters you can pass, and we’ll come back to this,
+    but for now you have two important parameters to look at: `num_blocks` and `num_threads`.
+    These can be either variables or literal values. I’d recommend the use of variables
+    because you’ll use them later when tuning performance.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `num_blocks` parameter is something you have not yet covered and is covered
+    in detail in the next section. For now all you need to do is ensure you have at
+    least one block of threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `num_threads` parameter is simply the number of threads you wish to launch
+    into the kernel. For this simple example, this directly translates to the number
+    of iterations of the loop. However, be aware that the hardware limits you to 512
+    threads per block on the early hardware and 1024 on the later hardware. In this
+    example, it is not an issue, but for any real program it is almost certainly an
+    issue. You’ll see in the following section how to overcome this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next part of the kernel call is the parameters passed. Parameters can be
+    passed via registers or constant memory, the choice of which is based on the compilers.
+    If using registers, you will use one register for every thread per parameter passed.
+    Thus, for 128 threads with three parameters, you use 3 × 128 = 384 registers.
+    This may sound like a lot, but remember that you have at least 8192 registers
+    in each SM and potentially more on later hardware revisions. So with 128 threads,
+    you have a total of 64 registers (8192 registers ÷ 128 threads) available to you,
+    *if* you run just one block of threads on an SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, running one block of 128 threads per SM is a very bad idea, even if
+    you can use 64 registers per thread. As soon as you access memory, the SM would
+    effectively idle. Only in the very limited case of heavy arithmetic intensity
+    utilizing the 64 registers should you even consider this sort of approach. In
+    practice, multiple blocks are run on each SM to avoid any idle states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Blocks
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now 512 threads are not really going to get you very far on a GPU. This may
+    sound like a huge number to many programmers from the CPU domain, but on a GPU
+    you usually need thousands or tens of thousands of concurrent threads to really
+    achieve the throughput available on the device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We touched on this previously in the last section on threads, with the `num_blocks`
+    parameter for the kernel invocation. This is the first parameter within the `<<<`
+    and `>>>` symbols:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you change this from one to two, you double the number of threads you are
+    asking the GPU to invoke on the hardware. Thus, the same call,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: will call the GPU function named `some_kernel_func` 2 × 128 times, each with
+    a different thread. This, however, complicates the calculation of the `thread_idx`
+    parameter, effectively the array index position. This previous, simple kernel
+    needs a slight amendment to account for this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: To calculate the `thread_idx` parameter, you must now take into account the
+    number of blocks. For the first block, `blockIdx.x` will contain zero, so effectively
+    the `thread_idx` parameter is equal to the `threadIdx.x` parameter you used earlier.
+    However, for block two, `blockIdx.x` will hold the value 1\. The parameter `blockDim.x`
+    holds the value 128, which is, in effect, the number of threads you requested
+    per block in this example. Thus, you have a 1 × 128 thread base addresses, before
+    adding in the thread offset from the `threadIdx.x` parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Have you noticed the small error we have introduced in adding in another block?
+    You will now launch 256 threads in total and index the array from 0 to 255\. If
+    you don’t also change the size of the array, from 128 elements to 256 elements,
+    you will access and write beyond the end of the array. This array out-of-bounds
+    error will not be caught by the compiler and the code may actually run, depending
+    on what is located after the destination array, `a`. Be careful when invoking
+    a kernel that you do not access out of bounds elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For this example, we will stick with the 128-byte array size and change the
+    kernel to invoke two blocks of 64 threads each:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Thus, you get what is shown in [Figure 5.8](#F0045).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-08-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.8 Block mapping to address.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice how, despite now having two blocks, the `thread_idx` parameter still
+    equates to the array index, exactly as before. So what is the point of using blocks?
+    In this trivial example, absolutely nothing. However, in any real-world problem,
+    you have far more than 512 elements to deal with. In fact, if you look at the
+    limit on the number of blocks, you find you have 65,536 blocks you can use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At 65,536 blocks, with 512 threads per block, you can schedule 33,554,432 (around
+    33.5 million) threads in total. At 512 threads, you can have up to three blocks
+    per SM. Actually, this limit is based on the total number of threads per SM, which
+    is 1536 in the latest Fermi hardware, and as little as 768 in the original G80
+    hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you schedule the maximum of 1024 threads per block on the Fermi hardware,
+    65,536 blocks would translate into around 64 million threads. Unfortunately, at
+    1024 threads, you only get one thread block per SM. Consequently, you’d need some
+    65,536 SMs in a single GPU before you could not allocate at least one block per
+    SM. Currently, the maximum number of SMs found on any card is 30\. Thus, there
+    is some provision for the number of SMs to grow before you have more SMs than
+    the number of blocks the hardware can support. This is one of the beauties of
+    CUDA—the fact it can scale to thousands of execution units. The limit of the parallelism
+    is only really the limit of the amount of parallelism that can be found in the
+    application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With 64 million threads, assuming one thread per array element, you can process
+    up to 64 million elements. Assuming each element is a single-precision floating-point
+    number, requiring 4 bytes of data, you’d need around 256 million bytes, or 256
+    MB, of data storage space. Almost all GPU cards support at least this amount of
+    memory space, so working with threads and blocks alone you can achieve quite a
+    large amount of parallelism and data coverage.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For anyone worried about large datasets, where large problems can run into gigabytes,
+    terabytes, or petabytes of data, there is a solution. For this, you generally
+    either process more than one element per thread or use another dimension of blocks,
+    which we’ll cover in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Block arrangement
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'To ensure that we understand the block arrangement, we’re going to write a
+    short kernel program to print the block, thread, warp, and thread index to the
+    screen. Now, unless you have at least version 3.2 of the SDK, the `printf` statement
+    is not supported in kernels. So we’ll ship the data back to the CPU and print
+    it to the console window. The kernel program is thus as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now on the CPU you have to run a section of code, as follows, to allocate memory
+    for the arrays on the GPU and then transfer the arrays back from the GPU and display
+    them on the CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`}`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`   /∗ Free the arrays on the GPU as now we’re done with them ∗/`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this example, what you see is that each block is located immediately after
+    the one before it. As you have only a single dimension to the array, laying out
+    the thread blocks in a similar way is an easy way to conceptualize a problem.
+    The output of the previous program is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`Calculated Thread: 127 - Block: 1 - Warp 1 - Thread 63`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, the calculated thread, or the thread ID, goes from 0 to 127\.
+    Within that you allocate two blocks of 64 threads each. The thread indexes within
+    each of these blocks go from 0 to 63\. You also see that each block generates
+    two warps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Grids
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A grid is simply a set of blocks where you have an *X* and a *Y* axis, in effect
+    a 2D mapping. The final *Y* mapping gives you *Y* × *X* × *T* possibilities for
+    a thread index. Let’s look at this using an example, but limiting the *Y* axis
+    to a single row to start off with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you were to look at a typical HD image, you have a 1920 × 1080 resolution.
+    The number of threads in a block should *always* be a multiple of the warp size,
+    which is currently defined as 32\. As you can only schedule a full warp on the
+    hardware, if you don’t do this, then the remaining part of the warp goes unused
+    and you have to introduce a condition to ensure you don’t process elements off
+    the end of the *X* axis. This, as you’ll see later, slows everything down.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To avoid poor memory coalescing, you should always try to arrange the memory
+    and thread usage so they map. This will be covered in more detail in the next
+    chapter on memory. Failure to do so will result in something in the order of a
+    five times drop in performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To avoid tiny blocks, as they don’t make full use of the hardware, we’ll pick
+    192 threads per block. In most cases, this is the *minimum* number of threads
+    you should think about using. This gives you exactly 10 blocks across each row
+    of the image, which is an easy number to work with ([Figure 5.9](#F0050)). Using
+    a thread size that is a multiple of the *X* axis and the warp size makes life
+    a lot easier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-09-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.9 Block allocation to rows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Along the top on the *X* axis, you have the thread index. The row index forms
+    the *Y* axis. The height of the row is exactly one pixel. As you have 1080 rows
+    of 10 blocks, you have in total 1080 × 10 = 10,800 blocks. As each block has 192
+    threads, you are scheduling just over two million threads, one for each pixel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This particular layout is useful where you have one operation on a single pixel
+    or data point, *or* where you have some operation on a number of data points in
+    the *same* row. On the Fermi hardware, at eight blocks per SM, you’d need a total
+    of 1350 SMs (10,800 total blocks ÷ 8 scheduled blocks) to run out of parallelism
+    at the application level. On the Fermi hardware currently available, you have
+    only 16 SMs (GTX580), so each SM would be given 675 blocks to process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is all very well, but what if your data is not row based? As with arrays,
+    you are not limited to a single dimension. You can have a 2D thread block arrangement.
+    A lot of image algorithms, for example, use 8 × 8 blocks of pixels. We’re using
+    pixels here to show this arrangement, as it’s easy for most people to conceptualize.
+    Your data need not be pixel based. You typically represent pixels as a red, green,
+    and blue component. You could equally have *x*, *y*, and *z* spatial coordinates
+    as a single data point, or a simple 2D or 3D matrix holding the data points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stride and offset
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As with arrays in C, thread blocks can be thought of as 2D structures. However,
+    for 2D thread blocks, we need to introduce some new concepts. Just like in array
+    indexing, to index into a *Y* element of 2D array, you need to know the width
+    of the array, the number of *X* elements. Consider the array in [Figure 5.10](#F0055).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-10-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.10 Array mapping to elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The width of the array is referred to as the stride of the memory access. The
+    offset is the column value being accessed, starting at the left, which is always
+    element 0\. Thus, you have array element 5 being accessed with the index [1][5]
+    or via the address calculation (row × (sizeof(array_element) × width))) + ((sizeof(array_element)
+    × offset)). This is the calculation the compiler effectively uses, in an optimized
+    form, when you do multidimensional array indexing in C code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, how is this relevant to threads and blocks in CUDA? CUDA is designed to
+    allow for data decomposition into parallel threads and blocks. It allows you to
+    define 1D, 2D, or 3D indexes (*Y* × *X* × *T*) when referring to the parallel
+    structure of the program. This maps directly onto the way a typical area of memory
+    is set out, allowing the data you are processing to be allocated to individual
+    SMs. The process of keeping data close to the processor hugely increases performance,
+    both on the GPU and CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, there is one caveat you must be aware of when laying out such arrays.
+    The width value of the array must always be a multiple of the warp size. If it
+    is not, pad the array to the next largest multiple of the warp size. Padding to
+    the next multiple of the warp size should introduce only a very modest increase
+    in the size of the dataset. Be aware, however, you’ll need to deal with the padded
+    boundary, or halo cells, differently than the rest of the cells. You can do this
+    using divergence in the execution flow (e.g., using an `if` statement) or you
+    can simply calculate the padded cells and discard the result. We’ll cover divergence
+    and the problems it causes later in the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*X* and *Y* thread indexes'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Having a 2D array in terms of blocks means you get two thread indexes, as you
+    will be accessing the data in a 2D way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice the use of `blockDim.x` and `blockDim.y`, which the CUDA runtime completes
+    for you, specifying the dimension on the *X* and *Y* axis. So let’s modify the
+    existing program to work on a 32 × 16 array. As you want to schedule four blocks,
+    you can schedule them as stripes across the array, or as squares within the array,
+    as shown in [Figure 5.11](#F0060).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-11-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.11 Alternative thread block layouts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You could also rotate the striped version 90 degrees and have a column per thread
+    block. Never do this, as it will result in completely noncoalesced memory accesses
+    that will drop the performance of your application by an order of magnitude or
+    more. Be careful when parallelizing loops so that the access pattern always runs
+    sequentially through memory in rows and never columns. This applies equally to
+    CPU and GPU code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now why might you choose the square layout over the rectangle layout? Well,
+    two reasons. The first is that threads within *the same block* can communicate
+    using shared memory, a very quick way to cooperate with one another. The second
+    consideration is you get marginally quicker memory access with single 128-byte
+    transaction instead of two, 64-byte transactions, due to accessing within a warp
+    being coalesced and 128 bytes being the size of a cache line in the Fermi hardware.
+    In the square layout notice you have threads 0 to 15 mapped to one block and the
+    next memory location belongs to another block. As a consequence you get two transactions
+    instead of one, as with the rectangular layout. However, if the array was slightly
+    larger, say 64 × 16, then you would not see this issue, as you’d have 32 threads
+    accessing contiguous memory, and thus a single 128-byte fetch from memory issued.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Use the following to modify the program to use either of the two layouts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`dim3 blocks_rect(1,4);`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: In either arrangement you have the same total number of threads (32 × 4 = 128,
+    16 × 8 = 128). It’s simply the layout of the threads that is different.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `dim3` type is simply a special CUDA type that you have to use to create
+    a 2D layout of threads. In the rectangle example, you’re saying you want 32 threads
+    along the *X* axis by 4 threads along the *Y* axis, within a single block. You’re
+    then saying you want the blocks to be laid out as one block wide by four blocks
+    high.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You’ll need to invoke the kernel with
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: or
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you no longer want just a single thread ID, but an *X* and *Y* position,
+    you’ll need to update the kernel to reflect this. However, you also need to linearize
+    the thread ID because there are situations where you may want an absolute thread
+    index. For this we need to introduce a couple of new concepts, shown in [Figure
+    5.12](#F0065).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-12-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.12 Grid, block, and thread dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can see a number of new parameters, which are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`blockDim.y–The size in threads of the Y dimension of a single block.`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can work out the absolute thread index by working out the *Y* position and
+    multiplying this by number of threads in a row. You then simply add in the *X*
+    offset from the start of the row. Thus, the thread index calculation is
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'So you need to modify the kernel to additionally return the *X* and *Y* positions
+    plus some other useful bits of information, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`unsigned int ∗ const grid_dimx,`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: We’ll call the kernel twice to demonstrate how you can arrange array blocks
+    and threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you’re now passing an additional dataset to compute, you need an additional
+    `cudaMalloc`, `cudaFree`, and `cudaMemcpy` to copy the data from the device. As
+    you’re using two dimensions, you’ll also need to modify the array size to allocate
+    and transfer the correct size of data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  const dim3 blocks_rect(1,4);`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`      {`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`    printf("Press any key to continue\n");`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: The output is too large to list here. If you run the program in the downloadable
+    source code section, you’ll see you iterate through the threads and blocks as
+    illustrated in [Figure 5.12](#F0065).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Warps
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We touched a little on warp scheduling when talking about threads. Warps are
+    the basic unit of execution on the GPU. The GPU is effectively a collection of
+    SIMD vector processors. Each group of threads, or warps, is executed together.
+    This means, in the ideal case, only one fetch from memory for the current instruction
+    and a broadcast of that instruction to the entire set of SPs in the warp. This
+    is much more efficient than the CPU model, which fetches independent execution
+    streams to support task-level parallelism. In the CPU model, for every core you
+    have running an independent task, you can conceptually divide the memory bandwidth,
+    and thus the effective instruction throughput, by the number of cores. In practice,
+    on CPUs, the multilevel, on-chip caches hide a lot of this providing the program
+    fits within the cache.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You find vector-type instructions on conventional CPUs, in the form of SSE,
+    MMX, and AVX instructions. These execute the same single instruction on multiple
+    data operands. Thus, you can say, for *N* values, increment all values by one.
+    With SSE, you get 128-bit registers, so you can operate on four parameters at
+    any given time. AVX extends this to 256 bits. This is quite powerful, but until
+    recently, unless you were using the Intel compiler, there was little native support
+    for this type of optimization. AVX is now supported by the current GNU gcc compiler.
+    Microsoft Visual Studio 2010 supports it through the use of a “/arch:AVX” compiler
+    switch. Given this lack of support until relatively recently, vector-type instructions
+    are not as widely used as they could be, although this is likely to change significantly
+    now that support is no longer restricted to the Intel compiler.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With GPU programming, you have no choice: It’s vector architecture and expects
+    you to write code that runs on thousands of threads. You can actually write a
+    single-thread GPU program with a simple `if` statement checking if the thread
+    ID is zero, but this will get you terrible performance compared with the CPU.
+    It can, however, be useful just to get an initial serial CPU implementation working.
+    This approach allows you to check things, such as whether memory copying to/from
+    the GPU is working correctly, before introducing parallelism into the application.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Warps on the GPU are currently 32 elements, although nVidia reserves the right
+    to change this in the future. Therefore, they provide an intrinsic variable, `warpSize`,
+    for you to use to obtain the warp size on the current hardware. As with any magic
+    number, you should not hard code an assumed warp size of 32\. Many SSE-optimized
+    programs were hard coded to assume an SSE size of 128 bits. When AVX was released,
+    simply recompiling the code was not sufficient. Don’t make the same mistake and
+    hard code such details into your programs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So why should you be interested in the size of a warp? The reasons are many,
+    so we’ll look briefly at each.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Branching
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The first reason to be interested in the size of a warp is because of branching.
+    Because a warp is a single unit of execution, branching (e.g., `if`, `else`, `for`,
+    `while`, `do`, `switch`, etc.) causes a divergence in the flow of execution. On
+    a CPU there is complex hardware to do branch prediction, predicting from past
+    execution which path a given piece of code will take. The instruction flow is
+    then prefetched and pumped into the CPU instruction pipeline ahead of time. Assuming
+    the prediction is correct, the CPU avoids a “stall event.” Stall events are very
+    bad, as the CPU then has to undo any speculative instruction execution, fetch
+    instructions from the other branch path, and refill the pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The GPU is a much simpler device and has none of this complexity. It simply
+    executes one path of the branch and then the other. Those threads that take the
+    branch are executed and those that do not are marked as inactive. Once the taken
+    branch is resolved, the other side of the branch is executed, until the threads
+    converge once more. Take the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: As soon as you evaluate `some_condition`, you will have divergence in at least
+    one block or there is no point in having the test in the program. Let’s say all
+    the even thread numbers take the true path and all the odd threads take the false
+    path. The warp scoreboard then looks as shown in [Figure 5.13](#F0070).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-13-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.13 Predicate thread/branch selection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For simplicity, I’ve drawn only 16 of the 32 threads, and you’ll see why in
+    a minute. All those threads marked + take the true or positive path and all those
+    marked − take the false or negative path.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the hardware can only fetch a single instruction stream per warp, half of
+    the threads stall and half progress down one path. This is really bad news as
+    you now have only 50% utilization of the hardware. This is a bit like having a
+    dual-core CPU and only using one core. Many lazy programmers get away with it,
+    but the performance is terrible compared to what it could be.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now as it happens, there is a trick here that can avoid this issue. The actual
+    scheduler in terms of instruction execution is half-warp based, not warp based.
+    This means if you can arrange the divergence to fall on a half warp (16-thread)
+    boundary, you can actually execute both sides of the branch condition, the `if-else`
+    construct in the example program. You can achieve 100% utilization of the device
+    in this way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If you have two types of processing of the data, interleaving the data on a
+    16-word boundary can result in quite good performance. The code would simply branch
+    on the thread ID, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: The modulus operator in C (`%`) returns the remainder of the integer division
+    of the operand. In effect, you count from 0 to 31 and then loop back to 0 again.
+    Ideally, the function `action_a()` has each of its 16 threads access a single
+    float or integer value. This causes a single 64-byte memory fetch. The following
+    half warp does the same and thus you issue a single 128-byte memory fetch, which
+    it just so happens is the size of the cache line and therefore the optimal memory
+    fetch size for a warp.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GPU utilization
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: So why else might you be interested in warps? To avoid underutilizing the GPU.
+    The CUDA model uses huge numbers of threads to hide memory latency (the time it
+    takes for a memory request to come back). Typically, latency to the global memory
+    (DRAM) is around 400–600 cycles. During this time the GPU is busy doing other
+    tasks, rather than idly waiting for the memory fetch to complete.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When you allocate a kernel to a GPU, the maximum number of threads you can put
+    onto an SM is currently 768 to 2048, depending on the compute level. This is implementation
+    dependent, so it may change with future hardware revisions. Take a quick look
+    at utilization with different numbers of threads in [Table 5.1](#T0010).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 5.1 Utilization %
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000053tabT0010.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Compute 1.0 and 1.2 devices are the G80/G92 series devices. Compute 1.3 devices
+    are the GT200 series. Compute 2.0/2.1 devices are the Fermi range. Compute 3.0
+    is Kepler.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that the only consistent value that gets you 100% utilization across
+    all levels of the hardware is 256 threads. Thus, for maximum compatibility, you
+    should aim for either 192 or 256 threads. The dataset should, however, match the
+    thread layout to achieve certain optimizations. You should, therefore, also consider
+    the 192-thread layout where you have a three-point data layout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another alternative to having a fixed number of threads is to simply look up
+    the compute level from the device and select a the smallest number of threads,
+    that gives the highest device utilization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now you might want to also consider the number of blocks that can be scheduled
+    into a given SM. This really only makes a difference when you have synchronization
+    points in the kernel. These are points where every thread must wait on every other
+    thread to reach the same point, for example, when you’re doing a staged read and
+    all threads must do the read. Due to the nature of the execution, some warps may
+    make good progress and some may make poor progress to the synchronization point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The time, or latency, to execute a given block is undefined. This is not good
+    from a load balancing point of view. You want lots of threads available to be
+    run. With 256 threads, 32 threads per warp give you 8 warps on compute 2.x hardware.
+    You can schedule up to 24 warps (32 × 24 = 768 threads) at any one time into a
+    given SM for compute 1.x devices and 48 (32 × 48 = 1536 threads) for compute 2.x
+    devices. A block cannot be retired from an SM until it’s completed its *entire*
+    execution. With compute 2.0x devices or higher that support 1024 threads per block,
+    you can be waiting for that single warp to complete while all other warps are
+    idle, effectively making the SM also idle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, the larger the thread block, the more potential you have to wait for a
+    slow warp to catch up, because the GPU can’t continue until all threads have passed
+    the checkpoint. Therefore, you might have chosen a smaller number of threads,
+    say 128 threads in the past, to reduce this potential waiting time. However, this
+    hurts the performance on Fermi-level hardware as the device utilization drops
+    to two-thirds. As you can see from [Table 5.1](#T0010), on compute 2.0 devices
+    (Fermi), you need to have at least 192 threads per block to make good use of the
+    SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, you should not get too tied up concerning the number of warps, as they
+    are really just a measure of the overall number of threads present on the SMs.
+    [Table 5.3](#T0020) shows the total number of threads running, and it’s this total
+    number that is really the interesting part, along with the percentage utilization
+    shown in [Table 5.1](#T0010).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 5.2 Blocks per SM
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000053tabT0015.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Table 5.3 Total Threads per SM
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000053tabT0020.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Notice with 128 or less threads per block, as you move from the compute 1.3
+    hardware (the GT200 series) to the compute 2.x hardware (Fermi), you see no difference
+    in the total number of threads running. This is because there are limits to the
+    number of blocks an SM can schedule. The number of
+  prefs: []
+  type: TYPE_NORMAL
+- en: threads an SM could support was increased, but not the number of blocks. Thus,
+    to achieve better scaling you need to ensure you have at least 192 threads and
+    preferably considerably more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Block Scheduling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Suppose you have 1024 blocks to schedule, and eight SMs to schedule these onto.
+    With the Fermi hardware, each SM can accept up to 8 blocks, but only if there
+    is a low thread count per block. With a reasonable thread count, you typically
+    see 6 to 8 blocks per SM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now 1024 blocks divided between six SMs is 170 complete blocks each, plus 4
+    blocks left over. We’ll look at the leftover blocks in a minute, because it causes
+    an interesting problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the 1020 blocks that can be allocated to the SMs, how should they be allocated?
+    The hardware could allocate 6 blocks to the first SM, 6 to the second, and so
+    on. Alternatively, it could distribute 1 block to each SM in turn, so SM 0 gets
+    block 0, SM 1 gets block 1, SM 2 gets block 2, etc. NVIDIA doesn’t specify what
+    method it uses, but it’s fairly likely to be the latter to achieve a reasonable
+    load balance across the SMs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you have 19 blocks and four SMs, allocating blocks to an SM until it’s full
+    is not a good idea. The first three SMs would get 6 blocks each, and the last
+    SM, a single block. The last SM would likely finish quickly and sit idle waiting
+    for the other SMs. The utilization of the available hardware is poor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you allocate blocks to alternate SMs on a rotating basis, each SM gets 4
+    blocks (4 SMs × 4 blocks = 16 total) and three SMs get an additional block each.
+    Assuming each block takes the same time to execute you have reduced the execution
+    time by 17%, simply by balancing the blocks among the SMs, rather than overloading
+    some SMs while underloading others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now in practice you will usually have thousands or tens of thousands of blocks
+    to get through in a typical application. Having done the initial allocation of
+    blocks to an SM, the block dispatcher is then idle until one block finishes on
+    any of the SMs. At this point the block is retired and the resources used by that
+    block become free. As all the blocks are the same size, *any* block in the list
+    of waiting blocks can be scheduled. The order of execution of blocks is deliberately
+    undefined and there should be no implicit assumption that blocks will execute
+    in any order when programming a solution to a problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This can have serious problems if there is some associative operation being
+    performed, such as floating-point addition, which is not in practice associative.
+    The order of execution of adds through an array in floating-point math will affect
+    the result. This is due to the rounding errors and the way in which floating-point
+    math works. The result is correct in all cases. It’s not a parallel execution
+    problem, but an ordering problem. You see exactly the same issue with single-thread
+    CPU code. If you add a set of random numbers from bottom to top, or top to bottom,
+    in a floating-point array on a CPU or GPU, you will get different answers. Perhaps
+    worse still is that on a GPU, due to the undefined block scheduling, multiple
+    runs on the same data can result in different but correct answers. There are methods
+    to deal with this and it is something we cover later in the book. So for now,
+    just be aware that because the result is different than before, it doesn’t necessarily
+    make the result incorrect.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coming back to the problem of having leftover blocks, you will have this scenario
+    anytime the number of blocks is not a multiple of the number of SMs. Typically
+    you see CUDA devices ship with an odd number of SMs, due to it being difficult
+    to make large, complex processors. As the physical amount of silicon used in creating
+    a processor increases, the likelihood there is a failure in some section increases
+    considerably. NVIDIA, like many processor manufacturers, simply disables faulty
+    SMs and ships devices as lower-specification units. This increases yields and
+    provides some economic value to otherwise faulty devices. However, for the programmer,
+    this means the total number of SMs is not always even a multiple of two. The Fermi
+    480 series cards, and also the Tesla S2050/S2070/C2050/C2070 series, have a 16
+    SM device with 1 SM disabled, thus making 15 SMs. This was resolved in the 580
+    series, but this problem is likely to be repeated as we see future GPU generations
+    released.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having a few leftover blocks is really only an issue if you have a very long
+    kernel and need to wait for each kernel to complete. You might see this, for example,
+    in a finite time step simulation. If you had 16 blocks, assuming a Fermi 480 series
+    card, 15 blocks would be allocated to each of the SMs. The remaining block will
+    be scheduled only after one of the other 15 blocks has completed. If each kernel
+    took 10 minutes to execute, it’s likely all the blocks would finish at approximately
+    the same time. The GPU would then schedule one additional block and the complete
+    kernel invocation would wait for an additional 10 minutes for this single block
+    to execute. At the same time, the other 14 available SMs would be idle. The solution
+    to this problem is to provide better granularity to break down the small number
+    of blocks into a much larger number.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a server environment you may not have just 15 SMs, but actually multiple
+    nodes each having multiple GPUs. If their only task is this kernel, then they
+    will likely sit idle toward the end of the kernel invocation. In this instance
+    it might prove better to redesign the kernel in some way to ensure the number
+    of blocks is an exact multiple of the number of SMs on each node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From a load balancing perspective, this problem is clearly not good. As a consequence,
+    in the later CUDA runtime, you have support for overlapping kernels and running
+    multiple, separate kernels on the same CUDA device. Using this method, you can
+    maintain the throughput if you have more than one source of jobs to schedule onto
+    the cluster of GPUs. As the CUDA devices start to idle, they instead pick up another
+    kernel from a stream of available kernels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A Practical Example—Histograms
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Histograms are commonly found in programming problems. They work by counting
+    the distribution of data over a number of “bins.” Where the data point contains
+    a value that is associated with a given bin, the value in that bin is incremented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the simplest example, you have 256 bins and data that range from 0 to 255\.
+    You iterate through an array of bytes. If the value of the element in the array
+    is 0, you increment bin 0\. If the value of the element is 10, you increment bin
+    10, etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The algorithm from a serial perspective is quite simple:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here you extract the value from the array, indexed by `i`. You then increment
+    the appropriate bin using the `++` operator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The serial implementation suffers from a problem when you convert it to a parallel
+    problem. If you execute this with 256 threads, you get more than one thread *simultaneously*
+    incrementing the value in the *same* bin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at how the C language gets converted to an assembler, you see it
+    can take a series of assembler instructions to execute this code. These would
+    break down into
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1. Read the value from the array into a register.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. Work out the base address and offset to the correct bin element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. Fetch the existing bin value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 4. Increment the bin value by one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5. Write the new bin value back to the bin in memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem is steps three, four, and five are not atomic. An atomic operation
+    is one that cannot be interrupted prior to completion. If you execute this pseudocode
+    in a lockstep manner, as CUDA does with its thread model, you hit a problem. Two
+    or more threads fetch the same value at step three. They all increment it and
+    write it back. The last thread to do the write wins. The value should have been
+    incremented *N* times, but it’s incremented only once. All threads read the same
+    value to apply the increment to, thus you lose *N* increments to the value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem here is that you have a data dependency you do not see on the serial
+    execution version. Each increment of the bin value must complete before the read
+    and increment by the next thread. You have a shared resource between threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is not an uncommon problem and CUDA provides a primitive for this called
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: This operation guarantees the addition operation is serialized among all threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Having now solved this problem, you come to the real choice here—how to structure
+    the tasks you have to cover into threads, blocks, and grids. There are two approaches:
+    the task decomposition model or the data decomposition model. Both generally need
+    to be considered.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the task decomposition model, you simply allocate one thread to every element
+    in input array and have it do an atomic add. This is the simplest solution to
+    program, but has some major disadvantages. You must remember that this is actually
+    a shared resource. If you have 256 bins and an array of 1024 elements, assuming
+    an equal distribution, you have 4 elements contending for each bin. With large
+    arrays (there is no point in processing small arrays with CUDA) this problem becomes
+    the dominant factor determining the total execution time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you assume an equal distribution of values in the histogram, which is often
+    not the case, the number of elements contending for any single bin is simply the
+    array size in elements divided by the number of bins. With a 512 MB array (524,288
+    elements) you would have 131,072 elements contending for each bin. In the worst
+    case, all elements write to the same bin, so you have, in effect, a serial program
+    due to the serialization of the atomic memory writes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In either example, the execution time is limited by the hardware’s ability to
+    handle this contention and the read/write memory bandwidth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s see how this works in reality. Here is the GPU program to do this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`  /∗ Fetch the data value ∗/`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: With a GTX460 card, we measured 1025 MB/s with this approach. What is interesting
+    is that it does not scale with the number of elements in the array. You get a
+    consistently poor performance, regardless of the array size. Note that the GPU
+    used for this test, a 1 GB GTX460, has a memory bandwidth of 115 GB/s, so this
+    shows just how terrible a performance you can achieve by implementing the naive
+    solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This figure, although bad, simply tells you that you are limited by some factor
+    and it’s your job as a programmer to figure out which factor and eliminate it.
+    The most likely factor affecting performance in this type of program is memory
+    bandwidth. You are fetching *N* values from the input array and compressing those
+    down to *N* writes to a small, 1 K (256 elements × 4 bytes per integer counter)
+    memory section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at the memory reads first, you will see each thread reads one *byte*
+    element of the array. Reads are combined together (coalesced) at the half-warp
+    level (16 threads). The minimum transfer size is 32 bytes, so you’re wasting read
+    memory bandwidth by about 50%, which is pretty poor. The optimal memory fetch
+    for a half warp is the maximum supported size, which is 128 bytes. For this, each
+    thread has to fetch 4 bytes of memory. You can do this by having each thread process
+    four histogram entries instead of one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can issue a 4-byte read, by reading a single integer, and then extracting
+    the component parts of that integer as shown in [Figure 5.14](#F0075). This should
+    provide better read coalescing and therefore better performance. The modified
+    kernel is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![image](../images/F000053f05-14-9780124159334.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.14 Word-to-byte mapping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: When running the kernel we notice we have achieved for all our effort zero speedup.
+    This is, in fact, quite common when trying to optimize programs. It’s a pretty
+    strong indicator you did not understand the cause of the bottleneck.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One issue to note here is that in compute 2.x, hardware does not suffer with
+    only being able to coalesce data from a half warp and can do full-warp coalescing.
+    Thus, on the test device, a GTX460 (compute 2.1 hardware), the 32 single byte
+    fetches issued by a single warp were coalesced into a 32-byte read.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The obvious candidate is the atomic write operation, rather than the usual memory
+    bandwidth culprit. For this you need to look at the alternative approach given
+    by the data decomposition model. Here you look at the data flow side of the equation,
+    looking for data reuse and optimizing the data size into that which works effectively
+    with shared resources, such as a cache or shared memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can see that the contention for the 256 bins is a problem. With multiple
+    blocks writing to memory from multiple SMs, the hardware needs to sync the value
+    of the bin array across the caches in all processors. To do this it needs to fetch
+    the current value from memory, increment it, and then write it back. There is
+    some potential for this to be held permanently in the L2 cache, which is shared
+    between the SMs in the Fermi generation of hardware. With compute 1.x hardware,
+    you are reading and writing to the global memory, so this approach is an order
+    of magnitude slower.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even if you can use the L2 cache on the Fermi hardware, you are still having
+    to go out of the SM to sync with all the other SMs. On top of this the write pattern
+    you are generating is a scattered pattern, dependent very much on the nature of
+    the input data for the histogram. This means no or very little coalescing, which
+    again badly hurts performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An alternative approach is to build the histogram within each SM and then write
+    out the histogram to the main memory at the end. This is the approach you must
+    always try to achieve, whether for CPU or GPU programming. The more you make use
+    of resources close to the processor (SM in this case), the faster the program
+    runs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We mentioned earlier that we can use shared memory, a special form of memory
+    that is on chip and thus very fast. You can create a 256-bin histogram in the
+    shared memory and then do the atomic add at the end to the global memory. Assuming
+    you process only one histogram per block, you do not decrease the number of global
+    memory reads or writes, but you do coalesce all the writes to memory. The kernel
+    for this approach is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: The kernel must do an additional clear operation on the shared memory, as you
+    otherwise have random data left there from other kernels. Notice also you need
+    to wait (`__syncthreads`) until all the threads in a block have managed to clear
+    their memory cell in the shared memory before you start allowing threads to update
+    any of the shared memory cells. You need to do the same sync operation at the
+    end, to ensure every thread has completed before you write the result back to
+    the global memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You should see that, suddenly, you get a huge *six* times jump in performance,
+    simply by virtue of arranging the writes in order so they can be coalesced. You
+    can now achieve 6800 MB/s processing speed. Note, however, you can only do this
+    with compute 1.2 or higher devices as only these support shared memory atomic
+    operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you have the ordering correct, you need to look at reducing the global
+    memory traffic. You have to read every value from the source data, and you only
+    read each value once. You are already using the optimal transfer size for read
+    accesses, so let’s look at the data being written. If you process *N* histograms
+    per block instead of one histogram per block you reduce the write bandwidth by
+    a factor of *N*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Table 5.4](#T0025) shows the value achieved on the 512 MB histogram based
+    on processing different values of *N* with a Fermi 460 card (which contains seven
+    SMs). You can see a peak of 7886 MB/s at an *N* value of 64\. The kernel is as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Table 5.4 Histogram Results
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Image](../images/T000053tabT0025.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '[PRE87]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE88]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE89]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE90]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE91]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE92]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let’s examine this a little, because it’s important to understand what you are
+    doing here. You have a loop `i` that runs for *N* iterations. This is the number
+    of times you will process 256 bytes of data into the shared memory histogram.
+    There are 256 threads invoked for the kernel, one for each bin. As such, the only
+    loop you need is a loop over the number of histograms to process. When you’ve
+    done one iteration, you move 256 bytes on in memory to process the next histogram
+    (`tid_offset += 256`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice also that as you’re using atomic operations throughout, you need sync
+    points only at the start and end of the kernel. Adding unnecessary synchronization
+    points typically slows down the program, but can lead to a more uniform access
+    pattern in memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now what is interesting here is that, after you start to process 32 or more
+    histograms per block, you see no effective increase in throughput. The global
+    memory bandwidth is dropping by a factor of two every time you increase that value
+    of *N*. If global memory bandwidth is indeed the problem, you should see a linear
+    speed up here for every factor of *N* you add. So what is going on?
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main problem is the atomic operations. Every thread must content for access
+    to the shared data area, along with other threads. The data pattern has a huge
+    influence on the execution time, which is not a good design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’ll return to this issue later when we look at how you can write such algorithms
+    without having to use atomic operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conclusion
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We covered a lot in this chapter and you should now be familiar with how CUDA
+    breaks tasks into grids, blocks, and threads. We covered the scheduling of blocks
+    and warps on the hardware and the need to ensure you always have enough threads
+    on the hardware.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The threading model used in CUDA is fundamental to understanding how to program
+    GPUs efficiently. You should understand how CPUs and GPUs are fundamentally different
+    beasts to program, but at the same time how they are related to one another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You have seen how arrangement of threads relative to the data you are going
+    to process is important and impacts performance. You have also seen, in particular
+    with applications that need to share data, it is not always an easy task to parallelize
+    a particular problem. You should note that often taking time to consider the correct
+    approach is somewhat more important than diving in with the first solution that
+    seems to fit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also covered the use of atomics and some of the problems of serialization
+    these cause. We touched on the problems branching can cause and you should have
+    in the back of your mind the need to ensure all threads follow the same control
+    path. We look at atomics and branching in more detail later in the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You have had some exposure to the extended C syntax used within CUDA and should
+    feel comfortable in writing a CUDA program with a clear understanding of what
+    will happen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By reading this chapter you have gained a great deal of knowledge and hopefully
+    should no longer feel that CUDA or parallel programming is a bit like a black
+    art.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. Identify the best and worst data pattern for the histogram algorithm developed
+    in this chapter. Is there a common usage case that is problematic? How might you
+    overcome this?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. Without running the algorithm, what do you think is the likely impact of
+    running this code on older hardware based on the G80 design?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. When processing an array in memory on a CPU, is it best to transverse in
+    row-column order or column-row order? Does this change when you move the code
+    to a GPU?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 4. Consider a section of code that uses four blocks of 256 threads and the same
+    code that uses one block of 1024 threads. Which is likely to complete first and
+    why? Each block uses four `syncthreads()` calls at various points through the
+    code. The blocks require no interblock cooperation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5. What are the advantages and disadvantages of an SIMD-based implementation
+    that we find in GPUs versus the MIMD implementation we find in multicore CPUs?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Answers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 1. The best case is uniform distribution of data. This is because this loads
+    the buckets equally and you therefore get an equal distribution of atomic operations
+    on the available shared memory banks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The worst case is identical data values. This causes all threads to continuously
+    hit the same shared memory bucket, causing serialization of the entire program
+    through both the atomic operations and bank conflicts in the shared memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, one very common usage is with sorted data. This provides a variation
+    on the worst-case usage. Here one bank after another gets continuously hit with
+    atomic writes, effectively serializing the problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One solution is to step through the dataset such that each iteration writes
+    to a new bucket. This requires knowledge of the data distribution. For example,
+    consider the case of 256 data points modeling a linear function using 32 buckets.
+    Let’s assume data points 0 to 31 fall into the first bucket and this is replicated
+    for every bucket. By processing one value for each bucket, you can distribute
+    writes to the buckets and avoid contention. In this example, you would read data
+    points 0, 32, 64, 96, 1, 33, 65, 97, 2, 34, 66, 98, etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2. The G80 devices (compute 1.0, compute 1.1) don’t support shared memory atomics,
+    so the code will not compile. Assuming you modified it to use global memory atomics,
+    we saw a seven-fold decrease in performance in the example provided earlier in
+    the chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3. The row-column ordering is best because the CPU will likely use a prefetch
+    technique, ensuring the subsequent data to be accessed will be in the cache. At
+    the very least, an entire cache line will be fetched from memory. Thus, when the
+    CPU comes to the second iteration of the row-based access, `a[0]` will have fetched
+    `a[1]` into the cache.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The column transversal will result in much slower code because the fetch of
+    a single cache line on the CPU is unlikely to fetch data used in the subsequent
+    loop iteration unless the row size is very small. On the GPU each thread fetches
+    one or more elements of the row, so the loop transversal, at a high level, is
+    usually by column, with an entire row being made up of individual threads. As
+    with the CPU the entire cache line will be fetched on compute 2.x hardware. However,
+    unlike the CPU, this cache line will likely be immediately consumed by the multiple
+    threads.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 4. During a `syncthreads()` operation, the entire block stalls until every one
+    of the threads meets the `syncthreads()` checkpoint. At this point they all become
+    available for scheduling again. Having a very large number of threads per block
+    can mean the SM runs out of other available warps to schedule while waiting for
+    the threads in a single block to meet the checkpoint. The execution flow as to
+    which thread gets to execute when is undefined. This means some threads can make
+    much better progress than others to the `syncthreads()` checkpoint. This is the
+    result of a design decision in favor of throughput over latency at the hardware
+    level. A very high thread count per block is generally only useful where the threads
+    in the block need to communicate with one another, without having to do interblock
+    communication via the global memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5. The SIMD model amortizes the instruction fetch time over many execution units
+    where the instruction stream is identical. However, where the instruction stream
+    diverges, execution must be serialized. The MIMD model is designed for divergent
+    execution flow and doesn’t need to stall threads when the flow diverges. However,
+    the multiple fetch and decoding units require more silicon and higher instruction
+    bandwidth requirements to maintain multiple independent execution paths.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A mixture of SIMD and MIMD is often the best way of dealing with both control
+    flow and identical operations of large datasets. You see this in CPUs in terms
+    of SSE/MMX/AVX support. You see this in GPUs in terms of warps and blocks allowing
+    for divergence at a higher granularity.
+  prefs: []
+  type: TYPE_NORMAL
