@@ -9142,6 +9142,7 @@
   id: totrans-1221
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方式在避免分支时效果良好，因为事实上所有线程都会执行谓词指令，但没有设置谓词位的线程会忽略它。即使其他方法可能更好，编译器仍然偏好使用谓词。其标准仅基于`if`语句体的大小。考虑以下示例：
 - en: '[PRE293]'
   id: totrans-1222
   prefs: []
@@ -9173,6 +9174,8 @@
   id: totrans-1226
   prefs: []
   type: TYPE_NORMAL
+  zh: 这段代码简单地根据索引选择一个*N*局部变量（寄存器）。局部变量有各自的名称，因为创建数组会导致编译器将其放入局部内存中。不幸的是，编译器实现了一系列`if-else-if`类型的语句，这意味着在元素
+    16 时，我们需要先执行 15 次测试。我本希望它能实现跳转表，在每个跳转目标创建一个赋值。这样会是两条指令，首先将`local_idx`加载到寄存器中，然后执行间接跳转，跳转到某个基地址加上寄存器中的值。跳转表本身是在编译时设置的。
 - en: Thus, you need to ensure the control flow you expect is the control flow the
     compiler generates. You can do this relatively easily by inspecting the PTX code
     and/or the actual target code if you are still unsure. Predication works well
@@ -9180,35 +9183,42 @@
   id: totrans-1227
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，你需要确保你预期的控制流与编译器生成的控制流一致。如果你仍然不确定，可以通过检查 PTX 代码和/或实际目标代码来相对容易地做到这一点。谓词在许多情况下都能很好地工作，但并非所有情况。
 - en: Section summary
   id: totrans-1228
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 小节总结
 - en: • Use profiling tools to really see into what is happening as opposed to what
     you *think* is happening.
   id: totrans-1229
   prefs: []
   type: TYPE_NORMAL
+  zh: • 使用性能分析工具深入了解实际发生的情况，而不是你*认为*发生的情况。
 - en: • Avoid overly complex kernels by generating a general case and exception case
     kernel, or by using the caching features to eliminate the complex kernel altogether.
   id: totrans-1230
   prefs: []
   type: TYPE_NORMAL
+  zh: • 避免使用过于复杂的内核，可以通过生成通用情况和例外情况内核，或者使用缓存功能来完全消除复杂内核。
 - en: • Understand how predication works in control flow.
   id: totrans-1231
   prefs: []
   type: TYPE_NORMAL
+  zh: • 了解谓词在控制流中的工作原理。
 - en: • Don’t assume the compiler will provide the same scope of optimizations found
     with more mature compilers. CUDA is still quite new and things will take time.
   id: totrans-1232
   prefs: []
   type: TYPE_NORMAL
+  zh: • 不要假设编译器会提供与更成熟的编译器相同范围的优化。CUDA 仍然相对较新，事情需要时间发展。
 - en: 'Strategy 7: Self-Tuning Applications'
   id: totrans-1233
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 策略 7：自调节应用
 - en: GPU optimization is not like CPU optimization. Many techniques overlap, while
     others have undesirable effects. I’ve tried to cover the major areas of optimization
     in the preceding sections. However, optimization is never an exact science, not
@@ -9367,6 +9377,7 @@
   id: totrans-1256
   prefs: []
   type: TYPE_NORMAL
+  zh: • 成员 `major` 和 `minor`，结合起来可以提供设备的计算能力等级。
 - en: • The `integrated` flag, especially when combined with the `canMapHostMemory`
     flag. This allows you to use zero-copy memory (covered in Strategy 3) and avoid
     memory copies to and from the device for devices of which the GPU memory is actually
@@ -9374,16 +9385,20 @@
   id: totrans-1257
   prefs: []
   type: TYPE_NORMAL
+  zh: • `integrated` 标志，特别是与 `canMapHostMemory` 标志结合使用时。这允许你使用零拷贝内存（详见策略 3），避免在设备和主机之间进行内存拷贝，适用于
+    GPU 内存实际上位于主机上的设备。
 - en: • The `totalGlobalMem` value so you can maximize the use of GPU memory and ensure
     you don’t try to allocate too much memory space on the GPU.
   id: totrans-1258
   prefs: []
   type: TYPE_NORMAL
+  zh: • `totalGlobalMem` 值，以便你能够最大化 GPU 内存的使用，并确保不会试图在 GPU 上分配过多的内存空间。
 - en: • The `sharedMemPerBlock` value so you know how much shared memory is available
     per SM.
   id: totrans-1259
   prefs: []
   type: TYPE_NORMAL
+  zh: • `sharedMemPerBlock` 值，让你了解每个 SM 可用的共享内存量。
 - en: • The `multiProcessorCount`, which is the number of SMs present in the device.
     Multiply this number by the number of blocks you are able to run on an SM. The
     occupancy calculator, the Visual Profiler, and Parallel Nsight will all tell you
@@ -9393,6 +9408,9 @@
   id: totrans-1260
   prefs: []
   type: TYPE_NORMAL
+  zh: • `multiProcessorCount`，即设备中存在的 SM 数量。将这个数字乘以你能够在一个 SM 上运行的块数。占用率计算器、Visual
+    Profiler 和 Parallel Nsight 都会告诉你每个给定内核可以运行的块数。通常最多是 8，但在 Kepler 上最多可以达到 16。这是你需要调度到该
+    GPU 的最小块数。
 - en: 'This information gives us some bounds with which we can define the problem
     space. We then have two choices: either analyze offline the best solution or try
     to work it out at runtime. The offline approach generally leads to better results
@@ -9402,6 +9420,7 @@
   id: totrans-1261
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些信息为我们提供了一些边界，通过这些边界我们可以定义问题空间。然后，我们有两个选择：要么离线分析最佳解决方案，要么尝试在运行时解决。离线方法通常会导致更好的结果，并且能够大大增加你对所涉及问题的理解，甚至可能促使你重新设计程序的某些方面。而运行时方法则是在经历了大量分析之后，仍然是实现最佳性能所必需的。
 - en: Thus, the first part of the optimization takes place offline, during the development
     phase. If you are targeting multiple compute levels, you’ll need a suitable card
     to test your application on. For consumer cards as a whole the most popular NVIDIA
@@ -9457,6 +9476,7 @@
   id: totrans-1266
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有应用程序都是不同的，因此相同的主要性能因素可能并不总是相同的。然而，许多因素是相似的。其中最主要的是启动配置。首先，确保在构建过程中设置了多个目标，每个目标对应你计划支持的每个计算级别。目标代码将根据你运行内核的GPU自动选择。在运行任何性能测试之前，确保选择了“Release”版本作为构建目标，这本身就能提供高达2倍的性能提升。你不会发布调试版本，因此除非是测试，否则不要将其选择为构建目标。
 - en: Next we need some sort of check to ensure correctness. I suggest you run the
     GPU code back to back with the CPU code and then do a memory compare (`memcmp`)
     on the output of the two identical tests. Note this will detect any error, even
@@ -9468,28 +9488,34 @@
   id: totrans-1267
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来我们需要某种检查来确保正确性。我建议你将GPU代码与CPU代码进行逐一对比，然后对两个相同测试的输出结果进行内存比较（`memcmp`）。注意，这将检测到任何错误，即使错误不显著。特别是在浮点运算中，操作的顺序会导致微小的舍入/精度误差。在这种情况下，你的检查需要遍历两个结果，并查看答案是否有差异，差异大小应根据你特定问题的需求来判断（如0.01、0.001、0.0001等）。
 - en: 'In terms of launch configuration we’re trying to optimize for the following:'
   id: totrans-1268
   prefs: []
   type: TYPE_NORMAL
+  zh: 就启动配置而言，我们的目标是优化以下几个方面：
 - en: • Number of threads per block.
   id: totrans-1269
   prefs: []
   type: TYPE_NORMAL
+  zh: • 每个块的线程数。
 - en: • Overall number of blocks.
   id: totrans-1270
   prefs: []
   type: TYPE_NORMAL
+  zh: • 总体块数。
 - en: • Work performed per thread (ILP).
   id: totrans-1271
   prefs: []
   type: TYPE_NORMAL
+  zh: • 每个线程执行的工作量（ILP）。
 - en: The answer for each of these will vary between compute levels. A simple `for`
     loop is all that is needed to iterate through all possible combinations and record
     the timings for each. Then at the end simply print a summary of the results.
   id: totrans-1272
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于这些问题的答案，将根据计算级别的不同而有所变化。只需要一个简单的`for`循环，就能遍历所有可能的组合并记录每个组合的时间。最后，只需打印结果摘要即可。
 - en: In terms of threads per block, start at 1 and increase in powers of two until
     you reach 16\. Then increase the thread count in 16-step intervals until you reach
     512 threads per block. Depending on the kernel resource usage (registers, shared
@@ -9498,6 +9524,7 @@
   id: totrans-1273
   prefs: []
   type: TYPE_NORMAL
+  zh: 在每个块的线程数方面，从1开始，并按照2的幂次方递增，直到达到16。然后以16为步长增加线程数，直到达到每个块512个线程。根据内核资源的使用情况（寄存器、共享内存），在较早的计算设备上，可能无法达到512个线程，因此仅在这些设备上根据需要进行缩减。
 - en: Note that we chose 16 here as the increment value, rather than 32, the warp
     size. This is because warp divergence is half-warp based. Certain devices such
     as the GTX460s are actually based on three sets of 16 CUDA cores, rather than
@@ -9506,6 +9533,7 @@
   id: totrans-1274
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们在这里选择了16作为增量值，而不是32，即warp大小。这是因为warp分歧是基于半warp的。某些设备，如GTX460，实际上基于三组16个CUDA核心，而不是其他计算级别中常见的两组。因此，48的倍数线程数在这类设备上可能表现得更好。
 - en: As a general rule, you’ll find well-written kernels work best with 128, 192,
     or 256 threads per block. You should use a consistent scaling from one thread
     per block up to a peak point where the performance will level off and then fall
@@ -9515,6 +9543,7 @@
   id: totrans-1275
   prefs: []
   type: TYPE_NORMAL
+  zh: 一般来说，你会发现写得好的内核在每个块128、192或256个线程时表现最佳。你应当采用从每块一个线程开始，逐步增加线程数，直到性能达到顶峰并开始平稳下降的方式。这个平台通常出现在你达到每个SM的最大驻留warp数时，从而指令和内存延迟隐藏工作达到顶峰。
 - en: Using a slightly smaller number of threads (e.g., 192 instead of 256) is often
     desirable if this increases the number of resident blocks per SM. This usually
     provides for a better instruction mix, as more blocks increases the chance they
@@ -9522,12 +9551,14 @@
   id: totrans-1276
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果使用稍小的线程数（例如，使用192而非256个线程），通常是有利的，前提是这样可以增加每个SM上驻留的块数。这通常可以提供更好的指令混合，因为更多的块增加了它们不会同时遇到同一资源争用的机会。
 - en: If you are hitting the maximum performance at 16, 32, or 64 threads then this
     usually indicates there is a contention issue, or that your kernel is highly geared
     toward ILP and you are using a lot of registers per thread.
   id: totrans-1277
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果在16、32或64个线程时达到了最大性能，通常表示存在资源争用问题，或者内核高度依赖指令级并行（ILP），并且每个线程使用了大量寄存器。
 - en: Once you have a baseline figure for the ideal number of threads per block, try
     increasing the amount of work done by each thread to two or four elements using
     the various `vector_N` types (e.g., `int2`, `int4`, `float2`, `float4`, etc.).
@@ -9538,6 +9569,8 @@
   id: totrans-1278
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦你有了理想的每个块线程数量的基准值，试着将每个线程的工作量增加到两个或四个元素，使用各种 `vector_N` 类型（例如，`int2`、`int4`、`float2`、`float4`
+    等）。你通常会发现这会进一步提高性能。最简单的方式是创建具有相同名称的额外函数，直接重载内核函数。CUDA 会根据运行时传递的类型调用相应的内核。
 - en: Using the vector types will increase register usage, which in turn may decrease
     the number of resident blocks per SM. This in turn may improve cache utilization.
     Memory throughput will also likely be increased as the overall number of memory
@@ -9547,6 +9580,8 @@
   id: totrans-1279
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用向量类型会增加寄存器的使用，从而可能减少每个 SM 上的驻留块数。这反过来可能会提高缓存利用率。内存吞吐量也可能会提高，因为总体内存事务数减少。然而，带有同步点的内核可能会受到影响，因为驻留块数减少，SM
+    可执行的 warp 选择变少。
 - en: As with many optimizations, the outcome is difficult to predict with any degree
     of certainty, as some factors play in your favor while others don’t. The best
     solution is to try it and see. Then work backwards, to understand what factor(s)
@@ -9555,11 +9590,13 @@
   id: totrans-1280
   prefs: []
   type: TYPE_NORMAL
+  zh: 与许多优化一样，结果很难以任何程度的确定性来预测，因为一些因素有利于你，而另一些则不然。最好的方法是尝试并观察。然后反向推导，理解哪些因素是主要的，哪些是次要的。除非已经解决了主要因素，否则不要浪费时间担心次要因素。
 - en: Sampling performance
   id: totrans-1281
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 性能采样
 - en: The final part of a self-tuning application is sampling. Although you can build
     a good performance model around compute level and number of SMs, there are many
     other factors. The same card model may be produced using GDD3 and GDD5 memory,
@@ -9571,6 +9608,9 @@
   id: totrans-1282
   prefs: []
   type: TYPE_NORMAL
+  zh: 自调节应用程序的最后一个部分是采样。尽管你可以围绕计算级别和 SM 数量建立一个良好的性能模型，但还有许多其他因素。相同的卡片型号可能使用 GDD3 和
+    GDD5 内存生产，后者具有显著更高的全局内存带宽。相同的卡片可能内部时钟为 600 MHz，但也可能表现为 900 MHz 型号。适用于 16 个 SM
+    的优化策略可能不适用于只有一半 SM 数量的卡片，反之亦然。笔记本中的移动处理器可能已经通过 PCI-E X1 链接连接，并且可能与主机共享或独立内存。
 - en: It’s impossible to collect every card and address every variation that your
     product might have to address. Even if you could do this, next week NVIDIA will
     release another card. This is of course mostly a problem for those people writing
@@ -9581,6 +9621,7 @@
   id: totrans-1283
   prefs: []
   type: TYPE_NORMAL
+  zh: 不可能收集每张卡片并处理你的产品可能需要解决的所有变种。即使你能做到这一点，下周NVIDIA也会发布另一张卡片。当然，这主要是那些编写消费级应用程序的人的问题，而不是较少多样化的Tesla卡片群体。然而，当新卡发布时，人们首先期望他们现有的应用程序能在新卡上运行，其次，如果他们进行了升级，还希望看到性能的提升。
 - en: Sampling is the answer to this issue. Each card will have a peak value in terms
     of a launch configuration that works best for its particular setup. As we’ve seen
     in some of the tests run throughout this book, different cards prefer different
@@ -9596,6 +9637,8 @@
   id: totrans-1284
   prefs: []
   type: TYPE_NORMAL
+  zh: 采样是解决这个问题的答案。每张卡片都会有一个最佳的启动配置，这个配置最适合其特定的设置。正如我们在本书的一些测试中看到的，不同的卡片倾向于不同的设置。Fermi卡片在每块192或256线程时效果最佳，而之前的GPU则在每块128和192线程时效果较好。Compute
+    2.1卡片在64或128字节内存取回混合ILP时表现最佳，而不是32字节内存取回和每个线程单一元素。早期的卡片对线程/内存排序在合并时非常敏感。这些卡片的全局内存带宽是新型号的一个小部分，但如果充分利用共享内存，它们仍然可以在某些问题上达到相似的性能水平。Fermi中的缓存可以发挥重要作用，甚至在线程数非常低（32或64）时，如果数据完全存储在缓存中，也能超越更高占用率的情况。
 - en: When the program is installed, run a short test suite as part of the installation
     procedure. Run a loop through all feasible numbers of threads. Try ILP values
     from one to four elements per thread. Enable and disable shared memory usage.
@@ -9608,35 +9651,42 @@
   id: totrans-1285
   prefs: []
   type: TYPE_NORMAL
+  zh: '当程序安装时，作为安装过程的一部分，运行一个简短的测试套件。循环运行所有可行的线程数量。尝试每个线程一个到四个元素的ILP值。启用和禁用共享内存使用。进行多次实验，每次重复实验，并取平均值。将理想值及其对应的GPU存储在数据文件或程序配置文件中。如果用户以后升级了CPU或GPU，则需要重新运行实验并更新配置。只要你不在每次启动时都这么做，用户会很高兴你正在调整应用程序以充分利用他们的硬件。  '
 - en: Section summary
   id: totrans-1286
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '小节总结  '
 - en: • There are too many factors to say with certainty the effect of a change without
     actually trying it.
   id: totrans-1287
   prefs: []
   type: TYPE_NORMAL
+  zh: • 有太多因素，无法在不实际尝试的情况下确定一个更改的效果。
 - en: • Some experimentation is often required during development to get the optimal
     solution.
   id: totrans-1288
   prefs: []
   type: TYPE_NORMAL
+  zh: '• 在开发过程中，通常需要进行一些实验来获得最优解。  '
 - en: • The optimal solution will be different on different hardware platforms.
   id: totrans-1289
   prefs: []
   type: TYPE_NORMAL
+  zh: '• 最优解会因不同的硬件平台而异。  '
 - en: • Write your applications to be aware of the different hardware out there and
     what works best on each platform, either statically or dynamically.
   id: totrans-1290
   prefs: []
   type: TYPE_NORMAL
+  zh: '• 编写应用程序时，应该考虑到不同的硬件平台，并了解每个平台上最有效的方式，既可以静态实现，也可以动态实现。  '
 - en: Conclusion
   id: totrans-1291
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: '结论  '
 - en: We’ve looked in detail at a number of strategies for trying to improve the throughput
     of your kernels with various examples throughout this chapter. You should be aware
     of the factors that affect performance and their relative importance (primary
@@ -9644,6 +9694,7 @@
   id: totrans-1292
   prefs: []
   type: TYPE_NORMAL
+  zh: '本章中，我们详细探讨了多种提高内核吞吐量的策略，并通过各种示例进行了说明。你应该了解影响性能的因素及其相对重要性（主要因素包括数据传输、内存/数据模式，最后是SM利用率）。  '
 - en: Correctness is a key issue in optimizing code. You cannot reliably optimize
     code without automatic regression testing. This doesn’t have to be hugely complex.
     A back-to-back run against a known working version with several known datasets
@@ -9657,6 +9708,8 @@
   id: totrans-1293
   prefs: []
   type: TYPE_NORMAL
+  zh: 正确性是优化代码时的一个关键问题。没有自动回归测试，你无法可靠地优化代码。这不需要非常复杂。与一个已知正常工作的版本进行对比测试，并使用几个已知的数据集就足够了。在任何程序离开你的桌面之前，你应该力求发现
+    95% 以上的错误。测试不是某个测试小组的工作，而是你作为专业人员的责任，确保输出可靠且有效的代码。优化常常会破坏代码，而且会多次破坏。用一分钟得到错误答案，而不是用一小时得到正确答案，对任何人都没有帮助。每次修改后都要测试正确性，这样你就能即时发现引入的错误。
 - en: You should also be aware that optimization is a time-consuming and iterative
     process that will grow your understanding of your code and how the hardware functions.
     This in turn will lead you to design and write better code from the outset as
@@ -9664,49 +9717,59 @@
   id: totrans-1294
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还需要意识到，优化是一个耗时且迭代的过程，它会加深你对代码和硬件工作原理的理解。这反过来会让你在开始时就能够设计和编写更好的代码，因为你会更加熟悉在
+    GPU 上什么有效，什么无效。
 - en: Questions on Optimization
   id: totrans-1295
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 优化相关问题
 - en: 1. Take an existing program that has one or more GPU kernels. Run the Visual
     Profiler and Parallel Nsight to analyze the kernels. What are the key indicators
     you need to look for? How would you optimize this program?
   id: totrans-1296
   prefs: []
   type: TYPE_NORMAL
+  zh: 1. 选择一个现有的程序，其中包含一个或多个 GPU 内核。运行 Visual Profiler 和 Parallel Nsight 来分析这些内核。你需要关注哪些关键指标？你会如何优化这个程序？
 - en: 2. A colleague brings a printout of a GPU kernel to you and asks your advice
     about how to make it run faster. What would be your advice?
   id: totrans-1297
   prefs: []
   type: TYPE_NORMAL
+  zh: 2. 一位同事给你带来了一份 GPU 内核的打印输出，并请教你如何让它运行得更快。你会给出什么建议？
 - en: 3. Another colleague proposes to implement a web server using CUDA. Do you think
     this is a good idea? What issues, if any, would you expect with such a program?
   id: totrans-1298
   prefs: []
   type: TYPE_NORMAL
+  zh: 3. 另一位同事提议使用 CUDA 实现一个 Web 服务器。你认为这是个好主意吗？你认为这种程序会遇到哪些问题（如果有的话）？
 - en: 4. Implement a shared memory version of the odd–even sort, which produces a
     single sorted list. What issues might you expect to deal with?
   id: totrans-1299
   prefs: []
   type: TYPE_NORMAL
+  zh: 4. 实现一个共享内存版本的奇偶排序，它将生成一个排序后的单一列表。你预期会遇到哪些问题？
 - en: Answers
   id: totrans-1300
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 答案
 - en: 1. You should be looking first to the execution time of each kernel. If one
     or more kernels dominate the timing, then, until these are optimized, trying to
     optimize the others is a waste of your time.
   id: totrans-1301
   prefs: []
   type: TYPE_NORMAL
+  zh: 1. 你首先应该查看每个内核的执行时间。如果一个或多个内核占用了大部分时间，那么在这些内核得到优化之前，尝试优化其他内核就是浪费时间。
 - en: Second, you should be looking to the timeline, specifically concerning transfers.
     Are they overlapped with kernel operations and are they using pinned memory or
     not? Is the GPU busy all the time or only periodically given work by the host?
   id: totrans-1302
   prefs: []
   type: TYPE_NORMAL
+  zh: 其次，你应该关注时间线，特别是与数据传输相关的部分。它们是否与内核操作重叠？是否使用了固定内存？GPU是否一直忙碌，还是仅在主机定期分配任务时才工作？
 - en: Of the two longest executing kernels, what is causing them to take this time?
     Is there a sufficient number of threads overall? Are there enough blocks to populate
     all the SMs? Are there any peaks on one SM, and if so, why? What is the thread
@@ -9715,6 +9778,7 @@
   id: totrans-1303
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于执行时间最长的两个内核，是什么原因导致它们需要这么长时间？整体上线程数量是否足够？是否有足够的块来填充所有SMs？是否有某个SM的负载达到峰值？如果是，是什么原因？线程到内存的访问模式是怎样的？硬件是否能合并这些访问？是否存在任何串行化点，例如共享内存银行冲突、原子操作、同步点等？
 - en: 2. First, you need to understand the problem before looking at specifics. The
     “look at the code” optimization strategy can be hit or miss. Sure you can probably
     optimize the code on the paper in some way, but you need much more information
@@ -9722,6 +9786,7 @@
   id: totrans-1304
   prefs: []
   type: TYPE_NORMAL
+  zh: 2. 首先，你需要理解问题的根本原因，然后再看具体细节。单纯的“查看代码”优化策略往往事倍功半。当然，你可能能在纸面上优化代码的某些部分，但你需要更多的信息，才能提供一个有效的答案，解决对方真正想问的问题。
 - en: Probably the best answer would be to tell your colleague to profile the application,
     including the host timeline, and then come back with the results. In doing this
     they will likely see what the problems are and these may well not even be related
@@ -9729,6 +9794,7 @@
   id: totrans-1305
   prefs: []
   type: TYPE_NORMAL
+  zh: 可能最好的答案是让你的同事对应用程序进行分析，包括主机时间线，然后根据结果再做分析。通过这样做，他们很可能会发现问题所在，而这些问题可能与原始内核的输出并无直接关系。
 - en: 3. Applications that are highly data parallel are well suited to GPUs. Applications
     that are highly task parallel with lots of divergence threads are not. The typical
     implementation of a web server on a CPU is to spawn one thread per *N* connections
@@ -9737,6 +9803,7 @@
   id: totrans-1306
   prefs: []
   type: TYPE_NORMAL
+  zh: 3. 高度数据并行的应用程序非常适合GPU。高度任务并行且有大量线程分歧的应用程序则不适合。CPU上实现的典型Web服务器是为每*N*个连接创建一个线程，并动态地将连接分配到服务器集群中，以防止单个节点的过载。
 - en: GPUs execute code in groups of 32 warps, effectively a vector processor with
     the ability to follow single-thread control flow when necessary, but at a large
     performance penalty. Constructing in real time a dynamic web page is very expensive
@@ -9745,6 +9812,7 @@
   id: totrans-1307
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU以32个warp为一组执行代码，实际上是一个向量处理器，在必要时能够遵循单线程控制流，但会产生较大的性能惩罚。在实时构建动态网页时，控制流的开销非常大，而且大部分会基于每个用户的情况发生分歧。PCI-E传输会很小并且效率低下。
 - en: A GPU would not be a good choice, with the CPU host being a much better choice.
     However, the GPU may be able to be used in the back-end operations of the server,
     performing some analytical work, churning through the user-generated data to make
@@ -9752,11 +9820,13 @@
   id: totrans-1308
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 并不是一个好的选择，CPU 主机则是一个更好的选择。然而，GPU 可能会被用在服务器的后端操作中，执行一些分析工作，处理用户生成的数据以便理解等。
 - en: 4. This is a useful exercise to think about how to solve some open-ended problems.
     First, the question does not specify how to combine the output of *N* blocks.
   id: totrans-1309
   prefs: []
   type: TYPE_NORMAL
+  zh: 4. 这是一个有用的练习，帮助思考如何解决一些开放性问题。首先，问题没有指定如何组合 *N* 个块的输出。
 - en: The quickest solution for largest datasets should be the sample sort method
     as it completely eliminates the merge sort step. The framework for sample sort
     is provided in the text, but is nonetheless quite a complex sort. However, it
@@ -9765,11 +9835,14 @@
   id: totrans-1310
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于最大数据集，最快的解决方案应该是样本排序方法，因为它完全消除了归并排序步骤。样本排序的框架在文中提供，但仍然是一个相当复杂的排序方法。然而，它面临着每个桶中元素数量不固定的问题。一个填充到
+    128 字节边界的前缀和将显著帮助这一问题。
 - en: Merge sort is much easier to implement, allows for fixed block sizes, and is
     what I’d expect most implementations to opt for.
   id: totrans-1311
   prefs: []
   type: TYPE_NORMAL
+  zh: 归并排序更容易实现，允许固定的块大小，这也是我预期大多数实现会选择的方式。
 - en: In terms of the odd/even sort, the coalescing problems with global memory are
     largely hidden by the cache in Fermi due to the locality being extremely high.
     A compute 1.x implementation would need to use shared memory/registers for the
@@ -9778,19 +9851,25 @@
   id: totrans-1312
   prefs: []
   type: TYPE_NORMAL
+  zh: 就奇偶排序而言，Fermi 架构中的全局内存的合并问题大部分被缓存隐藏，因为局部性非常高。计算 1.x 实现需要使用共享内存/寄存器进行排序。在加载和写回时，它需要以合并的方式访问全局内存。
 - en: '[¹](CHP009.html#CFN1)L1 cache is only available on Fermi architecture and is
     configurable between 16 KB and 48 KB. L1 cache on GT200/G80 is only via texture
     memory that is 24 KB in size.'
   id: totrans-1313
   prefs: []
   type: TYPE_NORMAL
+  zh: '[¹](CHP009.html#CFN1)L1 缓存仅在 Fermi 架构中可用，大小可配置在 16 KB 到 48 KB 之间。GT200/G80
+    上的 L1 缓存仅通过 24 KB 的纹理内存提供。'
 - en: '[²](CHP009.html#CFN2)L2 cache is zero K on compute 1.x devices, up to 768 K
     on compute 2.x (Fermi) devices and up to 1536 K on compute 3.x (Kepler) devices.'
   id: totrans-1314
   prefs: []
   type: TYPE_NORMAL
+  zh: '[²](CHP009.html#CFN2)L2 缓存对于计算 1.x 设备为零 K，对于计算 2.x（Fermi）设备为 768 K，对于计算 3.x（Kepler）设备为
+    1536 K。'
 - en: '[³](#CFN3)Mark Harris, NVIDIA Developer Technology, “Optimizing Parallel Reduction
     in CUDA,” 2007.'
   id: totrans-1315
   prefs: []
   type: TYPE_NORMAL
+  zh: '[³](#CFN3)Mark Harris, NVIDIA 开发技术，“CUDA 中并行归约优化”，2007 年。'
