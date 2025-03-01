@@ -5777,6 +5777,7 @@
   id: totrans-746
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意这里使用的*a* + *b* 表示法表示在这些部分中声明的变量总数（第一个数字），然后是系统使用的数量（第二个数字）。如果内核使用了共享内存，`smem`（共享内存）使用量也将列出，此外还有`lmem`。
 - en: Next we see `80 bytes cmem[0]`. This says the compiler has used 80 bytes of
     constant memory. Constant memory is typically used for parameter passing, as most
     formal parameters do not change across calls. The value in the square brackets
@@ -5785,6 +5786,7 @@
   id: totrans-747
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来我们看到`80 bytes cmem[0]`。这表示编译器使用了80字节的常量内存。常量内存通常用于参数传递，因为大多数正式参数在调用之间不会改变。方括号中的值是使用的常量内存银行，这并不相关。只需将所有`cmem`数字相加即可获得总的常量内存使用量。
 - en: Register usage can also be controlled, or forced, using the `–maxrregcount n`
     option in the compiler. You can use this to instruct the compiler to use more
     or less registers than it currently is. You may wish to have fewer registers to
@@ -5796,6 +5798,7 @@
   id: totrans-748
   prefs: []
   type: TYPE_NORMAL
+  zh: 寄存器的使用也可以通过编译器中的`–maxrregcount n`选项进行控制或强制。你可以使用这个选项来指示编译器使用比当前更多或更少的寄存器。你可能希望减少寄存器的使用，以便在SM上挤出另一个块。你可能已经受到其他标准的限制，例如共享内存的使用，因此你可能希望允许编译器使用更多的寄存器。通过使用更多的寄存器，编译器可能能够在寄存器中重用更多的值，而不是再次存储/获取它们。相反，请求减少寄存器的使用通常会导致更多的内存访问。
 - en: Asking for less registers to get an additional block is a tradeoff exercise.
     The lower register count and the additional block may bring higher occupancy,
     but this does not necessarily make the code run faster. This is a concept most
@@ -5812,6 +5815,11 @@
   id: totrans-749
   prefs: []
   type: TYPE_NORMAL
+  zh: 请求减少寄存器以获得更多的块是一种权衡的练习。较低的寄存器计数和额外的块可能会带来更高的占用率，但这不一定使代码运行更快。这是大多数刚开始学习 CUDA
+    的程序员所面临的一个概念。各种分析工具尝试帮助你实现更高的占用率。大部分情况下，这是一件好事，因为它允许硬件调度器有更多的 warp 可以选择执行。然而，*只有当*调度器在某些时刻确实用尽了
+    warp，导致 SM 阻塞时，增加更多可用的 warp 才会有帮助。由于 Fermi 具有双 warp 调度器和每个 SM 更多的 CUDA 核心，它比早期的模型更频繁地执行
+    warp。效果因应用而异，但通常来说，请求减少寄存器使用通常会导致代码变慢。你可以为你的特定应用进行尝试并观察结果。我们将在后面的分析工具部分查看如何判断
+    SM 是否发生了阻塞。
 - en: A better approach to asking for less registers is to understand the register
     usage and allocation of variables. To do this, you need to look into the PTX code,
     using the `–keep` compiler flag. PTX, the virtual assembly language used by CUDA,
@@ -5821,14 +5829,18 @@
   id: totrans-750
   prefs: []
   type: TYPE_NORMAL
+  zh: 请求减少寄存器的更好方法是理解变量的寄存器使用和分配。为此，你需要查看 PTX 代码，并使用 `–keep` 编译器标志。PTX 是 CUDA 使用的虚拟汇编语言，定义了多个状态空间。变量存在于这些状态空间之一中。它们展示在[表
+    9.8](#T0045)中。因此，你可以始终查看 PTX 代码，看看变量被放置在哪里。
 - en: Table 9.8 PTX State Space
   id: totrans-751
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.8 PTX 状态空间
 - en: '![Image](../images/T000090tabT0045.jpg)'
   id: totrans-752
   prefs: []
   type: TYPE_IMG
+  zh: '![Image](../images/T000090tabT0045.jpg)'
 - en: Reducing register usage from say 26 to 25 per kernel will have little effect.
     However, transitioning over a register boundary (16, 20, 24, and 32) will usually
     allow for more blocks to be scheduled. This will bring a greater selection of
@@ -5837,6 +5849,8 @@
   id: totrans-753
   prefs: []
   type: TYPE_NORMAL
+  zh: 将每个内核的寄存器使用量从26减少到25几乎不会产生什么影响。然而，跨越寄存器边界（16、20、24 和 32）通常会允许更多的块被调度。这将带来更多的
+    warp 选择，并且通常会提升性能。不过，这并不总是如此。更多的块可能意味着对共享资源（共享内存、L1/L2缓存）的更多争用。
 - en: Register usage can often be reduced simply be rearranging the C source code.
     By bringing the assignment and usage of a variable closer together you enable
     the compiler to reuse registers. Thus, at the start of the kernel you might assign
@@ -5847,48 +5861,58 @@
   id: totrans-754
   prefs: []
   type: TYPE_NORMAL
+  zh: 注册使用量通常可以通过重新排列C源代码来减少。通过将变量的赋值和使用靠近在一起，你可以使编译器重用寄存器。因此，在内核开始时，你可能会赋值`a`、`b`和`c`。如果它们实际上只在内核的后面使用，你通常会发现通过将创建和赋值移动到使用附近可以减少寄存器使用。编译器可能能够为这三个变量使用一个寄存器，因为它们存在于内核的不同且不重叠的阶段。
 - en: Section summary
   id: totrans-755
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 段落总结
 - en: • Understand how thread layout impacts memory and cache access patterns.
   id: totrans-756
   prefs: []
   type: TYPE_NORMAL
+  zh: • 了解线程布局如何影响内存和缓存访问模式。
 - en: • Use only multiples of 32 when specifying the thread count for kernel launch.
   id: totrans-757
   prefs: []
   type: TYPE_NORMAL
+  zh: • 在指定内核启动的线程计数时，仅使用32的倍数。
 - en: • Think about how to increase the amount of work performed per memory fetch.
   id: totrans-758
   prefs: []
   type: TYPE_NORMAL
+  zh: • 考虑如何增加每次内存获取所执行的工作量。
 - en: • Understand at least a little of how compilers work when optimizing code and
     adapt your source code to aid the compiler.
   id: totrans-759
   prefs: []
   type: TYPE_NORMAL
+  zh: • 了解编译器在优化代码时的工作原理，并调整你的源代码以帮助编译器。
 - en: • Consider how branching within a warp can be avoided.
   id: totrans-760
   prefs: []
   type: TYPE_NORMAL
+  zh: • 考虑如何避免在一个warp内的分支。
 - en: • Look at the PTX and final target code to ensure the compiler is not generating
     inefficient code. If it is, understand why and make changes at the source level
     to address it.
   id: totrans-761
   prefs: []
   type: TYPE_NORMAL
+  zh: • 查看PTX和最终目标代码，以确保编译器没有生成低效的代码。如果有，了解原因并在源代码级别进行更改以解决问题。
 - en: • Be aware and understand where data is being placed and what the compiler is
     telling you.
   id: totrans-762
   prefs: []
   type: TYPE_NORMAL
+  zh: • 注意并理解数据被放置的位置以及编译器告诉你的信息。
 - en: 'Strategy 5: Algorithms'
   id: totrans-763
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 策略5：算法
 - en: 'Selecting an efficient algorithm on the GPU can be challenging. The best algorithm
     in the CPU domain is not necessarily the best for the GPU. The GPU has its own
     unique challenges. To get the best performance you need to understand the hardware.
@@ -5896,67 +5920,82 @@
   id: totrans-764
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GPU上选择高效的算法可能具有挑战性。CPU领域中最好的算法不一定是GPU上最好的。GPU有其独特的挑战。为了获得最佳性能，你需要了解硬件。因此，在考虑算法时，我们需要思考：
 - en: • How to decompose the problem into blocks or tiles and then how to decompose
     those blocks into threads.
   id: totrans-765
   prefs: []
   type: TYPE_NORMAL
+  zh: • 如何将问题分解为块或瓦片，然后如何将这些块分解为线程。
 - en: • How the threads will access the data and what sort of memory pattern this
     will generate.
   id: totrans-766
   prefs: []
   type: TYPE_NORMAL
+  zh: • 线程将如何访问数据，以及这将生成什么样的内存模式。
 - en: • What data reuse opportunities are present and how these can be realized.
   id: totrans-767
   prefs: []
   type: TYPE_NORMAL
+  zh: • 存在哪些数据重用机会，以及如何实现这些机会。
 - en: • How much work the algorithm will be performing in total and whether there
     is a significantly difference from a serial implementation.
   id: totrans-768
   prefs: []
   type: TYPE_NORMAL
+  zh: • 算法总共将执行多少工作，以及与串行实现是否存在显著差异。
 - en: 'There is an 800-plus-page book published by Morgan Kaufman entitled *GPU Computing
     Gems* that covers in detail implementation of various algorithms for the following
     areas:'
   id: totrans-769
   prefs: []
   type: TYPE_NORMAL
+  zh: 有一本由摩根·考夫曼出版的800多页书籍，名为*GPU计算宝典*，详细介绍了在以下领域中实现各种算法：
 - en: • Scientific simulation
   id: totrans-770
   prefs: []
   type: TYPE_NORMAL
+  zh: • 科学仿真
 - en: • Life sciences
   id: totrans-771
   prefs: []
   type: TYPE_NORMAL
+  zh: • 生命科学
 - en: • Statistical modeling
   id: totrans-772
   prefs: []
   type: TYPE_NORMAL
+  zh: • 统计建模
 - en: • Data-intensive applications
   id: totrans-773
   prefs: []
   type: TYPE_NORMAL
+  zh: • 数据密集型应用
 - en: • Electronic design and automation
   id: totrans-774
   prefs: []
   type: TYPE_NORMAL
+  zh: • 电子设计与自动化
 - en: • Ray tracing and rendering
   id: totrans-775
   prefs: []
   type: TYPE_NORMAL
+  zh: • 光线追踪与渲染
 - en: • Computer vision
   id: totrans-776
   prefs: []
   type: TYPE_NORMAL
+  zh: • 计算机视觉
 - en: • Video and image processing
   id: totrans-777
   prefs: []
   type: TYPE_NORMAL
+  zh: • 视频与图像处理
 - en: • Medical imaging
   id: totrans-778
   prefs: []
   type: TYPE_NORMAL
+  zh: • 医学成像
 - en: The purpose of this section is not to look at algorithms that are specific to
     certain fields, as they are of limited general interest. Here we look at a few
     common algorithms that can be implemented, which in turn may form building blocks
@@ -5966,11 +6005,13 @@
   id: totrans-779
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节的目的是不是要研究特定领域的算法，因为这些算法的普遍兴趣较小。这里我们将研究一些常见的算法，这些算法可以实现，并且可能成为更复杂算法的构建模块。本书并非提供可以直接复制和粘贴的示例，而是提供可以帮助你理解哪些内容构成优秀CUDA程序的示例。
 - en: Sorting
   id: totrans-780
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 排序
 - en: There are many, many sorting algorithms available, some of which can easily
     and efficiently be implemented on the GPU and many of which are not well suited.
     We’ve looked already in previous chapters at merge sort, radix sort, and the more
@@ -5979,11 +6020,13 @@
   id: totrans-781
   prefs: []
   type: TYPE_NORMAL
+  zh: 有很多排序算法可以使用，其中一些可以轻松高效地在GPU上实现，而许多则不太适合。我们在前几章中已经看过了归并排序、基数排序和更为特殊的样本排序。这里我们将讨论另外一种有用的并行排序算法，重点是如何在GPU上实现算法。
 - en: Odd/even sort
   id: totrans-782
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 奇偶排序
 - en: An odd/even sort works by selecting every even array index and comparing it
     with the higher adjacent odd array index ([Figure 9.34](#F0175)). If the number
     at the even element is larger than the element at the odd index, the elements
@@ -5993,14 +6036,17 @@
   id: totrans-783
   prefs: []
   type: TYPE_NORMAL
+  zh: 奇偶排序的工作原理是选择每个偶数数组索引，并将其与更高的相邻奇数数组索引进行比较（[图 9.34](#F0175)）。如果偶数元素的值大于奇数索引处的元素值，则交换这两个元素。然后，过程会从奇数索引开始，并将其与更高的相邻偶数索引进行比较。这个过程会重复，直到不再发生交换，此时列表已排序。
 - en: '![image](../images/F000090f09-34-9780124159334.jpg)'
   id: totrans-784
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-34-9780124159334.jpg)'
 - en: FIGURE 9.34 Odd/even sort.
   id: totrans-785
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.34 奇偶排序。
 - en: An odd/even sort is a variation of a bubble sort. A bubble sort works by selecting
     the number at the first index and comparing and swapping it with the index to
     the right until such time as it’s no longer larger than the number to its right.
@@ -6009,6 +6055,7 @@
   id: totrans-786
   prefs: []
   type: TYPE_NORMAL
+  zh: 奇偶排序是冒泡排序的变种。冒泡排序通过选择第一个索引处的数字，并将其与右侧索引的数字进行比较并交换，直到它不再大于右侧的数字为止。奇偶排序只是将这一过程扩展为使用*P*个独立线程来执行，其中*P*是列表中元素数量的一半。
 - en: If we define the number of elements in an array as *N*, then the ability to
     deploy half of *N* threads may be appealing. The sort is also quite easy to conceptualize,
     but raises some interesting problems when trying to implement on the GPU, so it
@@ -6016,6 +6063,7 @@
   id: totrans-787
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们将数组中的元素数量定义为*N*，那么部署*N*的一半线程可能是一个很有吸引力的选择。排序的概念也相当简单，但在尝试在GPU上实现时会引发一些有趣的问题，因此它是一个很好的例子可以参考。
 - en: The first issue is that odd/even sort is designed for parallel systems where
     individual processor elements can exchange data with their immediate neighbor.
     It requires a connection to the left and right neighbor only. A connection for
@@ -6023,6 +6071,7 @@
   id: totrans-788
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一个问题是奇偶排序是为并行系统设计的，其中各个处理器元素可以与它们的直接邻居交换数据。它只需要连接到左右邻居。为了我们的目的，连接将通过共享内存进行。
 - en: Having thread 0 access array elements zero *and* one and thread 1 access elements
     two *and* three causes a sequence issue for the coalescing hardware. It needs
     each thread to access a contiguous pattern for a coalesced access. Thus, on compute
@@ -6036,6 +6085,8 @@
   id: totrans-789
   prefs: []
   type: TYPE_NORMAL
+  zh: 让线程0访问数组元素0 *和*1，线程1访问元素2 *和*3，会导致共alescing硬件的序列问题。它需要每个线程访问一个连续的模式以实现合并访问。因此，在compute
+    1.x硬件上，这种访问模式很差，导致多个32字节的提取。然而，在compute 2.x硬件上，这些访问最多会提取两个缓存行。来自偶数周期的额外数据可能会在奇数周期时可用，反之亦然。还有大量的数据重用，并具有较高的局部性，这表明缓存和/或共享内存可能是一个不错的选择。由于合并效果差，计算1.x设备可能只能选择共享内存。
 - en: If we consider shared memory, we need to think about bank conflicts. Thread
     0 would need to read banks 0 and 1, plus write to bank 0\. Thread 1 would need
     to reads banks 2 and 3 and write to bank 2\. In a compute 1.x system with 16 banks,
@@ -6046,10 +6097,12 @@
   id: totrans-790
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们考虑共享内存，我们需要考虑银行冲突。线程0需要读取银行0和1，并写入银行0。线程1需要读取银行2和3，并写入银行2。在一个具有16个银行的计算1.x系统中，线程8将环绕并开始访问银行0和1。在计算2.0硬件上，我们将在线程16看到相同的效果。因此，在计算1.x硬件上，我们每个线程会有四个银行冲突，而在计算2.x硬件上，使用共享内存实现时每个线程会有两个银行冲突。
 - en: 'The CPU code for odd/even sort is quite simple:'
   id: totrans-791
   prefs: []
   type: TYPE_NORMAL
+  zh: 奇偶排序的CPU代码相当简单：
 - en: '[PRE137]'
   id: totrans-792
   prefs: []
@@ -6084,6 +6137,7 @@
   id: totrans-798
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  else`'
 - en: '[PRE143]'
   id: totrans-799
   prefs: []
@@ -6102,6 +6156,7 @@
   id: totrans-801
   prefs: []
   type: TYPE_NORMAL
+  zh: 代码从数组元素0到`num_elem-1`遍历数据集，然后从元素1到`num_elem-2`。两个数据元素被读取到局部变量中并进行比较。必要时交换它们，并使用计数器`num_swaps`来跟踪交换次数。当不需要交换时，列表就已排序。
 - en: For a mostly sorted list, such algorithms work well. The reverse sorted list
     is the worst case, where we have to move elements all through the list to the
     end. The output of a reverse sorted list is shown here. We can see in each stage
@@ -6109,6 +6164,7 @@
   id: totrans-802
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于大多数已经排序的列表，这类算法效果很好。逆序排序列表是最糟的情况，我们需要将元素从列表中移动到末尾。逆序排序列表的输出如图所示。我们可以看到在每个阶段，值是如何在单元格之间移动的。
 - en: '[PRE145]'
   id: totrans-803
   prefs: []
@@ -6119,6 +6175,7 @@
   id: totrans-804
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于GPU实现，我们将在计算2.x设备上使用全局内存。GPU实现如下：
 - en: '[PRE146]'
   id: totrans-805
   prefs: []
@@ -6133,6 +6190,7 @@
   id: totrans-807
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  u32 num_swaps;`'
 - en: '[PRE148]'
   id: totrans-808
   prefs: []
@@ -6182,6 +6240,7 @@
   id: totrans-816
   prefs: []
   type: TYPE_NORMAL
+  zh: 与传统的`for`循环结构不同，CPU代码使用了`do..while`结构。从算法中显而易见的并行化选择是比较与交换操作，这意味着我们需要*N*/2个线程，其中*N*是数组中的元素个数。考虑到我们在GPU上通常会排序的大多数列表都很大，这为我们提供了利用给定设备最大线程数的潜力（GTX580上为24,576个线程）。
 - en: As each thread processes two elements we cannot simply use `tid` as the array
     index, so create a new local parameter `tid_idx`, which is used to index into
     the array. We also create a parameter `tid_idx_max`, which is set to the last
@@ -6190,6 +6249,7 @@
   id: totrans-817
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于每个线程处理两个元素，我们不能简单地使用`tid`作为数组索引，因此我们创建一个新的局部参数`tid_idx`，用于索引数组。我们还创建了一个参数`tid_idx_max`，它被设置为数组中的最后一个值，或者在有多个块的情况下，当前块中的最后一个值。
 - en: '[PRE156]'
   id: totrans-818
   prefs: []
@@ -6203,6 +6263,7 @@
   id: totrans-819
   prefs: []
   type: TYPE_NORMAL
+  zh: 结束条件有些问题。串行版本中的参数`num_swap`每次迭代只写入一次。在并行版本中，我们需要知道*是否有*线程进行了交换。因此，我们可以使用原子`add`、`increment`、`AND`或`OR`操作来实现这一点，但这会造成串行瓶颈，因为每个进行写操作的线程都必须被串行化。
 - en: We could mitigate the cost of the atomic operations somewhat by using a shared
     memory atomic operation. Note that shared memory atomics are supported only on
     compute 1.2 hardware or later (the GT200 series). For the older compute 1.1 hardware
@@ -6211,6 +6272,7 @@
   id: totrans-820
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过使用共享内存的原子操作来稍微减轻原子操作的成本。请注意，只有计算1.2硬件或更高版本（GT200系列）才支持共享内存原子操作。对于较旧的计算1.1硬件（9000系列），我们需要使用全局内存原子操作。`num_swaps`变量的定义需要相应地进行更改。
 - en: For compute 2.x hardware, there is a much faster solution that we will use here.
     As we have to wait at the end of each round anyway, we can make use of the newly
     provided primitive, `__syncthreads_count`, to which we pass a predicate. If the
@@ -6220,6 +6282,7 @@
   id: totrans-821
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于计算2.x硬件，我们将使用一种更快的解决方案。由于我们无论如何都必须在每轮结束时等待，我们可以利用新提供的原语`__syncthreads_count`，并向其传递一个谓词。如果任何线程中的谓词非零，那么所有线程的结果也将非零。因此，如果只有一个线程进行了交换，所有线程将再次迭代循环。
 - en: '[PRE157]'
   id: totrans-822
   prefs: []
@@ -6229,6 +6292,7 @@
   id: totrans-823
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里也展示了调用内核的主机函数，供完整性参考。
 - en: '[PRE158]'
   id: totrans-824
   prefs: []
@@ -6258,6 +6322,7 @@
   id: totrans-829
   prefs: []
   type: TYPE_NORMAL
+  zh: '`    %d 线程 (%u 活跃)", num_blocks,`'
 - en: '[PRE163]'
   id: totrans-830
   prefs: []
@@ -6294,6 +6359,7 @@
   id: totrans-836
   prefs: []
   type: TYPE_NORMAL
+  zh: 你在考虑这段代码时应该问的一个问题是块边界上会发生什么。让我们来看一下使用一个和两个块的结果，数据集足够小，可以在这里打印出来：
 - en: '[PRE169]'
   id: totrans-837
   prefs: []
@@ -6303,6 +6369,7 @@
   id: totrans-838
   prefs: []
   type: TYPE_NORMAL
+  zh: 和
 - en: '[PRE170]'
   id: totrans-839
   prefs: []
@@ -6315,6 +6382,7 @@
   id: totrans-840
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意到在第二次输出中，排序仅发生在块内部。右侧的值需要传播到左侧，反之亦然。然而，由于这些块没有重叠，它们无法做到这一点。显然的解决方案是重叠块，但这并不是理想的解决方案。
 - en: CUDA was designed to allow blocks to run in any order, without a means for cross-block
     synchronization within a single kernel run. It’s possible by issuing multiple
     kernels to synchronize between blocks, but this mechanism works well only where
@@ -6327,6 +6395,7 @@
   id: totrans-841
   prefs: []
   type: TYPE_NORMAL
+  zh: CUDA被设计为允许块以任何顺序运行，而在单个内核运行中没有跨块同步的手段。通过发出多个内核来同步块之间是可能的，但这种机制仅在同步步骤较少时效果良好。在这个内核中，我们需要在每次迭代时重叠块。这将失去所有的局部性，因为现在两个SM需要共享相同的数据集。我们还需要一个全局内存原子操作或减少操作来跟踪是否有任何块进行了交换，并且必须继续发出内核，直到没有块发生交换——这需要大量的主机交互。这条路并不是一个好的选择。
 - en: So we’re left with the two choices found in most sorts that decompose into blocks.
     Either presort the input lists so the values in list *N*[−1] are less than *N*[0],
     which are larger than *N*[1], the solution we used with the sample sort, or merge
@@ -6334,17 +6403,20 @@
   id: totrans-842
   prefs: []
   type: TYPE_NORMAL
+  zh: 所以我们只能选择大多数分解成块的排序方法中的两种选择之一。要么先对输入列表进行预排序，使得列表*N*[−1]中的值小于*N*[0]，而*N*[0]大于*N*[1]，这是我们在样本排序中使用的解决方案，或者合并*N*个单独的列表，这是我们之前讨论过的归并排序问题。
 - en: Reduction
   id: totrans-843
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 减少
 - en: Reduction is used significantly in parallel programming. We’ll look at some
     of the many ways we can perform a reduction to see which method produces the best
     results on the various compute platforms and to understand why.
   id: totrans-844
   prefs: []
   type: TYPE_NORMAL
+  zh: 减少操作在并行编程中被广泛使用。我们将研究一些可以执行减少操作的方法，以便了解哪种方法在不同的计算平台上产生最佳结果，并理解其原因。
 - en: We’ll look first at computing the sum of *N* 32-bit integers, some 48 million
     to give a reasonable sized dataset. With such a large number of values one of
     the first issues we need to consider is overflow. If we add 0xFFFFFFFF and 0x00000001
@@ -6353,21 +6425,25 @@
   id: totrans-845
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们首先来看计算*N*个32位整数的和，这里取48百万作为一个合理的大小数据集。对于这样大量的值，我们需要考虑的第一个问题是溢出。如果我们将0xFFFFFFFF和0x00000001相加，那么就会发生32位数字的溢出。因此，我们需要将其累加到一个64位数字中。这会带来一些问题。
 - en: First, any atomic-based accumulation would require an atomic 64-bit integer
     add. Unfortunately, this is supported in shared memory only with compute 2.x hardware
     and in global memory only in compute 1.2 hardware onward.
   id: totrans-846
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，任何基于原子的累加都需要原子 64 位整数加法。不幸的是，只有计算能力 2.x 的硬件才支持在共享内存中进行此操作，而计算能力 1.2 及更高版本的硬件才支持在全局内存中进行此操作。
 - en: Global atomic add
   id: totrans-847
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 全局原子加法
 - en: 'Let’s look first at the simplest form of reduction:'
   id: totrans-848
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们来看最简单的归约形式：
 - en: '[PRE171]'
   id: totrans-849
   prefs: []
@@ -6385,6 +6461,8 @@
   id: totrans-851
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个第一个示例中，每个线程从内存中读取一个单独的元素，并将其添加到全局内存中的一个结果中。虽然这个过程非常简单，但它可能是最糟糕的归约操作之一。块间原子操作意味着该值需要在所有
+    SM 之间共享。
 - en: 'In the older hardware this means physically writing to global memory. In the
     compute 2.x hardware this means maintaining an L2 cache entry, shared among all
     the SMs, and eventually writing this to global memory. The results we see are
@@ -6392,6 +6470,7 @@
   id: totrans-852
   prefs: []
   type: TYPE_NORMAL
+  zh: 在较旧的硬件上，这意味着物理写入全局内存。在计算能力 2.x 的硬件上，这意味着保持一个 L2 缓存条目，由所有 SM 共享，最终将其写入全局内存。我们得到的结果如下：
 - en: '[PRE173]'
   id: totrans-853
   prefs: []
@@ -6402,6 +6481,7 @@
   id: totrans-854
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里我们将查看计算能力 2.x 的设备，因为这些设备支持 64 位整数原子操作。
 - en: The issue with the atomic writes, even to L2 cache, is they force a serialization
     of the threads. We have six blocks in each SM, 256 threads per block, generating
     1536 threads per SM. On the GTX470 we have 14 SMs, so a total of 21, 504 active
@@ -6413,17 +6493,22 @@
   id: totrans-855
   prefs: []
   type: TYPE_NORMAL
+  zh: 即使是写入 L2 缓存的原子操作，也会强制线程序列化。每个 SM 中有六个块，每个块有 256 个线程，总共有 1536 个线程。GTX470 有 14
+    个 SM，总共有 21,504 个活跃线程。GTX460 有 7 个 SM，总共有 10,752 个活跃线程。在单个全局内存单元上执行原子操作意味着我们会创建一个队列或序列化的线程排队，从
+    10,000 到 21,000 个线程。每个线程必须排队，每次处理一个元素时都会排队。显然，这是一个很差的解决方案，尽管它是一个相对简单的解决方案。
 - en: Reduction within the threads
   id: totrans-856
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 线程内的归约
 - en: We can improve this situation by performing some of the reduction within the
     thread. We can do this very simply by changing the data type and adjusting the
     kernel to ensure we don’t go out of bounds.
   id: totrans-857
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过在线程内执行一部分归约来改善这种情况。我们可以通过简单地更改数据类型并调整内核来确保我们不会越界，从而轻松实现这一点。
 - en: '[PRE174]'
   id: totrans-858
   prefs: []
@@ -6433,6 +6518,7 @@
   id: totrans-859
   prefs: []
   type: TYPE_NORMAL
+  zh: '`// 在 GMEM 中的地址`'
 - en: '[PRE175]'
   id: totrans-860
   prefs: []
@@ -6479,6 +6565,7 @@
   id: totrans-868
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第一个示例中，我们每个线程处理两个元素，而在第二个示例中使用内置的向量类型 `uint2` 和 `uint4` 处理四个元素。这产生了以下的时间：
 - en: '[PRE183]'
   id: totrans-869
   prefs: []
@@ -6497,12 +6584,14 @@
   id: totrans-871
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管减少了很多，但我们并没有真正解决问题。我们所做的仅仅是通过执行本地归约，减少了每个线程排队的次数，约为原来的一半或四分之一。这使得总时间降到了原来的大约一半或四分之一。然而，仍然有5000个线程在排队等待写入全局内存。
 - en: 'Note in performing the addition locally, we reduce the number of global writes
     by a factor equal to the level of ILP. However, we have to be careful about how
     the addition is performed. You could write:'
   id: totrans-872
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本地执行加法时，我们通过将全局写入次数减少一个因子，该因子等于ILP的级别。然而，我们需要小心加法的执行方式。你可以这样写：
 - en: '[PRE185]'
   id: totrans-873
   prefs: []
@@ -6520,6 +6609,7 @@
   id: totrans-874
   prefs: []
   type: TYPE_NORMAL
+  zh: 在C语言中，表达式通常是从左到右进行求值的。左侧操作数的提升会隐式地提升右侧操作数。因此，你可能期望`element.x`被提升为无符号64位类型，并且由于`element.y`将被加到它上面，它也会被提升。由于随后会对`element.z`和`element.w`进行加法操作，你可能还会期望它们也会被提升。然而，你的思维方式像一个串行程序员。`z`和`w`元素可以独立于`x`和`y`进行计算。这正是PTX代码所做的。由于`z`和`w`都没有被提升为64位值，加法操作是作为32位加法执行的，这可能会导致溢出。
 - en: The problem lies in that C permits any order of evaluation where the operator
     is commutative. However, as you typically see a left to right evaluation, people
     assume this is how all compilers work. This is one of the portability issues between
@@ -6530,10 +6620,12 @@
   id: totrans-875
   prefs: []
   type: TYPE_NORMAL
+  zh: 问题在于C语言允许操作数是可交换的情况下，采用任何顺序进行求值。然而，由于通常看到的是从左到右的求值，人们假设所有编译器都是这样工作的。这是C语言编译器之间的可移植性问题之一。当我们转向如GPU这样的超标量处理器时，它会独立执行两组加法，以最大限度地利用流水线。我们不希望它等待18到22个周期后，第一轮加法完成，再开始依次执行后续的加法操作。
 - en: 'Thus, the correct way to write such additions is:'
   id: totrans-876
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，正确的加法写法应该是：
 - en: '[PRE186]'
   id: totrans-877
   prefs: []
@@ -6550,11 +6642,13 @@
   id: totrans-878
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，每个值在加法操作之前都被转换为64位数字。然后，任何加法顺序对于整数值来说都是可以的。请注意，对于浮点值，仅仅将其转换为双精度浮点数是不够的。由于浮点数的工作方式，将一个非常小的数加到一个非常大的数上会导致小的数被丢弃，因为浮点表示无法提供足够的分辨率来保存这些值。解决此类问题的最佳方法是首先对浮点值进行排序，从最小的数字开始处理，直到最大的。
 - en: We can take the ILP technique a little further by using multiple elements of
     `uint4` and adjusting the kernel accordingly.
   id: totrans-879
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过使用多个`uint4`元素并相应调整内核，进一步优化ILP技术。
 - en: '[PRE187]'
   id: totrans-880
   prefs: []
@@ -6574,6 +6668,7 @@
   id: totrans-883
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  u64 value = ((u64)element.x) + `'
 - en: '[PRE190]'
   id: totrans-884
   prefs: []
@@ -6623,6 +6718,7 @@
   id: totrans-893
   prefs: []
   type: TYPE_NORMAL
+  zh: '`     ((u64)element.y) + `'
 - en: '[PRE199]'
   id: totrans-894
   prefs: []
@@ -6672,6 +6768,7 @@
   id: totrans-903
   prefs: []
   type: TYPE_NORMAL
+  zh: '`     ((u64)element.w);`'
 - en: '[PRE208]'
   id: totrans-904
   prefs: []
@@ -6703,6 +6800,7 @@
   id: totrans-908
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们将数据加载与加法操作混合在一起。我们可以将所有加载操作移到函数的开始部分。然而，考虑到每个`uint4`类型需要四个寄存器，`ILP32`示例将需要32个寄存器来保存单次读取迭代的值。此外，还需要一些寄存器用于加法和最终写入。如果我们使用过多的寄存器，则可以调度的块数量会减少，或者内核会将寄存器溢出到“本地”内存。这种本地内存对于计算2.x设备来说是L1缓存，对于计算1.x设备来说是全局内存。这里展示了这些ILP内核的结果：
 - en: '[PRE212]'
   id: totrans-909
   prefs: []
@@ -6726,11 +6824,14 @@
   id: totrans-912
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到，ILP显著减少了执行时间，前提是不要过度使用。请注意，`ILP32`方案实际上会花费更长的时间。尽管比最简单的版本实现了20倍的加速，我们仍然没有解决原子写入排队问题，只是减少了元素的总数。仍然有太多活动线程（10–21
+    K）都在尝试写入同一个累加器。
 - en: Reduction of the number of blocks
   id: totrans-913
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 减少块的数量
 - en: Currently, we’re invoking *N* blocks where *N* is the problem size, 12 million
     elements (48 MB) divided by the number of threads per block multiplied by the
     number of elements processed per block. We finally get *N* atomic writes, all
@@ -6738,6 +6839,7 @@
   id: totrans-914
   prefs: []
   type: TYPE_NORMAL
+  zh: 当前，我们启动了*N*个块，其中*N*是问题的大小，1200万元素（48 MB）除以每个块的线程数，再乘以每个块处理的元素数量。最终，我们得到*N*次原子写操作，所有这些操作都被串行化并导致瓶颈。
 - en: We can reduce the number of contentions if we create far, far less blocks and
     greatly increase the amount of work each block performs. However, we have to do
     this without increasing the register usage, something the `ILP32` example did.
@@ -6745,6 +6847,7 @@
   id: totrans-915
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们创建的块数量大大减少，同时大幅增加每个块执行的工作量，就可以减少争用的次数。然而，我们必须在不增加寄存器使用量的情况下做到这一点，正如`ILP32`示例所做的那样。反过来，这导致了由于局部内存的读写而出现的性能下降。
 - en: Currently, we launch 48 K blocks, but could reduce this to 16, 32, 64, 128,
     or 256 blocks. We can then have each thread march through memory, accumulating
     the result to a register, and only when the block is complete, write out the result.
@@ -6754,6 +6857,7 @@
   id: totrans-916
   prefs: []
   type: TYPE_NORMAL
+  zh: 当前，我们启动了48K个块，但可以将其减少到16、32、64、128或256个块。然后，每个线程可以依次遍历内存，将结果累积到寄存器中，只有当块完成时才写出结果。根据块的数量，这应该能够在SM之间产生良好的内存引用局部性，从而有效利用内存带宽和L2缓存（如果有的话）。
 - en: '[PRE215]'
   id: totrans-917
   prefs: []
@@ -6793,6 +6897,7 @@
   id: totrans-924
   prefs: []
   type: TYPE_NORMAL
+  zh: '`}`'
 - en: The first task is to work out how many iterations over the data each thread
     needs to make. The parameter `gridDim.x` holds the number of blocks launched.
     Each block consists of `blockDim.x` threads. Thus, we can work out how many elements
@@ -6801,6 +6906,7 @@
   id: totrans-925
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一项任务是计算每个线程需要遍历数据的次数。参数`gridDim.x`表示启动的块数。每个块由`blockDim.x`个线程组成。因此，我们可以计算每个线程必须累积多少个数据元素。然后，我们将这些元素累积到`local_result`中，只有当块完成时，才会一次性写入全局内存。
 - en: This reduces the contention from a thread-level contention to a block-level
     contention. As we’re only launching a few hundred blocks, the probability of them
     all requiring the write at the same time is reasonably low. Clearly as we increase
@@ -6810,6 +6916,7 @@
   id: totrans-926
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将把争用从线程级争用减少到块级争用。由于我们只启动几百个块，它们同时都需要写操作的概率相对较低。显然，随着块的数量增加，潜在的争用也会增加。一旦所有SM被加载了允许的最大块数，除非是为了工作负载平衡，否则几乎没有理由再增加块数。
 - en: 'The GTX460 is perhaps the worst example, as with only 7 SMs, each with 6 blocks,
     we should saturate the device at only 42 blocks. The GTX470 would need 90 blocks.
     We, therefore, try all number of blocks (49,152) down to 16 in powers of two,
@@ -6818,6 +6925,8 @@
   id: totrans-927
   prefs: []
   type: TYPE_NORMAL
+  zh: GTX460 可能是最糟糕的例子，因为只有 7 个 SM，每个 SM 有 6 个块，我们应该在仅 42 个块时就使设备饱和。GTX470 则需要 90
+    个块。因此，我们尝试所有块数（49,152）到 16 的二次幂，块数少于完全填充 SM 所需的块数。这产生了以下结果：
 - en: '[PRE222]'
   id: totrans-928
   prefs: []
@@ -6836,6 +6945,8 @@
   id: totrans-930
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们首先观察大量块数，我们会看到随着每次运行块数减半，GTX470 和 GTX460 显卡的性能呈现出相当线性的下降。我们通过增加每个线程的工作量来每个周期减半块数，但没有增加
+    ILP（在这里用`loop1`表示）。
 - en: Notice that the GTX460 has consistently outperformed the GTX470 in the previous
     examples. It does this until such time as we get down to a very small number of
     blocks ([Figure 9.35](#F0180)). At 384 blocks we see the GTX470 outperform the
@@ -6844,14 +6955,19 @@
   id: totrans-931
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在之前的例子中，GTX460 一直优于 GTX470。直到我们减少到非常少的块数时（[图 9.35](#F0180)），GTX470 才开始超越
+    GTX460。在 384 个块时，我们看到 GTX470 超越了 GTX460。GTX470 较多的小 SM 数量（每个 32 个 CUDA 核心对比 48
+    个 CUDA 核心）和更大的缓存开始影响性能。
 - en: '![image](../images/F000090f09-35-9780124159334.jpg)'
   id: totrans-932
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-35-9780124159334.jpg)'
 - en: FIGURE 9.35 Time (ms) versus number of blocks (large number of blocks).
   id: totrans-933
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.35 时间（毫秒）与块数（大量块数）之间的关系。
 - en: If you then look at the timing with a very small number of blocks, you can see
     that around 64 blocks is the minimum needed before the number of SM scheduling/occupancy
     issues come into play ([Figure 9.36](#F0185)). In the figure, we’ve split the
@@ -6860,14 +6976,17 @@
   id: totrans-934
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你查看非常少量块数的时间，你会发现大约 64 个块是需要的最小值，之后 SM 调度/占用问题开始显现（[图 9.36](#F0185)）。在图中，我们将图表分为一个大量块数和一个较少块数的图，以便我们可以看到小块数时的时间。
 - en: '![image](../images/F000090f09-36-9780124159334.jpg)'
   id: totrans-935
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-36-9780124159334.jpg)'
 - en: FIGURE 9.36 Time (ms) versus number of blocks (small number of blocks).
   id: totrans-936
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.36 时间（毫秒）与块数（少量块数）之间的关系。
 - en: Note so far we’ve used no ILP (instruction-level parallelism). However, we know
     that introducing ILP allows us to achieve better timing. This is especially the
     case when we have a small number of blocks. The optimal timing is for 64 blocks.
@@ -6878,6 +6997,7 @@
   id: totrans-937
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意到目前为止我们没有使用ILP（指令级并行）。然而，我们知道引入ILP可以帮助我们获得更好的时序，尤其是在块数量较少时。最佳时序出现在64个块的情况下。GTX470每个SM有略多于4个块，32个warp。使用32位内存访问时，我们需要一个完全加载的SM，即48个warp，才能从全局内存中实现峰值带宽。我们只有在保持这个warp数量的同时，通过ILP才能实现这一点。
 - en: '[PRE224]'
   id: totrans-938
   prefs: []
@@ -6922,6 +7042,7 @@
   id: totrans-946
   prefs: []
   type: TYPE_NORMAL
+  zh: '`const uint4 ∗ const data,`'
 - en: '[PRE232]'
   id: totrans-947
   prefs: []
@@ -6963,6 +7084,7 @@
   id: totrans-954
   prefs: []
   type: TYPE_NORMAL
+  zh: 引入ILP的影响还有一个额外的好处：执行循环的时间（开销）可以通过更多有用的指令（内存读取、加法）来摊销。因此，我们看到以下结果：
 - en: '[PRE239]'
   id: totrans-955
   prefs: []
@@ -6979,11 +7101,14 @@
   id: totrans-956
   prefs: []
   type: TYPE_NORMAL
+  zh: 在`loop1`中，我们使用一个32位元素，在`loop2`中，我们使用两个元素（`uint2`），而在`loop4`中，我们使用四个元素（`uint4`）。在每种情况下，我们使用64个块，这是前一个测试的最佳结果。你可以看到，从每个线程使用32位元素到每个线程使用64位元素，我们的性能提高了大约20-25%。从64位读取到128位读取在GTX470上几乎没有提升，但在GTX460上却有大约8%的提升。这与我们之前看到的带宽结果完全一致，其中GTX460（compute
+    2.1）设备在使用128位读取而非64位读取时达到了显著更高的带宽。
 - en: Reduction using shared memory
   id: totrans-957
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 使用共享内存的减少
 - en: If we look at the last instruction of the kernel to date, we still have one
     issue, using an atomic add to write out the result. With 256 threads per block
     and 64 blocks resident, we have 16 K threads all trying to write to this final
@@ -6994,6 +7119,8 @@
   id: totrans-958
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们查看到目前为止内核的最后一条指令，我们仍然有一个问题，即使用原子加法来写出结果。每个块有256个线程，64个块驻留在内存中，总共有16 K个线程试图写入这个最终的累计值。我们真正需要的是在块内线程之间进行归约。这将把写入次数从16
+    K减少到64次，即块的数量。这应该大大减少总体时序，因为我们移除了串行化的瓶颈。
 - en: However, going back to the first section in this chapter, know when fast is
     fast enough and appreciate the additional effort required to squeeze that last
     few percent out of the problem. Notice as the speed has improved, the kernels
@@ -7001,6 +7128,7 @@
   id: totrans-959
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，回到本章的第一部分，要知道何时“快”就已经足够，并且要理解为了挤出问题中的最后几个百分点需要付出额外的努力。请注意，随着速度的提升，内核变得越来越复杂。
 - en: Shared memory is a bank-switched set of 32 banks (16 in compute 1.x). Providing
     each thread uses a unique bank index (0..31) the shared memory can process one
     element per clock, per thread. This is its peak performance, for a single warp.
@@ -7012,12 +7140,15 @@
   id: totrans-960
   prefs: []
   type: TYPE_NORMAL
+  zh: 共享内存是一个银行切换的32个银行集（在计算1.x中是16个）。只要每个线程使用唯一的银行索引（0..31），共享内存就可以在每个时钟周期、每个线程处理一个元素。这是其单个warp的峰值性能。当我们引入更多warp时，如果它们也需要访问共享内存，一个warp使用共享内存的全部带宽的能力就会降低，因为它必须与其他竞争的warp共享LSU。
+    一旦LSU运行在100%的容量下，我们就受限于SM上组合的64K L1缓存/共享内存带宽。
 - en: We could simply perform a block-level reduction into a single shared memory
     value for each SM. Thus, with 256 threads we’d have a 256:1 reduction ratio. However,
     this proves not to be particularly effective, as each of the 256 threads is serialized.
   id: totrans-961
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以简单地在每个SM中执行一个块级的归约，将其归约成一个共享内存值。这样，使用256个线程时，我们会得到一个256:1的归约比。然而，这证明并不特别有效，因为每个256个线程都是串行化的。
 - en: The execution units within an SM can execute a half-warp, a group of 16 threads.
     Therefore, it makes sense to perform a reduction across half-warps. We could then
     either perform an additional reduction across the set of 16 half-warps, or we
@@ -7026,6 +7157,7 @@
   id: totrans-962
   prefs: []
   type: TYPE_NORMAL
+  zh: SM中的执行单元可以执行一个半warp，即一组16个线程。因此，在半warp之间进行归约是有意义的。然后，我们可以在16个半warp之间执行一个额外的归约，或者我们可以简单地将一组值写入共享内存。事实证明，这两种方法在执行时间上几乎没有差别。
 - en: The problem, however, with a subsequent intrablock reduction in shared memory
     is where to locate the shared memory parameter to perform the reduction. If you
     place it after the set of 64 bytes occupied by the intrawarp reduction parameters,
@@ -7034,6 +7166,7 @@
   id: totrans-963
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，随后的在共享内存中的块内归约问题在于如何定位共享内存参数以执行归约。如果你将其放置在占据64字节的块内归约参数之后，这会导致下一个块的内warp不再是64字节对齐的。不同的块相互作用，导致共享内存中的银行冲突。
 - en: We opted for the direct write to global memory, as this was the simpler solution
     and shows marginal if any difference in performance. Thus, instead of reducing
     the 16 K conflicting writes to 64 potentially conflicting writes, we have 512
@@ -7041,6 +7174,7 @@
   id: totrans-964
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们选择了直接写入全局内存，因为这是更简单的解决方案，并且性能几乎没有差异。因此，代替将16K冲突写操作减少为64个可能冲突的写操作，我们有512个可能冲突的写操作，这是32倍的减少。
 - en: '[PRE240]'
   id: totrans-965
   prefs: []
@@ -7105,10 +7239,12 @@
   id: totrans-977
   prefs: []
   type: TYPE_NORMAL
+  zh: '`}`'
 - en: 'This results in the following:'
   id: totrans-978
   prefs: []
   type: TYPE_NORMAL
+  zh: 这导致了以下结果：
 - en: '[PRE252]'
   id: totrans-979
   prefs: []
@@ -7129,6 +7265,7 @@
   id: totrans-981
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个例子中，`loopB`有512个原子写操作到全局内存。第二个内核`loopC`在进行64个原子写操作到全局内存之前，进行了额外的块内减少操作。正如你所看到的，性能几乎没有差异，这表明额外的减少步骤并没有带来任何好处，因此被从最终解决方案中移除。这其实并不令人惊讶，因为如果512个内存写操作的延迟已经被相当大的计算工作负载隐藏，减少到仅64个写操作对我们来说没有任何意义。
 - en: If we compare the best result from the previous section, using an accumulation
     into registers and then writing out the 16 K values we see on the GTX470 (compute
     2.0), this took 1.14 ms. By adding this further reduction step in shared memory
@@ -7138,6 +7275,7 @@
   id: totrans-982
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们比较上一节中的最佳结果，使用累积到寄存器，然后写出16K值，在GTX470（计算能力2.0）上执行时，这花费了1.14毫秒。通过在共享内存中添加进一步的减少步骤，我们将这个时间缩短到仅0.93毫秒，执行时间节省了19%。由于GTX470有14个SM，这个内部SM减少步骤显著减少了必须在这些SM之间协调的最终原子全局内存写操作的数量。
 - en: By contrast, the GTX460 device (compute 2.1) reduced from 1.38 ms to 1.33 ms,
     just 4%. The absolute difference is of course clear in that the GTX470 has a 320-bit
     memory bus compared with the 256-bit memory bus on the GTX460\. It’s the relative
@@ -7145,6 +7283,7 @@
   id: totrans-983
   prefs: []
   type: TYPE_NORMAL
+  zh: 相比之下，GTX460设备（计算能力2.1）从1.38毫秒减少到1.33毫秒，仅减少了4%。绝对差异当然是显而易见的，因为GTX470的内存总线宽度为320位，而GTX460的内存总线宽度为256位。更有趣的是相对加速差异。
 - en: Such a small speedup would indicate that the multiple global memory atomic operations
     were not in fact the bottleneck as they were on the GTX470\. It could also indicate
     that perhaps we were already using the LSUs to their full capacity. The ratio
@@ -7153,17 +7292,20 @@
   id: totrans-984
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样的小幅加速表明，多个全局内存原子操作实际上并不是瓶颈，就像在GTX470上那样。这也可能表明，我们可能已经将LSU（加载存储单元）用到了它们的最大容量。计算能力2.1设备上LSU与CUDA核心的比例远低于计算能力2.0设备。全局内存和共享内存访问都需要LSU。
 - en: Thus, the shared memory–based reduction, based on half-warps, gains us a significant
     reduction over the purely atomic/global memory–based solution in the previous
     section.
   id: totrans-985
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，基于共享内存的归约方法，基于半波段（half-warps），相比上一节中纯粹基于原子操作/全局内存的方法，取得了显著的性能提升。
 - en: An alternative approach
   id: totrans-986
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: 一种替代方法
 - en: As with any implementation, you should always look to what previous work has
     been done and how this could be used to improve existing designs. Mark Harris
     wrote an excellent study of parallel reduction^([3](#FN3)) back in the early GPU
@@ -7173,6 +7315,7 @@
   id: totrans-987
   prefs: []
   type: TYPE_NORMAL
+  zh: 与任何实现一样，你应该始终查看之前的工作成果，并思考如何利用这些成果改进现有设计。Mark Harris在早期GPU时代，基于G80设备写了一篇关于并行归约的优秀研究^([3](#FN3))。他没有进行512:16的归约，而是将整个值集写入共享内存，然后利用共享内存执行一系列部分归约，每次都将结果积累到共享内存中。
 - en: The results are impressive. He used unsigned integer elements and achieved a
     total time of 0.268 ms on 4 million elements. Scaling this to the 12 million elements
     (48 MB data) we used in the example works out to 1.14 ms, a comparable number
@@ -7180,6 +7323,7 @@
   id: totrans-988
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果令人印象深刻。他使用无符号整数元素，在400万元素上达到了总时间0.268毫秒。将其扩展到我们在示例中使用的1200万元素（48MB数据），时间为1.14毫秒，这个数字与我们在GTX470上实现的0.93毫秒相当。
 - en: However, the GTX470 has 448 CUDA cores, compared to the 128 CUDA cores of the
     G80, a factor of 3.5× improvement in arithmetic capacity. Memory bandwidth has
     increased from 86 GB/s to 134 GB/s, a factor of 1.5×. However, Mark’s kernel accumulates
@@ -7188,6 +7332,7 @@
   id: totrans-989
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，GTX470拥有448个CUDA核心，而G80仅有128个CUDA核心，算力提升了3.5倍。内存带宽从86 GB/s增加到134 GB/s，提升了1.5倍。然而，Mark的内核使用32位整数进行累加，而我们使用64位整数来避免溢出问题。因此，这些内核并不能直接进行对比。
 - en: Nonetheless the method proposed may produce good results. Accumulation into
     a register will clearly be faster than accumulation into shared memory. As the
     hardware does not support operations that directly operate on shared memory, to
@@ -7198,6 +7343,7 @@
   id: totrans-990
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管如此，所提出的方法可能会产生良好的结果。将数据累积到寄存器中显然比累积到共享内存中要快。由于硬件不支持直接操作共享内存的操作，因此要执行任何操作，我们需要将数据从共享内存中移动到寄存器中。选择基于寄存器的累积的原因之一是消除了这一开销。然而，这并不意味着我们已经为这部分归约代码找到了最佳的解决方案。
 - en: Some time has passed since this chapter was originally written and this late
     addition comes after a transition from CUDA 4.0 to CUDA 4.1 SDK, which moved us
     from the Open64 compiler to an LLVM-based compiler. This should bring a performance
@@ -7207,6 +7353,7 @@
   id: totrans-991
   prefs: []
   type: TYPE_NORMAL
+  zh: 自本章最初编写以来已经过了一段时间，这一补充是在从CUDA 4.0到CUDA 4.1 SDK过渡后加入的，该过渡使我们从Open64编译器迁移到了基于LLVM的编译器。这个变化应该带来性能提升，事实上我们发现更高效的编译器生成的执行时间为0.74毫秒，而不是之前的0.93毫秒，这仅仅是通过更换编译器就带来了巨大的改进。
 - en: However, of this time, how much is actually due to the reduction at the end
     of the code? We can find out simply by commenting out the final reduction. When
     we do this, the time drops to 0.58 ms, a drop of 0.16 ms or some 21%. Further
@@ -7215,32 +7362,39 @@
   id: totrans-992
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，这些时间中，实际上有多少是归因于代码末尾的归约操作呢？我们可以通过简单地注释掉最终的归约操作来找出答案。当我们这样做时，时间降至0.58毫秒，下降了0.16毫秒，约为21%的提升。进一步调查发现，实际上，除了0.1毫秒外，所有的时间都可以归因于原子加法操作。
 - en: 'Using the 2.1 version of Parallel Nsight we can extract a number of useful
     facts from the data:'
   id: totrans-993
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用Parallel Nsight 2.1版本，我们可以从数据中提取一些有用的信息：
 - en: • Of the 48 scheduled warps, on average we get only 32 active warps.
   id: totrans-994
   prefs: []
   type: TYPE_NORMAL
+  zh: • 在48个计划的warp中，平均只有32个warp是活跃的。
 - en: • The workload is unevenly distributed between the SMs.
   id: totrans-995
   prefs: []
   type: TYPE_NORMAL
+  zh: • 工作负载在SMs之间分布不均。
 - en: • Most issue dependencies are the short class.
   id: totrans-996
   prefs: []
   type: TYPE_NORMAL
+  zh: • 大多数问题依赖性属于短类。
 - en: • There is very little divergent branching.
   id: totrans-997
   prefs: []
   type: TYPE_NORMAL
+  zh: • 几乎没有分歧分支。
 - en: • Around 8% of the time the SMs stalled. This was due mostly to either instruction
     fetch or instruction dependencies.
   id: totrans-998
   prefs: []
   type: TYPE_NORMAL
+  zh: • 大约8%的时间SMs处于停滞状态。 这主要是由于指令获取或指令依赖性问题。
 - en: This occupancy issue is a somewhat misleading one, in that it is caused by the
     uneven distribution rather than some runtime issue. The problem is the number
     of blocks launched. With 14 SMs, we can have 84 blocks resident with 6 blocks
@@ -7250,6 +7404,9 @@
   id: totrans-999
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个占用问题有些误导，因为它是由不均匀的分布造成的，而不是某种运行时问题。问题在于启动的块数。拥有 14 个 SM 时，我们可以在每个 SM 上分配 6
+    个块，总共 84 个块驻留在 SM 上。不幸的是，我们只启动了 64 个块，因此实际上一些 SM 并没有完全加载块。这导致每个 SM 执行的 warps 平均数下降，并意味着在工作负载结束时一些
+    SM 处于空闲状态。
 - en: 'We ended up with a value of 64 due to it being identified as an ideal number
     from the earlier experiments. However, these were based on 16 K competing atomic
     writes to global memory. We’ve since reduced this to just 512 writes with most
@@ -7259,6 +7416,8 @@
   id: totrans-1000
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们得到了 64 这个值，是因为它在早期实验中被认为是理想值。然而，这些实验基于 16 K 的竞争原子写入全局内存。我们已经将其减少为仅 512 次写入，并且大部分的原子写入都发生在
+    SM 内部。一旦我们去除了全局瓶颈，看来 64 个块并不是理想的数量。运行一个示例后，我们发现：
 - en: '[PRE254]'
   id: totrans-1001
   prefs: []
@@ -7268,6 +7427,7 @@
   id: totrans-1002
   prefs: []
   type: TYPE_NORMAL
+  zh: '`ID:0 GeForce GTX 470:GMEM loopC 48 passed Time 0.82 ms`'
 - en: '[PRE255]'
   id: totrans-1003
   prefs: []
@@ -7279,6 +7439,7 @@
   id: totrans-1004
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，在 GTX470 上最佳的块数是 384，而在 GTX460 上是 96。192 这个值在两种设备上都表现良好。显然，64 个块的值并不适用。
 - en: 'However, what about the last issue we noticed, that 8% of the time the SMs
     were idle? Well this improves to 7% when there are additional blocks, so this
     is helping. However, what is the cause of the problem? Looking to the kernel output
@@ -7286,6 +7447,7 @@
   id: totrans-1005
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，我们注意到的最后一个问题是，8% 的时间 SM 处于空闲状态。好消息是，当有更多块时，这一空闲时间降低到 7%，所以这种做法有所帮助。但是，问题的根源是什么呢？查看内核输出可以给我们提供一些线索：
 - en: '[PRE256]'
   id: totrans-1006
   prefs: []
@@ -7302,6 +7464,9 @@
   id: totrans-1007
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，与 CUDA 4.0 SDK 编译器不同，4.1 编译器将 `uint4` 类型放入了局部内存中。Fermi 上的这个局部内存是 L1 缓存，那么我们需要关注这个问题吗？我们可以重写
+    `uint4` 访问，以使用 `uint4` 指针。由于 `uint4` 类型是 128 位对齐的（4 × 32 位字），它们保证位于缓存行和内存事务边界上。因此，任何线程访问
+    `uint4` 的第一个元素时，将把剩下的三个元素也加载到 L1 缓存中。因此，我们有了 L1 局部内存访问和 L1 直接缓存访问。在理论上，应该没有差别。我们来看一下：
 - en: '[PRE257]'
   id: totrans-1008
   prefs: []
@@ -7323,6 +7488,7 @@
   id: totrans-1010
   prefs: []
   type: TYPE_NORMAL
+  zh: GTX470和GTX460设备的执行时间都有显著下降。从缓存利用率统计来看，我们可以看到L1缓存命中率从61.1%跃升到74.5%，因为我们从本地内存版本（`loopC`）转到了指针版本（`loopD`）。我们还看到SM中的停顿百分比降到了5%。实际上，关于这个统计数据，GTX460的差异非常明显，因为它一开始的停顿率为9%，稍微高于GTX470。这可能是因为我们现在能够在线程之间共享L1缓存数据，因为数据不再是“线程私有的”。
 - en: You may be wondering why we simply do not just use 84 blocks as we calculated
     earlier. The issue is one of rounding. The 12 million element dataset does not
     equally divide into 84 blocks. Thus, some blocks would need to process more than
@@ -7336,11 +7502,13 @@
   id: totrans-1011
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能会想，为什么我们不直接使用之前计算的84个block呢？问题在于四舍五入。1200万个元素的数据集无法平均划分到84个block中。因此，一些block需要处理更多的任务。这意味着逻辑需要更加复杂，但每个block的复杂度都会增加。仅仅运行84个block而不解决这个问题会导致0.62毫秒的时间，比384个block版本快了0.06毫秒。这表明，384个block的版本将任务划分得足够小，现有的负载均衡机制能够很好地处理。使代码更复杂的价值明显低于其带来的好处，除非我们实际上不知道输入数据集的大小。
 - en: 'Coming back to the question of shared memory versus atomics, which is faster?
     We can replace the atomic-based reduction with the following code:'
   id: totrans-1012
   prefs: []
   type: TYPE_NORMAL
+  zh: 回到共享内存与原子操作的问题，哪一个更快？我们可以用以下代码替代基于原子的归约：
 - en: '[PRE259]'
   id: totrans-1013
   prefs: []
@@ -7374,6 +7542,8 @@
   id: totrans-1018
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意代码的工作方式。首先，所有256个线程（warps 0..6）将它们当前的`local_result`写入一个包含256个64位值的共享内存数组中。然后编号为0到127的线程（warps
+    0..3）将上面一组warps的结果加到它们的结果中。由于一个block内的warps需要相互协作，我们需要确保每个warp都执行完毕，因此需要添加必要的`__syncthreads()`调用。
 - en: We continue this reduction until the point at which we reach 32 threads, the
     size of a single warp. At this point all threads within the warp are synchronous.
     Thus, we no longer need to synchronize the threads, as the thread sync operation
@@ -7381,6 +7551,7 @@
   id: totrans-1019
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们继续进行这种简化，直到达到32个线程的情况，即一个单一的warp大小。在这一点上，warp中的所有线程都是同步的。因此，我们不再需要同步线程，因为线程同步操作实际上是在单个block内的warp同步操作。
 - en: We now have a couple of choices. We could continue the `if threadIdx.x < threshold`
     operation or we can simply ignore the fact that the redundant threads within the
     warp perform a useless operation. The additional test actually generates a considerable
@@ -7391,10 +7562,12 @@
   id: totrans-1020
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们有几个选择。我们可以继续执行`if threadIdx.x < threshold`操作，或者我们可以忽略warp中冗余线程执行无用操作的事实。额外的测试实际上会生成相当数量的附加指令，因此我们直接计算warp内的所有值。请注意，这与运行多个warps不同，像在128和64测试的情况下。在单个warp内，减少线程数并没有带来任何收益。相比之下，之前的测试是消除了整个warp。
 - en: So does this gain us anything compared to the atomic reduction?
   id: totrans-1021
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，这与原子操作相比有什么收益吗？
 - en: '[PRE264]'
   id: totrans-1022
   prefs: []
@@ -7407,6 +7580,7 @@
   id: totrans-1023
   prefs: []
   type: TYPE_NORMAL
+  zh: 与上一个版本相比，我们在GTX470上从0.68毫秒下降到0.64毫秒，在GTX460上从0.8毫秒下降到0.79毫秒。虽然这不是一个显著的提升，但还是在执行速度上有所提高。在继续之前，我们可以对这段代码进行最后一次优化。
 - en: Compilers typically generate less than optimal code for array indexing where
     the value of the array index is not a constant. The CUDA compiler is no exception.
     We can replace the array code with pointer code, which runs somewhat faster. We
@@ -7416,6 +7590,7 @@
   id: totrans-1024
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器通常会为数组索引生成不够优化的代码，尤其是当数组索引值不是常量时。CUDA编译器也不例外。我们可以将数组代码替换为指针代码，这样运行速度会稍微更快。我们还可以减少对共享内存区域的读写次数。然而，像大多数优化解决方案一样，代码变得更复杂，不易理解，也更难维护和调试。
 - en: '[PRE265]'
   id: totrans-1025
   prefs: []
@@ -7445,6 +7620,7 @@
   id: totrans-1030
   prefs: []
   type: TYPE_NORMAL
+  zh: '` local_result += ∗(smem_ptr+64);`'
 - en: '[PRE270]'
   id: totrans-1031
   prefs: []
@@ -7502,6 +7678,8 @@
   id: totrans-1040
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里采用的方法是，由于我们已经将当前线程的结果存储在 `local_result` 中，因此没有必要将结果累积到共享内存中。所需的唯一共享内存存储是来自上层线程将数据发送到下层线程的部分。因此，在每个缩减步骤中，只有顶部的线程会写入共享内存。一旦我们到达单个
+    warp，这个测试的代码执行时间将超过它从共享内存中节省的读取/写入时间，因此我们会跳过测试并继续写入。此外，为了避免任何地址计算，除了简单的指针加法外，共享内存区域的地址在代码段开始时就被作为指针使用。修订后的时间是：
 - en: '[PRE279]'
   id: totrans-1041
   prefs: []
@@ -7515,16 +7693,20 @@
   id: totrans-1042
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在 GTX470 和 GTX460 上，我们分别获得了 0.02 毫秒的提升。我们还大大减少了基于共享内存的原子缩减操作，这也使得可以在较旧的硬件上实现。为了消除最后对全局内存的缩减，你需要将结果写入按
+    `blockIdx.x` 索引的数组，然后运行一个进一步的内核将各个结果相加。
 - en: An alternative CPU version
   id: totrans-1043
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 替代的 CPU 版本
 - en: For reference, the CPU serial and parallel implementations are provided so we
     can see the same reduction on the CPU side.
   id: totrans-1044
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为参考，提供了 CPU 的串行和并行实现，以便我们可以在 CPU 端看到相同的缩减操作。
 - en: '[PRE280]'
   id: totrans-1045
   prefs: []
@@ -7564,12 +7746,16 @@
   id: totrans-1051
   prefs: []
   type: TYPE_NORMAL
+  zh: 在一台运行 2.5 MHz 的 AMD Phenom II X4 处理器（四个核心）上，串行版本的时间为 10.65 毫秒，而并行版本的时间为 5.25
+    毫秒。并行版本是使用 OpenMP 和 “reduction” 原语创建的。要在 NVCC 编译器中启用这些非常有用的 pragma，只需使用 `-Xcompiler
+    –openmp` 标志，你就可以使用任何 OpenMP 指令来实现 CPU 级别的线程并行。
 - en: This code spawns *N* threads where *N* is the number of cores. The threads are
     then free to run on any available core. The work is split into *N* chunks and
     finally the results are combined.
   id: totrans-1052
   prefs: []
   type: TYPE_NORMAL
+  zh: 这段代码生成 *N* 个线程，其中 *N* 是核心的数量。然后，这些线程可以自由地运行在任何可用的核心上。工作被分成 *N* 个块，最后将结果合并。
 - en: As can often be the case with parallel programming on CPUs, we see sublinear
     scaling as the number of cores increases. We can see that the scaling works well
     from one core to two cores, with a 35% drop in time when using two cores and a
@@ -7580,14 +7766,19 @@
   id: totrans-1053
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如 CPU 上并行编程常见的情况一样，随着核心数量的增加，我们会看到子线性扩展性。我们可以看到，从一个核心到两个核心的扩展效果很好，使用两个核心时执行时间下降了
+    35%，使用三个核心时下降了 50%。然而，添加第四个核心后，执行时间仅减少了 2%，因此基本上没有贡献（[图 9.37](#F0190)）。通常随着核心数量的进一步增加，执行时间呈
+    U 形变化。
 - en: '![image](../images/F000090f09-37-9780124159334.jpg)'
   id: totrans-1054
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-37-9780124159334.jpg)'
 - en: FIGURE 9.37 OpenMP scaling on four cores.
   id: totrans-1055
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.37 四核上的 OpenMP 扩展性。
 - en: The reason for this is, while the compute performance is being scaled by the
     introduction of more cores, the memory bandwidth to the socket is shared between
     all cores. Taking our test system as an example, the AMD 905e processor has a
@@ -7599,11 +7790,15 @@
   id: totrans-1056
   prefs: []
   type: TYPE_NORMAL
+  zh: 造成这一现象的原因是，虽然通过引入更多的核心来提升计算性能，但内存带宽在所有核心之间共享。以我们的测试系统为例，AMD 905e 处理器的典型内存带宽为
+    12.5 MB/s。仅仅从内存中读取 48 MB 数据而不进行任何计算操作，就需要 3.8 秒，这已经占据了 5.25 毫秒执行时间的相当一部分。因此，问题并不是
+    OpenMP 对比 CUDA，而是 CPU 上每个核心可用的内存带宽与 GPU 的内存带宽的对比。
 - en: Parallel reduction summary
   id: totrans-1057
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 并行归约总结
 - en: The original, very simplistic GPU implementation took 197 ms and 164 ms (GTX470
     and GTX460). Compared with the CPU parallel four-core result of 5.25 ms this is
     really terrible and an example of how an apparently fast device can be brought
@@ -7611,6 +7806,7 @@
   id: totrans-1058
   prefs: []
   type: TYPE_NORMAL
+  zh: 原始的非常简化的 GPU 实现分别需要 197 毫秒和 164 毫秒（GTX470 和 GTX460）。与 CPU 四核并行结果 5.25 毫秒相比，这个性能非常差，说明了一个看似快速的设备如何因糟糕的编程实践而陷入瓶颈。
 - en: The final GPU version uses atomic operations as little as possible outside of
     the SM. It achieves, in pure compute terms, a 6.8× (GTX460) or 8.4× (GTX470) speedup
     over a four-core CPU. However, 0.62 ms is very little compute time to hide any
@@ -7623,6 +7819,9 @@
   id: totrans-1059
   prefs: []
   type: TYPE_NORMAL
+  zh: 最终的GPU版本尽量减少在SM外部使用原子操作。从纯计算角度来看，它比四核CPU实现了6.8倍（GTX460）或8.4倍（GTX470）的加速。然而，0.62毫秒的计算时间对于隐藏任何传输时间来说非常短。在5
+    GB/s的传输速度下，PCI-E 2.0带宽大约是我们测试平台主内存带宽（12 GB/s）的40%。5 GB每秒的传输速率大约相当于每毫秒5 MB的数据传输。因此，48
+    MB数据的传输时间本身就需要9.6毫秒。我们只能将不到10%的计算时间与此重叠，这限制了整体执行速度不会超过PCI-E 2.0的传输速度。
 - en: This is actually all too often a problem with GPUs in general. They need to
     have a sufficiently complex problem that the benefit of their huge compute power
     can be applied. In such cases, they can drastically outperform a CPU. A simple
@@ -7635,6 +7834,8 @@
   id: totrans-1060
   prefs: []
   type: TYPE_NORMAL
+  zh: 这实际上是GPU普遍面临的一个问题。它们需要足够复杂的问题，才能充分发挥其巨大计算能力的优势。在这种情况下，GPU的性能可以远远超过CPU。而像执行`sum`、`min`、`max`或其他简单任务这样的简单问题，无法提供足够的挑战，无法为PCI-E传输时间提供合理的正当性，除非我们能通过确保数据已经驻留在设备上并保持在那里，来忽略传输时间。这也是为什么6
+    GB的Tesla比那些最大容量为4 GB的便宜消费级显卡更具吸引力的原因之一。
 - en: To increase the overall amount of data held in the GPU memory space, you can
     simply install multiple cards in a system, typically up to four per node, or more
     if you use exotic cooling methods. Thus, up to 24 GB in total data can be held
@@ -7647,6 +7848,9 @@
   id: totrans-1061
   prefs: []
   type: TYPE_NORMAL
+  zh: 要增加GPU内存空间中的总体数据量，你可以简单地在系统中安装多个显卡，通常每个节点最多安装四张显卡，若使用特殊冷却方法则可安装更多。因此，在单个节点内，最多可以容纳四张Tesla级显卡，总共可存储24
+    GB的数据。如果你可以使用UVA（通用虚拟寻址）功能，还可以通过该功能直接扩展主机内存空间与GPU内存空间（要求设备为compute 2.x及以上版本，64位操作系统，Linux或Windows下的TCC驱动，CUDA
+    4.x运行时）。GPU之间的通信（P2P，点对点通信）也可以在不通过CPU路由数据的情况下进行，从而大大节省PCI-E带宽。
 - en: As we move from PCI-E 2.0 (5 GB/s) to PCI-E 3.0 the bandwidth per PCI-E slot
     should effectively double, significantly alleviating this problem for GPU devices
     supporting the new PCI-E 3.0 standard. As of the start of 2012 we saw motherboards
@@ -7656,6 +7860,8 @@
   id: totrans-1062
   prefs: []
   type: TYPE_NORMAL
+  zh: 随着我们从PCI-E 2.0（5 GB/s）升级到PCI-E 3.0，每个PCI-E插槽的带宽应该有效翻倍，这显著缓解了支持新PCI-E 3.0标准的GPU设备的带宽问题。从2012年初开始，我们看到主板开始支持PCI-E
+    3.0标准，搭载Ivybridge/Ivybridge-E处理器的主板也开始出现。PCI-E显卡将陆续在2012年及以后开始推出。除了增加PCI-E带宽外，还提高了主机内存带宽。
 - en: This also highlights another point that we’ve made throughout this book. The
     CPU can be a useful partner in dealing with all the simple problems in conjunction
     with a GPU. For example, where tiles of data need to communicate, it can process
@@ -7665,60 +7871,71 @@
   id: totrans-1063
   prefs: []
   type: TYPE_NORMAL
+  zh: 这也突显了我们在本书中一直强调的另一个观点。CPU可以作为GPU的有用伙伴，处理所有简单的问题。例如，当数据块需要通信时，CPU可以处理它们需要共享数据的“边界”情况，而GPU则处理数据的主要部分。这类情况通常会涉及大量分支，而GPU处理分支不高效，因此这种合作方式可能更为合适。
 - en: Section summary
   id: totrans-1064
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 小节总结
 - en: • There are now well-documented sources that detail algorithms for specific
     fields. Many are available in the form of plug-in libraries.
   id: totrans-1065
   prefs: []
   type: TYPE_NORMAL
+  zh: • 现在有许多文献详细介绍了针对特定领域的算法。许多算法已经以插件库的形式提供。
 - en: • Be aware that not all parallel algorithms have obvious implementations on
     GPUs. Consider factors such as coalescing and communications when thinking about
     how to implement such algorithms.
   id: totrans-1066
   prefs: []
   type: TYPE_NORMAL
+  zh: • 需要注意的是，并非所有并行算法都能在GPU上有明显的实现方式。在考虑如何实现这些算法时，需要考虑如合并（coalescing）和通信等因素。
 - en: • New functions such as `__syncthreads_count` may have been introduced to address
     certain types of problems as the API develops. Study carefully the various additions
     to the API and understand possible usage.
   id: totrans-1067
   prefs: []
   type: TYPE_NORMAL
+  zh: • 随着 API 的发展，可能引入了新的函数，如 `__syncthreads_count`，来解决某些类型的问题。仔细研究 API 中的各种新增功能，并理解其可能的使用方法。
 - en: • Use multiple elements per thread wherever possible. However, using too many
     elements per thread may adversely affect performance.
   id: totrans-1068
   prefs: []
   type: TYPE_NORMAL
+  zh: • 尽可能在每个线程中使用多个元素。然而，使用过多的元素可能会对性能产生不利影响。
 - en: • As our reduction example shows, the simplest kernel is often the slowest.
     To achieve the absolute best performance often takes significant programming time
     and a good understanding of the underlying hardware.
   id: totrans-1069
   prefs: []
   type: TYPE_NORMAL
+  zh: • 正如我们的归约示例所示，最简单的内核往往是最慢的。要实现最佳性能通常需要大量的编程时间和对底层硬件的深刻理解。
 - en: • A multicore CPU is more than a capable partner in calculating workloads, but
     will often be memory bandwidth constrained, which in turn may limit your ability
     to make effective use of all the cores.
   id: totrans-1070
   prefs: []
   type: TYPE_NORMAL
+  zh: • 多核 CPU 在计算负载方面是一个非常有能力的伙伴，但通常会受到内存带宽的限制，这可能限制你有效利用所有核心的能力。
 - en: • OpenMP can provide an easy-to-use multithreaded interface for threads on the
     CPU side and is included as part of the standard CUDA compiler SDK.
   id: totrans-1071
   prefs: []
   type: TYPE_NORMAL
+  zh: • OpenMP 提供了一个易于使用的多线程接口，适用于 CPU 端的线程，并作为标准 CUDA 编译器 SDK 的一部分。
 - en: 'Strategy 6: Resource Contentions'
   id: totrans-1072
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 策略 6：资源竞争
 - en: Identifying bottlenecks
   id: totrans-1073
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 识别瓶颈
 - en: It’s often not clear to a programmer what, if anything, is wrong with a program.
     Most GPU programs, if they contain a reasonable amount of work for the GPU to
     do, show significant performance gains over their CPU counterparts. The question
@@ -7729,6 +7946,8 @@
   id: totrans-1074
   prefs: []
   type: TYPE_NORMAL
+  zh: 对程序员来说，通常不清楚程序是否有问题，或者问题出在哪里。大多数 GPU 程序，如果它们包含适量的 GPU 工作量，通常会比其 CPU 对应程序表现出显著的性能提升。问题是，这种性能提升的程度有多大才算显著？这个问题引出的难点是，GPU
+    在某些任务上表现得非常出色，在其他任务上则仅仅足够，而在某些任务上表现得很差。任何有大量算术运算且可以分解成许多独立问题的任务通常都能很好地运行。
 - en: Algorithms that have significant branching or are mostly sequential are not
     suited to GPU, or most parallel architectures for that matter. In going down the
     parallel route, you almost always see a tradeoff of single-thread performance
@@ -7738,6 +7957,8 @@
   id: totrans-1075
   prefs: []
   type: TYPE_NORMAL
+  zh: 算法如果有显著的分支或大多数是顺序执行的，那么它们不适合 GPU，也不适合大多数并行架构。在采用并行路线时，你几乎总是会看到单线程性能和多线程性能之间的权衡。GPU
+    通常的时钟频率最高可达 1000 MHz，只有典型 CPU 的三分之一或更低。它们没有为大型流水线所必需的分支预测逻辑。
 - en: The CPU has had decades of development and we’re pretty much at the end game
     of any significant single-thread performance gains. Consequently, largely serial
     code performs terribly on a GPU compared to a CPU. This may change with future
@@ -7749,12 +7970,14 @@
   id: totrans-1076
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU经过数十年的发展，我们几乎已经达到了任何显著的单线程性能提升的终点。因此，与CPU相比，大部分串行代码在GPU上的表现非常糟糕。这种情况可能会随着未来混合架构的出现而改变，特别是如果我们看到它们包括专用CPU，就像NVIDIA的“丹佛项目”所提议的那样。该项目旨在将基于ARM的CPU核心嵌入GPU架构中。我们已经看到GPU元素被纳入常见的CPU平台，因此可以相当确定，CPU和GPU世界的未来可能是混合的，取各自最有用的部分。
 - en: However, restricting ourselves to the data parallel problems that run well on
     current GPUs, what is a good baseline for your kernel? What should you compare
     it against? What is a realistic target?
   id: totrans-1077
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，限制我们自己只关注在当前GPU上运行良好的数据并行问题，你的内核的良好基准是什么？你应该与什么进行比较？什么是一个现实的目标？
 - en: 'There are many fields now where CUDA is used to accelerate problems. One of
     the best resources to provide both some idea of what you can achieve and to see
     if there is already a solution that you can just buy in is [http://www.nvidia.com/object/cuda_app_tesla.html](http://www.nvidia.com/object/cuda_app_tesla.html).
@@ -7762,50 +7985,62 @@
   id: totrans-1078
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在有许多领域使用CUDA来加速问题。提供一些你可以实现的想法以及查看是否已经有可以直接购买的解决方案的最佳资源之一是 [http://www.nvidia.com/object/cuda_app_tesla.html](http://www.nvidia.com/object/cuda_app_tesla.html)。在这里，他们列出了以下类型的应用：
 - en: • Government and Defense
   id: totrans-1079
   prefs: []
   type: TYPE_NORMAL
+  zh: • 政府和国防
 - en: • Molecular Dynamic, Computation Chemistry
   id: totrans-1080
   prefs: []
   type: TYPE_NORMAL
+  zh: • 分子动力学、计算化学
 - en: • Life Sciences, Bio-Informatics
   id: totrans-1081
   prefs: []
   type: TYPE_NORMAL
+  zh: • 生命科学、生物信息学
 - en: • Electrodynamics and Electromagnetic
   id: totrans-1082
   prefs: []
   type: TYPE_NORMAL
+  zh: • 电动力学和电磁学
 - en: • Medical Imagining, CR, MRI
   id: totrans-1083
   prefs: []
   type: TYPE_NORMAL
+  zh: • 医学成像、CR、MRI
 - en: • Oil and Gas
   id: totrans-1084
   prefs: []
   type: TYPE_NORMAL
+  zh: • 石油和天然气
 - en: • Financial Computing and Options Pricing
   id: totrans-1085
   prefs: []
   type: TYPE_NORMAL
+  zh: • 金融计算和期权定价
 - en: • Matlab, Labview, Mathematica
   id: totrans-1086
   prefs: []
   type: TYPE_NORMAL
+  zh: • Matlab、Labview、Mathematica
 - en: • Electronic Design Automation
   id: totrans-1087
   prefs: []
   type: TYPE_NORMAL
+  zh: • 电子设计自动化
 - en: • Weather and Ocean Modeling
   id: totrans-1088
   prefs: []
   type: TYPE_NORMAL
+  zh: • 天气和海洋建模
 - en: • Video, Imaging, and Vision Applications
   id: totrans-1089
   prefs: []
   type: TYPE_NORMAL
+  zh: • 视频、成像和视觉应用
 - en: Thus, if your field is options pricing, you can go to the relevant section,
     browse through a few of the sites, and see that the Monte Carlo pricing model
     is somewhere from a 30× to 50× speedup over a single-core CPU according to the
@@ -7821,6 +8056,7 @@
   id: totrans-1090
   prefs: []
   type: TYPE_NORMAL
+  zh: '因此，如果你的领域是期权定价，你可以进入相关部分，浏览一些网站，看到根据特定供应商的分析，蒙特卡洛定价模型相较于单核 CPU 在速度上提高了30倍到50倍。当然，你需要问清楚使用的是哪种CPU，时钟频率是多少，使用了多少个核心等等，才能得到一个合理的比较。你还需要记住，任何供应商提供的数据都是为了推销他们的产品。因此，所有数据都是最佳情况，并且可能忽略了问题中的某些难点，以提供一个更具吸引力的理由，促使你购买他们的产品而不是竞争对手的产品。然而，几个小时的研究可以让你了解在你特定领域内什么样的数据是合理的目标。你还会了解其他人所做的工作，更重要的是，了解哪些方面仍然需要开发。  '
 - en: However, don’t be disappointed with your initial GPU results in comparison with
     many of these applications. Often these arise from years of effort, which can
     be a great advantage, but can also mean they have to carry a lot of legacy code.
@@ -7829,6 +8065,7 @@
   id: totrans-1091
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，不要对你的初始GPU结果感到失望，尤其是在与许多这些应用进行比较时。通常这些应用是经过多年的努力开发出来的，这本身可能是一个巨大的优势，但也可能意味着它们需要承担大量的遗留代码。一个新的解决问题的方法，或者是曾经在向量机时代使用的被遗忘的方法，可能才是今天最好的方法。
 - en: Also remember that many of these projects are from startup companies, although
     as CUDA has become more mainstream, there are now more and more corporate offerings.
     Often startups come from talented PhD students who want to continue their field
@@ -7840,16 +8077,19 @@
   id: totrans-1092
   prefs: []
   type: TYPE_NORMAL
+  zh: '另外要记住，许多这些项目来自初创公司，尽管随着CUDA变得越来越主流，现在也有越来越多的企业产品提供。初创公司通常由有才华的博士生创办，他们希望将自己的研究领域或论文成果带入商业世界。因此，这些公司通常由少数几位对特定问题领域有深入了解的人组成，但这些人可能并非来自计算机背景。因此，作为一个既了解CUDA又对应用领域有详细理解的人，你完全有可能做得比现有的商业或研究产品更好。  '
 - en: Analysis tools
   id: totrans-1093
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '分析工具  '
 - en: Visual profiler
   id: totrans-1094
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: '可视化分析器  '
 - en: One of the first places to start, at least with existing code, is the analysis
     tools provided with the SDK. The first of these is the NVIDIA Visual Profiler
     tool. This is a multiplatform tool. It has the very useful feature of pointing
@@ -7858,6 +8098,7 @@
   id: totrans-1095
   prefs: []
   type: TYPE_NORMAL
+  zh: 至少对于现有的代码来说，首先可以从 SDK 提供的分析工具入手。其中第一个工具是 NVIDIA Visual Profiler。这是一个多平台工具，具有非常有用的功能，能够指出它认为你的内核有什么问题，至少能够指引你需要做的工作。
 - en: To use this tool, you simply compile your CUDA kernel and then select File→New
     Session, selecting the executable you just created. You can also input any working
     directory and command line arguments if applicable. Finally, you have to tell
@@ -7868,6 +8109,8 @@
   id: totrans-1096
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用这个工具时，你只需要编译你的 CUDA 内核，然后选择 文件→新建会话，选择你刚刚创建的可执行文件。如果适用，你还可以输入任何工作目录和命令行参数。最后，你需要告诉分析器应用程序的运行时长，这样它就能知道内核何时崩溃，而不会永远等待处理结果。需要注意的是，在
+    Windows 上，你需要禁用默认的 Aero 桌面并选择标准桌面主题。
 - en: You are probably unlikely to be able to see the detail on the timeline in [Figure
     9.38](#F0195), but should be able to make out the major sections. The first thing
     that is striking about the timeline is how little compute is being performed (the
@@ -7878,14 +8121,18 @@
   id: totrans-1097
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能看不清 [图 9.38](#F0195) 中时间轴的细节，但应该能辨别出主要部分。时间轴的第一个显著特点是计算量非常小（图中间的绿色条）。这是一系列在多个
+    GPU 上按顺序使用默认流的内核。我们看到，使用默认流会导致隐式同步，并且这一点对整体时序的影响巨大。
 - en: '![image](../images/F000090f09-38-9780124159334.jpg)'
   id: totrans-1098
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-38-9780124159334.jpg)'
 - en: FIGURE 9.38 Visual Profiler timeline.
   id: totrans-1099
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.38 Visual Profiler 时间轴。
 - en: Switching to a streaming example now, we get a different view. Here we can see
     a kernel pushed into a stream with a `memcpy to` and `memcpy from` device around
     it. Although we can see the two GPUs are being used together this time, the tool
@@ -7899,6 +8146,7 @@
   id: totrans-1100
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在切换到流式示例，我们会看到不同的视角。在这里，我们可以看到内核被推入一个流中，周围有`memcpy to`和`memcpy from`设备。虽然我们这次看到两个GPU一起使用，但工具提醒我们内核内存传输的重叠很少。这完全是正确的。其原因在于，典型的内核会有一些输入数据*和*一些输出数据。尽管在所有Fermi设备上，物理硬件中有两个`memcpy`引擎，但在如GTX470和GTX460等消费级设备中，只启用了一个。因此，所有传输必须进入同一个`memcpy`流并按顺序执行。由于内核先进行“复制到”操作，然后是“复制从”操作，随后的流中的“复制到”操作会被阻塞。
 - en: Thus, on Tesla devices where both copy engines are present, we do not see such
     an issue. For consumer-level hardware, we need to adopt a different approach.
     We simply do not issue any copy back transfers into the streams, until such time
@@ -7909,6 +8157,8 @@
   id: totrans-1101
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在具有两个拷贝引擎的Tesla设备上，我们不会看到此类问题。对于消费级硬件，我们需要采取不同的方法。我们简单地不在流中发出任何拷贝回传输，直到所有的`memcpy
+    to`和内核调用都已发出。此时，我们再将一组“拷贝回”命令推入流中并执行传输。可能会有一些内核与最后一个内核和回传输的重叠，但这将是最小的。
 - en: The other issue the analysis presents is the bandwidth to and from the device
     is being underutilized (the “Low Memcpy/Compute Overlap” message). In this example,
     we’re using 32 MB chunks of data. If you look back to earlier sections of this
@@ -7921,25 +8171,30 @@
   id: totrans-1102
   prefs: []
   type: TYPE_NORMAL
+  zh: 分析中提出的另一个问题是设备的带宽未得到充分利用（“低内存拷贝/计算重叠”消息）。在这个示例中，我们使用的是32 MB的数据块。如果回顾本章前面的部分，你会发现这已经足够达到PCI-E总线的峰值带宽。然而，这里存在的问题是计算部分占用了大部分时间。即使我们重叠传输和内核执行，收益也将是微乎其微的。因此，理解工具给出的提示以及相关的努力是否值得节省执行时间是非常重要的。
 - en: Overall it’s a very useful tool and quite easy to set up and use. It produces
     reasonable results quite quickly and is supported on multiple platforms ([Figure
     9.39](#F0200)).
   id: totrans-1103
   prefs: []
   type: TYPE_NORMAL
+  zh: 总体来说，这是一个非常有用的工具，设置和使用都非常简单。它能够快速产生合理的结果，并且支持多种平台（[图 9.39](#F0200)）。
 - en: '![image](../images/F000090f09-39-9780124159334.jpg)'
   id: totrans-1104
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-39-9780124159334.jpg)'
 - en: FIGURE 9.39 Visual Profiler, multi-GPU.
   id: totrans-1105
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.39 Visual Profiler，多个 GPU。
 - en: Parallel Nsight
   id: totrans-1106
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: Parallel Nsight
 - en: Visual Profiler can, unfortunately, only tell you so much. A much better level
     of detail can be found with the Parallel Nsight tool, which is a Windows-only
     visual analyzer and debugger. Even if Windows is not your primary development
@@ -7948,6 +8203,8 @@
   id: totrans-1107
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，Visual Profiler 能提供的信息是有限的。而通过 Parallel Nsight 工具，你可以获得更为详细的分析，Parallel
+    Nsight 是一个仅适用于 Windows 的可视化分析和调试工具。即使 Windows 不是你的主要开发环境，仍然值得为这个工具专门配置一台备用 PC，仅仅为了它的分析功能。
 - en: Parallel Nsight is a far more in-depth tool than Visual Profiler. It will tell
     you a lot more about the kernels and what they are doing. However, as with any
     more complex tool, it takes a little time to learn how to use it well. The Visual
@@ -7956,6 +8213,8 @@
   id: totrans-1108
   prefs: []
   type: TYPE_NORMAL
+  zh: Parallel Nsight 是一个比 Visual Profiler 更加深入的工具。它能告诉你更多关于内核及其执行情况的信息。然而，与任何复杂工具一样，它需要一些时间才能学会如何有效使用它。Visual
+    Profiler 工具设置和使用更简单，适合初学者，而 Parallel Nsight 更适合中级到高级用户。
 - en: Parallel Nsight is best set up with a single PC using one or more compute 2.x
     (Fermi) graphics cards. Parallel Nsight will also run remotely using two PCs,
     each of which has a NVIDIA graphics card. However, you’ll find it much easier
@@ -7963,6 +8222,8 @@
   id: totrans-1109
   prefs: []
   type: TYPE_NORMAL
+  zh: 最好在一台 PC 上使用一张或多张计算 2.x（Fermi）显卡来设置 Parallel Nsight。Parallel Nsight 也可以在两台 PC
+    上远程运行，每台 PC 都需要安装 NVIDIA 显卡。不过，你会发现拥有一台 PC 会更加方便，而不是等待数据从远程机器复制过来。
 - en: Parallel Nsight presents a number of options for debugging and profiling. The
     two main choices are “Application Trace” and “Profile.” The “Application Trace”
     feature allows you to generate a timeline as with Visual Profiler. This is particularly
@@ -7972,6 +8233,8 @@
   id: totrans-1110
   prefs: []
   type: TYPE_NORMAL
+  zh: Parallel Nsight 提供了多种调试和性能分析的选项。主要有两个选择：“应用程序跟踪”和“性能分析”。“应用程序跟踪”功能允许你生成与 Visual
+    Profiler 类似的时间线。这对于查看 CPU 如何与 GPU 互动特别有用，并展示主机/设备之间交互所花费的时间。你还应该使用时间线来验证流和内核/内存复制操作是否正确执行。
 - en: Multiple concurrent GPU timelines are also supported. For example, the timeline
     in [Figure 9.40](#F0205) shows we’re failing to provide enough work to keep all
     GPUs busy. Only the computation parts are shown. The Fermi GPUs are shown in red
@@ -7984,14 +8247,19 @@
   id: totrans-1111
   prefs: []
   type: TYPE_NORMAL
+  zh: 还支持多个并发GPU时间线。例如，[图9.40](#F0205)中的时间线显示我们没有提供足够的工作来保持所有GPU忙碌。这里只显示了计算部分。Fermi
+    GPU用红色表示，作为第一个和最后一个上下文，而较旧的GPU用绿色表示，作为中间的两个条形图。每个红色方块代表在给定流上的一个内核调用。你可以看到，第一组内核在下一组运行之前结束。我们有一个很长的时间段，第一个GPU处于空闲状态。只有通过使用像Parallel
+    Nsight这样的工具，你才能看到类似的问题。仅使用主机/GPU定时器是很难看出这一点的。
 - en: '![image](../images/F000090f09-40-9780124159334.jpg)'
   id: totrans-1112
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-40-9780124159334.jpg)'
 - en: FIGURE 9.40 Parallel Nsight, multi-GPU timeline.
   id: totrans-1113
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.40 Parallel Nsight，多GPU时间线。
 - en: The next useful feature is the “Profile” option under the Activity Type menu
     ([Figure 9.41](#F0210)). This allows us to profile the CUDA kernels. However,
     as many of the experiments require multiple runs of the kernel, no timeline can
@@ -7999,14 +8267,17 @@
   id: totrans-1114
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一个有用的功能是活动类型菜单下的“分析”选项（[图9.41](#F0210)）。这允许我们对CUDA内核进行分析。然而，由于许多实验需要多次运行内核，选择此选项时无法生成时间线。
 - en: '![image](../images/F000090f09-41-9780124159334.jpg)'
   id: totrans-1115
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-41-9780124159334.jpg)'
 - en: FIGURE 9.41 Parallel Nsight Activity Type selection.
   id: totrans-1116
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.41 Parallel Nsight 活动类型选择。
 - en: Selecting Experiments to Run as “All” from the dropdown box is the simplest
     option. As you can see from the list of experiments in [Figure 9.42](#F0215),
     they are quite extensive. To start acquiring data, simply press the “Launch” button
@@ -8017,22 +8288,28 @@
   id: totrans-1117
   prefs: []
   type: TYPE_NORMAL
+  zh: 从下拉框中选择“所有”作为运行的实验是最简单的选项。如[图9.42](#F0215)所示，实验列表非常广泛。要开始采集数据，只需按下应用程序控制面板中的“启动”按钮（[图9.43](#F0220)）。注意绿色的连接状态圆圈。它告诉你Parallel
+    Nsight监控器已成功连接到目标设备。在其他选项有效之前，这个圆圈需要是绿色的。有关设置监控器的详细信息，请参阅帮助选项。
 - en: '![image](../images/F000090f09-42-9780124159334.jpg)'
   id: totrans-1118
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-42-9780124159334.jpg)'
 - en: FIGURE 9.42 Parallel Nsight Experiments.
   id: totrans-1119
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.42 Parallel Nsight 实验。
 - en: '![image](../images/F000090f09-43-9780124159334.jpg)'
   id: totrans-1120
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-43-9780124159334.jpg)'
 - en: FIGURE 9.43 Parallel Nsight application Launch control.
   id: totrans-1121
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.43 Parallel Nsight 应用程序启动控制。
 - en: Once you press the “Launch” button your application will run until such time
     as it exits. You then will have a number of options in a dropdown box on the top
     of the screen, the last of which is “GPU Devices” ([Figure 9.44](#F0225)). Select
@@ -8040,14 +8317,18 @@
   id: totrans-1122
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦你按下“启动”按钮，你的应用程序将运行直到退出。然后，你将在屏幕顶部的下拉框中看到多个选项，最后一个选项是“GPU 设备”([图 9.44](#F0225))。选择此项后，你将看到系统中
+    GPU 设备的概览。
 - en: '![image](../images/F000090f09-44-9780124159334.jpg)'
   id: totrans-1123
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-44-9780124159334.jpg)'
 - en: FIGURE 9.44 Parallel Nsight, GPU devices present.
   id: totrans-1124
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.44 并行 Nsight，存在的 GPU 设备。
 - en: This is a useful dialog if you are not sure exactly what the properties of a
     particular device in your system are. Next, change the dropdown menu from “GPU
     Devices” to “CUDA Launches.” You’ll then see a list of kernels that were executed
@@ -8056,6 +8337,7 @@
   id: totrans-1125
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你不确定系统中特定设备的属性，这个对话框会很有用。接下来，将下拉菜单从“GPU 设备”更改为“CUDA 启动”。然后你将看到已执行的内核列表以及各种统计数据。你还将在可扩展列表下方的面板中找到“实验结果”。
 - en: In this particular example, we have six kernels. We can see from the results
     a number of issues. First, none of the kernels achieve a theoretical occupancy
     above 33% ([Figure 9.45](#F0230)). In the case of the first kernel, this is caused
@@ -8068,14 +8350,19 @@
   id: totrans-1126
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个具体的示例中，我们有六个内核。从结果中我们可以看到一些问题。首先，没有一个内核的理论占用率超过 33%([图 9.45](#F0230))。对于第一个内核，这是由于在达到最大
+    48 个 warp 的设备容量之前，块限制（8）已经达到了。还要注意，第一个内核没有设置缓存配置，CUDA 运行时使用了`PREFER_SHARED`选项，将
+    48 K 分配给共享内存，而不是缓存。由于该内核没有使用共享内存，这样做毫无意义。在主机代码中，我们缺少在第一次内核调用之前设置缓存配置为`PREFER_L1`的调用。
 - en: '![image](../images/F000090f09-45-9780124159334.jpg)'
   id: totrans-1127
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-45-9780124159334.jpg)'
 - en: FIGURE 9.45 Parallel Nsight occupancy.
   id: totrans-1128
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.45 并行 Nsight 占用率。
 - en: The next experiment to look at is the “Instruction Statistics” ([Figure 9.46](#F0235)).
     Here we see a few issues. There is a very high level of instructions that are
     being issued but not executed. This is indicative of the SM having to serialize
@@ -8088,14 +8375,18 @@
   id: totrans-1129
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来要查看的是“指令统计”实验（[图 9.46](#F0235)）。在这里，我们看到了一些问题。发出的指令数量非常高，但并没有被执行。这表明 SM 必须将指令序列化，从而重新发出相同的指令。我们还看到
+    SM 2 上的活动出现了巨大峰值。这实际上是非常糟糕的，因为它意味着分配给该 SM 的某个块相比其他块进行了大量的额外工作。这表明块的工作量分配不均衡，这是我们需要在算法层面解决的问题。需要对每个块的工作量进行一定的平衡。
 - en: '![image](../images/F000090f09-46-9780124159334.jpg)'
   id: totrans-1130
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-46-9780124159334.jpg)'
 - en: FIGURE 9.46 Parallel Nsight “Instruction Statistics.”
   id: totrans-1131
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.46 并行 Nsight “指令统计”。
 - en: The next experiment is the “Branch Statistics,” which tells us how much the
     execution within a warp diverges ([Figure 9.47](#F0240)). We ideally want a very
     small if not zero value for branch divergence. Here we see 16% of the branches
@@ -8106,14 +8397,18 @@
   id: totrans-1132
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一个实验是“分支统计”，它告诉我们一个 Warp 内部的执行偏离了多少（[图 9.47](#F0240)）。我们理想情况下希望分支偏离值非常小，甚至为零。在这里，我们看到
+    16% 的分支发生了偏离，这导致了我们在“指令统计”实验中看到的指令重新发出。这同样源自算法，因为每个线程的工作量不同。它指出了需要在工作块之间平衡工作负载。
 - en: '![image](../images/F000090f09-47-9780124159334.jpg)'
   id: totrans-1133
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-47-9780124159334.jpg)'
 - en: FIGURE 9.47 Parallel Nsight “Branch Statistics.”
   id: totrans-1134
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.47 并行 Nsight “分支统计”。
 - en: The next experiment looks at the ability of the SM to issue and execute instructions.
     We’d expect to see a roughly equal distribute in terms of the “Active Warps per
     Cycle” chart. It shows that despite SM 2 taking a very long time to execute, it
@@ -8125,14 +8420,19 @@
   id: totrans-1135
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一个实验考察了 SM 发出和执行指令的能力。我们预计在“每周期活动 Warp 数量”图表中看到大致均衡的分布。图表显示，尽管 SM 2 执行的时间非常长，但它实际上只被分配了少量的
+    Warp 来执行。这证实了它很可能是其中一个分配给它的块包含了比其他块更多的工作。我们还看到“每个活动周期的符合条件的 Warp 数量”非常低，这可能表明
+    SM 在某个时刻发生了停滞（[图 9.48](#F0245)）。
 - en: '![image](../images/F000090f09-48-9780124159334.jpg)'
   id: totrans-1136
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-48-9780124159334.jpg)'
 - en: FIGURE 9.48 Parallel Nsight issue efficiency, eligible warps.
   id: totrans-1137
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.48 并行Nsight问题效率，合适的warps。
 - en: Looking at the next tab we see the distribution of instruction dependencies
     ([Figure 9.49](#F0250)). Instruction dependencies are caused by the output of
     one operation feeding into the input of the next. As the GPU uses a lazy evaluation
@@ -8140,14 +8440,17 @@
   id: totrans-1138
   prefs: []
   type: TYPE_NORMAL
+  zh: 看下一个标签，我们看到指令依赖关系的分布（[图9.49](#F0250)）。指令依赖关系是由于一个操作的输出作为输入供下一个操作使用。由于GPU采用延迟求值模型，GPU在长指令依赖关系下运行效果最佳。
 - en: '![image](../images/F000090f09-49-9780124159334.jpg)'
   id: totrans-1139
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-49-9780124159334.jpg)'
 - en: FIGURE 9.49 Parallel Nsight issue efficiency, instruction dependencies.
   id: totrans-1140
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.49 并行Nsight问题效率，指令依赖关系。
 - en: The graph in [Figure 9.49](#F0250) shows there are too many immediate dependencies.
     The easiest method to solve this is by introducing some ILP on the thread level.
     As we in fact have very few blocks, we have a significant number of unused registers
@@ -8157,6 +8460,7 @@
   id: totrans-1141
   prefs: []
   type: TYPE_NORMAL
+  zh: '[图9.49](#F0250)中的图表显示了有太多的直接依赖关系。解决这个问题最简单的方法是在线程级别引入一些ILP。由于我们实际上只有很少的块，我们有相当数量的未使用寄存器可以用来引入ILP。我们可以通过向量类型或者通过扩展循环，使每次迭代处理*N*个元素来实现。我们还可以使用一个或多个寄存器来预取下一个循环迭代的值。'
 - en: The next tab confirms what we saw in the “Eligible Warps” tab, that the SMs
     are in fact hitting a stall condition. The first pie chart in [Figure 9.50](#F0255)
     shows that in 69% of the time, the SM has no eligible warp to execute, meaning
@@ -8166,14 +8470,17 @@
   id: totrans-1142
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一个标签确认了我们在“合适的Warp”标签中看到的内容，即SM实际上遇到了停滞条件。[图9.50](#F0255)中的第一个饼图显示，在69%的时间里，SM没有合适的warp可以执行，这意味着它将停滞或空闲，这当然不好。[图9.50](#F0255)中的第二个饼图显示了停滞的原因，我们可以看到85%的停滞时间与执行依赖关系有关。
 - en: '![image](../images/F000090f09-50-9780124159334.jpg)'
   id: totrans-1143
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-50-9780124159334.jpg)'
 - en: FIGURE 9.50 Parallel Nsight issue efficiency, issue stalls.
   id: totrans-1144
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.50 并行Nsight问题效率，问题停滞。
 - en: This can be solved in one of two ways. Currently, we have only 64 threads per
     block, meaning we get too few warps that are resident (16 out of a possible 48).
     Increasing the number of threads per block will increase the number of resident
@@ -8185,6 +8492,7 @@
   id: totrans-1145
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个问题可以通过两种方式解决。目前，我们每个块只有64个线程，这意味着我们获得的驻留warp太少（从48个可能warp中只有16个）。增加每个块的线程数将增加驻留warp的数量。仅从这个角度来看，我们需要将每个块的线程数从64增加到192。这本身可能会解决问题。然而，这个问题对整体时间的影响明显小于与内存相关的问题。增加驻留块的数量会影响缓存的使用，可能对整体时间产生更大的影响。
 - en: We can see this in practice by looking at the total amount of data fetched from
     global memory by creating two versions, one that uses 128 threads per block and
     another that uses 64 threads per block. As we have registers to spare, we’ll also
@@ -8194,6 +8502,7 @@
   id: totrans-1146
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过查看从全局内存中提取的总数据量来实际验证这一点，通过创建两个版本，一个每个块使用128个线程，另一个每个块使用64个线程。由于我们有足够的寄存器空间，我们还将在64寄存器版本中提取16个元素，在128寄存器版本中提取12个元素。这最大化了寄存器的使用，同时仍保持每个SM八个块。
 - en: Sure enough the “Warp Issue Efficiency” improves, reducing the “No Eligible”
     warps from 75% down to just 25%. The number of theoretical warps per SM also increases
     from 16 to 32 (13.25 versus 26.96 actual). The occupancy increases from 27% to
@@ -8202,6 +8511,7 @@
   id: totrans-1147
   prefs: []
   type: TYPE_NORMAL
+  zh: 果然，“warp效率问题”得到了改善，将“无合适warp”从75%降低到仅25%。每个SM的理论warp数量也从16增加到32（实际值为13.25与26.96）。占用率从27%增加到56%。这些都是改进，但它们是次要的影响。该内核正在执行排序操作，因此像几乎所有排序操作一样，很可能是内存瓶颈。
 - en: In fact, when we compare the two kernels with the “CUDA Memory Statistics” experiment,
     there is a difference. The increased number of blocks per SM means that the ratio
     of L1 cache to each block is reduced. This in turn results in a doubling of the
@@ -8209,6 +8519,7 @@
   id: totrans-1148
   prefs: []
   type: TYPE_NORMAL
+  zh: 实际上，当我们通过“CUDA内存统计”实验对比这两个内核时，存在一些差异。每个SM的块数增加意味着每个块的L1缓存比例减少。这反过来导致了全局内存提取操作的数量翻倍，这些操作没有被缓存到L1或L2缓存中。
 - en: In the first kernel, using 64 threads per block, we achieve a 93.7% cache hit
     rate, which is very good ([Figure 9.51](#F0260)). Of the 6.3% of the transactions
     the L1 cache misses, the L2 cache picks up 30%, or around one-third. Thus, very
@@ -8217,14 +8528,17 @@
   id: totrans-1149
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第一个内核中，使用每个块64个线程时，我们达到了93.7%的缓存命中率，这是非常好的（[图 9.51](#F0260)）。在6.3%的事务中，L1缓存未命中，L2缓存拾取了其中的30%，即大约三分之一。因此，实际上很少有读取事务进入全局内存，我们大多数时间都停留在芯片上。
 - en: '![image](../images/F000090f09-51-9780124159334.jpg)'
   id: totrans-1150
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-51-9780124159334.jpg)'
 - en: FIGURE 9.51 Memory statistics, memory overview (256 blocks × 64 threads).
   id: totrans-1151
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.51 内存统计，内存概览（256个块 × 64个线程）。
 - en: When we extend this to 128 threads per block, the overall number of blocks halves
     to 128 blocks in total ([Figure 9.52](#F0265)). However, this is not an issue,
     as with 14 SMs on the device and a maximum of eight resident blocks, we can only
@@ -8233,14 +8547,17 @@
   id: totrans-1152
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们将每个块的线程数扩展到128个时，块的总数量减半，变为128个块（[图 9.52](#F0265)）。然而，这并不成问题，因为设备上有14个SM，每个SM最多支持8个驻留块，因此在任何给定时间，我们最多只能容纳112个块。因此，我们可以增加驻留warp的数量，而不会导致任何SM用完块。
 - en: '![image](../images/F000090f09-52-9780124159334.jpg)'
   id: totrans-1153
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-52-9780124159334.jpg)'
 - en: FIGURE 9.52 Memory statistics, memory overview (128 blocks × 128 threads).
   id: totrans-1154
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.52 内存统计，内存概览（128个块 × 128个线程）。
 - en: Notice the problem with the cache hit ratio. Both the L1 and L2 caches achieve
     a lower hit ratio than before. The amount of memory fetched from global memory
     approximately doubles from 272 MB to 449 MB. This takes the execution time from
@@ -8250,6 +8567,7 @@
   id: totrans-1155
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意缓存命中率的问题。L1和L2缓存的命中率都低于之前的值。从全局内存中提取的内存量大约增加了一倍，从272 MB增加到449 MB。这使得执行时间从35毫秒增加到46毫秒，尽管SM的利用率看起来有所改善。注意，由于每个样本块分配一个线程，这些内存提取都是未合并的，因此实际上是非常昂贵的。
 - en: Note that a design in which the threads from a thread block cooperated on sorting
     a single sample block would be far less sensitive to this effect. This analysis
     shows us this dependency. Through using a different mapping of threads to work
@@ -8258,34 +8576,41 @@
   id: totrans-1156
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，如果线程块中的线程协作对一个单一的样本块进行排序，设计会对这一效应的敏感度降低得多。这个分析向我们展示了这种依赖性。通过使用不同的线程映射来进行排序阶段的工作，或者通过平衡或调整桶边界，我们可能能够显著提高吞吐量。
 - en: Resolving bottlenecks
   id: totrans-1157
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 解决瓶颈
 - en: 'It’s all very well knowing what the code you are running is doing, but it’s
     often another matter to both understand and fix the issue. The three types of
     bottlenecks you typically see, in order of importance, are:'
   id: totrans-1158
   prefs: []
   type: TYPE_NORMAL
+  zh: 知道您正在运行的代码在做什么非常好，但理解并修复问题往往是另一回事。您通常会看到的三种瓶颈类型，按重要性排序，分别是：
 - en: • PCI-E transfer bottlenecks
   id: totrans-1159
   prefs: []
   type: TYPE_NORMAL
+  zh: • PCI-E传输瓶颈
 - en: • Memory bandwidth bottlenecks
   id: totrans-1160
   prefs: []
   type: TYPE_NORMAL
+  zh: • 内存带宽瓶颈
 - en: • Compute bottlenecks
   id: totrans-1161
   prefs: []
   type: TYPE_NORMAL
+  zh: • 计算瓶颈
 - en: PCI-E transfer bottlenecks
   id: totrans-1162
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: PCI-E传输瓶颈
 - en: PCI-E transfer bottlenecks are often a key consideration. As we saw from the
     earlier sections, PCI-E bus bandwidth is limited and you can expect to achieve
     a peak of around 5 GB/s on PCI-E 2.0 depending on the host hardware. However,
@@ -8299,6 +8624,8 @@
   id: totrans-1163
   prefs: []
   type: TYPE_NORMAL
+  zh: PCI-E传输瓶颈通常是一个关键考虑因素。正如我们在前面的章节中看到的，PCI-E总线带宽是有限的，具体的峰值通常在PCI-E 2.0上为大约5 GB/s，具体取决于主机硬件。然而，要实现这一峰值，您需要使用固定内存，并且传输大小要适当。将更多GPU添加到节点中通常会减少整体带宽，但可以增加GPU的总体数量。如果您能够将所有数据保持在GPU内存空间内，无论是单个Tesla
+    GPU还是多个GPU，那么传输成本就可以从方程中消除。增加更多卡片所导致的带宽减少程度在很大程度上取决于主机硬件。因此，您需要了解自己正在传输多少数据以及数据的使用方式。
 - en: Compression techniques are one way to increase this apparently hard limit on
     PCI-E transfer rates. Do you really need to transfer all the data you are sending?
     For example, image data often contains an alpha channel that is used for transparency.
@@ -8310,6 +8637,7 @@
   id: totrans-1164
   prefs: []
   type: TYPE_NORMAL
+  zh: 压缩技术是一种增加PCI-E传输速率这一看似硬性限制的方法。您是否真的需要传输所有正在发送的数据？例如，图像数据通常包含一个用于透明度的alpha通道。如果您在GPU上不使用这个通道，那么您可以丢弃它，仅从主机传输RGB（红色、绿色和蓝色）分量，从而减少25%的传输数据量。虽然这可能意味着每像素仍然是24位，但传输时间的节省可能会大大超过这种非对齐访问模式可能带来的影响。
 - en: The other question is can you infer some data from others? This is very much
     problem dependent, but you may be able to compress the data using a simple algorithm
     such as run-length encoding. A long series of the same numbers can be replaced
@@ -8321,6 +8649,7 @@
   id: totrans-1165
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个问题是你能否从其他数据中推断出一些信息？这很大程度上取决于问题的具体情况，但你可能可以使用简单的算法，如游程编码，来压缩数据。长时间序列的相同数字可以用一个值-计数对来替代，并在GPU端快速重建。你可能会从传感器获得大量数据，然后长时间没有“有趣”的活动。显然，你可以将“有趣”的数据完整传输，并在主机端丢弃“无趣”的数据，或者以某种压缩形式传输。
 - en: Interleaving transfer with computation using streams or zero-copy memory is
     another essential technique we have already covered. In the situation where your
     PCI-E transfer time is in excess of your kernel time, you effectively have the
@@ -8330,6 +8659,7 @@
   id: totrans-1166
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用流或零拷贝内存将传输与计算交错进行是我们已经介绍过的另一项关键技术。在PCI-E传输时间超过内核时间的情况下，实际上你可以免费获得计算时间。如果不进行重叠，两个时间必须相加，这样就会导致大段时间没有进行计算。更多关于使用流的信息，请参见[第8章](CHP008.html)。
 - en: PCI-E is not the only transfer bottleneck you need to consider. The host will
     have a limit on the amount of memory bandwidth there is. Hosts such as the Intel
     Sandybridge-E processors use quad-banked memory, meaning they can achieve much
@@ -8342,6 +8672,8 @@
   id: totrans-1167
   prefs: []
   type: TYPE_NORMAL
+  zh: PCI-E并不是你需要考虑的唯一传输瓶颈。主机的内存带宽也是有限制的。例如，英特尔Sandybridge-E处理器使用四通道内存，这意味着它们能够比其他解决方案实现更高的主机内存带宽。如果你的问题允许，使用P2P（点对点）传输还可以节省主机内存带宽。不幸的是，在写作本文时，使用P2P功能需要使用除Windows
+    7以外的操作系统。除使用Tesla显卡和TCC（Tesla计算集群）驱动的用户外，Windows 7是唯一目前不支持此功能的主流操作系统。
 - en: The speed at which the node can load and save data to storage devices, be they
     local devices or network devices, will also be a limiting factor. High-speed SSD
     drives connected in RAID 0 mode will help with this. These are all considerations
@@ -8350,11 +8682,13 @@
   id: totrans-1168
   prefs: []
   type: TYPE_NORMAL
+  zh: 节点加载和保存数据到存储设备的速度，无论是本地设备还是网络设备，都将成为一个限制因素。连接在RAID 0模式下的高速SSD驱动器将有助于此。所有这些都是选择主机硬件时需要考虑的因素。在[第11章](CHP011.html)中，我们会详细讨论这些内容。
 - en: Memory bottlenecks
   id: totrans-1169
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 内存瓶颈
 - en: Assuming you can get the data on and off the GPU, the next issue is memory bandwidth
     to or from global memory. Moving data is expensive in terms of time and power
     usage. Therefore, being able to efficiently fetch/store and reuse data are essential
@@ -8365,6 +8699,7 @@
   id: totrans-1170
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设你能够将数据从GPU传输进出，接下来的问题就是全局内存的带宽。数据传输在时间和能耗上是昂贵的。因此，能够高效地获取/存储和重用数据是选择合适算法的关键标准。GPU拥有大量的计算资源，因此即使是一个内存模式适合GPU（合并、瓦片化、高局部性）的低效算法，可能也会比一个计算密集型但内存模式不适合GPU的算法表现更好。
 - en: When considering memory, think also about thread cooperation and appreciate
     the cooperation is best limited to a single block of threads. Generic algorithms
     that assume any thread can talk to any other thread are less useful than those
@@ -8375,6 +8710,7 @@
   id: totrans-1171
   prefs: []
   type: TYPE_NORMAL
+  zh: 在考虑内存时，也要考虑线程间的协作，并理解协作最好限于单一线程块。假设任何线程都能与其他线程通信的通用算法不如那些重视线程局部性的算法有效。为老式向量机器设计的算法通常比为现代集群机器中分布式工作设计的算法要高效得多，后者通常围绕*N*个独立处理节点展开。
 - en: On modern GPUs, the L1 and L2 caches can significantly affect the execution
     time of kernels in sometimes rather unpredictable ways. Shared memory should be
     used where you have data reuse, want a more predictable outcome, or are developing
@@ -8383,6 +8719,7 @@
   id: totrans-1172
   prefs: []
   type: TYPE_NORMAL
+  zh: 在现代GPU上，L1和L2缓存可能会显著影响内核的执行时间，且有时这种影响是难以预测的。共享内存应该在数据重用的场景下使用，特别是在你希望结果更可预测，或是开发针对1.x计算硬件时。即使将L1缓存分配到48K，也每个SM（流多处理器）仍然有16K的本地共享内存可用。
 - en: A fully populated Fermi GPU has 16 SMs, so this amounts to a total of 256 K
     of high-speed memory in addition to the 768 K of L1 cache. This can be swapped,
     giving 768 K of programmer-managed shared memory and 256 K of L1 cache. Data reuse
@@ -8395,6 +8732,7 @@
   id: totrans-1173
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个完全填充的Fermi GPU有16个SM，因此总共有256K的高速内存，外加768K的L1缓存。这个配置可以进行交换，提供768K的程序员管理共享内存和256K的L1缓存。通过这两种机制中的一种或两种进行数据重用，对于实现高吞吐量至关重要。这通常通过确保计算的局部性来实现。与其对大型数据集进行多次遍历，不如将数据划分为小块，对每个小块进行多次遍历，然后对其他小块重复此过程。这使得数据在进行任何变换时都能保持在芯片上，避免了频繁地读写全局内存。
 - en: Memory coalescing is key to achieving high memory throughput, although a sufficiently
     high number of memory transactions is also required. On Fermi and Kepler devices,
     to achieve anything like the full bandwidth when using 32-bit values per thread
@@ -8406,16 +8744,19 @@
   id: totrans-1174
   prefs: []
   type: TYPE_NORMAL
+  zh: 内存合并是实现高内存吞吐量的关键，尽管还需要足够高数量的内存事务。在Fermi和Kepler设备上，要实现接近满带宽的性能，使用32位值每线程（即浮点数或整数）时，需要几乎完全填充GPU的线程（每个SM有48到64个常驻warp，每个warp有1536到2048个线程）。通过使用各种向量类型增加事务大小，有助于提高指令级并行性（ILP）和内存带宽。让每个线程处理四个值而不是一个，对于许多应用程序来说效果很好。
 - en: Compute bottlenecks
   id: totrans-1175
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 计算瓶颈
 - en: Complexity
   id: totrans-1176
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: 复杂性
 - en: Surprisingly, despite the immense computing throughput of the GPU, there are
     still problems that are compute bound. These are usually problems where the overall
     amount of data is very large, such as the various forms of medical image scanning
@@ -8426,6 +8767,7 @@
   id: totrans-1177
   prefs: []
   type: TYPE_NORMAL
+  zh: 出人意料的是，尽管GPU拥有强大的计算吞吐量，仍然存在一些计算受限的问题。这些通常是数据量非常大的问题，例如各种形式的医学图像扫描或来自生成大量样本数据的设备的数据处理。此前，这类问题通常是在集群上处理的。然而，现在由于多GPU计算机提供了巨大的处理能力，许多问题可以在单台独立的PC上进行处理。
 - en: Algorithms that contain a lot of computations work really well on GPUs compared
     to their CPU counterparts. However, algorithms that also include a lot of control
     complexity do not. Take the example of boundary cells in a typical tiled algorithm.
@@ -8434,6 +8776,7 @@
   id: totrans-1178
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 CPU 相比，包含大量计算的算法在 GPU 上运行得非常好。然而，包含大量控制复杂性的算法则不然。以典型的瓦片算法中的边界单元格为例。如果单元格收集来自其邻居的数据，那么位于瓦片角落的单元格需要从三个其他瓦片的角点收集数据。
 - en: In [Figure 9.53](#F0270) you can see there is a large block of green cells in
     the centre that have no boundary condition. They can safely calculate some value
     from the surrounding cells within the current block. Unfortunately, some programmers
@@ -8442,14 +8785,17 @@
   id: totrans-1179
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 [图 9.53](#F0270) 中，您可以看到中央有一大块绿色单元格，它们没有边界条件。它们可以安全地从当前块中的周围单元格计算一些值。不幸的是，一些程序员编写的程序会先处理这些问题情况。因此，他们的内核大致如下：
 - en: '![image](../images/F000090f09-53-9780124159334.jpg)'
   id: totrans-1180
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-53-9780124159334.jpg)'
 - en: FIGURE 9.53 Halo cells needed.
   id: totrans-1181
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.53 需要 Halo 单元格。
 - en: '[PRE286]'
   id: totrans-1182
   prefs: []
@@ -8459,6 +8805,7 @@
   id: totrans-1183
   prefs: []
   type: TYPE_NORMAL
+  zh: '`else if (right row)`'
 - en: '[PRE287]'
   id: totrans-1184
   prefs: []
@@ -8473,6 +8820,8 @@
   id: totrans-1185
   prefs: []
   type: TYPE_NORMAL
+  zh: 特别是，控制复杂的算法不适合 GPU。如果每个线程都运行相同的内核，那么中心元素在线程对其进行任何操作之前需要测试九个条件。将测试顺序反转，使中心元素首先进行测试，则需要四个边界测试。这会有所改进，但仍然远非最佳解决方案。解决方案是为每个特殊情况编写定制的内核，或者让
+    CPU 处理这些复杂的条件判断。
 - en: The type of problem here is a stencil one, where cells *N* levels from the center
     contribute in some way to the result. In this simple example, *N* is 1, as the
     immediate neighbors are used. As *N* is increased, typically some factor is applied,
@@ -8481,6 +8830,8 @@
   id: totrans-1186
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的问题类型是模板问题，其中距离中心 *N* 层的单元格以某种方式对结果做出贡献。在这个简单的例子中，*N* 是 1，因为只使用了直接的邻居。随着 *N*
+    的增大，通常会应用某个因子，因为离中心较远的值往往对结果的贡献较小。
 - en: As each cell will need values from the surrounding cells, each cell value will
     be read multiple times. Thus, a common approach to such problems is to use many
     threads to read a tile of data into shared memory. This allows for high-performance
@@ -8492,6 +8843,7 @@
   id: totrans-1187
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于每个单元需要来自周围单元的值，每个单元的值会被多次读取。因此，解决此类问题的常见方法是使用多个线程将一块数据读取到共享内存中。这允许高性能的全局内存合并访问，无论是读取数据还是写回数据。然而，共享内存在块之间是不可见的，并且没有机制可以直接在块之间传递共享数据。这是由于CUDA的设计，在该设计中，只有一部分块在执行。因此，共享内存在旧块退休并调度新块时被重用。
 - en: Thus, to load the halo cells, the cells outside the boundary of our particular
     tile, you can either read them from global memory or also load these into shared
     memory. Reading the rows from global memory gives a nice coalesced memory pattern.
@@ -8502,6 +8854,7 @@
   id: totrans-1188
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，为了加载光环单元，即我们特定瓦片边界外的单元，你可以从全局内存读取它们，也可以将它们加载到共享内存中。从全局内存读取行可以得到一个很好的合并内存模式。然而，列会生成多个独立的内存事务，每个事务对应我们加载的一个单元。由于这些单元可能会被读取多次，读取列可能是一个内存密集型操作，会限制性能。因此，通常至少将列放入共享内存中。
 - en: Thus, writing multiple kernels is usually a good solution to the problem of
     eliminating the control flow complexity. We can have one kernel that handles corner
     elements, another for rows, another for columns, and another for the center elements.
@@ -8511,6 +8864,7 @@
   id: totrans-1189
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，编写多个内核通常是消除控制流复杂性问题的好方法。我们可以有一个内核处理角落元素，一个处理行，一个处理列，另一个处理中心元素。如果合适的话，这些内核中的每一个都可以调用一个通用例程，将数据作为一系列值进行处理，这样，数据来源的复杂性就被去除了。
 - en: Note that for compute 1.x and compute 2.x different solutions are applicable.
     As compute 1.x hardware has no cache for global memory, each memory transaction
     would generate a considerable amount of latency. Thus, for these devices it can
@@ -8519,6 +8873,7 @@
   id: totrans-1190
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，对于计算能力1.x和2.x，适用不同的解决方案。由于计算能力1.x的硬件没有全局内存缓存，每个内存事务都会产生相当大的延迟。因此，对于这些设备，将必要的数据从周围的瓦片手动缓存到共享内存中，或者将计算交给CPU处理是有意义的。
 - en: However, compute 2.x devices have both an L1 and L2 cache. As each tile will
     have to process its own elements, it’s likely that the tiles above, above left,
     and left will have already been loaded into the cache by previous activity of
@@ -8530,6 +8885,8 @@
   id: totrans-1191
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，计算2.x设备同时拥有L1和L2缓存。由于每个瓦片都需要处理自己的元素，因此上面、左上方和左边的瓦片可能已经通过其他块的先前活动被加载到缓存中。右侧、右下方和底部的瓦片通常不会出现在缓存中，除非对一个非常小的数据集进行多次遍历。从全局内存访问这些瓦片会将它们带入缓存以供后续块使用。你也可以使用预取PTX指令显式请求将缓存行带入缓存（参见PTX
+    ISA）。
 - en: As a consequence of the caching, we can eliminate a large amount of the control
     complexity necessary to manage shared memory by simply selecting a 48 K L1 cache
     and not using shared memory at all. Elimination of complexity is often useful
@@ -8537,11 +8894,13 @@
   id: totrans-1192
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于缓存的原因，我们可以通过简单选择一个48 K的L1缓存并完全不使用共享内存，来消除大量管理共享内存所需的控制复杂性。消除复杂性通常对加速计算密集型内核非常有用。
 - en: Instruction throughput
   id: totrans-1193
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: 指令吞吐量
 - en: As with many processors, not all instructions take the same amount of time to
     execute on every device. Selecting the correct instruction mix for a given processor
     is something the compiler should be able to perform quite well, but it’s also
@@ -8549,6 +8908,7 @@
   id: totrans-1194
   prefs: []
   type: TYPE_NORMAL
+  zh: 和许多处理器一样，并非所有指令在每个设备上执行的时间都相同。选择正确的指令组合是编译器应该能够很好地执行的任务，但程序员也需要意识到这一点。
 - en: First of all, you need to ensure you are targeting the correct binaries for
     your hardware. Ideally, you should have one compute level specification for each
     target hardware platform. In Visual Studio this is done in the project options
@@ -8557,6 +8917,7 @@
   id: totrans-1195
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，你需要确保你正在为你的硬件选择正确的二进制文件。理想情况下，你应该为每个目标硬件平台拥有一个计算级别的规格说明。在Visual Studio中，这是在项目选项中完成的，我们已经讨论过这个内容。对于使用命令行的人来说，是通过`-arch`标志来指定的。
 - en: In terms of single-precision floating-point operations, all compute levels achieve
     a throughput of one instruction per clock, per thread. Remember, however, as this
     is per thread. In absolute terms we need to consider this is warp wide times the
@@ -8571,6 +8932,10 @@
   id: totrans-1196
   prefs: []
   type: TYPE_NORMAL
+  zh: 就单精度浮点操作而言，所有计算级别都能实现每个线程每时钟周期一条指令的吞吐量。然而，请记住，这指的是每个线程的吞吐量。换句话说，我们需要考虑这是每个 SM
+    上的每个 warp 宽度乘以每个 SM 上的同时 warp 数，再乘以 GPU 上的 SM 数。因此，在 Kepler GTX680 上，我们有一个 32
+    宽的 warp x 8 个 warp 分派 x 8 个 SMs = 每时钟周期 2048 条指令。现在吞吐量与指令延迟不同。结果可能需要大约 20 个时钟周期才能变得可用，并传递到后续操作中。因此，一系列浮点操作输入到指令流水线中时，会在
+    20 个周期后逐个出现。吞吐量是每个线程每个周期一条指令，但延迟是 20 个周期。
 - en: Double-precision floating-point hardware, however, does not achieve this. For
     compute 2.0 hardware, it’s half the speed of single precision. For compute 2.1
     hardware, it’s actually only one-third of the speed. Compute 2.1 hardware (GTX460/560)
@@ -8579,6 +8944,8 @@
   id: totrans-1197
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，双精度浮点硬件并未实现这一点。对于计算 2.0 硬件，其速度仅为单精度的一半。对于计算 2.1 硬件，其速度实际上只有单精度的三分之一。计算 2.1
+    硬件（GTX460/560）和计算 3.0 硬件（GTX680）更多是面向游戏市场，因此缺乏相同级别的双精度浮点性能。
 - en: We see a similar issue with 32-bit integer values. Add and logical instructions
     only run at full speed. All other integer instructions (multiply, multiply-add,
     shift, compare, etc.) run at half speed on compute 2.0 hardware and one-third
@@ -8589,6 +8956,9 @@
   id: totrans-1198
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在 32 位整数值上看到类似的问题。加法和逻辑指令仅以全速运行。所有其他整数指令（乘法、乘法加法、移位、比较等）在计算 2.0 硬件上以半速运行，在计算
+    2.1 硬件上以三分之一速度运行。像往常一样，除法和取模操作是例外。这些操作在所有计算级别上都是昂贵的，在计算 1.x 硬件上需要“几十条指令”，在计算 2.x
+    硬件上则需要“不超过 20 条指令”【NVIDIA CUDA C 编程指南，v4.1，[第 5 章](CHP005.html)】。
 - en: Type conversion instructions operate at half speed on compute 2.0 devices and
     one-third speed on compute 2.1 devices. These are necessary when 8- or 16-bit
     integer types are used, as the hardware supports only native integer types (32-bit
@@ -8600,12 +8970,15 @@
   id: totrans-1199
   prefs: []
   type: TYPE_NORMAL
+  zh: 类型转换指令在计算 2.0 设备上的运行速度为一半，在计算 2.1 设备上的运行速度为三分之一。当使用 8 位或 16 位整数类型时，这是必要的，因为硬件只支持原生整数类型（计算
+    2.x 为 32 位，计算 1.x 为 24 位）。因此，将两个字节值相加会导致这些值提升为两个整数值。随后的结果则需要再次降级为字节值。同样，转换为单/双精度浮动点值会导致插入额外的类型转换指令。
 - en: In C all whole numbers are by default signed integers. All numbers containing
     a decimal place are treated as double-precision floating-point values unless an
     `F` postfix is placed immediately after the number. Thus,
   id: totrans-1200
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 C 语言中，所有整数默认都是有符号整数。所有包含小数点的数字除非紧跟一个 `F` 后缀，否则被视为双精度浮动点值。因此，
 - en: '[PRE288]'
   id: totrans-1201
   prefs: []
@@ -8615,6 +8988,7 @@
   id: totrans-1202
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建双精度定义并
 - en: '[PRE289]'
   id: totrans-1203
   prefs: []
@@ -8624,6 +8998,7 @@
   id: totrans-1204
   prefs: []
   type: TYPE_NORMAL
+  zh: 创建单精度定义。
 - en: Using a non-postfixed constant in a floating-point expression causes an implicit
     conversion to double precision during the calculation. An implicit conversion
     to single precision is also performing when the result is assigned to a single-precision
@@ -8632,11 +9007,13 @@
   id: totrans-1205
   prefs: []
   type: TYPE_NORMAL
+  zh: 在浮动点表达式中使用未加后缀的常量会导致在计算过程中隐式转换为双精度。当结果赋值给单精度变量时，也会执行隐式转换为单精度。因此，忘记使用 `F` 后缀是导致产生不必要的转换指令的常见原因。
 - en: Synchronization and atomics
   id: totrans-1206
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: 同步和原子操作
 - en: Synchronization points are often necessary in many algorithms. Synchronization
     within a thread block is not costly, but does potentially impact performance.
     The CUDA scheduler will try to schedule up to sixteen blocks per SM, which it
@@ -8647,6 +9024,8 @@
   id: totrans-1207
   prefs: []
   type: TYPE_NORMAL
+  zh: 在许多算法中，通常需要同步点。线程块内的同步开销不大，但可能会影响性能。CUDA 调度器会尝试每个 SM 调度最多十六个块，除非你开始使用更多线程（见
+    [第 5 章](CHP005.html)）。随着线程数量的增加，可以调度的块数会减少。虽然这本身不算太糟，但如果与同步点结合使用，则可能导致 SM 阻塞。
 - en: When a block performs a synchronization, a number of warps out of the available
     set (24 on compute 1.x, 48 on compute 2.x, 64 on compute 3.x) effectively drop
     out of the scheduling availability, as all but the last warp hits the synchronization
@@ -8658,6 +9037,10 @@
   id: totrans-1208
   prefs: []
   type: TYPE_NORMAL
+  zh: 当一个块执行同步时，一部分 warps 会从可用集合中“掉出”（在 compute 1.x 上为 24，在 compute 2.x 上为 48，在 compute
+    3.x 上为 64），因为除了最后一个 warp 外，其他都达到了同步点。在每个块有 1024 个线程的极端情况下（每个 SM 有两个块），最多有一半的驻留
+    warps 会停留在同步屏障处。如果没有任何指令级并行（ILP），SM 通过运行多个线程来隐藏内存延迟的能力就会变得不足。SM 无法继续以最佳效率运行。显然，我们希望尽可能长时间地从所有
+    SM 中获得最大吞吐量。
 - en: The solution to the synchronization issue is not to use large thread blocks.
     You should aim to fully populate the SM where possible, so 192 threads is an ideal
     number, which results in eight blocks per SM on compute 2.x hardware, 256 being
@@ -8665,6 +9048,8 @@
   id: totrans-1209
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决同步问题的办法不是使用大的线程块。你应该尽量使 SM 完全填满，因此 192 个线程是理想的数量，这在 compute 2.x 硬件上会导致每个 SM
+    有 8 个块，而在 compute 3.x 硬件上 256 个线程则更好。
 - en: Unfortunately, if we’re using interthread synchronization it is likely we’ll
     also need interblock synchronization. It’s more efficient to synchronize data
     between threads than between blocks. For block-based synchronization we need to
@@ -8674,6 +9059,7 @@
   id: totrans-1210
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，如果我们使用线程间同步，那么很可能也需要块间同步。线程之间同步比块之间同步更高效。对于基于块的同步，我们需要使用全局内存，而线程间同步则可以通过共享内存来完成。因此，这是两种方案之间的权衡，最好的解决办法是同时运行两者，看看哪种速度更快。
 - en: Atomic operations act very much like synchronization points in that all the
     threads in a warp have to line up one after another to perform the operation.
     It takes time for all the threads in a block to line up in groups of 32 to move
@@ -8687,27 +9073,34 @@
   id: totrans-1211
   prefs: []
   type: TYPE_NORMAL
+  zh: 原子操作的行为很像同步点，因为一个 warp 中的所有线程必须依次排队才能执行该操作。所有线程在一个块中排成 32 组，以通过原子操作需要一定时间。然而，与同步点不同的是，执行完成后它们可以继续全速运行。这有助于提高可运行
+    warp 的数量，但对整个块的执行时间没有帮助。直到所有线程都完成，块才能从 SM 中移除。因此，单个原子操作实际上是串行化并在执行时间上分散了给定块中的
+    warp。直到所有滞后的线程完成，块才算完成。
 - en: The effect of synchronization and atomics on your kernel can be seen using the
     “CUDA Issue Efficiency” experiment within Parallel Nsight.
   id: totrans-1212
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以通过在 Parallel Nsight 中使用“CUDA 问题效率”实验来观察同步和原子操作对内核的影响。
 - en: Control flow
   id: totrans-1213
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: 控制流
 - en: As we saw earlier, branch divergence can have a serious impact on execution
     time as both paths have to be executed separately. The compiler is aware of this
     and thus uses something called predication.
   id: totrans-1214
   prefs: []
   type: TYPE_NORMAL
+  zh: 如我们之前看到的，分支分歧会对执行时间产生严重影响，因为两条路径必须分别执行。编译器知道这一点，因此使用了所谓的条件执行（predication）。
 - en: Most of the PTX instructions can be predicated using the `.p` notation of the
     PTX ISA. For example,
   id: totrans-1215
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数 PTX 指令可以使用 PTX ISA 的 `.p` 标记进行条件执行。例如，
 - en: '[PRE290]'
   id: totrans-1216
   prefs: []
@@ -8723,6 +9116,9 @@
   id: totrans-1217
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们在每个线程中设置一个谓词寄存器，测试虚拟寄存器 295 的值是否为 1，并相应地设置谓词寄存器 16。在下一条指令中，谓词寄存器 16 用于对
+    `bra`（跳转到）指令进行条件判断。因此，只有那些满足先前 `setp.eq.s32` 指令测试条件的线程才会跟随跳转。我们可以将分支指令替换为 `mov`
+    或类似的指令。通常，编译器会为小型 `if-else` 结构生成这种代码。例如，
 - en: '[PRE291]'
   id: totrans-1218
   prefs: []
@@ -8732,6 +9128,7 @@
   id: totrans-1219
   prefs: []
   type: TYPE_NORMAL
+  zh: 将被翻译为
 - en: '[PRE292]'
   id: totrans-1220
   prefs: []
@@ -8822,46 +9219,58 @@
   id: totrans-1234
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 优化与 CPU 优化不同。许多技术是重叠的，而其他技术则可能产生不良影响。我在前面的章节中尝试涵盖了优化的主要领域。然而，优化从来都不是一门精确的科学，尤其是对于程序员来说。设计
+    GPU 代码时需要考虑许多因素。获得最优解并不容易，而且需要相当长的时间才能熟悉哪些方法有效，尝试不同的解决方案，并理解为什么某些方法有效而其他方法无效。
 - en: 'Consider some of the major factors:'
   id: totrans-1235
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑一些主要因素：
 - en: • Transfer to and from the host.
   id: totrans-1236
   prefs: []
   type: TYPE_NORMAL
+  zh: • 主机与设备之间的数据传输。
 - en: • Memory coalescing.
   id: totrans-1237
   prefs: []
   type: TYPE_NORMAL
+  zh: • 内存合并。
 - en: • Launch configuration.
   id: totrans-1238
   prefs: []
   type: TYPE_NORMAL
+  zh: • 启动配置。
 - en: • Theoretical and achieved occupancy.
   id: totrans-1239
   prefs: []
   type: TYPE_NORMAL
+  zh: • 理论和实际的占用。
 - en: • Cache utilization.
   id: totrans-1240
   prefs: []
   type: TYPE_NORMAL
+  zh: • 缓存利用率。
 - en: • Shared memory usage/conflicts.
   id: totrans-1241
   prefs: []
   type: TYPE_NORMAL
+  zh: • 共享内存的使用/冲突。
 - en: • Branch divergence.
   id: totrans-1242
   prefs: []
   type: TYPE_NORMAL
+  zh: • 分支分歧。
 - en: • Instruction-level parallelism.
   id: totrans-1243
   prefs: []
   type: TYPE_NORMAL
+  zh: • 指令级并行性。
 - en: • Device compute level.
   id: totrans-1244
   prefs: []
   type: TYPE_NORMAL
+  zh: • 设备计算层级。
 - en: For someone starting out with CUDA, there is a lot to think about and it will
     take time to become proficient with each of these areas. However, the most challenging
     aspect of this is that what works on one device many not work on another. Throughout
@@ -8870,6 +9279,7 @@
   id: totrans-1245
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于刚开始接触 CUDA 的人来说，需要考虑的因素很多，熟练掌握每个领域将需要时间。然而，最具挑战性的方面在于，在一台设备上有效的方案可能在另一台设备上无法奏效。在本书中，我们使用了各种可用的设备和不同的主机平台，以突出这些差异。
 - en: In the same way as different CPUs provide different levels of performance and
     functionality, so do GPUs. The CPU world is largely stuck with an x86 architecture,
     which reflects design goals of a system designed to run serial programs. There
@@ -8881,6 +9291,9 @@
   id: totrans-1246
   prefs: []
   type: TYPE_NORMAL
+  zh: 就像不同的 CPU 提供不同的性能和功能一样，GPU 也是如此。CPU 世界大多局限于 x86 架构，这一架构反映了设计目标，即运行串行程序的系统。为了提供额外的功能，出现了许多扩展，例如
+    MMX、SSE、AVX 等。如今，x86 指令集在硬件内部被转换为微指令，这些微指令实际上可以应用于任何目标硬件。Sandybridge 也许是最好的例子，其中微指令本身实际上是缓存的，而不是
+    x86 汇编代码指令。
 - en: GPU hardware is also not fixed and has changed significantly since the first
     CUDA-enabled devices were released back in the GTX8800 times. CUDA compiles to
     PTX, a virtual assembly code, aimed at a parallel processor–like architecture.
@@ -8895,6 +9308,8 @@
   id: totrans-1247
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 硬件也不是固定的，自从 GTX8800 时代首批支持 CUDA 的设备发布以来，已经发生了显著变化。CUDA 编译成 PTX，一种虚拟汇编代码，旨在适用于并行处理器架构。PTX
+    本身可以编译成多个目标，包括 CPU，因为协作线程数组的概念便于在大多数并行硬件中实现。然而，就我们而言，它会编译成适用于各种 NVIDIA GPU 的指定计算级别。因此，你需要了解一个给定的计算级别提供什么，即你需要理解你在为哪种硬件编写代码。这一直是良好优化的基础。抽象、分层和隐藏架构的趋势都旨在提高程序员的生产力，但往往以牺牲性能为代价。
 - en: Not every programmer is interested in the intricate workings of the hardware.
     Even with the previous list of issues to consider you’re unlikely to get an optimal
     solution the first time, the second time, or the *N*th time without considerable
@@ -8905,16 +9320,19 @@
   id: totrans-1248
   prefs: []
   type: TYPE_NORMAL
+  zh: 并非每个程序员都对硬件的复杂工作原理感兴趣。即使有了前面提到的需要考虑的问题清单，你也不太可能第一次、第二次，甚至是 *第 N 次* 就得到最优解，这需要经过深思熟虑和大量的反复尝试。因此，一个有效的解决方案是让程序自己计算在给定问题上如何最好地使用硬件。你可以在问题的一个小集合上，或直接在实际问题上进行此操作。
 - en: Identifying the hardware
   id: totrans-1249
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 硬件识别
 - en: The first step in any optimization process is to know what hardware is available
     and what it is. To find out how many GPUs we have, you simply call
   id: totrans-1250
   prefs: []
   type: TYPE_NORMAL
+  zh: 任何优化过程的第一步是了解可用的硬件以及它的具体情况。要找出我们有多少个 GPU，你只需调用
 - en: '[PRE297]'
   id: totrans-1251
   prefs: []
@@ -8925,11 +9343,13 @@
   id: totrans-1252
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将把你传入的 `count` 参数设置为可用设备的数量。如果没有 CUDA 硬件可用，函数将返回 `cudaErrorNoDevice`。
 - en: Then for each device found we need to know what its capabilities are. For this
     we call
   id: totrans-1253
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，对于每个找到的设备，我们需要知道它的能力。为此，我们调用
 - en: '[PRE298]'
   id: totrans-1254
   prefs: []
@@ -8941,6 +9361,7 @@
   id: totrans-1255
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在[第 8 章](CHP008.html)中详细介绍了设备的属性，因此这里不再重复。然而，你应该至少对以下内容感兴趣：
 - en: • Members `major` and `minor` that, when combined, provide the compute level
     of the device.
   id: totrans-1256
@@ -8993,6 +9414,8 @@
   id: totrans-1262
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，优化的第一部分发生在离线阶段，即开发阶段。如果你针对多个计算级别进行优化，你将需要一块合适的卡来测试你的应用程序。对于消费者显卡，最受欢迎的NVIDIA卡包括9800（计算1.1）、8800（计算1.0）、GTX260（计算1.3）和GTX460（计算2.1）。对于现代的DirectX
+    11显卡，460/560系列显卡占主导地位，而少数高端用户选择更昂贵的470/570显卡。本书选择的硬件基本上反映了市场趋势，以使所呈现的图表对于开发大众市场应用程序的人员尽可能有用。
 - en: As we’ve been working with CUDA since it release on the 8800 series of cards,
     we have a number of consumer cards at hand. Clearly, many of these are no longer
     available for sale but can easily be purchased on eBay or elsewhere. All you need
@@ -9004,11 +9427,14 @@
   id: totrans-1263
   prefs: []
   type: TYPE_NORMAL
+  zh: 自从CUDA在8800系列显卡上发布以来，我们一直在使用它，因此我们手头有许多消费者显卡。显然，其中许多显卡现在已经不再销售，但可以轻松在eBay或其他地方购买。你所需要的仅仅是一块具有四个双间距PCI-E连接器的主板，并且在完全安装时它们都能以相同的速度运行。本书开发过程中使用的主要主板是(AMD)
+    MSI 790FX-GD70，尽管现在它已经被MSI 890FXX-G70所替代。请注意，系列中最新的990FX主板不再提供四个双间距的连接器。
 - en: Device utilization
   id: totrans-1264
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 设备利用率
 - en: Having identified what hardware we have, we then have to make use of it. If
     there are multiple GPUs in the system, as is often the case, then be sure to make
     use of them. Multi-GPU programming, as of the CUDA 4.x SDK, is now much easier
@@ -9018,6 +9444,7 @@
   id: totrans-1265
   prefs: []
   type: TYPE_NORMAL
+  zh: 在确定了我们所拥有的硬件之后，我们还需要充分利用它。如果系统中有多个GPU，像常见的那样，那么务必加以利用。自CUDA 4.x SDK起，多GPU编程变得比以前容易得多，因此请确保不要因只使用单个GPU而错过100%的性能提升。有关此方面的更多信息，请参见[第8章](CHP008.html)。
 - en: All applications are different, so the same primary performance factors may
     not always be the same. However, many will be. Primary among these is the launch
     configuration. The first part of this is ensuring you have multiple targets set
