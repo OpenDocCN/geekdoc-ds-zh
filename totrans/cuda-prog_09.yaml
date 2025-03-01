@@ -3698,17 +3698,20 @@
   id: totrans-466
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还应该意识到，以这种方式对代码进行仪器化可能会影响其时序和执行顺序，相对于其他warp的执行。你将会进行全局内存存储，稍后将这些数据传回主机进行分析。因此，你的仪器化不仅会影响执行流程，还会影响内存访问。通过运行一个包含32个线程的单一块，即一个warp，可以将这种影响最小化。然而，这完全忽视了在SM上运行时其他warp的必要影响，尤其是在GPU的多个SM之间。
 - en: Overlapping GPU transfers
   id: totrans-467
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 重叠GPU传输
 - en: There are two strategies for trying to overlap transfer; first, to overlap transfer
     times with the compute time. We’ve look at this in detail in the last section,
     explicitly with the use of streams and implicitly with the use of zero-copy memory.
   id: totrans-468
   prefs: []
   type: TYPE_NORMAL
+  zh: 有两种策略可以尝试重叠传输；首先是将传输时间与计算时间重叠。我们在上一节中详细讨论了这一点，明确地使用了流，并隐式地使用了零拷贝内存。
 - en: Streams are a very useful feature of GPU computing. By building independent
     work queues we can drive the GPU device in an asynchronous manner. That is, the
     CPU can push a number of work elements into a queue and then go off and do something
@@ -3716,6 +3719,7 @@
   id: totrans-469
   prefs: []
   type: TYPE_NORMAL
+  zh: 流是GPU计算中非常有用的功能。通过构建独立的工作队列，我们可以异步驱动GPU设备。也就是说，CPU可以将多个工作元素推送到队列中，然后去做其他事情，而不需要马上再次服务GPU。
 - en: To some extent, operating the GPU synchronously with stream 0 is like polling
     a serial device with a single character buffer. Such devices were used in the
     original serial port implementations for devices like modems that operated over
@@ -3732,6 +3736,7 @@
   id: totrans-470
   prefs: []
   type: TYPE_NORMAL
+  zh: 在某种程度上，GPU与流0同步操作就像是通过单字符缓冲区轮询串行设备。这些设备曾在原始的串行端口实现中用于像调制解调器这样的设备，它们通过RS232接口进行通信。现在这些设备已经过时，取而代之的是USB1、USB2和USB3接口。原始的串行控制器UART会向处理器发送中断请求，表示它已经接收到足够的位来解码一个字符，并且它的单字符缓冲区已满。只有CPU处理了这个中断后，通信才能继续。每次传输一个字符的通信方式既不够快速，也非常依赖CPU。此类设备迅速被具有16字符缓冲区的UART替代。因此，设备向CPU发送中断的频率减少了16倍。它可以处理传入的字符并将其累积，创建一个合理大小的传输到CPU的内存中。
 - en: By creating a stream of work for the GPU we’re effectively doing something similar.
     Instead of the GPU working in a synchronous manner with the CPU, and the CPU having
     to poll the GPU all the time to find out if it’s ready, we just give it a chunk
@@ -3740,6 +3745,7 @@
   id: totrans-471
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过为GPU创建工作流，我们实际上是在做类似的事情。我们并不是让GPU与CPU同步工作，CPU也不需要一直轮询GPU来查看它是否准备好，而是直接给GPU一块工作任务，让它开始处理。然后我们只需要定期检查它是否已经完成任务，如果是，就将更多的工作推送到流或工作队列中。
 - en: Through the CUDA stream interface we can also drive multiple GPU devices, providing
     you remember to switch the desired device before trying to access it. For asynchronous
     operation, pinned or page-locked memory is required for any transfers to and from
@@ -3747,6 +3753,7 @@
   id: totrans-472
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过CUDA流接口，我们还可以驱动多个GPU设备，前提是你记得在访问设备之前切换到所需的设备。对于异步操作，任何传输到GPU和从GPU传输的数据都需要固定内存或页锁定内存。
 - en: On a single-processor system, all the GPUs will be connected to a single PCI-E
     switch. The purpose of a PCI-E switch is to connect the various high-speed components
     to the PCI-E bus. It also functions as a means for PCI-E cards to talk to one
@@ -3754,6 +3761,7 @@
   id: totrans-473
   prefs: []
   type: TYPE_NORMAL
+  zh: 在单处理器系统中，所有GPU将连接到单一的PCI-E交换机。PCI-E交换机的作用是将各种高速组件连接到PCI-E总线。它还充当PCI-E卡之间进行通信的手段，而无需访问主机内存。
 - en: Although we may have multiple PCI-E devices, in the case of our test machine,
     four GPUs on four separate X8 PCI-E 2.0 links, they are still connected to a *single*
     PCI-E controller. In addition, depending on the implementation, this controller
@@ -3764,6 +3772,9 @@
   id: totrans-474
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管我们可能有多个 PCI-E 设备，但在我们的测试机器中，四个 GPU 通过四个独立的 X8 PCI-E 2.0 链接连接，它们仍然连接到一个*单一*的
+    PCI-E 控制器。此外，根据实现方式，这个控制器实际上可能就在 CPU 本身上。因此，如果我们在任何时刻执行一组传输到多个 GPU，尽管每个设备的带宽在每个方向上可能达到大约
+    5 GB/s，但如果所有设备都变为活跃，PCI-E 交换机、CPU、内存和其他组件能以这个速度工作吗？
 - en: With four GPUs present on a system, what scaling can be expected? With our I7
     920 Nehalem system, we measured around 5 GB/s to a single card using a PCI-E 2.0
     X16 link. With the AMD system, we have around 2.5–3 GB/s on the PCI-E 2.0 X8 link.
@@ -3772,6 +3783,8 @@
   id: totrans-475
   prefs: []
   type: TYPE_NORMAL
+  zh: 在系统中安装四块 GPU 后，能期待什么样的扩展性？在我们的 I7 920 Nehalem 系统中，我们测得通过 PCI-E 2.0 X16 链接向单个卡传输的数据约为
+    5 GB/s。而在 AMD 系统中，通过 PCI-E 2.0 X8 链接的带宽约为 2.5–3 GB/s。由于 PCI-E 通道数是 I7 系统的一半，这些数据大致是你可以期待的结果。
 - en: We modified the bandwidth test program we used earlier for measuring the PCI-E
     bandwidth to measure the bandwidth as we introduce more cards and more concurrent
     transfers. Any number of things can affect the transfers once we start introducing
@@ -3785,6 +3798,8 @@
   id: totrans-476
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们修改了之前用来测量 PCI-E 带宽的带宽测试程序，以便在引入更多显卡和更多并发传输时测量带宽。一旦我们开始为不同的 GPU 引入并发传输，许多因素可能会影响传输速度。任何熟悉游戏行业中多
+    GPU 扩展的人都会明白，简单地插入第二块 GPU 并不能保证性能翻倍。许多基准测试显示，大多数商业游戏在使用两块 GPU 时性能提升显著。增加第三块卡时，通常会带来一些明显的性能提升，但远不如第二块卡带来的接近翻倍的扩展效果。增加第四块卡时，性能往往会下降。
 - en: Now this may not seem very intuitive, adding more hardware equals lower speed.
     However, it’s the same issue we see on CPUs when the core count becomes too high
     for the surrounding components. A typical high-end motherboard/CPU solution will
@@ -3796,6 +3811,9 @@
   id: totrans-477
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，这看起来可能不太直观，增加更多硬件意味着速度更低。然而，这就像我们在 CPU 上看到的现象，当核心数变得过高而周围组件无法跟上时。典型的高端主板/CPU
+    解决方案最多会为 PCI-E 总线分配 32 个 PCI-E 引脚。这意味着最多只有两张卡可以以全速 X16 PCI-E 2.0 速度运行。超出这个数量时，便需要使用
+    PCI-E 开关芯片来复用 PCI-E 线路。这在两个卡上的传输同时进行时表现良好，直到两个卡都需要同时传输数据。
 - en: The AMD system we’ve run most of these tests in this book on does not use a
     multiplexer, but drops the speed of each connected GPU to an X8 link when four
     GPUs are present. Thus, at 2.5–3 GB/s per device, we could achieve a theoretical
@@ -3807,38 +3825,50 @@
   id: totrans-478
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在本书中进行大部分测试的 AMD 系统并没有使用多路复用器，而是在连接四个 GPU 时，将每个 GPU 的速度降低为 X8 链接。因此，每个设备的带宽为
+    2.5–3 GB/s，我们可以实现理论上的最大值 10–12.5 GB/s。此外，作为一款 AMD 解决方案，PCI-E 控制器集成在处理器中，且该处理器位于
+    PCI-E 系统与主内存之间。主内存的带宽约为 12.5 GB/s。因此，可以看出，该系统不太可能实现四个 GPU 的全部潜力。请参见[表 9.2](#T0015)、[9.3](#T0020)和[图
+    9.26](#F0135)、[9.27](#F0140)。
 - en: Table 9.2 Bandwidth Effects of Multiple PCI-E Transfers to the Device
   id: totrans-479
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.2 多个 PCI-E 传输到设备的带宽效应
 - en: '![Image](../images/T000090tabT0015.jpg)'
   id: totrans-480
   prefs: []
   type: TYPE_IMG
+  zh: '![Image](../images/T000090tabT0015.jpg)'
 - en: Table 9.3 Bandwidth Effects of Multiple PCI-E Transfers from the Device
   id: totrans-481
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.3 多个 PCI-E 传输从设备的带宽效应
 - en: '![Image](../images/T000090tabT0020.jpg)'
   id: totrans-482
   prefs: []
   type: TYPE_IMG
+  zh: '![Image](../images/T000090tabT0020.jpg)'
 - en: '![image](../images/F000090f09-26-9780124159334.jpg)'
   id: totrans-483
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-26-9780124159334.jpg)'
 - en: FIGURE 9.26 Multi-GPU PCI-E bandwidth to device AMD 905e Phenom II.
   id: totrans-484
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.26 多GPU PCI-E 带宽到设备 AMD 905e Phenom II。
 - en: '![image](../images/F000090f09-27-9780124159334.jpg)'
   id: totrans-485
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-27-9780124159334.jpg)'
 - en: FIGURE 9.27 Multi-GPU PCI-E bandwidth from device AMD 905e Phenom II.
   id: totrans-486
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.27 多GPU PCI-E 带宽从设备 AMD 905e Phenom II。
 - en: What you can see from [Tables 9.2](#T0015) and [9.3](#T0020) is that transfers
     scale quite nicely to three GPUs. We’re seeing approximately linear scaling. However,
     when the four GPUs compete for the available resources (CPU, memory bandwidth,
@@ -3846,6 +3876,8 @@
   id: totrans-487
   prefs: []
   type: TYPE_NORMAL
+  zh: 从[表 9.2](#T0015)和[9.3](#T0020)中可以看到，传输在三张 GPU 上扩展得非常好，几乎呈线性扩展。然而，当四个 GPU 争夺可用资源（CPU、内存带宽和
+    PCI-E 开关带宽）时，整体传输速率变得较慢。
 - en: The other multi-GPU platform we have to work with is a six-GPU system based
     on the Nehalem I7 platform and the ASUS supercomputer motherboard (P6T7WS) with
     3 GTX295 Dual GPU cards. This uses dual NF200 PCI-E switch chips allowing each
@@ -3858,28 +3890,38 @@
   id: totrans-488
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要使用的另一个多 GPU 平台是基于 Nehalem I7 平台和 ASUS 超级计算机主板（P6T7WS）以及 3 张 GTX295 双 GPU
+    卡的六 GPU 系统。该系统使用了双 NF200 PCI-E 开关芯片，允许每个 PCI-E 卡与完整的 X16 链路进行工作。虽然这对于 GPU 之间的通信（在
+    CUDA 4.x 中支持的 P2P（点对点）模型）可能有用，但如果两个卡同时使用总线，它并不会扩展主机的带宽。我们使用的是 GTX290 卡，这是一个双 GPU
+    设备。在内部，每个 GPU 必须共享 X16 PCI-E 2.0 链路。[表 9.4](#T0025) 和 [图 9.28](#F0145) 显示了这一点的影响。
 - en: Table 9.4 I7 Bandwidth to Device
   id: totrans-489
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.4 I7 到设备带宽
 - en: '![Image](../images/T000090tabT0025.jpg)'
   id: totrans-490
   prefs: []
   type: TYPE_IMG
+  zh: '![Image](../images/T000090tabT0025.jpg)'
 - en: '![image](../images/F000090f09-28-9780124159334.jpg)'
   id: totrans-491
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-28-9780124159334.jpg)'
 - en: FIGURE 9.28 I7 bandwidth to device.
   id: totrans-492
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.28 I7 带宽到设备。
 - en: As you can see from [Table 9.4](#T0025), we see an approximate linear increase
     in total bandwidth to the device. We achieve a peak of just over 10 GB/s, 20%
     or so higher than our AMD-based system.
   id: totrans-493
   prefs: []
   type: TYPE_NORMAL
+  zh: 从[表 9.4](#T0025)中可以看出，我们观察到设备到带宽大致呈线性增长。我们达到了稍微超过 10 GB/s 的峰值，比我们的基于 AMD 的系统高出大约
+    20%。
 - en: We can see the bandwidth from the device is a different story ([Table 9.5](#T0030)
     and [Figure 9.29](#F0150)). Bandwidth peaks with two devices, and is not significantly
     higher than our AMD system. This is not altogether unexpected if you consider
@@ -3894,53 +3936,68 @@
   id: totrans-494
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到，从设备的带宽是另一个情况（[表 9.5](#T0030) 和 [图 9.29](#F0150)）。带宽在使用两个设备时达到峰值，并且比我们的
+    AMD 系统并没有显著增加。如果考虑到大多数 GPU 系统的设计是围绕游戏展开的，这并不令人意外。在游戏中，大部分数据都是发送*到*GPU，几乎没有数据返回到
+    CPU 主机。因此，我们看到最多三个卡的带宽几乎呈线性扩展，这与顶级的三重 SLI（可扩展链路接口）游戏平台相吻合。厂商没有太大动力提供超出这个配置的 PCI-E
+    带宽。由于 GTX290 实际上是一个双 GPU 卡，我们也可能看到内部的 SLI 接口实际上无法突破卡的极限。显然，我们看到了一些资源竞争。
 - en: Table 9.5 I7 Bandwidth from Device
   id: totrans-495
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.5 I7 从设备带宽
 - en: '![Image](../images/T000090tabT0030.jpg)'
   id: totrans-496
   prefs: []
   type: TYPE_IMG
+  zh: '![Image](../images/T000090tabT0030.jpg)'
 - en: Section summary
   id: totrans-497
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 小节总结
 - en: • Understand and plan for the fact you will have limited PCI-E bandwidth capability.
   id: totrans-498
   prefs: []
   type: TYPE_NORMAL
+  zh: • 了解并规划有限的 PCI-E 带宽能力。
 - en: • Always use pinned memory where possible.
   id: totrans-499
   prefs: []
   type: TYPE_NORMAL
+  zh: • 尽可能使用固定内存（pinned memory）。
 - en: • Use transfer sizes of at least 2 MB.
   id: totrans-500
   prefs: []
   type: TYPE_NORMAL
+  zh: • 使用至少 2 MB 的传输大小。
 - en: • Understand the use of zero-copy memory as an alternative to the stream API.
   id: totrans-501
   prefs: []
   type: TYPE_NORMAL
+  zh: • 了解零拷贝内存作为替代流 API 的使用。
 - en: • Think about how to overlap transfer time with kernel execution time.
   id: totrans-502
   prefs: []
   type: TYPE_NORMAL
+  zh: • 考虑如何将传输时间与内核执行时间重叠。
 - en: • Do not expect a linear scaling of bandwidth when using multiple GPUs.
   id: totrans-503
   prefs: []
   type: TYPE_NORMAL
+  zh: • 在使用多个 GPU 时，不要期望带宽按线性方式扩展。
 - en: 'Strategy 4: Thread Usage, Calculations, and Divergence'
   id: totrans-504
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 策略 4：线程使用、计算与分歧
 - en: Thread memory patterns
   id: totrans-505
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 线程内存模式
 - en: Breaking down the application into *suitably* sized grids, blocks, and threads
     is often one of the key aspects of performance of CUDA kernels. Memory is the
     bottleneck in almost any computer design, the GPU included. A bad choice of thread
@@ -3949,6 +4006,7 @@
   id: totrans-506
   prefs: []
   type: TYPE_NORMAL
+  zh: 将应用程序拆分为 *合适的* 网格、块和线程大小通常是 CUDA 核心性能的关键因素之一。内存几乎是任何计算机设计中的瓶颈，GPU 也不例外。糟糕的线程布局选择通常会导致糟糕的内存模式，从而显著影响性能。
 - en: Consider the first example, a 2 × 32 layout of threads ([Figure 9.30](#F0155))
     versus a 32 × 2 layout of threads. Think about how they would typically overlay
     memory if they were processing floating-point values. In the 2 × 32 example, thread
@@ -3961,22 +4019,30 @@
   id: totrans-507
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑第一个例子，一个 2 × 32 线程布局（[图 9.30](#F0155)）与 32 × 2 线程布局的区别。想想它们在处理浮点值时通常是如何覆盖内存的。在
+    2 × 32 的例子中，线程 0 不能与除了线程 1 之外的任何线程进行合并。在这种情况下，硬件总共发出 16 次内存获取请求。直到至少第一半个 warp
+    获取了它所需的所有数据，这个 warp 才能继续。因此，在任何计算活动开始之前，至少需要完成这八个非常长的内存事务。由于大多数 warp 会遵循相同的模式，SM
+    将被大量内存请求所淹没，而 SM 的计算部分几乎处于空闲状态。
 - en: '![image](../images/F000090f09-29-9780124159334.jpg)'
   id: totrans-508
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-29-9780124159334.jpg)'
 - en: FIGURE 9.29 I7 bandwidth from device.
   id: totrans-509
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.29 设备的 I7 带宽。
 - en: '![image](../images/F000090f09-30-9780124159334.jpg)'
   id: totrans-510
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-30-9780124159334.jpg)'
 - en: FIGURE 9.30 2 × 32 thread grid layout.
   id: totrans-511
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.30 2 × 32 线程网格布局。
 - en: We saw from the bandwidth analysis in the previous section that there is a limit
     to the number of memory requests the SM can push out from the warps. The SM services
     the data request for any single warp over two clock cycles. In our example, the
@@ -3984,6 +4050,8 @@
   id: totrans-512
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们从前一节的带宽分析中看出，SM 推送的内存请求数量是有限的。SM 为任何单一 warp 服务数据请求时需要两个时钟周期。在我们的例子中，请求必须分解为
+    16 × 8 字节的内存事务。
 - en: On Fermi, the first of these would cause a read miss in the L1 cache. The L1
     cache would request the minimum size of data possible, 128 bytes from the L2 cache,
     and some 16 times more data than the thread needs. Thus, when data is moved from
@@ -3993,12 +4061,17 @@
   id: totrans-513
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 Fermi 上，第一个请求会导致 L1 缓存中的读取缺失。L1 缓存将请求可能的最小数据量，即从 L2 缓存请求 128 字节，而实际请求的数据量是线程所需数据的
+    16 倍。因此，当数据从 L2 缓存移动到 L1 缓存时，线程 0 仅消耗了移动数据的 3.125%。由于线程 1 也需要相邻的地址，我们可以将这一比例提高到
+    6.25%，但这仍然非常糟糕。
 - en: On the first run through the code the L2 cache is unlikely to contain the data.
     It issues a 128-byte fetch also to slow global memory. This latency-expensive
     operation is finally performed and 128 bytes arrive at the L2 cache.
   id: totrans-514
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第一次运行代码时，L2 缓存不太可能包含数据。它还会发出一个 128 字节的请求来访问较慢的全局内存。这个延迟昂贵的操作最终完成，128 字节的数据到达
+    L2 缓存。
 - en: The L2 cache is 768 K in size on a 16 SM device. Assuming we’re using a GTX580,
     we have 16 SMs. That is just 48 KB per SM, the maximum size of the L1 cache. Using
     128-byte cache lines we have just 384 entries in the cache per SM. If we assume
@@ -4009,6 +4082,10 @@
   id: totrans-515
   prefs: []
   type: TYPE_NORMAL
+  zh: 在一个包含 16 个 SM 的设备上，L2 缓存的大小为 768 KB。假设我们使用的是 GTX580，它有 16 个 SM。每个 SM 的缓存大小仅为
+    48 KB，这是 L1 缓存的最大大小。使用 128 字节的缓存行，我们每个 SM 只有 384 个缓存条目。如果假设 SM 完全加载，包含 48 个 warp（Kepler
+    支持 64 个），那么每个 warp 将发出 16 次独立的读取请求，总共是 768 次读取。这意味着我们需要 768 个缓存行，而不是现有的 384 个，仅为了缓存每个
+    warp 所需的数据，这样每个 warp 才能在内存中保留一个块。
 - en: The cache is effectively far too small to be used for temporal locality in this
     example. By temporal locality we mean we expect the data to remain in the cache
     from one read to the next. Halfway through processing the warps in each SM, the
@@ -4020,6 +4097,7 @@
   id: totrans-516
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个例子中，缓存实质上小得不足以用于时间局部性。这里的时间局部性指的是我们期望数据在一次读取到下一次读取之间能保持在缓存中。在每个SM处理warps的过程中，缓存会很快被填满，硬件开始用新的数据填充缓存。因此，L2缓存没有任何数据重用，反而需要花费大量时间来获取整个缓存行。事实上，唯一的安慰是，与之前的世代不同，Fermi现在会将其获取的数据转发到我们示例中的另一个线程。
 - en: The cache model is one that can cause problems in that it allows people to think
     the hardware will save them from poor programming. Let’s assume for a moment we
     have to use this thread pattern and we would have processed the element we fetched
@@ -4034,6 +4112,9 @@
   id: totrans-517
   prefs: []
   type: TYPE_NORMAL
+  zh: 缓存模型可能会带来问题，因为它让人们误以为硬件可以拯救他们免于糟糕的编程。假设我们必须使用这个线程模式，而我们已经从内存中获取的元素将被处理多次。获取数据的线程模式不必与使用数据的线程模式相同。如果需要，我们可以按照32
+    × 2的模式将数据获取到共享内存中，同步线程，然后切换到2 × 32的使用模式。尽管这样会带来共享内存银行冲突，但仍然比执行全局内存读取快一个数量级。我们还可以通过将共享内存声明为33
+    × 2，简单地添加一个填充元素，以确保访问时去除这些银行冲突。
 - en: Consider for a moment the difference in handling of the memory system. We issue
     1 coalesced read for 128 bytes instead of 16 separate reads. There’s a factor
     of 16:1 improvement in both the number of memory transactions in flight and also
@@ -4042,12 +4123,14 @@
   id: totrans-518
   prefs: []
   type: TYPE_NORMAL
+  zh: 想一想内存系统处理上的差异。我们为128字节发出1个合并读取，而不是16个单独的读取。无论是内存事务数量还是带宽使用，都提高了16:1。数据可以仅通过一个事务从L2移动到L1缓存，而不是16个事务。
 - en: The LSUs in the SM have to issue only a single fetch transaction instead of
     16 separate fetches, taking just 2 clock cycles instead of 32 and freeing up the
     LSUs for other tasks from other warps.
   id: totrans-519
   prefs: []
   type: TYPE_NORMAL
+  zh: SM中的LSU只需要发出一个获取事务，而不是16个单独的获取事务，耗时仅为2个时钟周期，而不是32个，释放了LSU处理其他warps任务的时间。
 - en: Each warp consumes a single cache line, 48 maximum per SM. Thus, of the 384
     cache lines we have per SM in the L2 cache, we’re using only 100, just 12.5% of
     the L2 cache instead of 200%. Thus, it’s absolutely critical that to get anywhere
@@ -4056,6 +4139,8 @@
   id: totrans-520
   prefs: []
   type: TYPE_NORMAL
+  zh: 每个 warp 消耗一个缓存行，每个 SM 最多 48 个。因此，在每个 SM 的 L2 缓存中，我们有 384 个缓存行，但只使用了 100 个，也就是只使用了
+    12.5% 的 L2 缓存，而不是 200%。因此，要想接近完全性能，尤其是在拥有多级缓存的 Fermi 中，至关重要的是，你必须以 128 字节的合并块从全局内存中读取数据。
 - en: Now we could configure the L2 cache to fetch only 32 bytes instead of 128 bytes
     using the `-Xptxas -dlcm=cg` compiler flag. However, this also disables global
     memory storage in the L1 cache. It’s an easy fix but a poor solution to the fact
@@ -4065,6 +4150,8 @@
   id: totrans-521
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们可以通过使用`-Xptxas -dlcm=cg`编译器标志，将 L2 缓存配置为只获取 32 字节，而不是 128 字节。然而，这也会禁用 L1
+    缓存中的全局内存存储。这是一个简单的修复方法，但对于你没有从全局内存中以足够大的块读取数据这一事实来说，解决方案并不理想。为了从给定的设备中获得最佳性能，你需要了解底层发生的情况，或者使用那些由懂得这些的人编写的库。
 - en: We can see this quite clearly with the effects on memory bandwidth with Parallel
     Nsight if you select “Custom” experiment and then add in the L1 and L2 cache counters.
     The particular counters we are interested in are shown in [Table 9.6](#T0035).
@@ -4073,61 +4160,75 @@
   id: totrans-522
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果选择“自定义”实验，并添加 L1 和 L2 缓存计数器，你可以非常清楚地看到 Parallel Nsight 对内存带宽的影响。我们感兴趣的特定计数器显示在[表
+    9.6](#T0035)中。这些可以通过 Parallel Nsight 中的“自定义”实验进行设置，如[图 9.31](#F0160)所示。
 - en: Table 9.6 Parallel Nsight Cache Counters
   id: totrans-523
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.6 Parallel Nsight 缓存计数器
 - en: '| Nsight Counter | Usage |'
   id: totrans-524
   prefs: []
   type: TYPE_TB
+  zh: '| Nsight 计数器 | 用途 |'
 - en: '| --- | --- |'
   id: totrans-525
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- |'
 - en: '| L1 global load hits | The number of global memory load requests met by the
     L1 cache. |'
   id: totrans-526
   prefs: []
   type: TYPE_TB
+  zh: '| L1 全局加载命中 | L1 缓存满足的全局内存加载请求次数。 |'
 - en: '| L1 global load misses | The number of global memory load requests not met
     by the L1 cache. |'
   id: totrans-527
   prefs: []
   type: TYPE_TB
+  zh: '| L1 全局加载未命中 | L1 缓存未满足的全局内存加载请求次数。 |'
 - en: '| L2 subpartition 0 read section misses | Half the number of L2 misses. |'
   id: totrans-528
   prefs: []
   type: TYPE_TB
+  zh: '| L2 子分区 0 读取部分未命中 | L2 未命中次数的一半。 |'
 - en: '| L2 subpartition 1 read section misses | The other half of the number of L2
     misses. |'
   id: totrans-529
   prefs: []
   type: TYPE_TB
+  zh: '| L2 子分区 1 读取部分未命中 | L2 未命中次数的另一半。 |'
 - en: '| L2 subpartition 0 read section queries | Half the number of L2 access attempts.
     |'
   id: totrans-530
   prefs: []
   type: TYPE_TB
+  zh: '| L2 子分区 0 读取部分查询 | L2 访问尝试次数的一半。 |'
 - en: '| L2 subpartition 1 read section queries | The other half of the number of
     L2 access attempts. |'
   id: totrans-531
   prefs: []
   type: TYPE_TB
+  zh: '| L2 子分区 1 读取部分查询 | L2 访问尝试次数的另一半。 |'
 - en: '![image](../images/F000090f09-31-9780124159334.jpg)'
   id: totrans-532
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-31-9780124159334.jpg)'
 - en: FIGURE 9.31 Setting up Parallel Nsight to capture cache statistics.
   id: totrans-533
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 9.31 设置 Parallel Nsight 捕获缓存统计信息。
 - en: From these counters we can manually work out the L1 and L2 cache hit ratio.
     The hit ratio is the percentage of reads (or writes) that we cached. Every cached
     access saves us several hundreds of cycles of global memory latency.
   id: totrans-534
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过这些计数器，我们可以手动计算 L1 和 L2 缓存的命中率。命中率是我们缓存的读取（或写入）占总读取（或写入）的百分比。每次缓存访问都能为我们节省数百个周期的全局内存延迟。
 - en: When we look at the results for the sample sort algorithm in [Table 9.7](#T0040),
     we can instantly see the L2 cache hit ratio drops off sharply as soon as the kernel
     exceeds 64 threads. Occupancy increases, but performance drops off. This is not
@@ -4138,14 +4239,18 @@
   id: totrans-535
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们查看[表 9.7](#T0040)中样本排序算法的结果时，可以立刻看到当内核线程数超过 64 时，L2 缓存命中率急剧下降。占用率增加，但性能下降。考虑到
+    L2 缓存前缀和求和数组的使用，这一点并不令人惊讶。如果每个线程处理一个桶，随着线程数的增加，缓存的内存区域的大小也随之增大。一旦超出 L2 缓存的大小，命中率就会迅速下降。
 - en: Table 9.7 Cache Hit Ratio for Sample Sort
   id: totrans-536
   prefs: []
   type: TYPE_NORMAL
+  zh: 表 9.7 样本排序的缓存命中率
 - en: '![Image](../images/T000090tabT0040.jpg)'
   id: totrans-537
   prefs: []
   type: TYPE_IMG
+  zh: '![Image](../images/T000090tabT0040.jpg)'
 - en: The solution to the problem is to replace the existing algorithm that uses one
     thread per bin with one where the threads all work on a single bin at a time.
     This way we’d achieve coalesced memory accesses on each iteration and significantly
@@ -4155,11 +4260,13 @@
   id: totrans-538
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决这个问题的方法是将现有的每个桶使用一个线程的算法，替换为所有线程同时处理一个桶的算法。这样我们可以在每次迭代中实现合并内存访问，并显著提高内存访问的局部性。另一种解决方案是使用共享内存来处理线程之间非合并访问与读取或写入全局内存时所需的合并访问之间的过渡。
 - en: Inactive threads
   id: totrans-539
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 非活动线程
 - en: Threads, despite there being many thousands of them, are not free, even if they
     are inactive. The problem with inactive threads is twofold. First, a warp will
     remain active, scheduled, and using resources if just one of its threads is active.
@@ -4173,6 +4280,10 @@
   id: totrans-540
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管线程数量达到成千上万，但它们并不是免费的，即使它们处于不活跃状态。关于不活跃线程的问题有两个方面。首先，如果一个 warp 中的任意一个线程是活跃的，该
+    warp 会保持活跃、被调度并使用资源。在一个调度周期（两个时钟周期）内，可以调度的 warp 数量是有限的。在 compute 2.0 硬件中为两个，在
+    compute 2.1 硬件中为四个，在 compute 3.x 硬件中为八个。如果硬件将一个包含单个活跃线程的 warp 调度到一组 CUDA 核心上，结果只使用一个
+    CUDA 核心而其他 15 个空闲，这是没有意义的。然而，如果 warp 内部的执行流出现分歧，导致只有一个线程活跃时，硬件就必须做这个操作。
 - en: You sometimes see a parallel reduction–type operation that has been written
     by a programmer who does not understand the hardware well. They will perform the
     reduction operation within every warp, going from 32 to 16, to 8, to 4, to 2,
@@ -4183,6 +4294,8 @@
   id: totrans-541
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时你会看到一种并行归约类型的操作，它是由一个不了解硬件的程序员编写的。他们将在每个 warp 内进行归约操作，从 32 个线程减少到 16、8、4、2，最终到
+    1 个活跃线程。不管你使用的是 32 个线程还是 1 个线程，硬件仍然会分配 32 个线程，只是将不活跃的线程屏蔽掉。因为这些 warps 仍然是活跃的，即使它们只有一个活跃线程，它们仍然需要被调度到硬件上。
 - en: A much better approach to this is to have all 32 threads in every block compute
     a set of partial results. Let’s use the sum operation, as it’s easy to understand.
     With 32 threads per warp, you can compute 64 additions in one cycle. Now have
@@ -4193,30 +4306,39 @@
   id: totrans-542
   prefs: []
   type: TYPE_NORMAL
+  zh: 更好的方法是让每个块中的所有 32 个线程计算一组部分结果。我们以求和操作为例，因为它容易理解。每个 warp 32 个线程，你可以在一个周期内计算 64
+    次加法。然后让每个线程将其值存储到共享内存中。这样，第一组 warp 将数据存储到 0..31 元素，第二组存储到 32..63，依此类推。现在将 *N*（归约元素的数量）除以
+    2。使用阈值 `if (threadIdx.x < (N/2))` 重复归约操作，直到 *N* 等于 2。
 - en: Threads 0..255 read values 0..511 (eight active warps).
   id: totrans-543
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程 0..255 读取值 0..511（八个活跃的 warps）。
 - en: Threads 0..127 read values 0..256 (four active warps).
   id: totrans-544
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程 0..127 读取值 0..256（四个活跃的 warps）。
 - en: Threads 0..63 read values 0..127 (two active warps).
   id: totrans-545
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程 0..63 读取值 0..127（两个活跃的 warps）。
 - en: Threads 0..31 read values 0..63 (one active warp).
   id: totrans-546
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程0..31读取值0..63（一个激活的warp）。
 - en: Threads 0..15 read values 0..31 (half an active warp).
   id: totrans-547
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程0..15读取值0..31（一个激活的warp的一半）。
 - en: Etc.
   id: totrans-548
   prefs: []
   type: TYPE_NORMAL
+  zh: 等等。
 - en: Warps with thread numbers greater than the threshold simply no longer get scheduled.
     The warps with values less than *N* are fully populated with work, until such
     time as *N* equals some value less than 32\. At this point we can simply do an
@@ -4224,6 +4346,7 @@
   id: totrans-549
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程数超过阈值的warp将不再被调度。线程数小于*N*的warp将被完全填充工作，直到*N*等于小于32的某个值。在这一点上，我们可以简单地对所有剩余元素进行加法操作，或者继续迭代直到最终的加法。
 - en: Inactive warps are not in themselves free either. Although the SM internally
     cares about warps, not blocks, the external scheduler can *only schedule blocks*
     into an SM, not warps. Thus, if each block contains only one active warp, we can
@@ -4237,6 +4360,7 @@
   id: totrans-550
   prefs: []
   type: TYPE_NORMAL
+  zh: 非激活的warp本身也不是免费的。尽管SM内部关心的是warp，而不是块，外部调度器*只能调度块*进入SM，而不能调度warp。因此，如果每个块只包含一个激活的warp，我们可以从SM中选择的warp数量少至6到8个。通常，SM中最多会有64个warp处于激活状态，具体取决于计算版本和资源使用情况。这是一个问题，因为线程级并行性（TLP）模型依赖于大量线程来隐藏内存和指令延迟。随着激活warp数量的减少，SM利用TLP隐藏延迟的能力也会急剧下降。在某些情况下，这会影响性能，尤其是当warp仍在进行全局内存访问时。
 - en: Therefore, at the last levels of such a reduction-type operation, or any operation
     where progressively larger numbers of warps will drop out, we need to introduce
     some instruction level parallelism (ILP). We want to terminate the last warp as
@@ -4245,21 +4369,25 @@
   id: totrans-551
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在这种归约操作的最后阶段，或者任何逐渐减少warp数量的操作中，我们需要引入一些指令级并行性（ILP）。我们希望尽快终止最后一个warp，以便整个块可以被退役，并替换为另一个可能包含新一组激活warp的块。
 - en: We look at reduction in detail later in this chapter.
   id: totrans-552
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将在本章稍后详细讨论归约操作。
 - en: Arithmetic density
   id: totrans-553
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 算术密度
 - en: Arithmetic density is a term that measures the relative number of calculations
     per memory fetch. Thus, a kernel that fetches two values from memory, multiplies
     them, and stores the result back to memory has very low arithmetic density.
   id: totrans-554
   prefs: []
   type: TYPE_NORMAL
+  zh: 算术密度是一个衡量每次内存获取的相对计算数量的术语。因此，一个从内存中获取两个值、相乘并将结果存回内存的内核，算术密度非常低。
 - en: '[PRE91]'
   id: totrans-555
   prefs: []
@@ -4272,22 +4400,27 @@
   id: totrans-556
   prefs: []
   type: TYPE_NORMAL
+  zh: 取值和存储操作可能涉及一些索引计算。实际执行的工作是乘法运算。然而，每三次内存事务（两次读取和一次写入）只执行一次操作，内核在很大程度上受到内存限制。
 - en: The total execution time is
   id: totrans-557
   prefs: []
   type: TYPE_NORMAL
+  zh: 总执行时间是
 - en: '![image](../images/F000090si1.png)'
   id: totrans-558
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090si1.png)'
 - en: or
   id: totrans-559
   prefs: []
   type: TYPE_NORMAL
+  zh: 或
 - en: '![image](../images/F000090si2.png)'
   id: totrans-560
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090si2.png)'
 - en: Notice we use here *A* + *B* as opposed to multiplying *A*, the single memory
     fetch time, by 2\. The individual read times are not easy to predict. In fact
     neither *A*, *B*, or *C* are constant, as they are affected by the loads other
@@ -4299,6 +4432,8 @@
   id: totrans-561
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们在此使用 *A* + *B*，而不是将 *A*（单次内存获取时间）乘以2。单独的读取时间不容易预测。事实上，*A*、*B* 或 *C* 都不是常量，因为它们会受到其他SM对内存子系统负载的影响。获取
+    *A* 可能还会将 *B* 引入缓存，因此 *B* 的访问时间远小于 *A*。写入 *C* 可能会将 *A* 或 *B* 从缓存中驱逐。L2缓存中驻留行的变化可能是完全不同SM的活动结果。因此，我们可以看到，缓存使得时序变得非常不可预测。
 - en: When looking at the arithmetic density, our goal is to increase the ratio of
     useful work done relative to memory fetches and other overhead operations. However,
     we have to consider what we define as a memory fetch. Clearly, a fetch from global
@@ -4310,6 +4445,7 @@
   id: totrans-562
   prefs: []
   type: TYPE_NORMAL
+  zh: 在查看算术密度时，我们的目标是增加相对于内存获取和其他开销操作的有效工作量比例。然而，我们必须考虑我们定义的内存获取。显然，从全局内存获取应视为一次内存操作，但如果是从共享内存或缓存获取呢？由于处理器必须将数据从共享内存移动到寄存器才能进行操作，因此我们必须将此也视为一次内存操作。如果数据来自L1、L2或常量缓存，则它也必须先移动到寄存器，然后才能进行操作。
 - en: However, in the case of a shared memory or L1 cache access, the cost of such
     operations is reduced by an order of magnitude compared to global memory accesses.
     Thus, a global memory fetch should be weighted at 10× if a shared memory fetch
@@ -4317,6 +4453,7 @@
   id: totrans-563
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在共享内存或L1缓存访问的情况下，与全局内存访问相比，这类操作的成本降低了一个数量级。因此，如果共享内存访问为1×，则全局内存获取应加权为10×。
 - en: 'So how do we increase the arithmetic density of such instruction flows? First,
     we have to understand the underlying instruction set. The maximum operand size
     of an instruction is 128 bytes, a four-element vector load/store operation. This
@@ -4326,6 +4463,7 @@
   id: totrans-564
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，如何提高这种指令流的算术密度呢？首先，我们需要理解底层的指令集。指令的最大操作数大小为128字节，即一个四元素的向量加载/存储操作。这告诉我们理想的数据块大小是四个元素，假设我们使用浮点数或整数，如果使用双精度浮点数则为两个。因此，我们的操作应该在第一次实例化时：
 - en: '[PRE92]'
   id: totrans-565
   prefs: []
@@ -4337,6 +4475,7 @@
   id: totrans-566
   prefs: []
   type: TYPE_NORMAL
+  zh: 我写下了这个长格式的代码，以便使操作更清晰。如果你自己扩展了向量类型类，并提供了执行这些扩展代码的乘法运算符，你可以直接写出
 - en: '[PRE93]'
   id: totrans-567
   prefs: []
@@ -4347,6 +4486,7 @@
   id: totrans-568
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，当前GPU硬件并不支持此类向量操作，只支持加载、存储、移动以及标量类型的打包/解包。
 - en: With such vector-based operations, we amortize the cost of the associated operations
     (load `A`, load `B`, write `C`, calculate `idx_A`, calculate `idx_B`, calculate
     `idx_C`) over four multiplies instead of one. The load and store operations take
@@ -4358,11 +4498,13 @@
   id: totrans-569
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过这种基于向量的操作，我们可以将相关操作（加载`A`、加载`B`、写入`C`、计算`idx_A`、计算`idx_B`、计算`idx_C`）的成本摊销到四次乘法中，而不是一次。由于我们需要引入一个打包和解包操作，而在访问标量参数时不需要此操作，因此加载和存储操作会稍微慢一些。我们通过减少循环迭代次数四倍，从而显著减少了内存请求的数量，发出更少的、更大的请求到内存系统。这大大提高了性能（约20%），正如本书中的一些示例所展示的那样。
 - en: Transcendental operations
   id: totrans-570
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 超越运算
 - en: 'The GPU hardware is aimed at speeding up gaming environments. Often these require
     the manipulation of hundreds of thousands of polygons, modeling the real world
     in some way. There are certain accelerators built into the GPU hardware. These
@@ -4371,34 +4513,42 @@
   id: totrans-571
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU硬件的目标是加速游戏环境。通常，这些环境需要处理成千上万的多边形，以某种方式模拟现实世界。GPU硬件中内置了某些加速器。这些加速器是专门为单一目的设计的硬件部分。GPU具备以下这些加速器：
 - en: • Division
   id: totrans-572
   prefs: []
   type: TYPE_NORMAL
+  zh: • 除法
 - en: • Square root
   id: totrans-573
   prefs: []
   type: TYPE_NORMAL
+  zh: • 平方根
 - en: • Reciprocal square root
   id: totrans-574
   prefs: []
   type: TYPE_NORMAL
+  zh: • 倒平方根
 - en: • Sine
   id: totrans-575
   prefs: []
   type: TYPE_NORMAL
+  zh: • 正弦
 - en: • Cosine
   id: totrans-576
   prefs: []
   type: TYPE_NORMAL
+  zh: • 余弦
 - en: • Log²
   id: totrans-577
   prefs: []
   type: TYPE_NORMAL
+  zh: • 对数²
 - en: • Base 2 exponent Ex²
   id: totrans-578
   prefs: []
   type: TYPE_NORMAL
+  zh: • 2为底的指数Ex²
 - en: These various instructions perform operations to 24-bit accuracy, in line with
     the typical 24-bit RGB setup used in many game environments. None of these operations
     are enabled by default. Compute 1.x devices take various shortcuts that make single-precision
@@ -4408,6 +4558,8 @@
   id: totrans-579
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些不同的指令执行的是24位精度的操作，符合许多游戏环境中常用的24位RGB设置。默认情况下，这些操作并未启用。Compute 1.x设备采取了多种捷径，使得单精度数学运算不符合IEEE
+    754标准。这些对于许多应用程序可能无关紧要，但请注意它们的存在。Fermi（Compute 2.x）硬件默认带有符合IEEE标准的浮点运算。
 - en: If you’d like the faster but less precise operation, you have to enable them
     using either the compile switch (`-use_fast_math`) or explicitly using intrinsic
     operations. The first step is simply to enable the option in the compiler and
@@ -4419,6 +4571,7 @@
   id: totrans-580
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你希望更快但精度较低的操作，你需要通过编译开关（`-use_fast_math`）或显式使用内置操作来启用它们。第一步仅仅是启用编译器中的选项，并检查现有应用程序的结果。答案会有所不同，但差异有多大以及这个差异的重要性是关键问题。在游戏行业中，如果飞行中的球形投射物偏离目标左或右一个像素，没人会注意到。但在计算应用中，这个差异可能会产生非常实际的影响。
 - en: Individual operations can also be selectively enabled in 24-bit math using an
     explicit compiler intrinsic such as `__logf(x)`, etc. For a complete list of these
     and an explanation of the drawbacks of using them, see Appendix C.2 of the CUDA
@@ -4427,11 +4580,14 @@
   id: totrans-581
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还可以使用显式的编译器内置函数，如`__logf(x)`等，选择性地启用24位数学中的单个操作。有关这些操作的完整列表以及使用它们的缺点的解释，请参见CUDA
+    C编程指南的附录C.2。它们可以显著加速你的内核，因此如果这是你特定代码的一个可行选项，值得进一步调查。
 - en: Approximation
   id: totrans-582
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 近似值
 - en: Approximation is a useful technique in problems that explore a certain search
     space. Double-precision math is particularly expensive, in the order of at least
     twice as slow as floating-point math. Single-precision math uses 24 bits for the
@@ -4444,6 +4600,7 @@
   id: totrans-583
   prefs: []
   type: TYPE_NORMAL
+  zh: 近似是一种在探索特定搜索空间的问题中非常有用的技术。双精度运算尤其昂贵，速度至少是浮点运算的两倍慢。单精度运算使用24位来表示尾数，8位表示指数。因此，在计算1.x设备中，可以使用快速的24位整数近似来为单精度和双精度运算提供额外的计算路径。需要注意的是，在Fermi架构中，24位本地整数支持已被32位整数支持取代，因此在24位数学运算中进行整数近似实际上比在32位数学运算中进行相同的近似要慢。
 - en: In all compute hardware versions that natively support double precision (compute
     onwards), approximation in single precision is at least twice the speed of double-precision
     math. Sometimes a much higher speedup can be achieved because the single-precision
@@ -4455,12 +4612,14 @@
   id: totrans-584
   prefs: []
   type: TYPE_NORMAL
+  zh: 在所有原生支持双精度的计算硬件版本中（从计算开始），单精度近似的速度至少是双精度数学运算的两倍。有时可以实现更高的加速，因为单精度计算需要的寄存器较少，因此可以加载更多的块到硬件中。内存获取的大小也只有原来的一半，双倍有效的每元素内存带宽。消费级GPU的双精度单元启用比Tesla系列少，这使得在这类硬件上，单精度近似成为一个更具吸引力的选择。
 - en: Clearly, with approximating you are performing a tradeoff between speed and
     accuracy and introducing additional complexity into the program. Often this is
     a tradeoff worth exploring, for it can bring a significant speedup.
   id: totrans-585
   prefs: []
   type: TYPE_NORMAL
+  zh: 很明显，通过近似，你是在速度和准确性之间做出权衡，同时引入了额外的复杂性。通常，这是一个值得探索的权衡，因为它可以带来显著的加速。
 - en: Once we have done the approximation, the kernel can test the result to see if
     it is within a certain range or meets some criteria by which further analysis
     is warranted. For this subset of the dataset, the single- or double-precision
@@ -4468,6 +4627,7 @@
   id: totrans-586
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦我们完成了近似，内核可以测试结果，看看它是否在某个范围内，或者是否满足某些标准，从而判断是否需要进一步分析。对于这部分数据集，将根据需要执行单精度或双精度计算。
 - en: The initial pass simply acts as a filter on the data. For every data point that
     falls outside the criteria of interest, you have saved the expensive double-precision
     calculations. For every point that falls into it, you have added an additional
@@ -4480,6 +4640,7 @@
   id: totrans-587
   prefs: []
   type: TYPE_NORMAL
+  zh: 初步的筛选仅仅充当数据的过滤器。对于每一个不符合兴趣标准的数据点，你已经避免了昂贵的双精度计算。对于每一个符合标准的数据点，你增加了一个额外的24位或32位过滤计算。因此，这种方法的好处取决于额外过滤计算的成本与全计算所需双精度数学运算的成本之间的相对关系。如果过滤器去除了90%的双精度计算，你就能获得巨大的加速。然而，如果90%的计算仍然需要进一步的双精度计算，那么这个策略就没有什么用处。
 - en: NVIDIA claims Tesla Fermi has in the order of 8× faster double-precision math
     over the previous compute 1.3 implementations (GT200 series). However, consumer-level
     Fermi cards are artificially restricted to one-quarter the double-precision performance
@@ -4490,6 +4651,8 @@
   id: totrans-588
   prefs: []
   type: TYPE_NORMAL
+  zh: NVIDIA声称Tesla Fermi的双精度计算比之前的Compute 1.3版本（GT200系列）快大约8倍。然而，消费级Fermi卡的双精度性能被人为限制为Tesla卡的四分之一。因此，如果双精度对你的应用至关重要，显然Tesla是解决问题的简便方案。然而，有些人可能更倾向于使用多个消费级GPU。两张3
+    GB的580 GTX显然会比一张Fermi Tesla提供更快的解决方案，而且成本要低得多。
 - en: If double precision is secondary or you simply wish to prototype a solution
     on commonly available hardware, then single precision of 24-bit filtered may be
     an attractive solution to this issue. Alternatively, if you have a mixture of
@@ -4501,11 +4664,13 @@
   id: totrans-589
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果双精度不是关键，或者你只是想在常见硬件上快速原型一个解决方案，那么24位单精度的过滤可能是一个有吸引力的解决方案。或者，如果你有不同型号的GPU，配有一张仍适合单精度使用的老卡，你可以使用老卡扫描问题空间中的有趣部分，再用第二张卡基于第一张卡的快速评估来详细探查问题空间。当然，如果你有一张合适的Tesla卡，你可以只用一张卡完成两次计算。
 - en: Lookup tables
   id: totrans-590
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 查找表
 - en: One common optimization technique used for complex algorithms is a lookup table.
     On CPUs where computation is quite expensive, these generally work reasonably
     well. The principle is that you calculate a number of representative points in
@@ -4516,6 +4681,7 @@
   id: totrans-591
   prefs: []
   type: TYPE_NORMAL
+  zh: 一种常见的优化技术是查找表。对于计算代价较高的CPU，这些通常能合理地工作。其原理是，先计算出数据空间中的若干代表性点，然后根据与任一边界点的比例距离应用插值方法。这通常用于对现实世界的建模，因为具有足够数量关键样本点的线性插值方法能够很好地近似实际信号。
 - en: A variation on this technique is used in brute-force attacks on ciphers. Passwords
     on most systems are stored as hashes, an apparently unintelligible series of digits.
     Hashes are designed so that it’s difficult to calculate the password from the
@@ -4524,6 +4690,7 @@
   id: totrans-592
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种技术的变种被用于对密码进行暴力破解攻击。大多数系统上的密码以哈希值的形式存储，哈希值看似是一串无法理解的数字。哈希值的设计目的是使得从哈希值反向计算出密码变得困难。否则，如果能够通过已泄露的哈希表轻松计算出原始密码，那就毫无意义了。
 - en: One method of attack on this type of system involves a CPU spending a considerable
     time generating all possible permutations based on the use of common and/or short
     passwords. The attacker then simply matches the precomputer hash against the target
@@ -4531,6 +4698,7 @@
   id: totrans-593
   prefs: []
   type: TYPE_NORMAL
+  zh: 一种针对这种系统的攻击方法是让CPU花费相当长的时间基于常见的和/或较短的密码生成所有可能的排列。攻击者然后简单地将预计算的哈希与目标哈希进行匹配，直到找到匹配项。
 - en: In both cases, the lookup table method trades memory space for compute time.
     By simply storing the result, you have instant access to the answer. Many people
     will have learned multiplication tables in their heads as children. It’s the same
@@ -4539,6 +4707,8 @@
   id: totrans-594
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这两种情况下，查找表方法通过用内存空间换取计算时间。只需存储结果，就能即时访问答案。许多人小时候都会在脑海里记住乘法表。原理是一样的；我们不再为最常见的数值集反复计算
+    *a* × *b*，而是直接记住结果。
 - en: This optimization technique works well on CPUs, especially older ones, where
     the compute time may be significant. However, as the compute resources have become
     faster and faster, it can be cheaper to calculate the results than to look them
@@ -4546,6 +4716,7 @@
   id: totrans-595
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种优化技术在CPU上效果很好，特别是在较老的CPU上，因为那时计算时间可能相对较长。然而，随着计算资源越来越强大，计算结果的成本反而比从内存中查找结果更低。
 - en: If you consider the average arithmetic instruction latency will be between 18
     to 24 cycles and the average memory fetch in the order of 400 to 600 cycles, you
     can clearly see we can do a lot of calculation work in the time it takes for the
@@ -4558,6 +4729,7 @@
   id: totrans-596
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你考虑到平均算术指令延迟在18到24个周期之间，而平均内存获取大约需要400到600个周期，你可以清楚地看到，在内存从全局内存返回的时间里，我们可以进行大量的计算工作。然而，这假设了我们需要从全局内存中获取结果，而不是存储在共享内存或缓存中。它也没有考虑到与CPU不同，GPU在内存获取期间不会处于空闲状态。事实上，GPU可能已经切换到另一个线程并执行其他操作。当然，这取决于你已调度到设备上的可用warp数量。
 - en: In many cases the lookup may win over the calculation, especially where you
     are achieving a high level of GPU utilization. Where you have low utilization,
     the calculation method often wins out, depending of course on how complex the
@@ -4570,12 +4742,14 @@
   id: totrans-597
   prefs: []
   type: TYPE_NORMAL
+  zh: 在许多情况下，查找操作可能会比计算操作更优，特别是在你达到较高的GPU利用率时。在低利用率的情况下，计算方法通常会更优，这当然取决于计算的复杂程度。假设算术操作的指令延迟是20个周期，而内存操作的延迟是600个周期。显然，如果计算需要的操作少于30次，那么在GPU利用率较低时，计算会比内存查找要快。在这种情况下，SM表现得像一个串行处理器，因为它必须等待内存获取。合理的利用率下，内存获取实际上是免费的，因为SM只是执行其他warp。
 - en: It’s often a case of trying this and seeing how well it works. Also be prepared
     to take it back out again should you suddenly manage to increase utilization of
     the GPU through other means.
   id: totrans-598
   prefs: []
   type: TYPE_NORMAL
+  zh: 这通常是一个尝试并观察效果的过程。同时，要准备好在通过其他手段突然提高GPU利用率时，将其移除。
 - en: Note, in the case of linear interpolation, a low-precision floating point–based
     linear interpolation is available in the GPU hardware. This is a feature of the
     texture memory hardware, something we do not cover in this text. Texture memory
@@ -4587,11 +4761,15 @@
   id: totrans-599
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在线性插值的情况下，GPU 硬件中提供了基于低精度浮点数的线性插值。这是纹理内存硬件的一个特性，本文未涉及此内容。纹理内存在计算 1.x 硬件中因其缓存特性（每个
+    SM 24K）而非常有用，但这一功能在 Fermi 中引入的 L1/L2 缓存中基本上被取代了。然而，硬件中的线性插值仍然可能对某些问题有用。如果你对此感兴趣，请参阅
+    CUDA 编程指南中的“纹理和表面内存”章节。
 - en: Some common compiler optimizations
   id: totrans-600
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 一些常见的编译器优化
 - en: We’ll take a quick look at some compiler optimizations and how they affect GPUs.
     We cover these here to highlight cases where the optimizer may struggle and also
     to give you some understanding of how optimizations may be applied at the source
@@ -4599,6 +4777,7 @@
   id: totrans-601
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将快速浏览一些编译器优化以及它们如何影响 GPU。我们在这里讨论这些内容，旨在突出优化器可能会遇到困难的情况，同时也让你了解当自动优化失败时，优化如何在源代码层面应用。
 - en: Some compilers are well known for producing efficient code on certain targets.
     Not surprisingly, the Intel ICC compiler produces extremely efficient code for
     the Intel platform. New features of the processor are incorporated rapidly to
@@ -4608,6 +4787,7 @@
   id: totrans-602
   prefs: []
   type: TYPE_NORMAL
+  zh: 一些编译器因在某些目标上生成高效代码而广为人知。不出所料，Intel ICC 编译器为 Intel 平台生成的代码非常高效。处理器的新特性会迅速被融入进来，以展示这项技术。主流编译器通常来自一个支持多种目标的代码库，这使得开发更高效，但也意味着编译器可能不太容易为单一目标进行定制。
 - en: As of the 4.1 SDK CUDA moved from using an Open64-based compiler to a more modern
     LLVM-based compiler. The most significant benefit from the user perspective is
     significantly faster compile times. NVIDIA also claims a 10% improvement in code
@@ -4617,6 +4797,8 @@
   id: totrans-603
   prefs: []
   type: TYPE_NORMAL
+  zh: 从 4.1 SDK 开始，CUDA 从使用基于 Open64 的编译器转向了更现代的基于 LLVM 的编译器。从用户的角度来看，最显著的好处是编译时间大大缩短。NVIDIA
+    还宣称代码速度提高了 10%。我们在代码生成方面确实看到了明显的改进。不过，像所有新技术一样，仍有改进的空间，我相信随着时间的推移，这些改进会逐步实现。
 - en: The optimizations compilers apply are well documented. What we present here
     is a broad overview of some common ones. For most programmers, simply setting
     the optimization level is entirely sufficient. Others prefer to know what exactly
@@ -4625,15 +4807,18 @@
   id: totrans-604
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器应用的优化有详细的文档记录。我们在这里展示的是一些常见优化的广泛概述。对于大多数程序员来说，仅仅设置优化级别就足够了。其他人则更喜欢了解具体发生了什么并检查输出。这当然是编程时间与潜在收益及相对成本之间的权衡。
 - en: Strength reduction
   id: totrans-605
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 强度降低
 - en: When accessing an array index, typically nonoptimized compiler code will use
   id: totrans-606
   prefs: []
   type: TYPE_NORMAL
+  zh: 当访问数组索引时，通常未优化的编译器代码将使用
 - en: '[PRE94]'
   id: totrans-607
   prefs: []
@@ -4647,10 +4832,12 @@
   id: totrans-608
   prefs: []
   type: TYPE_NORMAL
+  zh: 这可以通过两种技术中的一种更有效地替代。首先，我们必须将数组基地址（元素0）加载到基寄存器中。然后我们可以选择将索引作为基+偏移量进行访问。我们还可以在每次循环迭代后，简单地将数组元素的字节大小作为固定偏移量添加到基寄存器中。
 - en: In terms of C this is the same as writing
   id: totrans-609
   prefs: []
   type: TYPE_NORMAL
+  zh: 在C语言中，这与写作是一样的
 - en: '[PRE95]'
   id: totrans-610
   prefs: []
@@ -4690,6 +4877,7 @@
   id: totrans-616
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GPU使用方面，这种优化依赖于某些指令（乘法、除法）计算成本高，而其他指令（加法）成本较低。它试图用更便宜（或更快）的操作替换昂贵的操作。这种技术在CPU和GPU上都能很好地工作。尤其是在计算能力为2.1的设备上，整数加法的吞吐量是整数乘法的三倍。
 - en: Notice also that the pointer version of the code creates a dependency between
     loop iterations. The value of `ptr` must be known to execute the assignment. The
     first example is much easier to parallelize because there is no dependency on
@@ -4699,6 +4887,8 @@
   id: totrans-617
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，指针版本的代码在循环迭代之间创建了依赖关系。执行赋值时必须知道`ptr`的值。第一个示例更容易并行化，因为它不依赖于循环迭代，并且`a[i]`的地址可以轻松静态计算。实际上，仅仅添加`#pragma
+    unroll`指令就会导致编译器展开整个循环，因为在这个简单示例中的边界是字面量。
 - en: It’s a typical example of a CPU-based optimization that may have been applied
     and to parallelize the loop you need to reverse-engineer back to the original
     code. It’s shown here because it helps you understand how C code may have been
@@ -4708,16 +4898,19 @@
   id: totrans-618
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个典型的基于CPU的优化示例，可能已被应用，并且为了并行化该循环，你需要逆向工程回到原始代码。之所以在此展示，是因为它有助于你理解C代码如何在过去被修改，以便为给定目标提供更快的执行时间。像大多数C源代码级别的优化一样，它可能会导致源代码的原意被掩盖。
 - en: Loop invariant analysis
   id: totrans-619
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 循环不变式分析
 - en: Loop invariant analysis looks for expressions that are constant within the loop
     body and moves them outside the loop body. Thus, for example,
   id: totrans-620
   prefs: []
   type: TYPE_NORMAL
+  zh: 循环不变式分析寻找循环体内常量表达式，并将其移到循环体外。因此，例如，
 - en: '[PRE101]'
   id: totrans-621
   prefs: []
@@ -4729,6 +4922,7 @@
   id: totrans-622
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个例子中，参数`j`对于参数`i`来说在循环体内是常量。因此，编译器可以轻松检测到这一点，并将`b`的计算移到内层循环外，并生成如下代码：
 - en: '[PRE102]'
   id: totrans-623
   prefs: []
@@ -4746,6 +4940,7 @@
   id: totrans-625
   prefs: []
   type: TYPE_NORMAL
+  zh: 这段优化后的代码去除了对`b`的数千次不必要的计算，其中`j`，因此`b`，在内层循环中是常量。然而，考虑到`b`是函数外部的全局变量，而非局部变量的情况。例如：
 - en: '[PRE104]'
   id: totrans-626
   prefs: []
@@ -4760,6 +4955,7 @@
   id: totrans-628
   prefs: []
   type: TYPE_NORMAL
+  zh: '`}`'
 - en: The compiler cannot safely make this optimization because the write to `q` may
     affect `b`. That is, the memory space of `q` and `b` may intersect. It cannot
     even safely reuse the result of `j ∗ 200` in the assignment to `q`, but must reload
@@ -4768,6 +4964,7 @@
   id: totrans-629
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器无法安全地进行此优化，因为对`q`的写入可能会影响`b`。也就是说，`q`和`b`的内存空间可能会交叉。它甚至不能安全地重用`j ∗ 200`在赋值给`q`时的结果，而必须重新从内存加载它，因为自从前一行赋值后，`b`的内容可能已经发生了变化。
 - en: If you consider each line individually, then the issue becomes somewhat clearer.
     Any memory transaction, a read or write, will likely cause a switch to another
     warp, if that transaction involves accessing anything that is not immediately
@@ -4777,6 +4974,7 @@
   id: totrans-630
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你单独考虑每一行，那么问题会变得更清晰。任何内存操作，无论是读取还是写入，都会导致可能切换到另一个warp，如果该操作涉及访问任何未立即可用的内容。全局内存的该区域对任何warp中的任何线程都是可访问的，无论它是在任何活动块的任何SM中。从一条指令到下一条指令，你可能会遇到任何可写的非寄存器数据已经发生变化的情况。
 - en: You might say, well I’ve split up the application into *N* tiles and the tiles
     do not intersect, so this is not necessary. As the programmer you may know this,
     but it is very difficult for the compiler to figure that out. Consequently, it
@@ -4787,23 +4985,27 @@
   id: totrans-631
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能会说，嗯，我已经将应用程序拆分成了*N*个瓦片，并且这些瓦片互不重叠，所以不需要这样做。作为程序员，你可能知道这一点，但编译器很难推断出来。因此，编译器选择了安全的做法，并未进行这样的优化。许多程序员不了解编译器优化阶段的作用，因此当它做了一些破坏代码的操作时，他们会责怪编译器。因此，编译器在优化代码时通常非常保守。
 - en: As the programmer, understanding this allows you to make such optimization at
     the source level. Remember to think of global memory as you might a slow I/O device.
     Read from it once and reuse the data.
   id: totrans-632
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为程序员，理解这一点可以让你在源代码级别进行优化。记住，要像对待一个慢速I/O设备那样考虑全局内存。读取一次并重用数据。
 - en: Loop unrolling
   id: totrans-633
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 循环展开
 - en: 'Loop unrolling is a technique that seeks to ensure you do a reasonable number
     of data operations for the overhead of running through a loop. Take the following
     code:'
   id: totrans-634
   prefs: []
   type: TYPE_NORMAL
+  zh: 循环展开是一种技术，旨在确保你在执行循环时进行合理数量的数据操作。以下是示例代码：
 - en: '[PRE106]'
   id: totrans-635
   prefs: []
@@ -4813,39 +5015,48 @@
   id: totrans-636
   prefs: []
   type: TYPE_NORMAL
+  zh: 就汇编代码而言，这将生成：
 - en: • A load of a register with 0 for parameter `i`.
   id: totrans-637
   prefs: []
   type: TYPE_NORMAL
+  zh: • 为参数`i`加载一个值为0的寄存器。
 - en: • A test of the register with 100.
   id: totrans-638
   prefs: []
   type: TYPE_NORMAL
+  zh: • 对寄存器进行100的测试。
 - en: • A branch to either exit or execute the loop.
   id: totrans-639
   prefs: []
   type: TYPE_NORMAL
+  zh: • 分支跳转，可能退出或执行循环。
 - en: • An increment of the register holding the loop counter.
   id: totrans-640
   prefs: []
   type: TYPE_NORMAL
+  zh: • 对持有循环计数器的寄存器进行递增。
 - en: • An address calculation of array `q` indexed by `i`.
   id: totrans-641
   prefs: []
   type: TYPE_NORMAL
+  zh: • 计算数组`q`的地址，索引为`i`。
 - en: • A store of `i` to the calculated address.
   id: totrans-642
   prefs: []
   type: TYPE_NORMAL
+  zh: • 将`i`存储到计算得到的地址。
 - en: Only the last of these instructions actually does some *real* work. The rest
     of the instructions are overhead.
   id: totrans-643
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些指令中只有最后一条实际做了一些*真正的*工作。其余的指令是开销。
 - en: We can rewrite this C code as
   id: totrans-644
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以将这段C代码重写为
 - en: '[PRE107]'
   id: totrans-645
   prefs: []
@@ -4855,12 +5066,14 @@
   id: totrans-646
   prefs: []
   type: TYPE_NORMAL
+  zh: '`}`'
 - en: Thus, the ratio of useful work to overhead of using the loop is much increased.
     However, the size of the C source code is somewhat increased and it’s now less
     obvious what exactly it was doing compared to the first loop.
   id: totrans-647
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，使用循环的有效工作与开销的比例大大增加。然而，C源代码的大小有所增加，相比第一个循环，代码到底在做什么变得不那么明显了。
 - en: In terms of PTX code, we see each C statement translated into PTX. For every
     branch test, there are now four memory copy operations. Thus, the GPU is executing
     more instructions than before, but a higher percentage of the memory copy operations
@@ -4868,6 +5081,7 @@
   id: totrans-648
   prefs: []
   type: TYPE_NORMAL
+  zh: 就PTX代码而言，我们看到每个C语句都被翻译成了PTX代码。对于每个分支测试，现在有四个内存拷贝操作。因此，GPU执行的指令比以前更多，但更多的内存拷贝操作在进行有效的工作。
 - en: In the CPU domain often there are limited registers, so the same registers will
     be reused in each step. This reduces register overhead, but means `q[i+1]` cannot
     start processing until `q[i]` has completed. We’d see the same overhead on the
@@ -4879,12 +5093,14 @@
   id: totrans-649
   prefs: []
   type: TYPE_NORMAL
+  zh: 在CPU领域，通常寄存器有限，因此相同的寄存器会在每一步中被重复使用。这可以减少寄存器开销，但意味着`q[i+1]`在`q[i]`完成之前不能开始处理。采用这种方法，GPU也会遇到相同的开销。每条指令有20个周期的延迟。因此，GPU将每个地址计算分配给一个单独的寄存器，从而使我们有一组四个并行指令，而不是四个顺序执行的指令。每组指令被推入流水线，几乎是一个接一个地顺序输出。
 - en: With this approach the limit is the number of registers. As the GPU has 64 (compute
     2.x,3.0) and 128 (compute 1.x) maximum, there is considerable scope for unrolling
     small loop bodies and achieving a good speedup.
   id: totrans-650
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用这种方法的限制是寄存器的数量。由于GPU最大有64个（计算2.x，3.0）和128个（计算1.x），因此有相当大的空间来展开小循环体并实现较好的加速。
 - en: The NVCC compiler supports the `#pragma unroll` directive, which will automatically
     unroll fully such loops when the iteration count is constant or silently do nothing
     when it’s not. The latter is less than helpful, if the programmer has specified
@@ -4893,6 +5109,7 @@
   id: totrans-651
   prefs: []
   type: TYPE_NORMAL
+  zh: NVCC编译器支持`#pragma unroll`指令，当迭代次数为常数时，它会自动展开这些循环，或者当迭代次数不是常数时，什么也不做。如果程序员指定了循环应该展开，而编译器无法展开时，它应该给出警告，直到代码被修改或去除该指令。
 - en: You can also specify `#pragma unroll 4` where four is replaced by any number
     the programmer wishes. Typically four or eight will work well, but beyond that
     too many registers will be used and this will result in register spilling. On
@@ -4903,17 +5120,20 @@
   id: totrans-652
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还可以指定`#pragma unroll 4`，其中4可以替换为程序员希望的任何数字。通常，四或八会表现良好，但超过这个数，过多的寄存器将被使用，这会导致寄存器溢出。在计算1.x硬件上，这会导致性能急剧下降，因为寄存器会溢出到全局内存。从计算2.x硬件开始，寄存器会先溢出到L1缓存，然后如果需要，再溢出到全局内存。最好的解决方案是尝试不同的值，看看哪一个在每个循环中效果最佳。
 - en: Loop peeling
   id: totrans-653
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 循环剥离
 - en: Loop peeling is an enhancement to the loop unrolling, when the number of iterations
     is not an exact multiple of the loop unrolling size. Here the last few iterations
     are peeled away and done separately, and then the main body of the loop is unrolled.
   id: totrans-654
   prefs: []
   type: TYPE_NORMAL
+  zh: 循环剥离是对循环展开的增强，适用于迭代次数不是循环展开大小的精确倍数的情况。在这种情况下，最后几个迭代会被剥离出来单独处理，然后再展开主循环体。
 - en: For example, if we have 101 loop iterations and plan to use four levels of loop
     unrolling, the first 100 iterations of the loop are unrolled and the final iteration
     is peeled away to allow the bulk of the code to operate on the unrolled code.
@@ -4921,6 +5141,7 @@
   id: totrans-655
   prefs: []
   type: TYPE_NORMAL
+  zh: 比如，如果我们有101次循环迭代，并计划使用四级循环展开，那么循环的前100次迭代会被展开，最后一次迭代则被剥离出来，以便代码的大部分可以在展开后的代码上运行。最后几个迭代会作为循环或者显式地处理。
 - en: Loop peeling can be equally applied to the start of a loop as to the end. It
     can be used in such cases to allow a nonaligned structure to be accessed as an
     aligned structure. For example, copying a byte-aligned memory section to another
@@ -4931,17 +5152,20 @@
   id: totrans-656
   prefs: []
   type: TYPE_NORMAL
+  zh: 循环剥离同样可以应用于循环的开始部分，就像应用于结束部分一样。在这种情况下，它可以被用来允许非对齐的结构像对齐的结构那样被访问。例如，将一个字节对齐的内存区域复制到另一个字节对齐的内存区域很慢，因为它必须逐字节进行。可以剥离掉前几个迭代，使得32、64或128字节的对齐得到实现。然后，循环可以切换到基于字、双字或四字的更快复制方式。在循环结束时，可以再次使用基于字节的复制方式。
 - en: When using the `#pragma loop unroll N` directive, the compiler will unroll the
     loop such that the number of iterations does not exceed the loop boundaries and
     insert the end of loop peeling code automatically.
   id: totrans-657
   prefs: []
   type: TYPE_NORMAL
+  zh: 当使用`#pragma loop unroll N`指令时，编译器会展开循环，使得迭代次数不超过循环边界，并自动插入循环结束剥离代码。
 - en: Peephole optimization
   id: totrans-658
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 皮眼优化
 - en: This optimization simple searches for combinations of instructions that can
     be replaced by more complex instructions with the same functionality. The classic
     example of this is multiply followed by an add instruction, as you might see in
@@ -4951,20 +5175,24 @@
   id: totrans-659
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种优化简单地搜索可以被更复杂的指令替代的指令组合，而这些指令具有相同的功能。经典的例子是先乘法后加法指令，就像你在增益和偏移类型的计算中可能会看到的那样。这种结构可以用更复杂的`madd`（乘法加法）指令替代，将指令数量从两个减少到一个。
 - en: Other types of peephole optimizations include simplification of flow of control,
     algebraic simplifications, and removal of unreachable code.
   id: totrans-660
   prefs: []
   type: TYPE_NORMAL
+  zh: 其他类型的皮眼优化包括简化控制流、代数简化和移除不可达代码。
 - en: Common subexpressions and folding
   id: totrans-661
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 公共子表达式和折叠
 - en: Many programmers write code that repeats some operation, for example,
   id: totrans-662
   prefs: []
   type: TYPE_NORMAL
+  zh: 许多程序员编写的代码会重复某些操作，例如，
 - en: '[PRE108]'
   id: totrans-663
   prefs: []
@@ -4974,6 +5202,7 @@
   id: totrans-664
   prefs: []
   type: TYPE_NORMAL
+  zh: 或者
 - en: '[PRE109]'
   id: totrans-665
   prefs: []
@@ -4991,6 +5220,8 @@
   id: totrans-666
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第一个示例中，数组 `b` 和 `c` 是通过 `base` 和 `i` 参数进行索引的。假设这些参数在局部作用域内，编译器可以直接计算索引（`base
+    + i`），然后将这个值加到数组 `b` 和 `c` 的起始地址以及每个参数的工作地址上。然而，如果其中任何一个索引参数是全局变量，那么计算就必须重复，因为一旦使用多个线程，任意一个可能已经发生变化。在单线程下，消除第二次计算是安全的。而在多线程情况下，尽管这样做可能也是安全的，但编译器无法确定，因此通常会执行两次计算。
 - en: In the second example, the term `NUM_ELEMENTS-1` is repeated. If we assume that
     `NUM_ELEMENTS` is a define, then the preprocessor will substitute the actual value,
     so we get `b[1024-1] ∗ c[1024-1]`. Clearly, 1024 − 1 can in both instances be
@@ -5000,6 +5231,8 @@
   id: totrans-667
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第二个示例中，`NUM_ELEMENTS-1` 被重复使用。如果我们假设 `NUM_ELEMENTS` 是一个宏定义，那么预处理器会替换为实际的值，因此我们得到
+    `b[1024-1] ∗ c[1024-1]`。显然，1024 − 1 在这两个实例中都可以替换为 1023。然而，如果 `NUM_ELEMENTS` 实际上是一个形式参数，正如许多内核调用中那样，这种优化就不可用。在这种情况下，我们需要回退到公共子表达式优化。
 - en: Therefore, be aware that in making such constants parameters of a function,
     or by having such parameters in global memory, you may be limiting the compiler’s
     ability to optimize the code. You then have to ensure such common subexpressions
@@ -5008,17 +5241,20 @@
   id: totrans-668
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，需要注意的是，当将这样的常量作为函数的参数，或将其作为全局内存中的参数时，可能会限制编译器优化代码的能力。此时，你必须确保源代码中没有出现此类公共子表达式。通常，消除公共子表达式会使代码更容易理解，并提高性能。
 - en: Divergence
   id: totrans-669
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 分歧
 - en: GPUs execute code in blocks, or warps. A single instruction is decoded once
     and dispatched to a warp scheduler. There it remains in a queue until the warp
     dispatcher dispatches it to a set of 32 execution units, which execute that instruction.
   id: totrans-670
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 执行代码时以块或波束（warp）为单位。单个指令只解码一次，然后分派到波束调度器。在那里，指令会一直排队，直到波束调度器将其分派到 32 个执行单元，后者会执行该指令。
 - en: This approach amortizes the instruction fetch and decoding time over *N* execution
     units. This in itself is very similar to the old vector machines. However, the
     main difference is that CUDA does not require that every instruction execute in
@@ -5027,6 +5263,7 @@
   id: totrans-671
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法将指令获取和解码的时间摊销到 *N* 个执行单元上。这本身与旧的向量机非常相似。然而，主要的区别在于，CUDA并不要求每条指令都以这种方式执行。如果代码中有分支，并且只有部分指令跟随该分支，那么这些指令会发生分歧，而其他指令则在分歧点等待。
 - en: The single fetch/decode logic then fetches the instruction stream for the divergent
     threads and the other threads simply ignore it. In effect, each thread within
     the warp has a mask that enables its execution or not. Those threads not following
@@ -5035,6 +5272,7 @@
   id: totrans-672
   prefs: []
   type: TYPE_NORMAL
+  zh: 单次获取/解码逻辑随后会获取分歧线程的指令流，其他线程则直接忽略它。实际上，warp 中的每个线程都有一个掩码，用以决定是否执行该线程。那些没有跟随分歧的线程会清除掩码，反之，跟随分支的线程会设置该位。
 - en: This type of arrangement is called predication. A predicate is created, which
     results in a single bit being set for those threads within a warp that follow
     the branch. Most PTX op-codes support an optional predicate allowing selective
@@ -5042,10 +5280,12 @@
   id: totrans-673
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种安排被称为预处理。一个谓词被创建，它导致在warp中跟随分支的线程设置一个单独的位。大多数PTX操作码支持可选的谓词，允许选择性地执行指令的线程。
 - en: 'Thus, for example, consider the following code:'
   id: totrans-674
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，举个例子，考虑以下代码：
 - en: '[PRE110]'
   id: totrans-675
   prefs: []
@@ -5059,6 +5299,7 @@
   id: totrans-676
   prefs: []
   type: TYPE_NORMAL
+  zh: 在代码的第一行中，程序会去除当前块中所有其他的warp，保留第一个warp，即前32个线程。这不会导致warp内部出现任何分歧。块中的其他warp仅仅是未被调度执行这一段代码。它们并不会停滞，而是跳过这段代码，继续执行后续的代码。
 - en: The first warp then meets a test for `threadIdx.x < 16`, which splits the warp
     exactly in half. This is a special scenario where the warp does not actually diverge.
     Although the warp size is 32, the divergence criteria are actually a half-warp.
@@ -5068,6 +5309,7 @@
   id: totrans-677
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一个warp会遇到 `threadIdx.x < 16` 的测试条件，这将warp精确地分成两半。这是一个特殊的场景，其中warp并不会实际发生分歧。虽然warp的大小是32，但分歧的标准实际上是半个warp。如果你之前注意到过，CUDA核心是按16个核心为一组排列，而不是32个核心。调度程序每个周期向两个或更多的16核心组发出指令。因此，条件的真路径和假路径都会被执行。
 - en: In the subsequent step, threads 16 to 31 call the function `func_b`. However,
     threads 0..15 hit another conditional. This time it’s not half-warp based, but
     quarter-warp based. The minimum scheduling quantity is 16 threads. Thus, the first
@@ -5076,6 +5318,7 @@
   id: totrans-678
   prefs: []
   type: TYPE_NORMAL
+  zh: 在随后的步骤中，线程16到31调用函数`func_b`。然而，线程0..15遇到了另一个条件。这次不是基于半warp，而是基于四分之一warp。最小调度单位是16个线程。因此，第一组八个线程跳到调用函数`func_a1`，而第二组八个线程（8..15）暂停。
 - en: Functions `func_b` and `func_a1` will continue to independently fetch instructions
     and dispatch them to the two half-warps. This is somewhat less efficient than
     a single instruction fetch, but nonetheless better than sequential execution.
@@ -5085,6 +5328,7 @@
   id: totrans-679
   prefs: []
   type: TYPE_NORMAL
+  zh: 函数`func_b`和`func_a1`将继续独立地获取指令并将它们分派到两个半warp。这比单一指令获取效率稍低，但仍然比顺序执行要好。最终，`func_a1`将完成，`func_a2`将开始，导致线程0..7暂停。与此同时，`func_b`可能也已经完成。我们可以编写一个简单的测试程序来演示这一点。
 - en: '[PRE111]'
   id: totrans-680
   prefs: []
@@ -5094,6 +5338,7 @@
   id: totrans-681
   prefs: []
   type: TYPE_NORMAL
+  zh: '`  const u32 ∗ const b,`'
 - en: '[PRE112]'
   id: totrans-682
   prefs: []
@@ -5128,6 +5373,7 @@
   id: totrans-688
   prefs: []
   type: TYPE_NORMAL
+  zh: '`   {`'
 - en: '[PRE118]'
   id: totrans-689
   prefs: []
@@ -5147,6 +5393,7 @@
   id: totrans-692
   prefs: []
   type: TYPE_NORMAL
+  zh: '`      }`'
 - en: '[PRE121]'
   id: totrans-693
   prefs: []
@@ -5161,6 +5408,7 @@
   id: totrans-694
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们设置了多个内核，每个内核展示了不同级别的分歧。第一个是没有分歧的最优情况。第二个基于半warp发生分歧。这些半warp应该并行执行。接下来，我们将第一个半warp进一步细分为两个组，这些组应该按序列执行。然后，我们再次将第一组细分为总共四个串行执行路径。我们看到的结果如下：
 - en: '[PRE122]'
   id: totrans-695
   prefs: []
@@ -5185,14 +5433,17 @@
   id: totrans-699
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以在[图9.32](#F0165)中以图形格式更清楚地看到这一点。
 - en: '![image](../images/F000090f09-32-9780124159334.jpg)'
   id: totrans-700
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-32-9780124159334.jpg)'
 - en: FIGURE 9.32 How thread divergence affects execution time.
   id: totrans-701
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.32 线程分歧如何影响执行时间。
 - en: Notice how the thread divergence is not such a significant problem on the compute
     1.x devices (the 9800 GT and GTX260). It has an effect, but takes the maximum
     time to just 145% of the optimal time. By comparison, the Fermi compute 2.x cards
@@ -5203,6 +5454,8 @@
   id: totrans-702
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，线程分歧在计算1.x设备（9800 GT和GTX260）上并不是一个显著的问题。它确实有影响，但最大时间只会增加到最优时间的145%。相比之下，Fermi计算2.x卡（GTX460，GTX470）在warp内发生较大分歧时会遭遇超过4倍的性能下降。GTX460似乎特别容易受到warp分歧的影响。请注意，在没有分歧的情况下，GTX470在绝对性能上几乎比9800
+    GT快了10倍，这对于仅仅两代显卡来说是一个巨大的提升。
 - en: If you are curious to know how much a 32-way divergence costs, it leads to a
     27× slowdown on the compute 1.x cards and a massive 125× to 134× slowdown on the
     compute 2.x cards. Note that the code for this test was a simple switch statement
@@ -5211,6 +5464,7 @@
   id: totrans-703
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你想知道一个32路分歧的代价，计算结果表明，在计算1.x卡上会导致27倍的性能下降，而在计算2.x卡上会出现高达125倍到134倍的性能下降。需要注意的是，这次测试的代码是基于线程索引的简单switch语句，因此无法与我们在这里使用的代码直接进行比较。然而，显然这种分歧必须不惜一切代价避免。
 - en: The easiest method of avoiding divergence within a warp is to simply mask out
     the sections of the warp you don’t wish to contribute to the result. How can you
     do this? Just perform the same calculation on every thread in the warp, but select
@@ -5218,6 +5472,7 @@
   id: totrans-704
   prefs: []
   type: TYPE_NORMAL
+  zh: 避免warp内分歧的最简单方法是简单地屏蔽掉你不希望参与计算的warp部分。如何做到这一点？只需在warp中的每个线程上执行相同的计算，但对于你希望屏蔽掉的线程，选择一个不会贡献结果的值。
 - en: For example, for a `min` operation on 32-bit integers, select 0xFFFFFFFF as
     the value for threads that should not contribute. Conversely for `max`, `sum`,
     and many other arithmetic-type operations, just use 0 in the threads you do not
@@ -5226,11 +5481,13 @@
   id: totrans-705
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，对于32位整数的`min`操作，为那些不应参与计算的线程选择0xFFFFFFFF作为值。相反，对于`max`、`sum`和许多其他算术操作，只需在不希望参与的线程中使用0。与warp内的分支操作相比，这通常会更快。
 - en: Understanding the low-level assembly code
   id: totrans-706
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 理解低级汇编代码
 - en: The GPU compiles code into a virtual assembly system called PTX (Parallel Thread
     eXecution Instruction Set Architecture). This is a lot like Java byte-code in
     that it is a virtual assembly language. This can either be translated at compile
@@ -5241,6 +5498,7 @@
   id: totrans-707
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU将代码编译成一种叫做PTX（Parallel Thread eXecution Instruction Set Architecture）的虚拟汇编系统。这与Java字节码非常相似，都是一种虚拟汇编语言。这些代码可以在编译时或运行时翻译成在设备上执行的真实代码。编译时翻译只是根据你在命令行上指定的架构（`–arch`开关）将一些真实的二进制文件插入到应用程序中。
 - en: To look at the virtual assembly generated, you simply add the `–keep` flag to
     the compiler command line. For Visual Studio users, the default NVIDIA projects
     contain an option to keep the PTX files (`–keep`) ([Figure 9.33](#F0170)). You
@@ -5249,28 +5507,35 @@
   id: totrans-708
   prefs: []
   type: TYPE_NORMAL
+  zh: 要查看生成的虚拟汇编代码，你只需要在编译器命令行中添加`–keep`标志。对于Visual Studio用户，默认的NVIDIA项目包含一个选项来保存PTX文件（`–keep`）（[图9.33](#F0170)）。如果你不希望它们占用项目目录的空间，还可以使用`–keep-dir
+    <directory>`选项来指定存储位置。
 - en: '![image](../images/F000090f09-33-9780124159334.jpg)'
   id: totrans-709
   prefs: []
   type: TYPE_IMG
+  zh: '![image](../images/F000090f09-33-9780124159334.jpg)'
 - en: FIGURE 9.33 Visual C options—how to keep PTX files.
   id: totrans-710
   prefs: []
   type: TYPE_NORMAL
+  zh: 图9.33 Visual C选项—如何保存PTX文件。
 - en: 'However, PTX is not what is really executed on the hardware, so it’s useful
     only to a certain degree. You can also see the actual binary post translation
     using the `cuobjdump` utility as follows:'
   id: totrans-711
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，PTX并不是硬件上真正执行的代码，因此它只在一定程度上有用。你还可以通过以下方式使用`cuobjdump`工具查看实际的二进制代码：
 - en: '`cuobjdump –sass global_mem_sample_sort.sm_20.cubin > out.txt`'
   id: totrans-712
   prefs: []
   type: TYPE_NORMAL
+  zh: '`cuobjdump –sass global_mem_sample_sort.sm_20.cubin > out.txt`'
 - en: 'If we look at a small device function, this is what we see at the various levels:'
   id: totrans-713
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们查看一个小型设备函数，我们可以在不同的层次看到以下内容：
 - en: '[PRE126]'
   id: totrans-714
   prefs: []
@@ -5285,6 +5550,7 @@
   id: totrans-716
   prefs: []
   type: TYPE_NORMAL
+  zh: 在PTX中：
 - en: '[PRE128]'
   id: totrans-717
   prefs: []
@@ -5294,6 +5560,7 @@
   id: totrans-718
   prefs: []
   type: TYPE_NORMAL
+  zh: '`{`'
 - en: '[PRE129]'
   id: totrans-719
   prefs: []
@@ -5308,6 +5575,7 @@
   id: totrans-721
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是为计算2.0设备生成的实际代码：
 - en: '[PRE131]'
   id: totrans-722
   prefs: []
@@ -5323,6 +5591,7 @@
   id: totrans-724
   prefs: []
   type: TYPE_NORMAL
+  zh: 我已经从最终生成的代码中移除了实际的原始十六进制代码，因为它们没有用。PTX和目标汇编代码使用相同的格式。
 - en: '[PRE133]'
   id: totrans-725
   prefs: []
@@ -5337,6 +5606,8 @@
   id: totrans-726
   prefs: []
   type: TYPE_NORMAL
+  zh: PTX代码在NVIDIA GPU计算工具包的“doc”目录中的“ptx_isa_3.0.pdf”文件中有详细文档，适用于CUDA 4.1 SDK发布。二进制指令集在同一目录中的“cuobjdump.pdf”文件中列出，适用于GT200和Fermi。与PTX一样，实际的指令集尚无详细解释，但很容易看到哪些指令映射回PTX
+    ISA。
 - en: While NVIDIA supports forward compatibility with the PTX ISA between revisions
     of hardware, that is, PTX for compute 1.x will run on compute 2.x, the binaries
     are not compatible. This support of older versions of PTX will usually involve
@@ -5344,12 +5615,15 @@
   id: totrans-727
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管 NVIDIA 支持 PTX ISA 在硬件修订之间的向前兼容性，也就是说，1.x 版本的 PTX 可以在 2.x 版本的硬件上运行，但二进制文件并不兼容。对旧版本
+    PTX 的支持通常意味着 CUDA 驱动程序会在运行时将代码重新编译为实际目标硬件的代码。
 - en: You should read the PTX ISA document and understand it well. It refers to CTAs
     a lot, which are cooperative thread arrays. This is what is termed a “block” (of
     threads) at the CUDA runtime layer.
   id: totrans-728
   prefs: []
   type: TYPE_NORMAL
+  zh: 你应该阅读 PTX ISA 文档并深入理解它。文档中频繁提到 CTA，即合作线程数组。这就是 CUDA 运行时层中所称的“块”（线程块）。
 - en: Changes in the C code will drastically affect the final assembly code generated.
     It’s always good practice to look at the code being generated and ensure it is
     doing what is expected. If the compiler is reloading something from memory or
@@ -5361,6 +5635,8 @@
   id: totrans-729
   prefs: []
   type: TYPE_NORMAL
+  zh: C 代码的更改会显著影响最终生成的汇编代码。检查生成的代码并确保它按预期工作是一个好习惯。如果编译器从内存中重新加载某些内容或做了你不期望的事情，通常有其合理的原因。你通常可以在
+    C 源代码中找到原因并消除问题。在某些情况下，你还可以创建内联 PTX 代码来获得所需的精确功能，尽管许多非常底层的指令都有等效的编译器内建函数可以使用。
 - en: 'One of the easiest ways to look at and understand the low-level assembly functions
     is to view the interleaved source and assembly listing via the “View Disassembly”
     option from within Parallel Nsight. Simply set a breakpoint within the CUDA code,
@@ -5371,6 +5647,9 @@
   id: totrans-730
   prefs: []
   type: TYPE_NORMAL
+  zh: 查看并理解低级汇编函数的最简单方法之一是通过 Parallel Nsight 中的“查看反汇编”选项查看交错的源代码和汇编列表。只需在 CUDA 代码中设置一个断点，通过
+    Nsight 菜单（“开始 CUDA 调试”）运行代码，等待断点被触发。然后右键点击断点附近，弹出菜单中会显示“查看反汇编”。这将弹出一个新窗口，显示交错的
+    C 代码、PTX 和 SASS 代码。例如：
 - en: '[PRE134]'
   id: totrans-731
   prefs: []
@@ -5380,6 +5659,7 @@
   id: totrans-732
   prefs: []
   type: TYPE_NORMAL
+  zh: '`0x0002caf0     MOV R11, R9;`'
 - en: '[PRE135]'
   id: totrans-733
   prefs: []
@@ -5391,17 +5671,21 @@
   id: totrans-734
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，你可以很容易地看到 C 源代码中 `threadIdx.x < 128` 的测试是如何被转换成 PTX，并且每条 PTX 指令又是如何转换成一个或多个
+    SASS 指令的。
 - en: Register usage
   id: totrans-735
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 寄存器使用
 - en: Registers are the fastest storage mechanism on the GPU. They are the only way
     of achieving anything like the peak performance of the device. However, they are
     limited in their availability.
   id: totrans-736
   prefs: []
   type: TYPE_NORMAL
+  zh: 寄存器是GPU上最快的存储机制。它们是实现设备峰值性能的唯一途径。然而，寄存器的数量是有限的。
 - en: To launch a block onto an SM, the CUDA runtime will look at the block’s usage
     of registers and shared memory. If there are sufficient resources, the block will
     be launched. If not, the block will not. The number of blocks that are resident
@@ -5412,6 +5696,7 @@
   id: totrans-737
   prefs: []
   type: TYPE_NORMAL
+  zh: 要将一个块调度到SM上，CUDA运行时会查看该块对寄存器和共享内存的使用情况。如果资源足够，块将被启动。如果不够，则不会启动。驻留在SM中的块数会有所变化，但通常，对于相对复杂的内核，你可以实现最多六个块，对于简单的内核，可以达到八个块（在Kepler架构上最多16个）。块的数量其实并不是最主要的关注点。关键因素是线程的总数占支持的最大线程数的百分比。
 - en: We listed a number of tables in [Chapter 5](CHP005.html) that gave an overview
     of how the number of registers per block affects the number of blocks that can
     be scheduled onto an SM, and consequentially the number of threads that the device
@@ -5419,11 +5704,13 @@
   id: totrans-738
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在[第5章](CHP005.html)列出了一些表格，概述了每个块的寄存器数量如何影响能够调度到SM上的块数，从而影响设备将选择的线程数。
 - en: 'The compiler provides a `–v` option, which provides some more detailed output
     of what is currently allocated. An example of a typical kernel is:'
   id: totrans-739
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器提供了一个`–v`选项，它可以提供一些更详细的当前分配情况。一个典型内核的例子是：
 - en: '[PRE136]'
   id: totrans-740
   prefs: []
@@ -5439,6 +5726,7 @@
   id: totrans-741
   prefs: []
   type: TYPE_NORMAL
+  zh: 输出是有用的，但前提是你理解编译器给出的信息。第一个需要注意的项是`for sm_20`消息，它告诉你这里生成的代码是针对2.x架构（Fermi）。如果你仅使用Fermi设备进行目标部署，请确保正确设置目标。默认情况下，除非你特别指定，否则将生成计算1.0代码，这将限制可用操作，并生成对Fermi来说效率不高的代码。
 - en: The next interesting point is `40 bytes of stack frame`, which generally means
     you have local variables you are taking the address of, or that you declared a
     local array. The term “local” in C refers to the scope of a variable, and in C++
@@ -5447,6 +5735,7 @@
   id: totrans-742
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一个有趣的点是`40字节的栈帧`，通常意味着你有局部变量的地址，或者你声明了一个局部数组。在C语言中，“局部”一词指的是变量的作用域，而在C++中，这个术语被“private”关键词取代，这更准确地反映了其含义。
 - en: In CUDA the term “local” refers to the scope of a variable for a given thread.
     Thus, the CUDA documentation also uses the term “local memory,” meaning thread
     private data. Unfortunately, “local” implies near or close, which in memory terms
@@ -5457,6 +5746,7 @@
   id: totrans-743
   prefs: []
   type: TYPE_NORMAL
+  zh: 在CUDA中，“局部”一词指的是给定线程的变量作用域。因此，CUDA文档中也使用了“局部内存”一词，表示线程私有数据。不幸的是，“局部”一词暗示着接近或靠近，而在内存术语中，这可能意味着数据存储在处理器附近。实际上，“局部数据”存储在计算1.x设备的全局内存中，或者存储在Fermi设备的L1缓存中。因此，只有在Fermi设备上，它才真正是“局部的”处理器，而且即便如此，它的大小也受到限制。
 - en: The stack frame is something you typically see with compute 2.x device code,
     especially if using atomic operations. The stack frame will also exist in the
     L1 cache unless it becomes too large. Where possible the CUDA compiler will simply
@@ -5468,6 +5758,7 @@
   id: totrans-744
   prefs: []
   type: TYPE_NORMAL
+  zh: 栈帧通常出现在计算2.x设备的代码中，尤其是在使用原子操作时。栈帧也会存在于L1缓存中，除非它变得太大。在可能的情况下，CUDA编译器会直接内联对设备函数的调用，从而消除传递形式参数给被调用函数的需要。如果栈帧只是为了通过引用（即指针）传递值给设备函数，通常最好去掉调用并手动将函数内联到调用者中。这将消除栈帧并显著提高速度。
 - en: The next section lists `8+0 bytes lmem`. By “lmem” the compiler is referring
     to local memory. Thus, for 8 bytes, probably a couple of floats or integers have
     been placed into local memory. Again this is typically not a good indication as,
@@ -5478,6 +5769,7 @@
   id: totrans-745
   prefs: []
   type: TYPE_NORMAL
+  zh: 下一部分列出了`8+0字节的lmem`。通过“lmem”编译器指的是局部内存。因此，对于8字节，很可能有几个浮点数或整数被放入局部内存。再次强调，这通常不是一个好的指示，尤其是在计算1.x设备上，因为会有隐式的内存读取/写入到全局内存中。这表明你需要考虑如何重写内核，可能的话将这些值放入共享内存或常量内存中。
 - en: Note the *a* + *b* notation used here denotes the total amount of variables
     declared in those sections (the first number), and then the amount used by the
     system (the second number). Also `smem` (shared memory) usages will be listed
