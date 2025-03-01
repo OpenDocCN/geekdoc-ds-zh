@@ -1,0 +1,786 @@
+- en: Appendix A. The CUDA Handbook Library
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As mentioned in [Chapter 1](ch01.html#ch01), the source code accompanying this
+    book is open source under the two-paragraph BSD license. A pointer to the source
+    code is available on [www.cudahandbook.com](http://www.cudahandbook.com), and
+    developers can find the Git repository at [https://github.com/ArchaeaSoftware/cudahandbook](https://github.com/ArchaeaSoftware/cudahandbook).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This Appendix briefly describes the features of the CUDA Handbook Library (chLib),
+    a set of portable header files located in the `chLib/` subdirectory of the source
+    code project. chLib is not intended to be reused in production software. It provides
+    the minimum functionality, in the smallest possible amount of source code, needed
+    to illustrate the concepts covered in this book. chLib is portable to all target
+    operating systems for CUDA, so it often must expose support for the intersection
+    of those operating systems’ features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A.1\. Timing
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The CUDA Handbook library includes a portable timing library that uses `QueryPerformanceCounter()`
+    on Windows and `gettimeofday()` on non-Windows platforms. An example usage is
+    as follows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#p471pro01a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: float
+  prefs: []
+  type: TYPE_NORMAL
+- en: TimeNULLKernelLaunches(int cIterations = 1000000 )
+  prefs: []
+  type: TYPE_NORMAL
+- en: '{'
+  prefs: []
+  type: TYPE_NORMAL
+- en: chTimerTimestamp start, stop;
+  prefs: []
+  type: TYPE_NORMAL
+- en: chTimerGetTime( &start );
+  prefs: []
+  type: TYPE_NORMAL
+- en: for ( int i = 0; i < cIterations; i++ ) {
+  prefs: []
+  type: TYPE_NORMAL
+- en: NullKernel<<<1,1>>>();
+  prefs: []
+  type: TYPE_NORMAL
+- en: '}'
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaThreadSynchronize();
+  prefs: []
+  type: TYPE_NORMAL
+- en: chTimerGetTime( &stop );
+  prefs: []
+  type: TYPE_NORMAL
+- en: return 1e6*chTimerElapsedTime( &start, &stop ) /
+  prefs: []
+  type: TYPE_NORMAL
+- en: (float) cIterations;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '}'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This function times the specified number of kernel launches and returns the
+    microseconds per launch. `chTimerTimestamp` is a high-resolution timestamp. Usually
+    it is a 64-bit counter that increases monotonically over time, so two timestamps
+    are needed to compute a time interval.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `chTimerGetTime()` function takes a snapshot of the current time. The `chTimerElapsedTime()`
+    function returns the number of seconds that elapsed between two timestamps. The
+    resolution of these timers is very fine (perhaps a microsecond), so `chTimerElapsedTime()`
+    returns `double`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#p472pro01a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#ifdef _WIN32'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#include <windows.h>'
+  prefs: []
+  type: TYPE_NORMAL
+- en: typedef LARGE_INTEGER chTimerTimestamp;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#else'
+  prefs: []
+  type: TYPE_NORMAL
+- en: typedef struct timeval chTimerTimestamp;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#endif'
+  prefs: []
+  type: TYPE_NORMAL
+- en: void chTimerGetTime(chTimerTimestamp *p);
+  prefs: []
+  type: TYPE_NORMAL
+- en: double chTimerElapsedTime( chTimerTimestamp *pStart, chTimerTimestamp
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*pEnd );'
+  prefs: []
+  type: TYPE_NORMAL
+- en: double chTimerBandwidth( chTimerTimestamp *pStart, chTimerTimestamp
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*pEnd, double cBytes );'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We may use CUDA events when measuring performance in isolation on the CUDA-capable
+    GPU, such as when measuring device memory bandwidth of a kernel. Using CUDA events
+    for timing is a two-edged sword: They are less affected by spurious system-level
+    events, such as network traffic, but that sometimes can lead to overly optimistic
+    timing results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A.2\. Threading
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: chLib includes a minimalist threading library that enables the creation of a
+    pool of “worker” CPU threads, plus facilities that enable a parent thread to “delegate”
+    work onto worker threads. Threading is a particularly difficult feature to abstract,
+    since different operating systems have such different facilities to enable it.
+    Some operating systems even have “thread pools” that enable threads to be easily
+    recycled, so applications don’t have to keep threads suspended waiting for a synchronization
+    event that will be signaled when some work comes along.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Listing A.1](app01.html#app01lis01) gives the abstract threading support from
+    `chLib/chThread.h`. It includes a `processorCount()` function that returns the
+    number of CPU cores available (many applications that use multiple threads to
+    take advantage of multiple CPU cores, such as our multithreaded N-body implementation
+    in [Chapter 14](ch14.html#ch14), want to spawn one thread per core) and a C++
+    class `workerThread` that enables a few simple threading operations.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creation and destruction
+  prefs: []
+  type: TYPE_NORMAL
+- en: '• `delegateSynchronous()`: the parent thread specifies a pointer to function
+    for the worker to execute, and the function does not return until the worker thread
+    is done.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '• `delegateAsynchronous()`: the parent thread specifies a pointer to function
+    for the worker to run asynchronously; `workerThread::waitAll` must be called in
+    order to synchronize the parent with its children.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • The member function `waitAll()` waits until all specified worker threads have
+    completed their delegated work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Listing A.1.* `workerThread` class.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#papp_apro01a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: //
+  prefs: []
+  type: TYPE_NORMAL
+- en: // Return the number of execution cores on the platform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: //
+  prefs: []
+  type: TYPE_NORMAL
+- en: unsigned int processorCount();
+  prefs: []
+  type: TYPE_NORMAL
+- en: //
+  prefs: []
+  type: TYPE_NORMAL
+- en: // workerThread class - includes a thread ID (specified to constructor)
+  prefs: []
+  type: TYPE_NORMAL
+- en: //
+  prefs: []
+  type: TYPE_NORMAL
+- en: class workerThread
+  prefs: []
+  type: TYPE_NORMAL
+- en: '{'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'public:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: workerThread( int cpuThreadId = 0 );
+  prefs: []
+  type: TYPE_NORMAL
+- en: virtual ~workerThread();
+  prefs: []
+  type: TYPE_NORMAL
+- en: bool initialize( );
+  prefs: []
+  type: TYPE_NORMAL
+- en: // thread routine (platform specific)
+  prefs: []
+  type: TYPE_NORMAL
+- en: static void threadRoutine( LPVOID );
+  prefs: []
+  type: TYPE_NORMAL
+- en: //
+  prefs: []
+  type: TYPE_NORMAL
+- en: // call this from your app thread to delegate to the worker.
+  prefs: []
+  type: TYPE_NORMAL
+- en: // it will not return until your pointer-to-function has been
+  prefs: []
+  type: TYPE_NORMAL
+- en: // called with the given parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: //
+  prefs: []
+  type: TYPE_NORMAL
+- en: bool delegateSynchronous( void (*pfn)(void *), void *parameter );
+  prefs: []
+  type: TYPE_NORMAL
+- en: //
+  prefs: []
+  type: TYPE_NORMAL
+- en: // call this from your app thread to delegate to the worker
+  prefs: []
+  type: TYPE_NORMAL
+- en: // asynchronously. Since it returns immediately, you must call
+  prefs: []
+  type: TYPE_NORMAL
+- en: // waitAll later
+  prefs: []
+  type: TYPE_NORMAL
+- en: bool delegateAsynchronous( void (*pfn)(void *), void *parameter );
+  prefs: []
+  type: TYPE_NORMAL
+- en: static bool waitAll( workerThread *p, size_t N );
+  prefs: []
+  type: TYPE_NORMAL
+- en: '};'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A.3\. Driver API Facilities
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '`chDrv.h` contains some useful facilities for driver API developers: The `chCUDADevice`
+    class, shown in [Listing A.2](app01.html#app01lis02), simplifies management of
+    devices and contexts. Its `loadModuleFromFile` method simplifies the creation
+    of a module from a `.cubin` or `.ptx` file.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, the `chGetErrorString()` function passes back a read-only string
+    corresponding to an error value. Besides implementing this function declared in
+    `chDrv.h` for the driver API’s `CUresult` type, a specialization of `chGetErrorString()`
+    also wraps the CUDA runtime’s `cudaGetErrorString()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Listing A.2.* chCUDADevice class.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#papp_apro02a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: class chCUDADevice
+  prefs: []
+  type: TYPE_NORMAL
+- en: '{'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'public:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: chCUDADevice();
+  prefs: []
+  type: TYPE_NORMAL
+- en: virtual ~chCUDADevice();
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUresult Initialize(
+  prefs: []
+  type: TYPE_NORMAL
+- en: int ordinal,
+  prefs: []
+  type: TYPE_NORMAL
+- en: list<string>& moduleList,
+  prefs: []
+  type: TYPE_NORMAL
+- en: unsigned int Flags = 0,
+  prefs: []
+  type: TYPE_NORMAL
+- en: unsigned int numOptions = 0,
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUjit_option *options = NULL,
+  prefs: []
+  type: TYPE_NORMAL
+- en: void **optionValues = NULL );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUresult loadModuleFromFile(
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUmodule *pModule,
+  prefs: []
+  type: TYPE_NORMAL
+- en: string fileName,
+  prefs: []
+  type: TYPE_NORMAL
+- en: unsigned int numOptions = 0,
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUjit_option *options = NULL,
+  prefs: []
+  type: TYPE_NORMAL
+- en: void **optionValues = NULL );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUdevice device() const { return m_device; }
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUcontext context() const { return m_context; }
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUmodule module( string s ) const { return (*m_modules.find(s)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: second; }
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'private:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUdevice m_device;
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUcontext m_context;
+  prefs: []
+  type: TYPE_NORMAL
+- en: map<string, CUmodule> m_modules;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '};'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A.4\. Shmoos
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: A “shmoo plot” refers to a graphical display of test circuit patterns as two
+    inputs (such as voltage and clock rate) vary. When writing code to identify the
+    optimal blocking parameters for various kernels, it is useful to do similar tests
+    by varying inputs such as the threadblock size and loop unroll factor. [Listing
+    A.3](app01.html#app01lis03) shows the `chShmooRange` class, which encapsulates
+    a parameter range, and the `chShmooIterator` class, which enables `for` loops
+    to easily iterate over a given range.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Listing A.3.* chShmooRange and chShmooIterator classes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#papp_apro03a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: class chShmooRange {
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'public:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: chShmooRange( ) { }
+  prefs: []
+  type: TYPE_NORMAL
+- en: void Initialize( int value );
+  prefs: []
+  type: TYPE_NORMAL
+- en: bool Initialize( int min, int max, int step );
+  prefs: []
+  type: TYPE_NORMAL
+- en: bool isStatic() const { return m_min==m_max; }
+  prefs: []
+  type: TYPE_NORMAL
+- en: friend class chShmooIterator;
+  prefs: []
+  type: TYPE_NORMAL
+- en: int min() const { return m_min; }
+  prefs: []
+  type: TYPE_NORMAL
+- en: int max() const { return m_max; }
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'private:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: bool m_initialized;
+  prefs: []
+  type: TYPE_NORMAL
+- en: int m_min, m_max, m_step;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '};'
+  prefs: []
+  type: TYPE_NORMAL
+- en: class chShmooIterator
+  prefs: []
+  type: TYPE_NORMAL
+- en: '{'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'public:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: chShmooIterator( const chShmooRange& range );
+  prefs: []
+  type: TYPE_NORMAL
+- en: int operator *() const { return m_i; }
+  prefs: []
+  type: TYPE_NORMAL
+- en: operator bool() const { return m_i <= m_max; }
+  prefs: []
+  type: TYPE_NORMAL
+- en: void operator++(int) { m_i += m_step; };
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'private:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: int m_i;
+  prefs: []
+  type: TYPE_NORMAL
+- en: int m_max;
+  prefs: []
+  type: TYPE_NORMAL
+- en: int m_step;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '};'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The command line parser also includes a specialization that creates a `chShmooRange`
+    based on command-line parameters: Prepend “min,” “max,” and “step” onto the keyword,
+    and the corresponding range will be passed back. If any of the three are missing,
+    the function returns `false`. The `concurrencyKernelKernel` sample (in the `concurrency/`subdirectory),
+    for example, takes measurements over ranges of stream count and clock cycle count.
+    The code to extract these values from the command line is as follows.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#p476pro01a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: chShmooRange streamsRange;
+  prefs: []
+  type: TYPE_NORMAL
+- en: const int numStreams = 8;
+  prefs: []
+  type: TYPE_NORMAL
+- en: if ( ! chCommandLineGet(&streamsRange, "Streams", argc, argv) ) {
+  prefs: []
+  type: TYPE_NORMAL
+- en: streamsRange.Initialize( numStreams );
+  prefs: []
+  type: TYPE_NORMAL
+- en: '}'
+  prefs: []
+  type: TYPE_NORMAL
+- en: chShmooRange cyclesRange;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '{'
+  prefs: []
+  type: TYPE_NORMAL
+- en: const int minCycles = 8;
+  prefs: []
+  type: TYPE_NORMAL
+- en: const int maxCycles = 512;
+  prefs: []
+  type: TYPE_NORMAL
+- en: const int stepCycles = 8;
+  prefs: []
+  type: TYPE_NORMAL
+- en: cyclesRange.Initialize( minCycles, maxCycles, stepCycles );
+  prefs: []
+  type: TYPE_NORMAL
+- en: chCommandLineGet( &cyclesRange, "Cycles", argc, argv );
+  prefs: []
+  type: TYPE_NORMAL
+- en: '}'
+  prefs: []
+  type: TYPE_NORMAL
+- en: And users can specify the parameters to the application as follows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: concurrencyKernelKernel -- minStreams 2 --maxStreams 16 stepStreams 2
+  prefs: []
+  type: TYPE_NORMAL
+- en: A.5\. Command Line Parsing
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: A portable command line parsing library (only about 100 lines of C++) is in
+    `chCommandLine.h`. It includes the templated function `chCommandLineGet()`, which
+    passes back a variable of a given type, and `chCommandLineGetBool()`, which returns
+    whether a given keyword was given in the command line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#p476pro02a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: template<typename T> T
+  prefs: []
+  type: TYPE_NORMAL
+- en: chCommandLineGet( T *p, const char *keyword, int argc, char *argv[] );
+  prefs: []
+  type: TYPE_NORMAL
+- en: As described in the previous section, a specialization of `chCommandLineGet()`
+    will pass back an instance of `chShmooRange`. In order for this specialization
+    to be compiled, `chShmoo.h` must be included before `chCommandLine.h`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A.6\. Error Handling
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '`chError.h` implements a set of macros that implement the `goto`-based error
+    handling mechanism described in [Section 1.2.3](ch01.html#ch01lev2sec3). These
+    macros do the following.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Assign the return value to a variable called `status`
+  prefs: []
+  type: TYPE_NORMAL
+- en: • Check `status` for success and, if in debug mode, report the error to `stderr`
+  prefs: []
+  type: TYPE_NORMAL
+- en: • If `status` contains an error, `goto` a label called `Error`
+  prefs: []
+  type: TYPE_NORMAL
+- en: The CUDA runtime version is as follows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#p477pro01a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#ifdef DEBUG'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#define CUDART_CHECK( fn ) do { \'
+  prefs: []
+  type: TYPE_NORMAL
+- en: (status) = (fn); \
+  prefs: []
+  type: TYPE_NORMAL
+- en: if ( cudaSuccess != (status) ) { \
+  prefs: []
+  type: TYPE_NORMAL
+- en: fprintf( stderr, "CUDA Runtime Failure (line %d of file %s):\n\t" \
+  prefs: []
+  type: TYPE_NORMAL
+- en: '"%s returned 0x%x (%s)\n", \'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '__LINE__, __FILE__, #fn, status, cudaGetErrorString(status) ); \'
+  prefs: []
+  type: TYPE_NORMAL
+- en: goto Error; \
+  prefs: []
+  type: TYPE_NORMAL
+- en: '} \'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '} while (0);'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#else'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#define CUDART_CHECK( fn ) do { \'
+  prefs: []
+  type: TYPE_NORMAL
+- en: status = (fn); \
+  prefs: []
+  type: TYPE_NORMAL
+- en: if ( cudaSuccess != (status) ) { \
+  prefs: []
+  type: TYPE_NORMAL
+- en: goto Error; \
+  prefs: []
+  type: TYPE_NORMAL
+- en: '} \'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '} while (0);'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '#endif'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `do..while` is a C programming idiom, commonly used in macros, that causes
+    the macro invocation to evaluate to a single statement. Using these macros will
+    generate compile errors if either the variable `status` or the label `Error:`
+    is not defined.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One implication of using `goto` is that all variables must be declared at the
+    top of the block. Otherwise, some compilers generate errors because the `goto`
+    statements can bypass initialization. When that happens, the variables being initialized
+    must be moved above the first `goto` or moved into a basic block so the `goto`
+    is outside their scope.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Listing A.4](app01.html#app01lis04) gives an example function that follows
+    the idiom. The return value and intermediate resources are initialized to values
+    that can be dealt with by the cleanup code. In this case, all of the resources
+    allocated by the function also are freed by the function, so the cleanup code
+    and error handling code are the same. Functions that will only free some of the
+    resources they allocate must implement the success and failure cases in separate
+    blocks of code.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Listing A.4.* Example of `goto`-based error handling.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Click here to view code image](app01_images.html#papp_apro04a)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: double
+  prefs: []
+  type: TYPE_NORMAL
+- en: TimedReduction(
+  prefs: []
+  type: TYPE_NORMAL
+- en: int *answer, const int *deviceIn, size_t N,
+  prefs: []
+  type: TYPE_NORMAL
+- en: int cBlocks, int cThreads,
+  prefs: []
+  type: TYPE_NORMAL
+- en: pfnReduction hostReduction
+  prefs: []
+  type: TYPE_NORMAL
+- en: )
+  prefs: []
+  type: TYPE_NORMAL
+- en: '{'
+  prefs: []
+  type: TYPE_NORMAL
+- en: double ret = 0.0;
+  prefs: []
+  type: TYPE_NORMAL
+- en: int *deviceAnswer = 0;
+  prefs: []
+  type: TYPE_NORMAL
+- en: int *partialSums = 0;
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaEvent_t start = 0;
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaEvent_t stop = 0;
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaError_t status;
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDART_CHECK( cudaMalloc( &deviceAnswer, sizeof(int) ) );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDART_CHECK( cudaMalloc( &partialSums, cBlocks*sizeof(int) ) );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDART_CHECK( cudaEventCreate( &start ) );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDART_CHECK( cudaEventCreate( &stop ) );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDART_CHECK( cudaThreadSynchronize() );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDART_CHECK( cudaEventRecord( start, 0 ) );
+  prefs: []
+  type: TYPE_NORMAL
+- en: hostReduction(
+  prefs: []
+  type: TYPE_NORMAL
+- en: deviceAnswer,
+  prefs: []
+  type: TYPE_NORMAL
+- en: partialSums,
+  prefs: []
+  type: TYPE_NORMAL
+- en: deviceIn,
+  prefs: []
+  type: TYPE_NORMAL
+- en: N,
+  prefs: []
+  type: TYPE_NORMAL
+- en: cBlocks,
+  prefs: []
+  type: TYPE_NORMAL
+- en: cThreads );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDART_CHECK( cudaEventRecord( stop, 0 ) );
+  prefs: []
+  type: TYPE_NORMAL
+- en: CUDART_CHECK( cudaMemcpy(
+  prefs: []
+  type: TYPE_NORMAL
+- en: answer,
+  prefs: []
+  type: TYPE_NORMAL
+- en: deviceAnswer,
+  prefs: []
+  type: TYPE_NORMAL
+- en: sizeof(int),
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaMemcpyDeviceToHost ) );
+  prefs: []
+  type: TYPE_NORMAL
+- en: ret = chEventBandwidth( start, stop, N*sizeof(int) ) /
+  prefs: []
+  type: TYPE_NORMAL
+- en: powf(2.0f,30.0f);
+  prefs: []
+  type: TYPE_NORMAL
+- en: // fall through to free resources before returning
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Error:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaFree( deviceAnswer );
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaFree( partialSums );
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaEventDestroy( start );
+  prefs: []
+  type: TYPE_NORMAL
+- en: cudaEventDestroy( stop );
+  prefs: []
+  type: TYPE_NORMAL
+- en: return ret;
+  prefs: []
+  type: TYPE_NORMAL
+- en: '}'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL

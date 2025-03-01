@@ -1,7 +1,9 @@
 - en: '**Chapter 4 Parallel Programming in CUDA C**'
+  id: totrans-0
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: '**第4章 CUDA C中的并行编程**'
 - en: In the previous chapter, we saw how simple it can be to write code that executes
     on the GPU. We have even gone so far as to learn how to add two numbers together,
     albeit just the numbers 2 and 7\. Admittedly, that example was not immensely impressive,
@@ -10,25 +12,39 @@
     of GPU computing lies in exploiting the massively parallel structure of many problems.
     In this vein, we intend to spend this chapter examining how to execute parallel
     code on the GPU using CUDA C.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一章中，我们看到如何简单地编写在 GPU 上执行的代码。我们甚至学习了如何将两个数字相加，尽管只是数字 2 和 7。老实说，这个例子并没有太多的震撼力，也不算特别有趣。但我们希望你已经确信，开始使用
+    CUDA C 是很容易的，并且你会激动于学习更多内容。GPU 计算的巨大潜力之一就是利用许多问题的海量并行结构。在这个背景下，我们打算在本章中探讨如何使用
+    CUDA C 在 GPU 上执行并行代码。
 - en: '**4.1 Chapter Objectives**'
+  id: totrans-2
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**4.1 本章目标**'
 - en: 'Through the course of this chapter, you will accomplish the following:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章过程中，你将完成以下任务：
 - en: • You will learn one of the fundamental ways CUDA exposes its parallelism.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: • 你将学习 CUDA 如何暴露其并行性的一种基本方式。
 - en: • You will write your first parallel code with CUDA C.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: • 你将编写你的第一个 CUDA C 并行代码。
 - en: '**4.2 CUDA Parallel Programming**'
+  id: totrans-6
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**4.2 CUDA 并行编程**'
 - en: Previously, we saw how easy it was to get a standard C function to start running
     on a device. By adding the `__global__` qualifier to the function and by calling
     it using a special angle bracket syntax, we executed the function on our GPU.
@@ -38,52 +54,78 @@
     ever launched a kernel that runs serially on the GPU. In this chapter, we see
     how straightforward it is to launch a device kernel that performs its computations
     in parallel.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 之前，我们已经看到，如何让标准 C 函数在设备上运行是多么容易。通过给函数添加`__global__`修饰符，并使用特殊的尖括号语法调用它，我们可以在
+    GPU 上执行该函数。尽管这非常简单，但也极为低效，因为 NVIDIA 的硬件工程师们已经优化了他们的图形处理器，使得其能够并行执行数百次计算。然而，到目前为止，我们所做的只是启动了一个在
+    GPU 上串行执行的内核。在本章中，我们将看到如何轻松启动一个在设备上并行执行计算的内核。
 - en: '**4.2.1 Summing Vectors**'
+  id: totrans-8
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**4.2.1 向量求和**'
 - en: We will contrive a simple example to illustrate threads and how we use them
     to code with CUDA C. Imagine having two lists of numbers where we want to sum
     corresponding elements of each list and store the result in a third list. [Figure
     4.1](ch04.html#ch04fig01) shows this process. If you have any background in linear
     algebra, you will recognize this operation as summing two vectors.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将设计一个简单的示例来说明线程以及我们如何使用它们在 CUDA C 中编程。假设有两个数字列表，我们希望对每个列表的对应元素求和，并将结果存储在第三个列表中。[图4.1](ch04.html#ch04fig01)展示了这个过程。如果你有线性代数的背景，你会认识到这个操作就是求两个向量的和。
 - en: '***Figure 4.1*** Summing two vectors'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图4.1*** 两个向量的求和'
 - en: '![image](graphics/ch_04_figure_4-1-1_u.jpg)'
+  id: totrans-11
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_04_figure_4-1-1_u.jpg)'
 - en: '**CPU Vector Sums**'
+  id: totrans-12
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: '**CPU 向量求和**'
 - en: 'First we’ll look at one way this addition can be accomplished with traditional
     C code:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们将通过传统的 C 代码来看一下如何完成这个加法操作：
 - en: '![image](graphics/p0039-01.jpg)'
+  id: totrans-14
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0039-01.jpg)'
 - en: Most of this example bears almost no explanation, but we will briefly look at
     the `add()` function to explain why we overly complicated it.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个示例中的大部分内容几乎不需要解释，但我们将简要看一下`add()`函数，来说明为什么我们将其写得过于复杂。
 - en: '![image](graphics/p0040-01.jpg)'
+  id: totrans-16
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0040-01.jpg)'
 - en: 'We compute the sum within a `while` loop where the index `tid` ranges from
     `0` to `N-1`. We add corresponding elements of `a[]` and `b[]`, placing the result
     in the corresponding element of `c[]`. One would typically code this in a slightly
     simpler manner, like so:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在一个`while`循环中计算和，其中索引`tid`的范围从`0`到`N-1`。我们将`a[]`和`b[]`的对应元素相加，并将结果放入`c[]`的相应元素中。通常情况下，代码写法会稍微简化一些，如下所示：
 - en: '![image](graphics/p0040-02.jpg)'
+  id: totrans-18
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0040-02.jpg)'
 - en: 'Our slightly more convoluted method was intended to suggest a potential way
     to parallelize the code on a system with multiple CPUs or CPU cores. For example,
     with a dual-core processor, one could change the increment to 2 and have one core
@@ -91,55 +133,80 @@
     would add the even-indexed elements, and the second core would add the odd-indexed
     elements. This amounts to executing the following code on each of the two CPU
     cores:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们略显复杂的方法旨在建议一种可能的方式，用于在具有多个CPU或CPU核心的系统上并行化代码。例如，在一个双核处理器上，可以将增量改为2，并让一个核心以`tid
+    = 0`初始化循环，另一个核心以`tid = 1`初始化。第一个核心将加和偶数索引的元素，第二个核心将加和奇数索引的元素。这相当于在每个CPU核心上执行以下代码：
 - en: '![image](graphics/p0041-01.jpg)'
+  id: totrans-20
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0041-01.jpg)'
 - en: Of course, doing this on a CPU would require considerably more code than we
     have included in this example. You would need to provide a reasonable amount of
     infrastructure to create the worker threads that execute the function `add()`
     as well as make the assumption that each thread would execute in parallel, a scheduling
     assumption that is unfortunately not always true.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 当然，在CPU上执行这项任务将需要比我们在这个示例中包含的更多的代码。你需要提供一定的基础设施来创建执行`add()`函数的工作线程，并假设每个线程都能并行执行，这个调度假设遗憾的是并不总是成立的。
 - en: '**GPU Vector Sums**'
+  id: totrans-22
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: '**GPU 向量求和**'
 - en: 'We can accomplish the same addition very similarly on a GPU by writing `add()`
     as a device function. This should look similar to code you saw in the previous
     chapter. But before we look at the device code, we present `main()`. Although
     the GPU implementation of `main()` is different from the corresponding CPU version,
     nothing here should look new:'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过将`add()`编写为设备函数，在GPU上非常相似地完成相同的加法。这应该和你在上一章看到的代码类似。但在查看设备代码之前，我们先展示`main()`。尽管GPU版本的`main()`与相应的CPU版本不同，但这里的内容不应该显得陌生：
 - en: '![image](graphics/p0041-02.jpg)'
+  id: totrans-24
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0041-02.jpg)'
 - en: '![image](graphics/p0042-01.jpg)'
+  id: totrans-25
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0042-01.jpg)'
 - en: 'You will notice some common patterns that we employ again:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 你会注意到我们再次采用了一些常见的模式：
 - en: '• We allocate three arrays on the device using calls to `cudaMalloc()`: two
     arrays, `dev_a` and `dev_b`, to hold inputs, and one array, `dev_c`, to hold the
     result.'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: • 我们使用`cudaMalloc()`调用在设备上分配了三个数组：两个数组`dev_a`和`dev_b`用于存放输入，一个数组`dev_c`用于存放结果。
 - en: • Because we are environmentally conscientious coders, we clean up after ourselves
     with `cudaFree()`.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: • 因为我们是环保的程序员，我们用`cudaFree()`清理了自己使用过的资源。
 - en: • Using `cudaMemcpy()`, we copy the input data to the device with the parameter
     `cudaMemcpyHostToDevice` and copy the result data back to the host with `cudaMemcpyDeviceToHost`.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: • 使用`cudaMemcpy()`，我们将输入数据通过参数`cudaMemcpyHostToDevice`复制到设备，将结果数据通过`cudaMemcpyDeviceToHost`复制回主机。
 - en: • We execute the device code in `add()` from the host code in `main()` using
     the triple angle bracket syntax.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: • 我们使用三重尖括号语法，从主机代码`main()`中执行设备代码`add()`。
 - en: As an aside, you may be wondering why we fill the input arrays on the CPU. There
     is no reason in particular why we *need* to do this. In fact, the performance
     of this step would be faster if we filled the arrays on the GPU. But we intend
@@ -149,74 +216,106 @@
     have been generated by some other algorithm or loaded from the hard drive by the
     user. In summary, it will suffice to pretend that this data appeared out of nowhere
     and now we need to do something with it.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 顺便提一下，你可能会想知道为什么我们在CPU上填充输入数组。其实并没有特别的理由必须这么做。实际上，如果我们在GPU上填充数组，这一步的性能会更快。但我们意在展示如何在图形处理器上实现一个特定的操作，即两个向量的加法。因此，我们要求你想象这只是一个更大应用中的一步，其中输入数组`a[]`和`b[]`已经由其他算法生成或由用户从硬盘加载。总之，可以假装这些数据是凭空出现的，现在我们需要对其进行处理。
 - en: 'Moving on, our `add()` routine looks similar to its corresponding CPU implementation:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们的`add()`例程看起来与其对应的CPU实现相似：
 - en: '![image](graphics/p0043-01.jpg)'
+  id: totrans-33
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0043-01.jpg)'
 - en: 'Again we see a common pattern with the function `add()`:'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 再次，我们看到函数`add()`中的常见模式：
 - en: • We have written a function called `add()` that executes on the device. We
     accomplished this by taking C code and adding a `__global__` qualifier to the
     function name.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: • 我们编写了一个名为`add()`的函数，它在设备上执行。我们通过将`__global__`限定符添加到函数名中来实现这一点。
 - en: 'So far, there is nothing new in this example except it can do more than add
     2 and 7\. However, there *are* two noteworthy components of this example: The
     parameters within the triple angle brackets and the code contained in the kernel
     itself both introduce new concepts.'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，这个例子没有什么新奇的地方，除了它能做的不仅仅是加法 2 和 7。然而，这个例子中*有*两个值得注意的部分：三重角括号中的参数和内核代码本身引入了新的概念。
 - en: 'Up to this point, we have always seen kernels launched in the following form:'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们总是看到以以下形式启动的内核：
 - en: kernel<<<1,1>>>( param1, param2, . . . );
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: kernel<<<1,1>>>( param1, param2, . . . );
 - en: 'But in this example we are launching with a number in the angle brackets that
     is not 1:'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 但在这个例子中，我们启动时使用了角括号中的一个数字，而不是1：
 - en: add<<<N,1>>>( dev _ a, dev _ b, dev _ c );
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: add<<<N,1>>>( dev _ a, dev _ b, dev _ c );
 - en: What gives?
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 怎么回事？
 - en: Recall that we left those two numbers in the angle brackets unexplained; we
     stated vaguely that they were parameters to the runtime that describe how to launch
     the kernel. Well, the first number in those parameters represents the number of
     parallel blocks in which we would like the device to execute our kernel. In this
     case, we’re passing the value `N` for this parameter.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 回想一下，我们将角括号中的两个数字留未解释；我们模糊地说它们是描述如何启动内核的运行时参数。那么，这些参数中的第一个数字表示我们希望设备在多少个并行块中执行我们的内核。在这种情况下，我们传递了`N`的值作为这个参数。
 - en: For example, if we launch with `kernel<<<2,1>>>()`, you can think of the runtime
     creating two copies of the kernel and running them in parallel. We call each of
     these parallel invocations a *block*. With `kernel<<<256,1>>>()`, you would get
     256 *blocks* running on the GPU. Parallel programming has never been easier.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，如果我们使用`kernel<<<2,1>>>()`来启动，你可以想象运行时创建两个内核副本并将它们并行运行。我们将每一个并行调用称为*块*。使用`kernel<<<256,1>>>()`，你将得到256个*块*在GPU上运行。并行编程从未如此简单。
 - en: 'But this raises an excellent question: The GPU runs `N` copies of our kernel
     code, but how can we tell from within the code which block is currently running?
     This question brings us to the second new feature of the example, the kernel code
     itself. Specifically, it brings us to the variable `blockIdx.x`:'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 但这引出了一个很好的问题：GPU运行`N`个内核代码副本，但我们如何从代码中判断当前是哪个块在运行呢？这个问题引出了例子中的第二个新特性——内核代码本身。具体来说，它引出了变量`blockIdx.x`：
 - en: '![image](graphics/p0044-01.jpg)'
+  id: totrans-45
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0044-01.jpg)'
 - en: At first glance, it looks like this variable should cause a syntax error at
     compile time since we use it to assign the value of `tid`, but we have never defined
     it. However, there is no need to define the variable `blockIdx`; this is one of
     the built-in variables that the CUDA runtime defines for us. Furthermore, we use
     this variable for exactly what it sounds like it means. It contains the value
     of the block index for whichever block is currently running the device code.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 乍一看，这个变量似乎会在编译时引发语法错误，因为我们用它来赋值给`tid`，但我们从未定义过它。然而，不需要定义`blockIdx`变量；这是CUDA运行时为我们定义的内置变量之一。此外，我们用这个变量正是它字面意思的用途。它包含当前运行设备代码的块的索引值。
 - en: Why, you may then ask, is it not just `blockIdx`? Why `blockIdx.x`? As it turns
     out, CUDA C allows you to define a group of blocks in two dimensions. For problems
     with two-dimensional domains, such as matrix math or image processing, it is often
@@ -224,8 +323,10 @@
     linear to rectangular indices. Don’t worry if you aren’t familiar with these problem
     types; just know that using two-dimensional indexing can sometimes be more convenient
     than one-dimensional indexing. But you never *have* to use it. We won’t be offended.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，你可能会问，为什么不是简单的`blockIdx`呢？为什么是`blockIdx.x`？事实上，CUDA C允许你在二维中定义一组块。对于二维域的问题，例如矩阵运算或图像处理，使用二维索引通常更方便，避免了从一维到二维的繁琐转换。如果你不熟悉这些问题类型，也不用担心；只要知道，在某些情况下，使用二维索引比使用一维索引更为方便。但你*不必*使用它。我们不会介意的。
 - en: 'When we launched the kernel, we specified `N` as the number of parallel blocks.
     We call the collection of parallel blocks a *grid*. This specifies to the runtime
     system that we want a one-dimensional *grid* of `N` blocks (scalar values are
@@ -235,19 +336,27 @@
     for the variable `blockIdx.x`. This is what the actual code being executed in
     each of the four parallel blocks looks like after the runtime substitutes the
     appropriate block index for `blockIdx.x`:'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们启动内核时，我们指定了 `N` 作为并行块的数量。我们将并行块的集合称为 *网格*。这向运行时系统指定我们希望有一个由 `N` 个块组成的单维 *网格*（标量值被解释为一维）。这些线程将具有不同的
+    `blockIdx.x` 值，第一个为 0，最后一个为 `N-1`。所以，想象四个块，它们都在通过同一份设备代码运行，但 `blockIdx.x` 变量的值不同。这就是在运行时将适当的块索引替换为
+    `blockIdx.x` 后，每个并行块中实际执行的代码：
 - en: '![image](graphics/p0045-01.jpg)'
+  id: totrans-49
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0045-01.jpg)'
 - en: If you recall the CPU-based example with which we began, you will recall that
     we needed to walk through indices from 0 to `N-1` in order to sum the two vectors.
     Since the runtime system is already launching a kernel where each block will have
     one of these indices, nearly all of this work has already been done for us. Because
     we’re something of a lazy lot, this is a good thing. It affords us more time to
     blog, probably about how lazy we are.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你还记得我们开始时提到的基于 CPU 的示例，你会记得我们需要遍历从 0 到 `N-1` 的索引来求和两个向量。由于运行时系统已经启动了一个内核，其中每个块都有一个这些索引之一，几乎所有的工作都已经为我们完成了。因为我们有点懒，这对我们来说是件好事。这让我们有更多时间去写博客，可能还会写关于我们有多懒的内容。
 - en: The last remaining question to be answered is, why do we check whether `tid`
     is less than `N`? It *should* always be less than `N`, since we’ve specifically
     launched our kernel such that this assumption holds. But our desire to be lazy
@@ -258,8 +367,12 @@
     fetched memory that wasn’t ours, this would be bad. In fact, it could possibly
     kill the execution of your kernel, since GPUs have sophisticated memory management
     units that kill processes that seem to be violating memory rules.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后一个需要解答的问题是，为什么我们要检查 `tid` 是否小于 `N`？它 *应该* 始终小于 `N`，因为我们特意启动了内核，以确保这个假设成立。但我们懒惰的本性也让我们对别人破坏我们代码中的假设产生了疑虑。破坏代码假设意味着代码出错。这会导致
+    bug 报告、追踪坏行为的漫长夜晚，以及通常会阻碍我们继续写博客的各种活动。如果我们没有检查 `tid` 是否小于 `N`，并且随后访问了不属于我们的内存，那将是很糟糕的。实际上，这甚至可能会导致内核执行中止，因为
+    GPU 具有复杂的内存管理单元，它们会终止看似违反内存规则的进程。
 - en: If you encounter problems like the ones just mentioned, one of the `HANDLE_ERROR()`
     macros that we’ve sprinkled so liberally throughout the code will detect and alert
     you to the situation. As with traditional C programming, the lesson here is that
@@ -269,8 +382,11 @@
     can fail*. As is often the case, the presence of these errors will not prevent
     you from continuing the execution of your application, but they will most certainly
     cause all manner of unpredictable and unsavory side effects downstream.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你遇到刚才提到的问题，我们在代码中到处撒下的 `HANDLE_ERROR()` 宏将会检测并提醒你这种情况。和传统的 C 编程一样，教训在于函数返回错误码是有原因的。虽然我们总是很想忽略这些错误码，但我们希望通过敦促你
+    *检查每个可能失败操作的结果*，来帮你避免经历 *我们* 曾经遭受过的痛苦时光。像往常一样，这些错误的存在不会阻止你继续执行应用程序，但它们肯定会在后续造成各种不可预测和不愉快的副作用。
 - en: 'At this point, you’re running code in parallel on the GPU. Perhaps you had
     heard this was tricky or that you had to understand computer graphics to do general-purpose
     programming on a graphics processor. We hope you are starting to see how CUDA
@@ -282,150 +398,211 @@
     This is simply a hardware-imposed limit, so you will start to see failures if
     you attempt launches with more blocks than this. In the next chapter, we will
     see how to work within this limitation.'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 此时，你正在GPU上并行运行代码。或许你曾听说过这很棘手，或者你必须了解计算机图形学才能在图形处理器上进行通用编程。我们希望你已经开始看到CUDA C如何让你更容易开始编写GPU上的并行代码。我们使用的示例仅仅是对长度为10的向量求和。如果你想看看如何轻松生成一个大规模并行应用程序，可以尝试将`#define
+    N 10`中的10改为10000或50000，来启动成千上万的并行块。不过请注意：你启动的块的任何维度不得超过65,535。这是硬件强加的限制，因此如果你尝试启动更多的块，你将看到失败。在下一章中，我们将看到如何在这个限制内工作。
 - en: '**4.2.2 A Fun Example**'
+  id: totrans-54
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**4.2.2 一个有趣的示例**'
 - en: We don’t mean to imply that adding vectors is anything less than fun, but the
     following example will satisfy those looking for some flashy examples of parallel
     CUDA C.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们并不是说加法向量不有趣，但以下示例将满足那些寻找并行CUDA C的炫酷示例的人。
 - en: The following example will demonstrate code to draw slices of the Julia Set.
     For the uninitiated, the Julia Set is the boundary of a certain class of functions
     over complex numbers. Undoubtedly, this sounds even less fun than vector addition
     and matrix multiplication. However, for almost all values of the functions’ parameters,
     this boundary forms a fractal, one of the most interesting and beautiful curiosities
     of mathematics.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下示例将展示绘制朱利亚集合切片的代码。对于没有接触过的人来说，朱利亚集合是某些复数函数的边界。毫无疑问，这听起来比向量加法和矩阵乘法还要无趣。然而，对于几乎所有函数参数的值，这个边界都会形成一个分形，它是数学中最有趣和最美丽的奇观之一。
 - en: The calculations involved in generating such a set are quite simple. At its
     heart, the Julia Set evaluates a simple iterative equation for points in the complex
     plane. A point is *not* in the set if the process of iterating the equation diverges
     for that point. That is, if the sequence of values produced by iterating the equation
     grows toward infinity, a point is considered *outside* the set. Conversely, if
     the values taken by the equation remain bounded, the point *is* in the set.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 生成这样的集合所涉及的计算非常简单。朱利亚集合的核心是对复平面上的点进行简单的迭代方程求解。如果迭代过程对某个点发散，则该点*不*在集合中。也就是说，如果通过迭代方程产生的值序列趋向无穷大，则该点被认为*在集合外*。相反，如果方程的值保持有界，则该点*在集合内*。
 - en: Computationally, the iterative equation in question is remarkably simple, as
     shown in [Equation 4.1](ch04.html#ch04equ01).
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 从计算角度来看，所涉及的迭代方程非常简单，如[方程 4.1](ch04.html#ch04equ01)所示。
 - en: '***Equation 4.1***'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: '***方程 4.1***'
 - en: '![image](graphics/cm_equation_4-1.jpg)'
+  id: totrans-60
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/cm_equation_4-1.jpg)'
 - en: Computing an iteration of [Equation 4.1](ch04.html#ch04equ01) would therefore
     involve squaring the current value and adding a constant to get the next value
     of the equation.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，计算[方程 4.1](ch04.html#ch04equ01)的迭代涉及将当前值平方并加上常数，从而得到方程的下一个值。
 - en: '**CPU Julia Set**'
+  id: totrans-62
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: '**CPU 朱利亚集合**'
 - en: We will examine a source listing now that will compute and visualize the Julia
     Set. Since this is a more complicated program than we have studied so far, we
     will split it into pieces here. Later in the chapter, you will see the entire
     source listing.
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将现在查看一个源代码清单，它将计算并可视化朱利亚集合。由于这是一个比我们到目前为止所研究的程序更为复杂的程序，我们将在这里将它分成几部分。稍后在本章中，你将看到完整的源代码清单。
 - en: '![image](graphics/p0047-01.jpg)'
+  id: totrans-64
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0047-01.jpg)'
 - en: Our main routine is remarkably simple. It creates the appropriate size bitmap
     image using a utility library provided. Next, it passes a pointer to the bitmap
     data to the kernel function.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的主程序非常简单。它使用提供的实用库创建适当大小的位图图像。接下来，它将指向位图数据的指针传递给内核函数。
 - en: '![image](graphics/p0048-01.jpg)'
+  id: totrans-66
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0048-01.jpg)'
 - en: The computation kernel does nothing more than iterate through all points we
     care to render, calling `julia()` on each to determine membership in the Julia
     Set. The function `julia()` will return 1 if the point is in the set and 0 if
     it is not in the set. We set the point’s color to be red if `julia()` returns
     1 and black if it returns 0\. These colors are arbitrary, and you should feel
     free to choose a color scheme that matches your personal aesthetics.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算内核只不过是遍历我们关心的所有渲染点，对每个点调用`julia()`函数，以确定其是否属于朱利亚集。如果点在集合中，`julia()`函数返回1，如果不在集合中，则返回0。当`julia()`返回1时，我们将该点的颜色设置为红色，当返回0时设置为黑色。这些颜色是任意的，你可以自由选择符合个人审美的配色方案。
 - en: '![image](graphics/p0048-02.jpg)'
+  id: totrans-68
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0048-02.jpg)'
 - en: This function is the meat of the example. We begin by translating our pixel
     coordinate to a coordinate in complex space. To center the complex plane at the
     image center, we shift by `DIM/2`. Then, to ensure that the image spans the range
     of -1.0 to 1.0, we scale the image coordinate by `DIM/2`. Thus, given an image
     point at `(x,y)`, we get a point in complex space at `( (DIM/2 – x)/(DIM/2), ((DIM/2
     – y)/(DIM/2) )`.
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个函数是示例的核心部分。我们首先将像素坐标转换为复数空间中的坐标。为了使复平面以图像中心为中心，我们将其平移`DIM/2`。然后，为了确保图像跨越-1.0到1.0的范围，我们将图像坐标缩放为`DIM/2`。因此，给定一个图像点`(x,
+    y)`，我们得到复数空间中的点`((DIM/2 - x) / (DIM/2), ((DIM/2 - y) / (DIM/2)))`。
 - en: Then, to potentially zoom in or out, we introduce a `scale` factor. Currently,
     the scale is hard-coded to be 1.5, but you should tweak this parameter to zoom
     in or out. If you are feeling really ambitious, you could make this a command-line
     parameter.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，为了可能进行缩放，我们引入了一个`scale`因子。目前，缩放因子被硬编码为1.5，但你应该调整这个参数来放大或缩小。如果你很有雄心壮志，还可以将其作为命令行参数进行调整。
 - en: After obtaining the point in complex space, we then need to determine whether
     the point is in or out of the Julia Set. If you recall the previous section, we
     do this by computing the values of the iterative equation Z[n+1] = z[n]² + C.
     Since C is some arbitrary complex-valued constant, we have chosen `-0.8 + 0.156i`
     because it happens to yield an interesting picture. You should play with this
     constant if you want to see other versions of the Julia Set.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 在获得复数空间中的点之后，我们需要判断该点是否在朱利亚集内。如果你回顾上一节内容，我们通过计算迭代方程Z[n+1] = z[n]² + C的值来判断。由于C是一个任意的复数常数，我们选择了`-0.8
+    + 0.156i`，因为它恰好能产生有趣的图像。如果你想看到朱利亚集的其他版本，可以尝试修改这个常数。
 - en: In the example, we compute 200 iterations of this function. After each iteration,
     we check whether the magnitude of the result exceeds some threshold (1,000 for
     our purposes). If so, the equation is diverging, and we can return 0 to indicate
     that the point is *not* in the set. On the other hand, if we finish all 200 iterations
     and the magnitude is still bounded under 1,000, we assume that the point is in
     the set, and we return 1 to the caller, `kernel()`.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个示例中，我们计算了该函数的200次迭代。每次迭代后，我们检查结果的幅度是否超过某个阈值（对于我们的目的，设定为1,000）。如果超过，则方程发散，我们可以返回0，表示该点*不*在集合内。另一方面，如果我们完成所有200次迭代且幅度仍然在1,000以内，我们认为该点在集合中，并返回1给调用者`kernel()`。
 - en: Since all the computations are being performed on complex numbers, we define
     a generic structure to store complex numbers.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于所有计算都在复数上执行，我们定义了一个通用结构来存储复数。
 - en: '![image](graphics/p0049-01.jpg)'
+  id: totrans-74
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0049-01.jpg)'
 - en: 'The structure represents complex numbers with two data elements: a single-precision
     real component `r` and a single-precision imaginary component `i`. The structure
     defines addition and multiplication operators that combine complex numbers as
     expected. (If you are completely unfamiliar with complex numbers, you can get
     a quick primer online.) Finally, we define a method that returns the magnitude
     of the complex number.'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 该结构表示复数，包含两个数据元素：单精度实部`r`和单精度虚部`i`。该结构定义了加法和乘法运算符，用于按预期合并复数。（如果你对复数完全不熟悉，可以在线查找快速入门资料。）最后，我们定义了一个方法，返回复数的幅度。
 - en: '**GPU Julia Set**'
+  id: totrans-76
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: '**GPU 朱利亚集**'
 - en: The device implementation is remarkably similar to the CPU version, continuing
     a trend you may have noticed.
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 设备实现与CPU版本非常相似，延续了你可能已经注意到的趋势。
 - en: '![image](graphics/p0050-01.jpg)'
+  id: totrans-78
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0050-01.jpg)'
 - en: This version of `main()` looks much more complicated than the CPU version, but
     the flow is actually identical. Like with the CPU version, we create a `DIM` x
     `DIM` bitmap image using our utility library. But because we will be doing computation
     on a GPU, we also declare a pointer called `dev_bitmap` to hold a copy of the
     data on the device. And to hold data, we need to allocate memory using `cudaMalloc()`.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个版本的`main()`看起来比 CPU 版本复杂得多，但流程实际上是相同的。和 CPU 版本一样，我们使用我们的工具库创建一个`DIM` x `DIM`
+    的位图图像。但因为我们将在 GPU 上进行计算，我们还声明了一个名为`dev_bitmap`的指针，用于保存设备上的数据副本。为了存储数据，我们需要使用`cudaMalloc()`来分配内存。
 - en: We then run our `kernel()` function exactly like in the CPU version, although
     now it is a `__global__` function, meaning it will run on the GPU. As with the
     CPU example, we pass `kernel()` the pointer we allocated in the previous line
     to store the results. The only difference is that the memory resides on the GPU
     now, not on the host system.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后我们像在 CPU 版本中一样运行我们的`kernel()`函数，尽管现在它是一个`__global__`函数，意味着它将在 GPU 上运行。与 CPU
+    版本一样，我们将之前行中分配的指针传递给`kernel()`以存储结果。唯一的区别是，内存现在位于 GPU 上，而不是主机系统上。
 - en: 'The most significant difference is that we specify how many parallel blocks
     on which to execute the function `kernel()`. Because each point can be computed
     independently of every other point, we simply specify one copy of the function
@@ -433,19 +610,25 @@
     it helps to use two-dimensional indexing. Unsurprisingly, computing function values
     over a two-dimensional domain such as the complex plane is one of these problems.
     So, we specify a two-dimensional grid of blocks in this line:'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 最显著的区别是我们指定了多少个并行块来执行`kernel()`函数。由于每个点可以独立于其他点进行计算，我们只需为每个要计算的点指定一个函数副本。我们提到过，对于某些问题领域，使用二维索引是有帮助的。毫不奇怪，在诸如复数平面这样的二维领域上计算函数值正是这些问题之一。因此，我们在这一行中指定了一个二维的块网格：
 - en: dim3 grid(DIM,DIM);
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: dim3 grid(DIM,DIM);
 - en: The type `dim3` is not a standard C type, lest you feared you had forgotten
     some key pieces of information. Rather, the CUDA runtime header files define some
     convenience types to encapsulate multidimensional tuples. The type `dim3` represents
     a three-dimensional tuple that will be used to specify the size of our launch.
     But why do we use a three-dimensional value when we oh-so-clearly stated that
     our launch is a *two-dimensional* grid?
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 类型`dim3`并不是标准的 C 类型，以防你担心自己错过了什么重要的信息。实际上，CUDA 运行时头文件定义了一些方便的类型来封装多维元组。类型`dim3`表示一个三维元组，将用于指定我们启动的大小。但为什么我们要使用三维值，而我们明明已经明确表示启动是一个*二维*网格呢？
 - en: Frankly, we do this because a three-dimensional, `dim3` value is what the CUDA
     runtime expects. Although a three-dimensional launch grid is not currently supported,
     the CUDA runtime still expects a `dim3` variable where the last component equals
@@ -455,30 +638,46 @@
     that NVIDIA will support a three-dimensional grid in the future, for now we’ll
     just play nicely with the kernel launch API because when coders and APIs fight,
     the API always wins.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 坦率地说，我们这么做是因为三维的`dim3`值是 CUDA 运行时所期望的。虽然当前不支持三维启动网格，但 CUDA 运行时仍然期望一个`dim3`变量，其中最后一个分量等于1。当我们仅用两个值来初始化它，如在`dim3
+    grid(DIM,DIM)`语句中所做的那样，CUDA 运行时会自动将第三维填充为1，因此这里的一切都会按预期工作。尽管未来 NVIDIA 可能会支持三维网格，但目前我们只是顺应内核启动
+    API，因为当程序员与 API 对抗时，API 总是会胜利。
 - en: 'We then pass our `dim3` variable `grid` to the CUDA runtime in this line:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后我们将我们的`dim3`变量`grid`传递给 CUDA 运行时，如下行所示：
 - en: kernel<<<grid,1>>>( dev _ bitmap );
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: kernel<<<grid,1>>>( dev _ bitmap );
 - en: Finally, a consequence of the results residing on the device is that after executing
     `kernel()`, we have to copy the results back to the host. As we learned in previous
     chapters, we accomplish this with a call to `cudaMemcpy()`, specifying the direction
     `cudaMemcpyDeviceToHost` as the last argument.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，结果存在设备上的一个后果是，在执行`kernel()`之后，我们必须将结果复制回主机。如同我们在之前的章节中学到的，我们通过调用`cudaMemcpy()`来实现这一点，并将方向`cudaMemcpyDeviceToHost`作为最后一个参数。
 - en: '![image](graphics/p0052-01.jpg)'
+  id: totrans-88
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0052-01.jpg)'
 - en: One of the last wrinkles in the difference of implementation comes in the implementation
     of `kernel()`.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 实现上的最后一个差异出现在`kernel()`的实现中。
 - en: '![image](graphics/p0052-02.jpg)'
+  id: totrans-90
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0052-02.jpg)'
 - en: First, we need `kernel()` to be declared as a `__global__` function so it runs
     on the device but can be called from the host. Unlike the CPU version, we no longer
     need nested `for()` loops to generate the pixel indices that get passed to `julia()`.
@@ -486,79 +685,114 @@
     for us in the variable `blockIdx`. This works because we declared our grid of
     blocks to have the same dimensions as our image, so we get one block for each
     pair of integers `(x,y)` between `(0,0)` and `(DIM-1, DIM-1)`.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要将`kernel()`声明为`__global__`函数，这样它就能在设备上运行，但可以从主机调用。与CPU版本不同，我们不再需要嵌套的`for()`循环来生成传递给`julia()`的像素索引。与向量加法示例类似，CUDA运行时为我们生成了这些索引，并存储在变量`blockIdx`中。这是可行的，因为我们声明了网格块的维度与我们的图像相同，所以我们为从`(0,0)`到`(DIM-1,DIM-1)`的每一对整数`(x,y)`获取一个块。
 - en: Next, the only additional information we need is a linear offset into our output
     buffer, `ptr`. This gets computed using another built-in variable, `gridDim`.
     This variable is a constant across all blocks and simply holds the dimensions
     of the grid that was launched. In this example, it will always be the value (`DIM,
     DIM)`. So, multiplying the row index by the grid width and adding the column index
     will give us a unique index into `ptr` that ranges from `0` to `(DIM*DIM-1)`.
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们唯一需要的附加信息是指向输出缓冲区`ptr`的线性偏移量。这个偏移量通过另一个内置变量`gridDim`计算得出。该变量在所有块中都是常量，简单地保存了启动的网格的维度。在本例中，它的值将始终是`(DIM,
+    DIM)`。因此，将行索引乘以网格宽度并加上列索引，就能为我们提供一个唯一的索引，指向`ptr`，该索引的范围从`0`到`(DIM*DIM-1)`。
 - en: '![image](graphics/p0053-01.jpg)'
+  id: totrans-93
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0053-01.jpg)'
 - en: Finally, we examine the actual code that determines whether a point is in or
     out of the Julia Set. This code should look identical to the CPU version, continuing
     a trend we have seen in many examples now.
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们来看看确定一个点是否在朱利亚集内的实际代码。这段代码应该与CPU版本相同，继续了我们在许多示例中看到的趋势。
 - en: '![image](graphics/p0053-02.jpg)'
+  id: totrans-95
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0053-02.jpg)'
 - en: Again, we define a `cuComplex` structure that defines a method for storing a
     complex number with single-precision floating-point components. The structure
     also defines addition and multiplication operators as well as a function to return
     the magnitude of the complex value.
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 再次，我们定义了一个`cuComplex`结构体，它定义了存储具有单精度浮点分量的复数的方法。该结构体还定义了加法和乘法运算符，以及一个返回复数值幅度的函数。
 - en: '![image](graphics/p0054-01.jpg)'
+  id: totrans-97
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0054-01.jpg)'
 - en: Notice that we use the same language constructs in CUDA C that we use in our
     CPU version. The one difference is the qualifier `__device__`, which indicates
     that this code will run on a GPU and not on the host. Recall that because these
     functions are declared as `__device__` functions, they will be callable only from
     other `__device__` functions or from `__global__` functions.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们在CUDA C中使用了与CPU版本相同的语言结构。唯一的区别是限定符`__device__`，它表示这段代码将在GPU上运行，而不是在主机上运行。回想一下，由于这些函数被声明为`__device__`函数，它们只能从其他`__device__`函数或`__global__`函数中调用。
 - en: 'Since we’ve interrupted the code with commentary so frequently, here is the
     entire source listing from start to finish:'
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们在代码中插入了大量注释，下面是从头到尾的完整源代码：
 - en: '![image](graphics/p0054-02.jpg)'
+  id: totrans-100
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0054-02.jpg)'
 - en: '![image](graphics/p0055-01.jpg)'
+  id: totrans-101
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0055-01.jpg)'
 - en: '![image](graphics/p0056-01.jpg)'
+  id: totrans-102
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0056-01.jpg)'
 - en: When you run the application, you should see a visualization of the Julia Set.
     To convince you that it has earned the title “A Fun Example,” [Figure 4.2](ch04.html#ch04fig02)
     shows a screenshot taken from this application.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你运行这个应用程序时，你应该会看到朱利亚集的可视化图像。为了让你相信它确实配得上“一个有趣的示例”这一称号， [图4.2](ch04.html#ch04fig02)展示了从这个应用程序中截取的屏幕截图。
 - en: '***Figure 4.2*** A screenshot from the GPU Julia Set application'
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图4.2*** GPU朱利亚集应用程序的屏幕截图'
 - en: '![image](graphics/ch_04_figure_4-1-2.jpg)'
+  id: totrans-105
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_04_figure_4-1-2.jpg)'
 - en: '**4.3 Chapter Review**'
+  id: totrans-106
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**4.3 章节回顾**'
 - en: Congratulations, you can now write, compile, and run massively parallel code
     on a graphics processor! You should go brag to your friends. And if they are still
     under the misconception that GPU computing is exotic and difficult to master,
     they will be most impressed. The ease with which you accomplished it will be our
     secret. If they’re people you trust with your secrets, suggest that they buy the
     book, too.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 恭喜你，现在你可以在图形处理器上编写、编译和运行大规模并行代码了！你应该去跟你的朋友炫耀一下。如果他们仍然误以为GPU计算是异域的，且难以掌握，那么他们会感到非常震惊。你完成这项任务的轻松程度将是我们的秘密。如果他们是你信任的人，建议他们也买一本这本书。
 - en: We have so far looked at how to instruct the CUDA runtime to execute multiple
     copies of our program in parallel on what we called *blocks*. We called the collection
     of blocks we launch on the GPU a *grid*. As the name might imply, a grid can be
@@ -567,5 +801,7 @@
     Likewise, it can determine the size of the grid by using the built-in variable
     `gridDim`. Both of these built-in variables proved useful within our kernel to
     calculate the data index for which each block is responsible.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经了解了如何指示CUDA运行时在我们所称为*块*的地方并行执行程序的多个副本。我们将启动在GPU上的块集合称为*网格*。正如名字所暗示的，网格可以是一个一维或二维的块集合。每个内核副本可以通过内置变量`blockIdx`确定它正在执行哪个块。同样，它可以使用内置变量`gridDim`来确定网格的大小。我们内核中的这两个内置变量在计算每个块负责的数据索引时都非常有用。

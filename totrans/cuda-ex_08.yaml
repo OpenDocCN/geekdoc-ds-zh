@@ -1,7 +1,9 @@
 - en: '**Chapter 5 Thread Cooperation**'
+  id: totrans-0
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: '**第5章 线程协作**'
 - en: We have now written our first program using CUDA C as well as have seen how
     to write code that executes in parallel on a GPU. This is an excellent start!
     But arguably one of the most important components to parallel programming is the
@@ -13,130 +15,193 @@
     for accomplishing this communication between sections of CUDA C code executing
     in parallel. Fortunately, there is a solution, one that we will begin to explore
     in this chapter.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经编写了第一个使用CUDA C的程序，并且已经了解了如何编写可以在GPU上并行执行的代码。这是一个非常好的开始！但可以说，并行编程中最重要的组件之一就是并行处理单元如何协作解决问题。很少有问题可以让每个处理器独立计算结果并终止执行，而不考虑其他处理器在做什么。对于即使是稍微复杂的算法，我们也需要并行代码的副本进行通信与协作。到目前为止，我们还没有看到任何机制可以完成在并行执行的CUDA
+    C代码部分之间的通信。幸运的是，存在一个解决方案，我们将在本章开始探索它。
 - en: '**5.1 Chapter Objectives**'
+  id: totrans-2
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**5.1 章节目标**'
 - en: 'Through the course of this chapter, you will accomplish the following:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，您将完成以下内容：
 - en: • You will learn about what CUDA C calls *threads*.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: • 您将学习CUDA C中所称的*线程*。
 - en: • You will learn a mechanism for different threads to communicate with each
     other.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: • 您将学习不同线程之间如何进行通信的机制。
 - en: • You will learn a mechanism to synchronize the parallel execution of different
     threads.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: • 您将学习同步不同线程并行执行的机制。
 - en: '**5.2 Splitting Parallel Blocks**'
+  id: totrans-7
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**5.2 拆分并行块**'
 - en: In the previous chapter, we looked at how to launch parallel code on the GPU.
     We did this by instructing the CUDA runtime system on how many parallel copies
     of our kernel to launch. We call these parallel copies *blocks*.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一章中，我们研究了如何在GPU上启动并行代码。我们通过指示CUDA运行时系统启动多少个并行副本来完成这项工作。我们称这些并行副本为*块*。
 - en: 'The CUDA runtime allows these blocks to be split into *threads*. Recall that
     when we launched multiple parallel blocks, we changed the first argument in the
     angle brackets from 1 to the number of blocks we wanted to launch. For example,
     when we studied vector addition, we launched a block for each element in the vector
     of size N by calling this:'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: CUDA运行时允许这些块被拆分为*线程*。回想一下，当我们启动多个并行块时，我们将尖括号中的第一个参数从1更改为我们希望启动的块数。例如，在学习向量加法时，我们为向量中每个元素启动一个块，代码如下：
 - en: add<<<N,1>>>( dev_a, dev_b, dev_c );
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: add<<<N,1>>>( dev_a, dev_b, dev_c );
 - en: 'Inside the angle brackets, the second parameter actually represents the number
     of threads per block we want the CUDA runtime to create on our behalf. To this
     point, we have only ever launched one thread per block. In the previous example,
     we launched the following:'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 在尖括号内，第二个参数实际上表示CUDA运行时系统需要为我们创建的每个块的线程数。到目前为止，我们每个块只启动了一个线程。在之前的示例中，我们启动了如下代码：
 - en: N blocks x 1 thread/block = N parallel threads
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: N 块 x 1 线程/块 = N 个并行线程
 - en: So really, we could have launched `N/2` blocks with two threads per block, `N/4`
     blocks with four threads per block, and so on. Let’s revisit our vector addition
     example armed with this new information about the capabilities of CUDA C.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 所以实际上，我们本可以启动 `N/2` 块，每块两个线程，`N/4` 块，每块四个线程，依此类推。让我们利用关于CUDA C能力的新信息重新审视我们的向量加法示例。
 - en: '**5.2.1 Vector Sums: Redux**'
+  id: totrans-14
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**5.2.1 向量求和：Redux**'
 - en: We endeavor to accomplish the same task as we did in the previous chapter. That
     is, we want to take two input vectors and store their sum in a third output vector.
     However, this time we will use threads instead of blocks to accomplish this.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们努力完成与上一章相同的任务。也就是说，我们想要将两个输入向量的和存储在第三个输出向量中。然而，这次我们将使用线程而不是块来完成这个任务。
 - en: You may be wondering, what is the advantage of using threads rather than blocks?
     Well, for now, there is no advantage worth discussing. But parallel threads within
     a block will have the ability to do things that parallel blocks cannot do. So
     for now, be patient and humor us while we walk through a parallel thread version
     of the parallel block example from the previous chapter.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能会想，为什么使用线程而不是块有什么优势呢？好吧，目前为止，并没有值得讨论的优势。但在一个块内的并行线程将能够做一些并行块无法做到的事情。所以暂时，请耐心等待，随着我们逐步讲解如何将上一章的并行块示例转换为并行线程版本。
 - en: '**GPU Vector Sums Using Threads**'
+  id: totrans-17
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: '**使用线程的GPU向量求和**'
 - en: 'We will start by addressing the two changes of note when moving from parallel
     blocks to parallel threads. Our kernel invocation will change from one that launches
     `N` blocks of one thread apiece:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将首先处理从并行块转换为并行线程时需要注意的两个更改。我们的内核调用将从启动`N`个线程块（每个线程块只有一个线程）更改为：
 - en: add<<<N,1>>>( dev_a, dev_b, dev_c );
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: add<<<N,1>>>( dev_a, dev_b, dev_c );
 - en: 'to a version that launches `N` threads, all within one block:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 转换为启动`N`个线程（都在一个块内）的版本：
 - en: add<<<1,N>>>( dev_a, dev_b, dev_c );
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: add<<<1,N>>>( dev_a, dev_b, dev_c );
 - en: The only other change arises in the method by which we index our data. Previously,
     within our kernel we indexed the input and output data by block index.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 唯一的其他变化出现在我们对数据进行索引的方法上。之前，在我们的内核中，我们是通过块索引来索引输入和输出数据。
 - en: '![image](graphics/p0061-01.jpg)'
+  id: totrans-23
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0061-01.jpg)'
 - en: The punch line here should not be a surprise. Now that we have only a single
     block, we have to index the data by thread index.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的重点应该不会让你感到惊讶。现在我们只有一个块，我们必须通过线程索引来索引数据。
 - en: '![image](graphics/p0061-02.jpg)'
+  id: totrans-25
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0061-02.jpg)'
 - en: 'These are the only two changes required to move from a parallel block implementation
     to a parallel thread implementation. For completeness, here is the entire source
     listing with the changed lines in bold:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 这两项更改是将并行块实现转换为并行线程实现所需的唯一更改。为完整起见，下面是包含更改行（加粗）的整个源代码清单：
 - en: '![image](graphics/p0061-03.jpg)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0061-03.jpg)'
 - en: '![image](graphics/p0062-01.jpg)'
+  id: totrans-28
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0062-01.jpg)'
 - en: '![image](graphics/p0063-01.jpg)'
+  id: totrans-29
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0063-01.jpg)'
 - en: Pretty simple stuff, right? In the next section, we’ll see one of the limitations
     of this thread-only approach. And of course, later we’ll see why we would even
     bother splitting blocks into other parallel components.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 这很简单，对吧？在接下来的部分，我们将看到这种仅使用线程的方法的一些局限性。当然，稍后我们会看到为什么我们要将块拆分为其他并行组件。
 - en: '**GPU Sums of a Longer Vector**'
+  id: totrans-31
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: '**GPU 长向量的求和**'
 - en: In the previous chapter, we noted that the hardware limits the number of blocks
     in a single launch to 65,535\. Similarly, the hardware limits the number of threads
     per block with which we can launch a kernel. Specifically, this number cannot
@@ -145,20 +210,28 @@
     processors currently available, this limit is 512 threads per block, so how would
     we use a thread-based approach to add two vectors of size greater than 512? We
     will have to use a combination of threads and blocks to accomplish this.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 在上一章中，我们提到硬件限制了单次启动中的块数量为65,535。类似地，硬件限制了每个块内的线程数，这是我们可以启动内核的线程数。具体来说，这个数量不能超过我们在[第3章](ch03.html#ch03)中查看的设备属性结构的`maxThreadsPerBlock`字段指定的值。对于当前可用的许多图形处理器，这个限制是每块512个线程，那么我们如何使用基于线程的方法来加法计算两个大于512大小的向量呢？我们将不得不结合使用线程和块来完成此任务。
 - en: 'As before, this will require two changes: We will have to change the index
     computation within the kernel, and we will have to change the kernel launch itself.'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 与以前一样，这将需要两项更改：我们将需要更改内核中的索引计算，并且还需要更改内核启动本身。
 - en: Now that we have multiple blocks and threads, the indexing will start to look
     similar to the standard method for converting from a two-dimensional index space
     to a linear space.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们有了多个块和线程，索引将开始类似于从二维索引空间转换为线性空间的标准方法。
 - en: '![image](graphics/p0063-02.jpg)'
+  id: totrans-35
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0063-02.jpg)'
 - en: This assignment uses a new built-in variable, `blockDim`. This variable is a
     constant for all blocks and stores the number of threads along each dimension
     of the block. Since we are using a one-dimensional block, we refer only to `blockDim.x`.
@@ -169,119 +242,171 @@
     array of threads. Yes, this is a lot of dimensions, and it is unlikely you will
     regularly need the five degrees of indexing freedom afforded you, but they are
     available if so desired.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个作业使用了一个新的内建变量`blockDim`。这个变量是所有块的常量，并存储每个维度上线程的数量。由于我们使用的是一维块，所以我们只关注`blockDim.x`。如果你还记得，`gridDim`存储了类似的值，但它存储的是整个网格在每个维度上的块数量。此外，`gridDim`是二维的，而`blockDim`实际上是三维的。也就是说，CUDA
+    运行时允许你启动一个二维网格的块，每个块是一个三维的线程数组。是的，这确实是很多维度，虽然你不太可能经常需要使用这五个索引自由度，但如果需要，它们是可以使用的。
 - en: Indexing the data in a linear array using the previous assignment actually is
     quite intuitive. If you disagree, it may help to think about your collection of
     blocks of threads spatially, similar to a two-dimensional array of pixels. We
     depict this arrangement in [Figure 5.1](ch05.html#ch05fig01).
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用之前的作业在一维数组中对数据进行索引实际上是非常直观的。如果你不同意，可以试着从空间的角度考虑你的线程块集合，类似于一个二维像素数组。我们在[图 5.1](ch05.html#ch05fig01)中展示了这种排列方式。
 - en: '***Figure 5.1*** A two-dimensional arrangement of a collection of blocks and
     threads'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图 5.1*** 一种二维排列的线程块和线程集合'
 - en: '![image](graphics/ch_05_figure_5-1-1_u.jpg)'
+  id: totrans-39
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_05_figure_5-1-1_u.jpg)'
 - en: If the threads represent columns and the blocks represent rows, we can get a
     unique index by taking the product of the block index with the number of threads
     in each block and adding the thread index within the block. This is identical
     to the method we used to linearize the two-dimensional image index in the Julia
     Set example.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果线程代表列，块代表行，我们可以通过将块索引与每块中的线程数相乘，再加上块内线程的索引，得到一个唯一的索引。这与我们在朱利亚集合例子中线性化二维图像索引的方法相同。
 - en: '![image](graphics/p0064-01.jpg)'
+  id: totrans-41
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0064-01.jpg)'
 - en: 'Here, `DIM` is the block dimension (measured in threads), `y` is the block
     index, and `x` is the thread index within the block. Hence, we arrive at the index:
     `tid = threadIdx.x + blockIdx.x * blockDim.x`.'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，`DIM`是块的维度（以线程为单位），`y`是块索引，`x`是块内线程的索引。因此，我们得到了索引：`tid = threadIdx.x + blockIdx.x
+    * blockDim.x`。
 - en: The other change is to the kernel launch itself. We still need `N` parallel
     threads to launch, but we want them to launch across multiple blocks so we do
     not hit the 512-thread limitation imposed upon us. One solution is to arbitrarily
     set the block size to some fixed number of threads; for this example, let’s use
     128 threads per block. Then we can just launch `N/128` blocks to get our total
     of `N` threads running.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个变化是内核启动本身。我们仍然需要启动`N`个并行线程，但我们希望它们能够跨多个块启动，以避免达到512线程的限制。一个解决方法是将块大小任意设置为某个固定数量的线程；在这个例子中，我们设定每个块128个线程。然后，我们可以启动`N/128`个块，以运行我们总共的`N`个线程。
 - en: The wrinkle here is that `N/128` is an integer division. This implies that if
     `N` were 127, `N/128` would be zero, and we will not actually compute anything
     if we launch zero threads. In fact, we will launch too few threads whenever `N`
     is not an exact multiple of 128\. This is bad. We actually want this division
     to round up.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里的难点在于`N/128`是一个整数除法。这意味着如果`N`是127，`N/128`将是零，而如果我们启动零个线程，实际上什么都不会计算。实际上，每当`N`不是128的精确倍数时，我们将启动过少的线程。这很糟糕。我们实际上希望这个除法能够向上取整。
 - en: There is a common trick to accomplish this in integer division without calling
     `ceil()`. We actually compute `(N+127)/128` instead of `N/128`. Either you can
     take our word that this will compute the smallest multiple of 128 greater than
     or equal to `N` or you can take a moment now to convince yourself of this fact.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 有一个常见的技巧可以在整数除法中实现这一点，而不调用`ceil()`。我们实际上计算的是`(N+127)/128`，而不是`N/128`。你可以相信我们，这将计算出大于或等于`N`的最小128的倍数，或者你现在可以花点时间来验证这个事实。
 - en: 'We have chosen 128 threads per block and therefore use the following kernel
     launch:'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们选择了每个块128个线程，因此使用以下内核启动：
 - en: '![image](graphics/p0065-01.jpg)'
+  id: totrans-47
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0065-01.jpg)'
 - en: 'Because of our change to the division that ensures we launch enough threads,
     we will actually now launch *too many* threads when `N` is not an exact multiple
     of 128\. But there is a simple remedy to this problem, and our kernel already
     takes care of it. We have to check whether a thread’s offset is actually between
     0 and `N` before we use it to access our input and output arrays:'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们修改了除法操作以确保启动足够的线程，因此当 `N` 不是 128 的整数倍时，我们实际上会启动*过多*的线程。不过，这个问题有一个简单的解决办法，我们的内核已经处理好了这个问题。我们必须检查线程的偏移量是否在
+    0 和 `N` 之间，然后才能用它来访问输入和输出数组：
 - en: '![image](graphics/p0065-02.jpg)'
+  id: totrans-49
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0065-02.jpg)'
 - en: Thus, when our index overshoots the end of our array, as will always happen
     when we launch a nonmultiple of 128, we automatically refrain from performing
     the calculation. More important, we refrain from reading and writing memory off
     the end of our array.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，当我们的索引超出数组末尾时（每当我们启动一个非 128 的倍数时都会发生这种情况），我们会自动避免执行计算。更重要的是，我们会避免在数组末尾以外的内存进行读写操作。
 - en: '**GPU Sums of Arbitrarily Long Vectors**'
+  id: totrans-51
   prefs:
   - PREF_H5
   type: TYPE_NORMAL
+  zh: '**GPU 任意长向量的求和**'
 - en: We were not completely forthcoming when we first discussed launching parallel
     blocks on a GPU. In addition to the limitation on thread count, there is also
     a hardware limitation on the number of blocks (albeit much greater than the thread
     limitation). As we’ve mentioned previously, neither dimension of a grid of blocks
     may exceed 65,535.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们第一次讨论如何在 GPU 上启动并行块时，我们并没有完全透明。除了线程数量的限制外，硬件对块的数量也有限制（尽管这个限制比线程限制要大得多）。正如我们之前提到的，网格中块的任意一维的大小不能超过
+    65,535。
 - en: So, this raises a problem with our current vector addition implementation. If
     we launch `N/128` blocks to add our vectors, we will hit launch failures when
     our vectors exceed 65,535 * 128 = 8,388,480 elements. This seems like a large
     number, but with current memory capacities between 1GB and 4GB, the high-end graphics
     processors can hold orders of magnitude more data than vectors with 8 million
     elements.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，这就引出了我们当前向量加法实现中的一个问题。如果我们启动 `N/128` 个块来加法运算向量，当向量超过 65,535 * 128 = 8,388,480
+    个元素时，我们会遇到启动失败。这看起来是一个很大的数字，但考虑到当前内存容量在 1GB 到 4GB 之间，高端显卡可以容纳比 800 万元素更多数量级的数据。
 - en: Fortunately, the solution to this issue is extremely simple. We first make a
     change to our kernel.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 幸运的是，这个问题的解决方案非常简单。我们首先对内核进行修改。
 - en: '![image](graphics/p0066-01.jpg)'
+  id: totrans-55
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0066-01.jpg)'
 - en: 'This looks remarkably like our *original* version of vector addition! In fact,
     compare it to the following CPU implementation from the previous chapter:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 这看起来与我们*最初*的向量加法版本非常相似！事实上，可以将其与前一章中的 CPU 实现进行对比：
 - en: '![image](graphics/p0066-02.jpg)'
+  id: totrans-57
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0066-02.jpg)'
 - en: Here we also used a `while()` loop to iterate through the data. Recall that
     we claimed that rather than incrementing the array index by 1, a multi-CPU or
     multicore version could increment by the number of processors we wanted to use.
     We will now use that same principle in the GPU version.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们也使用了 `while()` 循环来遍历数据。回想一下，我们曾提到过，与其将数组索引递增 1，不如使用多 CPU 或多核心版本按我们想要使用的处理器数量递增。我们现在将在
+    GPU 版本中使用相同的原则。
 - en: In the GPU implementation, we consider the number of parallel threads launched
     to be the number of processors. Although the actual GPU may have fewer (or more)
     processing units than this, we think of each thread as logically executing in
@@ -290,87 +415,124 @@
     burdens that CUDA C lifts off a software developer’s shoulders. This should come
     as a relief, considering current NVIDIA hardware can ship with anywhere between
     8 and 480 arithmetic units per chip!
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 GPU 实现中，我们认为启动的并行线程数就是处理器的数量。尽管实际的 GPU 可能拥有比这更多（或更少）的处理单元，我们还是将每个线程视为逻辑上并行执行的，然后让硬件调度实际的执行。将并行化与硬件执行方式解耦是
+    CUDA C 为软件开发者减轻的负担之一。考虑到目前 NVIDIA 的硬件每个芯片上的算术单元数量在 8 到 480 之间，这无疑是一种解脱！
 - en: 'Now that we understand the principle behind this implementation, we just need
     to understand how we determine the initial index value for each parallel thread
     and how we determine the increment. We want each parallel thread to start on a
     different data index, so we just need to take our thread and block indexes and
     linearize them as we saw in the “GPU Sums of a Longer Vector” section. Each thread
     will start at an index given by the following:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们理解了这个实现的原理，我们只需要理解如何为每个并行线程确定初始索引值以及如何确定递增值。我们希望每个并行线程从不同的数据索引开始，所以我们只需要将线程和块的索引线性化，就像在“GPU长向量求和”一节中看到的那样。每个线程将从以下给定的索引开始：
 - en: '![image](graphics/p0067-01.jpg)'
+  id: totrans-61
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0067-01.jpg)'
 - en: 'After each thread finishes its work at the current index, we need to increment
     each of them by the total number of threads running in the grid. This is simply
     the number of threads per block multiplied by the number of blocks in the grid,
     or `blockDim.x * gridDim.x`. Hence, the increment step is as follows:'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 在每个线程完成当前索引的工作后，我们需要通过网格中运行的总线程数来递增每个线程的索引。这个值就是每个块的线程数乘以网格中块的数量，或`blockDim.x
+    * gridDim.x`。因此，递增步骤如下：
 - en: tid += blockDim.x * gridDim.x;
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: tid += blockDim.x * gridDim.x;
 - en: We are almost there! The only remaining piece is to fix the launch itself. If
     you remember, we took this detour because the launch `add<<<(N+127)/128,128>>>(
     dev_a, dev_b, dev_c )` will fail when `(N+127)/128` is greater than 65,535\. To
     ensure we never launch too many blocks, we will just fix the number of blocks
     to some reasonably small value. Since we like copying and pasting so much, we
     will use 128 blocks, each with 128 threads.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们快完成了！剩下的唯一问题就是修复启动本身。如果你记得，我们之所以绕道而行，是因为启动命令`add<<<(N+127)/128,128>>>( dev_a,
+    dev_b, dev_c )`在`(N+127)/128`大于65,535时会失败。为了确保我们不会启动太多的块，我们将把块数固定为一个合理的小值。由于我们非常喜欢复制粘贴，我们将使用128个块，每个块有128个线程。
 - en: add<<<128,128>>>( dev_a, dev_b, dev_c );
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: add<<<128,128>>>( dev_a, dev_b, dev_c );
 - en: 'You should feel free to adjust these values however you see fit, provided that
     your values remain within the limits we’ve discussed. Later in the book, we will
     discuss the potential performance implications of these choices, but for now it
     suffices to choose 128 threads per block and 128 blocks. Now we can add vectors
     of arbitrary length, limited only by the amount of RAM we have on our GPU. Here
     is the entire source listing:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以根据需要自由调整这些值，只要它们保持在我们讨论的限制范围内。稍后在书中，我们将讨论这些选择的潜在性能影响，但现在选择每个块128个线程和128个块就足够了。现在我们可以添加任意长度的向量，唯一的限制是我们GPU上的内存量。以下是整个源代码清单：
 - en: '![image](graphics/p0067-02.jpg)'
+  id: totrans-67
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0067-02.jpg)'
 - en: '![image](graphics/p0068-01.jpg)'
+  id: totrans-68
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0068-01.jpg)'
 - en: '![image](graphics/p0069-01.jpg)'
+  id: totrans-69
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0069-01.jpg)'
 - en: '**5.2.2 GPU Ripple Using Threads**'
+  id: totrans-70
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**5.2.2 使用线程的GPU波纹**'
 - en: As with the previous chapter, we will reward your patience with vector addition
     by presenting a more fun example that demonstrates some of the techniques we’ve
     been using. We will again use our GPU computing power to generate pictures procedurally.
     But to make things even more interesting, this time we will animate them. But
     don’t worry, we’ve packaged all the unrelated animation code into helper functions
     so you won’t have to master any graphics or animation.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 和上一章一样，我们将通过展示一个更有趣的例子来奖励你在向量加法上的耐心，这个例子演示了我们使用的一些技术。我们将再次利用我们的GPU计算能力生成图像。但为了让事情变得更有趣，这次我们还将它们进行动画处理。但不用担心，我们已经将所有不相关的动画代码打包成辅助函数，这样你就不需要掌握任何图形或动画知识了。
 - en: '![image](graphics/p0069-02.jpg)'
+  id: totrans-72
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0069-02.jpg)'
 - en: Most of the complexity of `main()` is hidden in the helper structure `CPUAnimBitmap`.
     You will notice that we again have a pattern of doing a `cudaMalloc()`, executing
     device code that uses the allocated memory, and then cleaning up with `cudaFree()`.
     This should be old hat to you by now.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: '`main()`的大部分复杂性隐藏在辅助结构体`CPUAnimBitmap`中。你会注意到，我们再次采用了一个模式：执行`cudaMalloc()`，执行使用分配内存的设备代码，然后通过`cudaFree()`进行清理。现在这一切对你来说应该已经很熟悉了。'
 - en: In this example, we have slightly convoluted the means by which we accomplish
     the middle step, “executing device code that uses the allocated memory.” We pass
     the `anim_and_exit()` method a function pointer to `generate_frame()`. This function
     will be called by the structure every time it wants to generate a new frame of
     the animation.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个例子中，我们稍微复杂化了执行中间步骤“执行使用分配内存的设备代码”的方式。我们将一个指向`generate_frame()`的函数指针传递给`anim_and_exit()`方法。每次结构体想要生成一个新的动画帧时，它都会调用这个函数。
 - en: '![image](graphics/p0070-01.jpg)'
+  id: totrans-75
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0070-01.jpg)'
 - en: Although this function consists only of four lines, they all involve important
     CUDA C concepts. First, we declare two two-dimensional variables, `blocks` and
     `threads`. As our naming convention makes painfully obvious, the variable `blocks`
@@ -383,15 +545,25 @@
     `DIM/16` x `DIM/16` blocks to get one thread per pixel. [Figure 5.2](ch05.html#ch05fig02)
     shows how this block and thread configuration would look in a (ridiculously) small,
     48-pixel-wide, 32-pixel-high image.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然这个函数只有四行，但每一行都涉及重要的 CUDA C 概念。首先，我们声明了两个二维变量，`blocks` 和 `threads`。正如我们命名规范所明确表示的那样，`blocks`
+    变量代表我们将在网格中启动的并行块数。`threads` 变量代表我们将在每个块中启动的线程数。因为我们在生成图像，所以我们使用二维索引，以便每个线程都有一个唯一的
+    `(x, y)` 索引，可以很容易地与输出图像中的像素对应。我们选择使用由 16 x 16 个线程组成的块。如果图像有 `DIM` x `DIM` 像素，我们需要启动
+    `DIM/16` x `DIM/16` 个块，以便每个像素有一个线程。 [图 5.2](ch05.html#ch05fig02) 显示了这种块和线程配置在一个（极其）小的
+    48 像素宽、32 像素高的图像中是如何表现的。
 - en: '***Figure 5.2*** A 2D hierarchy of blocks and threads that could be used to
     process a 48 x 32 pixel image using one thread per pixel'
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图 5.2*** 一个二维的块和线程层次结构，可以用来处理一个 48 x 32 像素的图像，每个像素用一个线程处理'
 - en: '![image](graphics/ch_05_figure_5-1-2_u.jpg)'
+  id: totrans-78
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_05_figure_5-1-2_u.jpg)'
 - en: If you have done any multithreaded CPU programming, you may be wondering why
     we would launch so many threads. For example, to render a full high-definition
     animation at 1920 x 1080, this method would create more than 2 million threads.
@@ -401,40 +573,61 @@
     of threads that a GPU can. Because we can simply create a thread for each data
     element we want to process, parallel programming on a GPU can be far simpler than
     on a CPU.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你有进行过多线程 CPU 编程，你可能会想知道为什么我们会启动这么多线程。例如，为了渲染一个 1920 x 1080 的完整高清动画，这种方法将创建超过
+    200 万个线程。尽管我们在 GPU 上经常创建并调度这么多线程，但在 CPU 上创建这么多线程简直是不敢想象的。因为 CPU 线程管理和调度必须通过软件来完成，它根本无法像
+    GPU 那样扩展到这么多线程。由于我们可以为每个要处理的数据元素创建一个线程，因此在 GPU 上进行并行编程比在 CPU 上要简单得多。
 - en: After declaring the variables that hold the dimensions of our launch, we simply
     launch the kernel that will compute our pixel values.
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 在声明了保存启动维度的变量后，我们简单地启动内核，计算我们的像素值。
 - en: kernel<<< blocks, threads>>>( d->dev_bitmap, ticks );
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: kernel<<< blocks, threads>>>( d->dev_bitmap, ticks );
 - en: The kernel will need two pieces of information that we pass as parameters. First,
     it needs a pointer to device memory that holds the output pixels. This is a global
     variable that had its memory allocated in `main()`. But the variable is “global”
     only for host code, so we need to pass it as a parameter to ensure that the CUDA
     runtime will make it available for our device code.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 内核需要两个信息，我们将它们作为参数传递。首先，它需要一个指向设备内存的指针，这块内存保存着输出像素。这是一个全局变量，其内存在`main()`中分配。但这个变量在“全局”范围内仅对主机代码可见，因此我们需要将其作为参数传递，确保
+    CUDA 运行时会使其对设备代码可用。
 - en: Second, our kernel will need to know the current animation time so it can generate
     the correct frame. The current time, `ticks`, is passed to the `generate_frame()`
     function from the infrastructure code in `CPUAnimBitmap`, so we can simply pass
     this on to our kernel.
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二，我们的内核需要知道当前的动画时间，以便生成正确的帧。当前时间`ticks`由基础架构代码中的`CPUAnimBitmap`传递给`generate_frame()`函数，因此我们可以直接将其传递给我们的内核。
 - en: 'And now, here’s the kernel code itself:'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，这里是内核代码本身：
 - en: '![image](graphics/p0072-01.jpg)'
+  id: totrans-85
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0072-01.jpg)'
 - en: The first three are the most important lines in the kernel.
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 前三行是内核中最重要的几行。
 - en: '![image](graphics/p0073-01.jpg)'
+  id: totrans-87
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0073-01.jpg)'
 - en: 'In these lines, each thread takes its index within its block as well as the
     index of its block within the grid, and it translates this into a unique `(x,y)`
     index within the image. So when the thread at index `(3, 5)` in block `(12, 8)`
@@ -442,62 +635,92 @@
     8 entire blocks above it. Within its block, the thread at `(3, 5)` has three threads
     to the left and five above it. Because there are 16 threads per block, this means
     the thread in question has the following:'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这些代码行中，每个线程将其在块内的索引与块在网格中的索引结合起来，并将其转换为图像中的唯一`(x, y)`索引。因此，当块`(12, 8)`中索引为`(3,
+    5)`的线程开始执行时，它知道它左边有12个完整的块，顶部有8个完整的块。在块内，索引为`(3, 5)`的线程左边有3个线程，顶部有5个线程。由于每个块有16个线程，这意味着该线程左边有以下线程数量：
 - en: 3 threads + 12 blocks * 16 threads/block = 195 threads to the left of it
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 3个线程 + 12个块 * 16个线程/块 = 195个线程位于它的左侧
 - en: 5 threads + 8 blocks * 16 threads/block = 128 threads above it
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 5个线程 + 8个块 * 16个线程/块 = 128个线程位于它的上方
 - en: This computation is identical to the computation of `x` and `y` in the first
     two lines and is how we map the thread and block indices to image coordinates.
     Then we simply linearize these `x` and `y` values to get an offset into the output
     buffer. Again, this is identical to what we did in the “GPU Sums of a Longer Vector”
     and “GPU Sums of Arbitrarily Long Vectors” sections.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个计算与前两行中`x`和`y`的计算是相同的，它是将线程和块的索引映射到图像坐标的方式。然后，我们只需将这些`x`和`y`值线性化，以获得输出缓冲区的偏移量。再次强调，这与我们在“GPU
+    长向量求和”和“GPU 任意长向量求和”章节中所做的操作相同。
 - en: int offset = x + y * blockDim.x * gridDim.x;
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: int offset = x + y * blockDim.x * gridDim.x;
 - en: Since we know which `(x,y)` pixel in the image the thread should compute and
     we know the time at which it needs to compute this value, we can compute any function
     of `(x,y,t)` and store this value in the output buffer. In this case, the function
     produces a time-varying sinusoidal “ripple.”
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们知道线程需要计算图像中哪个`(x, y)`像素，并且知道它需要计算该值的时间，我们可以计算任何关于`(x, y, t)`的函数，并将该值存储在输出缓冲区中。在这种情况下，函数生成一个随时间变化的正弦波“涟漪”。
 - en: '![image](graphics/p0074-01.jpg)'
+  id: totrans-94
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0074-01.jpg)'
 - en: We recommend that you not get too hung up on the computation of `grey`. It’s
     essentially just a 2D function of time that makes a nice rippling effect when
     it’s animated. A screenshot of one frame should look something like [Figure 5.3](ch05.html#ch05fig03).
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们建议你不要过于纠结于`grey`的计算。它本质上只是一个关于时间的二维函数，当它被动画化时，会呈现出很好的涟漪效果。一个帧的屏幕截图应该类似于[图
+    5.3](ch05.html#ch05fig03)。
 - en: '***Figure 5.3*** A screenshot from the GPU ripple example'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图 5.3*** 来自GPU涟漪示例的屏幕截图'
 - en: '![image](graphics/ch_05_figure_5-1-3.jpg)'
+  id: totrans-97
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_05_figure_5-1-3.jpg)'
 - en: '**5.3 Shared Memory and Synchronization**'
+  id: totrans-98
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**5.3 共享内存与同步**'
 - en: So far, the motivation for splitting blocks into threads was simply one of working
     around hardware limitations to the number of blocks we can have in flight. This
     is fairly weak motivation, because this could easily be done behind the scenes
     by the CUDA runtime. Fortunately, there are other reasons one might want to split
     a block into threads.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，将块拆分为线程的动机仅仅是为了克服硬件限制，即我们可以同时执行的块数。这种动机相对较弱，因为CUDA运行时可以轻松地在后台完成这一操作。幸运的是，拆分块为线程还有其他的原因。
 - en: CUDA C makes available a region of memory that we call *shared memory*. This
     region of memory brings along with it another extension to the C language akin
     to `__device__` and `__global__`. As a programmer, you can modify your variable
     declarations with the CUDA C keyword `__shared__` to make this variable resident
     in shared memory. But what’s the point?
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: CUDA C提供了一个我们称之为*共享内存*的内存区域。这个内存区域为C语言引入了一个扩展，类似于`__device__`和`__global__`。作为程序员，你可以使用CUDA
+    C关键字`__shared__`修改变量声明，将该变量存储在共享内存中。但这么做的意义是什么呢？
 - en: We’re glad you asked. The CUDA C compiler treats variables in shared memory
     differently than typical variables. It creates a copy of the variable for each
     block that you launch on the GPU. Every thread in that block shares the memory,
@@ -508,8 +731,11 @@
     of this, the latency to access shared memory tends to be far lower than typical
     buffers, making shared memory effective as a per-block, software-managed cache
     or scratchpad.
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 很高兴你问了这个问题。CUDA C 编译器将共享内存中的变量与典型变量区分开来。它为每个在 GPU 上启动的块创建一个变量副本。该块中的每个线程共享内存，但线程不能看到或修改其他块中该变量的副本。这为块内线程提供了一个优秀的通信和协作计算的手段。此外，共享内存缓冲区物理上驻留在
+    GPU 上，而不是驻留在外部的 DRAM 中。因此，访问共享内存的延迟通常比典型缓冲区低得多，使得共享内存作为每块的软件管理缓存或临时存储非常有效。
 - en: The prospect of communication between threads should excite you. It excites
     us, too. But nothing in life is free, and interthread communication is no exception.
     If we expect to communicate between threads, we also need a mechanism for synchronizing
@@ -518,15 +744,22 @@
     its work until we know the write from thread A is complete. Without synchronization,
     we have created a race condition where the correctness of the execution results
     depends on the nondeterministic details of the hardware.
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 线程间通信的前景应该让你感到兴奋。这也让我们感到兴奋。但是，生活中没有什么是免费的，线程间通信也不例外。如果我们期望在线程间进行通信，我们还需要一种同步线程的机制。例如，如果线程
+    A 将一个值写入共享内存，而我们希望线程 B 对这个值做某些操作，我们不能让线程 B 在不知道线程 A 完成写入之前就开始工作。没有同步，我们就创造了一个竞争条件，其中执行结果的正确性依赖于硬件的非确定性细节。
 - en: Let’s take a look at an example that uses these features.
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们来看一个使用这些特性的例子。
 - en: '**5.3.1 Dot Product**'
+  id: totrans-104
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**5.3.1 点积**'
 - en: Congratulations! We have graduated from vector addition and will now take a
     look at vector dot products (sometimes called an *inner product*). We will quickly
     review what a dot product is, just in case you are unfamiliar with vector mathematics
@@ -535,18 +768,26 @@
     to vector addition but utilizes multiplication instead of addition. However, instead
     of then storing these values to a third, output vector, we sum them all to produce
     a single scalar output.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 恭喜你！我们已经从向量加法毕业，现在来看看向量的点积（有时称为*内积*）。我们将快速回顾一下什么是点积，以防你不熟悉向量数学（或者已经有几年没有接触了）。计算包括两个步骤。首先，我们将两个输入向量的对应元素相乘。这与向量加法非常相似，但采用乘法而不是加法。然而，我们并不会将这些值存储到第三个输出向量中，而是将它们加总，产生一个单一的标量输出。
 - en: For example, if we take the dot product of two four-element vectors, we would
     get [Equation 5.1](ch05.html#ch05equ01).
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，如果我们计算两个四元素向量的点积，我们会得到[方程 5.1](ch05.html#ch05equ01)。
 - en: '**Equation 5.1**'
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: '**方程 5.1**'
 - en: '![image](graphics/cm_equation_5-1.jpg)'
+  id: totrans-108
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/cm_equation_5-1.jpg)'
 - en: 'Perhaps the algorithm we tend to use is becoming obvious. We can do the first
     step exactly how we did vector addition. Each thread multiplies a pair of corresponding
     entries, and then every thread moves on to its next pair. Because the result needs
@@ -554,98 +795,134 @@
     of the pairs it has added. Just like in the addition example, the threads increment
     their indices by the total number of threads to ensure we don’t miss any elements
     and don’t multiply a pair twice. Here is the first step of the dot product routine:'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 也许我们倾向使用的算法已经变得显而易见。我们可以像做向量加法那样做第一步。每个线程将一对对应的元素相乘，然后每个线程继续处理下一对元素。由于结果需要是所有这些元素乘积的和，每个线程保持自己已加和的对的累计和。就像加法例子一样，线程通过线程总数增加其索引，以确保不漏掉任何元素，也不会重复乘同一对。以下是点积例程的第一步：
 - en: '![image](graphics/p0076-01.jpg)'
+  id: totrans-110
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0076-01.jpg)'
 - en: 'As you can see, we have declared a buffer of shared memory named `cache`. This
     buffer will be used to store each thread’s running sum. Soon we will see *why*
     we do this, but for now we will simply examine the mechanics by which we accomplish
     it. It is trivial to declare a variable to reside in shared memory, and it is
     identical to the means by which you declare a variable as `static` or `volatile`
     in standard C:'
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如你所看到的，我们已经声明了一个名为`cache`的共享内存缓冲区。这个缓冲区将用来存储每个线程的运行总和。很快我们将看到*为什么*我们这么做，但现在我们将简单地检查实现这一操作的机制。声明一个变量驻留在共享内存中是微不足道的，它与在标准C中声明一个`static`或`volatile`变量的方式完全相同：
 - en: __shared__float cache[threadsPerBlock];
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: __shared__float cache[threadsPerBlock];
 - en: We declare the array of size `threadsPerBlock` so each thread in the block has
     a place to store its temporary result. Recall that when we have allocated memory
     globally, we allocated enough for every thread that runs the kernel, or `threadsPerBlock`
     times the total number of blocks. But since the compiler will create a copy of
     the shared variables for each block, we need to allocate only enough memory such
     that each thread in the block has an entry.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们声明了一个大小为`threadsPerBlock`的数组，这样块中的每个线程都有地方存储它的临时结果。回想一下，当我们全局分配内存时，我们为每个运行内核的线程分配了足够的内存，或者说是`threadsPerBlock`乘以总块数。但由于编译器将为每个块创建共享变量的副本，我们只需要分配足够的内存，以便块中的每个线程都有一个条目。
 - en: 'After allocating the shared memory, we compute our data indices much like we
     have in the past:'
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 在分配共享内存之后，我们计算数据索引的方式与过去非常相似：
 - en: '![image](graphics/p0077-01.jpg)'
+  id: totrans-115
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0077-01.jpg)'
 - en: The computation for the variable `tid` should look familiar by now; we are just
     combining the block and thread indices to get a global offset into our input arrays.
     The offset into our shared memory cache is simply our thread index. Again, we
     don’t need to incorporate our block index into this offset because each block
     has its own private copy of this shared memory.
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 变量`tid`的计算现在应该很熟悉了；我们只是将块和线程的索引结合起来，以获得输入数组的全局偏移量。我们进入共享内存缓存的偏移量只是我们的线程索引。同样，我们不需要将块索引并入这个偏移量，因为每个块都有自己独立的共享内存副本。
 - en: 'Finally, we clear our shared memory buffer so that later we will be able to
     blindly sum the entire array without worrying whether a particular entry has valid
     data stored there:'
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们清除共享内存缓冲区，以便稍后我们能够盲目地对整个数组进行求和，而无需担心某个特定条目是否存储了有效数据：
 - en: '![image](graphics/p0078-01.jpg)'
+  id: totrans-118
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0078-01.jpg)'
 - en: It will be possible that not every entry will be used if the size of the input
     vectors is not a multiple of the number of threads per block. In this case, the
     last block will have some threads that do nothing and therefore do not write values.
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果输入向量的大小不是每块线程数的倍数，那么并非每个条目都会被使用。在这种情况下，最后一个块将有一些线程不做任何事情，因此不会写入值。
 - en: Each thread computes a running sum of the product of corresponding entries in
     `a` and `b`. After reaching the end of the array, each thread stores its temporary
     sum into the shared buffer.
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
+  zh: 每个线程计算`a`和`b`中对应条目的乘积的运行总和。到达数组末尾后，每个线程将其临时和存储到共享缓冲区中。
 - en: '![image](graphics/p0078-02.jpg)'
+  id: totrans-121
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0078-02.jpg)'
 - en: 'At this point in the algorithm, we need to sum all the temporary values we’ve
     placed in the cache. To do this, we will need some of the threads to read the
     values that have been stored there. However, as we mentioned, this is a potentially
     dangerous operation. We need a method to guarantee that all of these writes to
     the shared array `cache[]` complete before anyone tries to read from this buffer.
     Fortunately, such a method exists:'
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 在算法的这个阶段，我们需要对已放置在缓存中的所有临时值进行求和。为此，我们将需要一些线程来读取已存储的值。然而，正如我们所提到的，这是一项潜在的危险操作。我们需要一种方法来保证所有写入共享数组`cache[]`的操作在任何线程尝试读取这个缓冲区之前完成。幸运的是，存在这样的一个方法：
 - en: '![image](graphics/p0078-03.jpg)'
+  id: totrans-123
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0078-03.jpg)'
 - en: This call guarantees that every thread in the block has completed instructions
     prior to the `__syncthreads()` before the hardware will execute the next instruction
     on any thread. This is exactly what we need! We now know that when the first thread
     executes the first instruction after our `__syncthreads()`, every other thread
     in the block has also finished executing up to the `__syncthreads()`.
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个调用保证了在`__syncthreads()`之前，块中的每个线程都已完成指令，然后硬件才会执行任何线程的下一条指令。这正是我们需要的！现在我们知道，当第一个线程在`__syncthreads()`之后执行第一条指令时，块中的其他线程也已完成执行直到`__syncthreads()`。
 - en: Now that we have guaranteed that our temporary cache has been filled, we can
     sum the values in it. We call the general process of taking an input array and
     performing some computations that produce a smaller array of results a *reduction*.
     Reductions arise often in parallel computing, which leads to the desire to give
     them a name.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们已经确保临时缓存已经填充完成，我们可以对其中的值进行求和。我们将处理输入数组并执行一些计算，以产生一个较小的结果数组的过程称为*归约*。归约在并行计算中经常出现，这也是我们给它起名字的原因。
 - en: The naïve way to accomplish this reduction would be having one thread iterate
     over the shared memory and calculate a running sum. This will take us time proportional
     to the length of the array. However, since we have hundreds of threads available
     to do our work, we can do this reduction in parallel and take time that is proportional
     to the logarithm of the length of the array. At first, the following code will
     look convoluted; we’ll break it down in a moment.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 实现这种归约的朴素方法是让一个线程遍历共享内存并计算一个累计和。这将花费与数组长度成正比的时间。然而，由于我们有数百个线程可以执行工作，因此我们可以并行地完成这种归约，所需时间与数组长度的对数成正比。刚开始时，以下代码可能看起来很复杂，我们稍后会详细解释。
 - en: The general idea is that each thread will add two of the values in `cache[]`
     and store the result back to `cache[]`. Since each thread combines two entries
     into one, we complete this step with half as many entries as we started with.
@@ -654,48 +931,69 @@
     in `cache[]`. For our example, we’re using 256 threads per block, so it takes
     8 iterations of this process to reduce the 256 entries in `cache[]` to a single
     sum.
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 一般的思路是，每个线程将`cache[]`中的两个值相加，并将结果存回`cache[]`。由于每个线程将两个条目合并为一个，因此我们在这一步完成后，条目的数量将减半。在下一步中，我们对剩下的一半条目执行相同的操作。我们会继续进行`log2(threadsPerBlock)`步，直到得到`cache[]`中所有条目的总和。在我们的例子中，每个块使用256个线程，所以这个过程需要8次迭代才能将`cache[]`中的256个条目归约成一个总和。
 - en: 'The code for this follows:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是相应的代码：
 - en: '![image](graphics/p0079-01.jpg)'
+  id: totrans-129
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0079-01.jpg)'
 - en: '***Figure 5.4*** One step of a summation reduction'
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图 5.4*** 求和归约的一步'
 - en: '![image](graphics/ch_05_figure_5-2-1_u.jpg)'
+  id: totrans-131
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_05_figure_5-2-1_u.jpg)'
 - en: For the first step, we start with `i` as half the number of `threadsPerBlock`.
     We only want the threads with indices less than this value to do any work, so
     we conditionally add two entries of `cache[]` if the thread’s index is less than
     `i`. We protect our addition within an `if(cacheIndex < i)` block. Each thread
     will take the entry at its index in `cache[]`, add it to the entry at its index
     offset by `i`, and store this sum back to `cache[]`.
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于第一步，我们从`i`开始，`i`是`threadsPerBlock`的一半。我们只希望索引小于`i`的线程执行工作，因此如果线程的索引小于`i`，我们会条件性地向`cache[]`添加两个条目。我们将这个添加操作保护在`if(cacheIndex
+    < i)`代码块中。每个线程将取出它在`cache[]`中索引位置的条目，将其与位移`i`后的条目相加，并将这个和存回`cache[]`中。
 - en: Suppose there were eight entries in `cache[]` and, as a result, `i` had the
     value 4\. One step of the reduction would look like [Figure 5.4](ch05.html#ch05fig04).
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设`cache[]`中有八个条目，结果`i`的值为4。一次归约步骤将如[图 5.4](ch05.html#ch05fig04)所示。
 - en: After we have completed a step, we have the same restriction we did after computing
     all the pairwise products. Before we can read the values we just stored in `cache[]`,
     we need to ensure that every thread that needs to write to `cache[]` has already
     done so. The `__syncthreads()` after the assignment ensures this condition is
     met.
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们完成一步后，我们与计算所有配对乘积后的限制条件相同。在我们读取刚刚存储在`cache[]`中的值之前，我们需要确保每个需要写入`cache[]`的线程都已经完成了写入操作。`__syncthreads()`在赋值后的调用确保了这个条件的满足。
 - en: 'After termination of this `while()` loop, each block has but a single number
     remaining. This number is sitting in the first entry of `cache[]` and is the sum
     of every pairwise product the threads in that block computed. We then store this
     single value to global memory and end our kernel:'
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 在此`while()`循环终止后，每个块只剩下一个数字。这个数字位于`cache[]`的第一个条目中，是该块中所有线程计算出的每一对乘积的总和。然后，我们将这个单一的值存储到全局内存，并结束我们的核函数：
 - en: '![image](graphics/p0080-01.jpg)'
+  id: totrans-136
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0080-01.jpg)'
 - en: Why do we do this global store only for the thread with `cacheIndex == 0`? Well,
     since there is only one number that needs writing to global memory, only a single
     thread needs to perform this operation. Conceivably, every thread could perform
@@ -704,15 +1002,21 @@
     the thread with index 0, though you could conceivably have chosen any `cacheIndex`
     to write `cache[0`] to global memory. Finally, since each block will write exactly
     one value to the global array `c[]`, we can simply index it by `blockIdx`.
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 为什么我们只在 `cacheIndex == 0` 的线程进行全局存储操作呢？因为只有一个数字需要写入全局内存，所以只需要一个线程执行此操作。虽然理论上每个线程都可以执行这个写操作，程序依然可以正常工作，但那样会产生不必要的大量内存流量来写入单一的值。为了简化起见，我们选择了索引为
+    0 的线程，尽管你也可以选择任何 `cacheIndex` 来将 `cache[0]` 写入全局内存。最后，由于每个块将向全局数组 `c[]` 写入一个值，我们可以通过
+    `blockIdx` 来索引它。
 - en: We are left with an array `c[]`, each entry of which contains the sum produced
     by one of the parallel blocks. The last step of the dot product is to sum the
     entries of `c[]`. Even though the dot product is not fully computed, we exit the
     kernel and return control to the host at this point. But why do we return to the
     host before the computation is complete?
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们得到了一个数组 `c[]`，每个条目包含一个并行块产生的和。点积的最后一步是将 `c[]` 中的条目相加。尽管点积并未完全计算完成，我们此时退出内核并将控制权交回主机。但为什么在计算未完成时我们就返回主机呢？
 - en: Previously, we referred to an operation like a dot product as a *reduction*.
     Roughly speaking, this is because we produce fewer output data elements than we
     input. In the case of a dot product, we always produce exactly one output, regardless
@@ -720,40 +1024,60 @@
     a GPU tends to waste its resources when performing the last steps of a reduction,
     since the size of the data set is so small at that point; it is hard to utilize
     480 arithmetic units to add 32 numbers!
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 之前，我们把像点积这样的操作称为 *归约*。粗略地说，这是因为我们输出的数据元素比输入的少。以点积为例，无论输入的大小如何，我们始终只产生一个输出。事实证明，像
+    GPU 这样的高度并行机器在执行归约的最后步骤时会浪费资源，因为此时数据集的大小非常小；用 480 个算术单元去加 32 个数字是很难充分利用的！
 - en: For this reason, we return control to the host and let the CPU finish the final
     step of the addition, summing the array `c[]`. In a larger application, the GPU
     would now be free to start another dot product or work on another large computation.
     However, in this example, we are done with the GPU.
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们将控制权返回给主机，让 CPU 完成最后的加法步骤，求和数组 `c[]`。在更大的应用中，GPU 现在可以开始另一个点积运算或处理另一个大规模计算。然而，在这个例子中，我们已经完成了
+    GPU 的工作。
 - en: In explaining this example, we broke with tradition and jumped right into the
     actual kernel computation. We hope you will have no trouble understanding the
     body of `main()` up to the kernel call, since it is overwhelmingly similar to
     what we have shown before.
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 在解释这个例子时，我们打破了传统，直接进入了实际的内核计算。我们希望你在理解 `main()` 函数中内核调用之前的部分时不会有困难，因为它与我们之前展示的内容几乎完全相同。
 - en: '![image](graphics/p0081-01.jpg)'
+  id: totrans-142
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0081-01.jpg)'
 - en: '![image](graphics/p0082-01.jpg)'
+  id: totrans-143
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0082-01.jpg)'
 - en: 'To avoid you passing out from boredom, we will quickly summarize this code:'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了防止你因无聊而昏迷，我们将快速总结这段代码：
 - en: 1\. Allocate host and device memory for input and output arrays.
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 1\. 为输入和输出数组分配主机和设备内存。
 - en: 2\. Fill input arrays `a[]` and `b[]`, and then copy these to the device using
     `cudaMemcpy()`.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 2\. 填充输入数组 `a[]` 和 `b[]`，然后使用 `cudaMemcpy()` 将其复制到设备上。
 - en: 3\. Call our dot product kernel using some predetermined number of threads per
     block and blocks per grid.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 3\. 使用每个块的预定线程数和每个网格的块数调用我们的点积内核。
 - en: Despite most of this being commonplace to you now, it is worth examining the
     computation for the number of blocks we launch. We discussed how the dot product
     is a reduction and how each block launched will compute a partial sum. The length
@@ -762,8 +1086,10 @@
     GPUs busy. We have chosen 32 blocks, although this is a case where you may notice
     better or worse performance for other choices, especially depending on the relative
     speeds of your CPU and GPU.
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管大部分内容现在对你来说已经是常识，但值得审视我们启动的块数的计算方式。我们讨论了点积是一个归约操作，以及每个启动的块将计算一个部分和。这个部分和列表的长度应该对于CPU来说是一个可管理的小数目，但足够大，以便我们拥有足够的块在飞行中，能够让即使是最快的GPU也保持忙碌。我们选择了32个块，尽管这是一个可以根据CPU和GPU的相对速度做出更好或更差选择的情况。
 - en: But what if we are given a very short list and 32 blocks of 256 threads apiece
     is too many? If we have `N` data elements, we need only `N` threads in order to
     compute our dot product. So in this case, we need the smallest multiple of `threadsPerBlock`
@@ -773,77 +1099,115 @@
     As you may be able to tell, this is actually a fairly common trick in integer
     math, so it is worth digesting this even if you spend most of your time working
     outside the CUDA C realm.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么如果我们有一个非常短的列表，而32个每个256线程的块太多怎么办？如果我们有`N`个数据元素，我们只需要`N`个线程来计算我们的点积。因此，在这种情况下，我们需要大于或等于`N`的`threadsPerBlock`的最小倍数。我们之前在加法向量时已经见过这种情况。在这种情况下，我们通过计算`(N+(threadsPerBlock-1))
+    / threadsPerBlock`来获得大于或等于`N`的`threadsPerBlock`的最小倍数。你可能会发现，这其实是在整数数学中相当常见的一个小技巧，因此即使你大部分时间在CUDA
+    C之外工作，也值得消化它。
 - en: Therefore, the number of blocks we launch should be either 32 or `(N+(threadsPerBlock-1))
     / threadsPerBlock`, whichever value is smaller.
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，我们启动的块数应该是32或`(N+(threadsPerBlock-1)) / threadsPerBlock`，取较小值。
 - en: '![image](graphics/p0083-01.jpg)'
+  id: totrans-151
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0083-01.jpg)'
 - en: Now it should be clear how we arrive at the code in `main()`. After the kernel
     finishes, we still have to sum the result. But like the way we copy our input
     to the GPU before we launch a kernel, we need to copy our output back to the CPU
     before we continue working with it. So after the kernel finishes, we copy back
     the list of partial sums and complete the sum on the CPU.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在应该很清楚我们是如何得出`main()`中的代码的。内核完成后，我们仍然需要对结果进行求和。但就像我们在启动内核之前将输入复制到GPU一样，我们需要在继续操作之前将输出复制回CPU。所以在内核完成后，我们将部分和的列表复制回CPU，并在CPU上完成总和的计算。
 - en: '![image](graphics/p0083-02.jpg)'
+  id: totrans-153
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0083-02.jpg)'
 - en: Finally, we check our results and clean up the memory we’ve allocated on both
     the CPU and GPU. Checking the results is made easier because we’ve filled the
     inputs with predictable data. If you recall, `a[]` is filled with the integers
     from 0 to `N-1` and `b[]` is just `2*a[]`.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们检查结果并清理我们在CPU和GPU上分配的内存。检查结果变得更容易，因为我们已经用可预测的数据填充了输入。如果你还记得，`a[]`被填充为从0到`N-1`的整数，而`b[]`则是`2*a[]`。
 - en: '![image](graphics/p0084-01.jpg)'
+  id: totrans-155
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0084-01.jpg)'
 - en: 'Our dot product should be two times the sum of the squares of the integers
     from 0 to `N-1`. For the reader who loves discrete mathematics (and what’s not
     to love?!), it will be an amusing diversion to derive the closed-form solution
     for this summation. For those with less patience or interest, we present the closed-form
     here, as well as the rest of the body of `main()`:'
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的点积应该是从0到`N-1`的整数的平方和的两倍。对于喜欢离散数学的读者（谁不喜欢呢？！），推导这个求和的闭式解将是一个有趣的消遣。对于那些耐心或兴趣较少的读者，我们在此提供闭式解，以及`main()`函数的其余部分：
 - en: '![image](graphics/p0084-02.jpg)'
+  id: totrans-157
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0084-02.jpg)'
 - en: 'If you found all our explanatory interruptions bothersome, here is the entire
     source listing, sans commentary:'
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你觉得我们的解释性中断有些烦人，这里是完整的源代码列表，没有评论：
 - en: '![image](graphics/p0085-01.jpg)'
+  id: totrans-159
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0085-01.jpg)'
 - en: '![image](graphics/p0085-02.jpg)'
+  id: totrans-160
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0085-02.jpg)'
 - en: '![image](graphics/p0086-01.jpg)'
+  id: totrans-161
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0086-01.jpg)'
 - en: '![image](graphics/p0086-02.jpg)'
+  id: totrans-162
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0086-02.jpg)'
 - en: '![image](graphics/p0087-01.jpg)'
+  id: totrans-163
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0087-01.jpg)'
 - en: '**5.3.2 Dot Product Optimized (Incorrectly)**'
+  id: totrans-164
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**5.3.2 点积优化（不正确）**'
 - en: We quickly glossed over the second `__syncthreads()` in the dot product example.
     Now we will take a closer look at it as well as examining an attempt to improve
     it. If you recall, we needed the second `__syncthreads()` because we update our
     shared memory variable `cache[]` and need these updates to be visible to every
     thread on the next iteration through the loop.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在点积示例中很快地略过了第二个`__syncthreads()`。现在我们将更详细地查看它，并尝试改进它。如果你记得，我们需要第二个`__syncthreads()`是因为我们更新了共享内存变量`cache[]`，并且需要确保这些更新在下一次循环迭代时对每个线程可见。
 - en: '![image](graphics/p0088-01.jpg)'
+  id: totrans-166
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0088-01.jpg)'
 - en: 'Observe that we update our shared memory buffer `cache[]` only if `cacheIndex`
     is less than `i`. Since `cacheIndex` is really just `threadIdx.x`, this means
     that only *some* of the threads are updating entries in the shared memory cache.
@@ -851,17 +1215,23 @@
     place before proceeding, it stands to reason that we might see a speed improvement
     if we wait only for the threads that are actually writing to shared memory. We
     do this by moving the synchronization call inside the `if()` block:'
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，我们仅在`cacheIndex`小于`i`时才更新共享内存缓冲区`cache[]`。由于`cacheIndex`实际上就是`threadIdx.x`，这意味着只有*部分*线程在更新共享内存缓存中的条目。由于我们使用`__syncthreads`只是为了确保这些更新在继续之前已完成，因此可以推测，如果我们仅等待那些实际写入共享内存的线程，可能会看到性能提升。我们通过将同步调用移入`if()`块中来实现这一点：
 - en: '![image](graphics/p0088-02.jpg)'
+  id: totrans-168
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0088-02.jpg)'
 - en: Although this was a valiant effort at optimization, it will not actually work.
     In fact, the situation is worse than that. This change to the kernel will actually
     cause the GPU to stop responding, forcing you to kill your program. But what could
     have gone so catastrophically wrong with such a seemingly innocuous change?
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管这是一种勇敢的优化尝试，但实际上它是行不通的。事实上，情况比这还糟糕。这对内核的修改实际上会导致GPU停止响应，迫使你终止程序。但是，像这样的看似微不足道的更改，究竟哪里出了严重问题呢？
 - en: 'To answer this question, it helps to imagine every thread in the block marching
     through the code one line at a time. At each instruction in the program, every
     thread executes the same instruction, but each can operate on different data.
@@ -870,11 +1240,15 @@
     execute that instruction, right? For example, consider a kernel that contains
     the following fragment of code that intends for odd-indexed threads to update
     the value of some variable:'
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了回答这个问题，我们可以想象每个线程在代码中逐行执行。程序中的每个指令，每个线程都会执行相同的指令，但每个线程可能操作不同的数据。那么，当每个线程应该执行的指令位于类似`if()`的条件块中时，会发生什么呢？显然，并不是每个线程都应该执行那条指令，对吧？例如，考虑一个内核，它包含以下代码片段，目的是让奇数索引的线程更新某个变量的值：
 - en: '![image](graphics/p0089-01.jpg)'
+  id: totrans-171
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0089-01.jpg)'
 - en: In the previous example, when the threads arrive at the line in bold, only the
     threads with odd indices will execute it since the threads with even indices do
     not satisfy the condition `if( threadIdx.x % 2 )`. The even-numbered threads simply
@@ -883,8 +1257,10 @@
     *thread divergence*. Under normal circumstances, divergent branches simply result
     in some threads remaining idle, while the other threads actually execute the instructions
     in the branch.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 在之前的示例中，当线程到达加粗的那行时，只有索引为奇数的线程会执行它，因为索引为偶数的线程不满足条件`if( threadIdx.x % 2 )`。偶数索引的线程什么也不做，而奇数索引的线程则执行这条指令。当有些线程需要执行指令而其他线程不需要时，这种情况称为*线程分歧*。在正常情况下，分歧分支会导致一些线程保持空闲，而其他线程则执行该分支中的指令。
 - en: But in the case of `__syncthreads()`, the result is somewhat tragic. The CUDA
     Architecture guarantees that *no thread* will advance to an instruction beyond
     the `__syncthreads()` until *every* thread in the block has executed the `__syncthreads()`.
@@ -893,117 +1269,171 @@
     that no instruction after a `__syncthreads()` can be executed before every thread
     has executed it, the hardware simply continues to wait for these threads. And
     waits. And waits. Forever.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 但是在`__syncthreads()`的情况下，结果有些悲惨。CUDA架构保证，*没有线程*会执行`__syncthreads()`之后的指令，直到*块中的每个线程*都执行了`__syncthreads()`。不幸的是，如果`__syncthreads()`处于一个分支中，某些线程*永远*不会到达`__syncthreads()`。因此，由于确保在每个线程执行了`__syncthreads()`之前，不会有任何指令被执行，硬件会一直等待这些线程。就这样等待。再等。永远等下去。
 - en: This is the situation in the dot product example when we move the `__syncthreads()`
     call inside the `if()` block. Any thread with `cacheIndex` greater than or equal
     to `i` will *never* execute the `__syncthreads()`. This effectively hangs the
     processor because it results in the GPU waiting for something that will never
     happen.
+  id: totrans-174
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是点积例子中的情况，当我们将`__syncthreads()`调用放入`if()`块内时。任何`cacheIndex`大于或等于`i`的线程将*永远*不会执行`__syncthreads()`。这实际上会导致处理器挂起，因为它会让GPU等待某个永远不会发生的事件。
 - en: '![image](graphics/p0089-02.jpg)'
+  id: totrans-175
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0089-02.jpg)'
 - en: The moral of this story is that `__syncthreads()` is a powerful mechanism for
     ensuring that your massively parallel application still computes the correct results.
     But because of this potential for unintended consequences, we still need to take
     care when using it.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个故事的教训是，`__syncthreads()`是一个强大的机制，用来确保你的大规模并行应用仍然能够计算出正确的结果。但由于它可能带来意想不到的后果，我们在使用时仍然需要小心。
 - en: '**5.3.3 Shared Memory Bitmap**'
+  id: totrans-177
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**5.3.3 共享内存位图**'
 - en: We have looked at examples that use shared memory and employed `__syncthreads()`
     to ensure that data is ready before we continue. In the name of speed, you may
     be tempted to live dangerously and omit the `__syncthreads()`. We will now look
     at a graphical example that requires `__syncthreads()` for correctness. We will
     show you screenshots of the intended output and of the output when run without
     `__syncthreads()`. It won’t be pretty.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经看过一些使用共享内存并采用`__syncthreads()`来确保数据准备好再继续的例子。为了追求速度，你可能会想冒险跳过`__syncthreads()`。现在我们来看一个需要`__syncthreads()`以保证正确性的图形示例。我们将展示预期输出的截图以及在没有`__syncthreads()`的情况下运行时的输出。结果不会很漂亮。
 - en: 'The body of `main()` is identical to the GPU Julia Set example, although this
     time we launch multiple threads per block:'
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: '`main()`的主体与GPU的Julia集示例完全相同，不过这次我们每个块启动多个线程：'
 - en: '![image](graphics/p0090-01.jpg)'
+  id: totrans-180
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0090-01.jpg)'
 - en: 'As with the Julia Set example, each thread will be computing a pixel value
     for a single output location. The first thing that each thread does is compute
     its `x` and `y` location in the output image. This computation is identical to
     the `tid` computation in the vector addition example, although we compute it in
     two dimensions this time:'
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 与Julia集示例一样，每个线程都会为一个输出位置计算一个像素值。每个线程做的第一件事是计算它在输出图像中的`x`和`y`位置。这一计算与向量加法例子中的`tid`计算完全相同，只不过这次我们是在二维中进行计算：
 - en: '![image](graphics/p0091-01.jpg)'
+  id: totrans-182
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0091-01.jpg)'
 - en: Since we will be using a shared memory buffer to cache our computations, we
     declare one such that each thread in our 16 x 16 block has an entry.
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们将使用一个共享内存缓冲区来缓存我们的计算结果，因此我们声明了一个缓冲区，使得我们16 x 16的块中的每个线程都有一个条目。
 - en: __shared__ float shared[16][16];
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: __shared__ float shared[16][16];
 - en: Then, each thread computes a value to be stored into this buffer.
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，每个线程计算一个值并存储到这个缓冲区中。
 - en: '![image](graphics/p0091-02.jpg)'
+  id: totrans-186
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0091-02.jpg)'
 - en: 'And lastly, we store these values back out to the pixel, reversing the order
     of `x` and `y`:'
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们将这些值存回像素中，交换`x`和`y`的顺序：
 - en: '![image](graphics/p0092-01.jpg)'
+  id: totrans-188
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0092-01.jpg)'
 - en: Granted, these computations are somewhat arbitrary. We’ve simply come up with
     something that will draw a grid of green spherical blobs. So after compiling and
     running this kernel, we output an image like the one in [Figure 5.5](ch05.html#ch05fig05).
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 诚然，这些计算是有些任意的。我们只是设计了一个绘制绿色球状物网格的东西。所以，在编译并运行这个内核之后，我们输出的图像就像[图5.5](ch05.html#ch05fig05)中显示的那样。
 - en: What happened here? As you may have guessed from the way we set up this example,
     we’re missing an important synchronization point. When a thread stores the computed
     value in `shared[][]` to the pixel, it is possible that the thread responsible
     for writing that value to `shared[][]` has not finished writing it yet. The only
     way to guarantee that this does not happen is by using `__syncthreads()`. Thus,
     the result is a corrupted picture of green blobs.
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里发生了什么？正如你从我们设置这个示例的方式猜到的那样，我们缺少一个重要的同步点。当一个线程将计算的值存储到`shared[][]`的像素时，负责写入该值的线程可能还没有完成写入。唯一能保证这种情况不发生的方法就是使用`__syncthreads()`。因此，结果是一个破损的绿色斑点图片。
 - en: '***Figure 5.5*** Ascreenshot rendered without proper synchronization'
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图 5.5*** 渲染时没有适当同步的截图'
 - en: '![image](graphics/ch_05_figure_5-2-2.jpg)'
+  id: totrans-192
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_05_figure_5-2-2.jpg)'
 - en: Although this may not be the end of the world, your application might be computing
     more important values.
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然这可能不是世界末日，但你的应用程序可能正在计算更重要的值。
 - en: Instead, we need to add a synchronization point between the write to shared
     memory and the subsequent read from it.
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 相反，我们需要在写入共享内存和随后从中读取之间添加一个同步点。
 - en: '![image](graphics/p0093-01.jpg)'
+  id: totrans-195
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0093-01.jpg)'
 - en: With this `__syncthreads()` in place, we then get a far more predictable (and
     aesthetically pleasing) result, as shown in [Figure 5.6](ch05.html#ch05fig06).
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过添加`__syncthreads()`，我们得到了一个更可预测（且更具美感）的结果，如[图 5.6](ch05.html#ch05fig06)所示。
 - en: '***Figure 5.6*** A screenshot after adding the correct synchronization'
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图 5.6*** 添加正确同步后的截图'
 - en: '![image](graphics/ch_05_figure_5-2-3.jpg)'
+  id: totrans-198
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_05_figure_5-2-3.jpg)'
 - en: '**5.4 Chapter Review**'
+  id: totrans-199
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**5.4 本章回顾**'
 - en: We know how blocks can be subdivided into smaller parallel execution units known
     as *threads*. We revisited the vector addition example of the previous chapter
     to see how to perform addition of arbitrarily long vectors. We also showed an
@@ -1011,8 +1441,10 @@
     this. In fact, this example showed how the GPU and CPU can collaborate on computing
     results. Finally, we showed how perilous it can be to an application when we neglect
     the need for synchronization.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们知道块如何被划分成更小的并行执行单元，称为*线程*。我们回顾了上一章的向量加法示例，看看如何执行任意长度向量的加法。我们还展示了一个*归约*的示例，以及如何使用共享内存和同步来实现这一点。事实上，这个示例展示了GPU和CPU如何协同计算结果。最后，我们展示了当忽视同步需求时，应用程序可能会面临的风险。
 - en: You have learned most of the basics of CUDA C as well as some of the ways it
     resembles standard C and a lot of the important ways it differs from standard
     C. This would be an excellent time to consider some of the problems you have encountered
@@ -1020,5 +1452,8 @@
     As we progress, we will look at some of the other features we can use to accomplish
     tasks on the GPU, as well as some of the more advanced API features that CUDA
     provides to us.
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
+  zh: 你已经学到了CUDA C的大部分基础知识，以及它与标准C语言相似的一些方式和与标准C语言相异的许多重要方面。现在正是考虑你遇到的一些问题，并且思考哪些问题可能适合用CUDA
+    C进行并行实现的好时机。随着我们的深入，我们将看看其他一些可以在GPU上完成任务的特性，以及CUDA为我们提供的一些更高级的API特性。

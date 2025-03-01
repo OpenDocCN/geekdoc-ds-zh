@@ -1,15 +1,20 @@
 - en: '**Chapter 6 Constant Memory and Events**'
+  id: totrans-0
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: '**第6章 常量内存与事件**'
 - en: We hope you have learned much about writing code that executes on the GPU. You
     should know how to spawn parallel blocks to execute your kernels, and you should
     know how to further split these blocks into parallel threads. You have also seen
     ways to enable communication and synchronization between these threads. But since
     the book is not over yet, you may have guessed that CUDA C has even more features
     that might be useful to you.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们希望你已经学到了很多关于在 GPU 上执行代码的知识。你应该知道如何生成并行的块来执行你的内核，并且应该知道如何将这些块进一步划分为并行线程。你还见过使这些线程之间进行通信和同步的方法。但是，由于本书还没有结束，你可能已经猜到
+    CUDA C 还有更多可能对你有用的特性。
 - en: 'This chapter will introduce you to a couple of these more advanced features.
     Specifically, there exist ways in which you can exploit special regions of memory
     on your GPU in order to accelerate your applications. In this chapter, we will
@@ -18,28 +23,43 @@
     C applications, you will also learn how to measure the performance of your applications
     using CUDA *events*. From these measurements, you will be able to quantify the
     gain (or loss!) from any enhancements you make.'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将向你介绍一些更先进的特性。具体来说，你可以利用 GPU 上的特殊内存区域来加速你的应用程序。在本章中，我们将讨论这些内存区域之一：*常量内存*。此外，因为我们正在研究提升
+    CUDA C 应用程序性能的首个方法，你还将学习如何使用 CUDA *事件*来测量应用程序的性能。通过这些测量，你将能够量化你所做的任何优化所带来的增益（或损失！）。
 - en: '**6.1 Chapter Objectives**'
+  id: totrans-3
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**6.1 章节目标**'
 - en: 'Through the course of this chapter, you will accomplish the following:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，你将完成以下任务：
 - en: • You will learn about using constant memory with CUDA C.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: • 你将学习如何在 CUDA C 中使用常量内存。
 - en: • You will learn about the performance characteristics of constant memory.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: • 你将学习常量内存的性能特征。
 - en: • You will learn how to use CUDA events to measure application performance.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: • 你将学习如何使用 CUDA 事件来测量应用程序性能。
 - en: '**6.2 Constant Memory**'
+  id: totrans-8
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**6.2 常量内存**'
 - en: Previously, we discussed how modern GPUs are equipped with enormous amounts
     of arithmetic processing power. In fact, the computational advantage graphics
     processors have over CPUs helped precipitate the initial interest in using graphics
@@ -49,8 +69,10 @@
     that sometimes we just can’t keep the input coming to them fast enough to sustain
     such high rates of computation. So, it is worth investigating means by which we
     can reduce the amount of memory traffic required for a given problem.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 之前我们讨论了现代 GPU 配备了大量的算术处理能力。事实上，图形处理器在计算上的优势帮助激发了最初将图形处理器用于通用计算的兴趣。由于 GPU 上有成百上千的算术单元，瓶颈往往不是芯片的算术吞吐量，而是芯片的内存带宽。图形处理器上有如此多的算术逻辑单元（ALU），有时我们根本无法足够快地提供输入以支撑如此高的计算速率。因此，研究如何减少特定问题所需的内存流量是值得的。
 - en: We have seen CUDA C programs that have used both global and shared memory so
     far. However, the language makes available another kind of memory known as *constant
     memory*. As the name may indicate, we use constant memory for data that will not
@@ -58,18 +80,26 @@
     constant memory that it treats differently than it treats standard global memory.
     In some situations, using constant memory rather than global memory will reduce
     the required memory bandwidth.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们已经见过使用了全局内存和共享内存的 CUDA C 程序。然而，语言还提供了另一种内存，称为*常量内存*。顾名思义，我们使用常量内存来存储在内核执行过程中不会改变的数据。NVIDIA
+    硬件提供了 64KB 的常量内存，并以不同于标准全局内存的方式处理它。在某些情况下，使用常量内存而不是全局内存会减少所需的内存带宽。
 - en: '**6.2.1 Ray Tracing Introduction**'
+  id: totrans-11
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**6.2.1 光线追踪简介**'
 - en: We will look at one way of exploiting constant memory in the context of a simple
     *ray tracing* application. First, we will give you some background in the major
     concepts behind ray tracing. If you are already comfortable with the concepts
     behind ray tracing, you can skip to the “Ray Tracing on the GPU” section.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将通过一个简单的*光线追踪*应用程序来探讨如何利用常量内存。首先，我们将为你介绍光线追踪的主要概念。如果你已经对光线追踪的概念非常熟悉，可以跳过“GPU
+    上的光线追踪”部分。
 - en: Simply put, ray tracing is one way of producing a two-dimensional image of a
     scene consisting of three-dimensional objects. But isn’t this what GPUs were originally
     designed for? How is this different from what OpenGL or DirectX do when you play
@@ -77,49 +107,65 @@
     a technique known as *rasterization*. There are many excellent books on rasterization,
     so we will not endeavor to explain the differences here. It suffices to say that
     they are completely different methods that solve the same problem.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 简单来说，光线追踪是一种生成包含三维物体的场景的二维图像的方法。但这不正是GPU最初设计的目的么？它与在你玩最喜欢的游戏时，OpenGL或DirectX所做的有何不同呢？的确，GPU解决的也是这个问题，但它们采用的是一种称为*光栅化*的技术。关于光栅化有许多优秀的书籍可供参考，因此我们在这里不会深入解释它们之间的区别。只需说，它们是解决相同问题的完全不同的方法。
 - en: 'So, how does ray tracing produce an image of a three-dimensional scene? The
     idea is simple: We choose a spot in our scene to place an imaginary camera. This
     simplified digital camera contains a light sensor, so to produce an image, we
     need to determine what light would hit that sensor. Each pixel of the resulting
     image should be the same color and intensity of the ray of light that hits that
     spot sensor.'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，光线追踪是如何生成三维场景的图像的呢？这个思路很简单：我们选择场景中的一个位置放置一个虚拟相机。这个简化的数字相机包含一个光传感器，因此为了生成图像，我们需要确定哪些光线会击中这个传感器。最终图像的每个像素应该是击中该传感器的光线的相同颜色和强度。
 - en: Since light incident at any point on the sensor can come from any place in our
     scene, it turns out it’s easier to work backward. That is, rather than trying
     to figure out what light ray hits the pixel in question, what if we imagine shooting
     a ray *from* the pixel and into the scene? In this way, each pixel behaves something
     like an eye that is “looking” into the scene. [Figure 6.1](ch06.html#ch06fig01)
     illustrates these rays being cast out of each pixel and into the scene.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于任何光线照射到传感器上某一点的光线可能来自我们场景中的任何地方，实际上从后向推算会更为容易。也就是说，与其尝试去推测哪些光线会击中目标像素，不如我们设想从像素出发，射出一条光线进入场景？通过这种方式，每个像素的行为就像一个“眼睛”，它在“看”向场景。[图6.1](ch06.html#ch06fig01)展示了这些光线从每个像素射出并进入场景的情况。
 - en: '***Figure 6.1*** A simple ray tracing scheme'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图6.1*** 一个简单的光线追踪方案'
 - en: '![image](graphics/ch_06_figure_6-1_u.jpg)'
+  id: totrans-17
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_06_figure_6-1_u.jpg)'
 - en: We figure out what color is seen by each pixel by tracing a ray from the pixel
     in question through the scene until it hits one of our objects. We then say that
     the pixel would “see” this object and can assign its color based on the color
     of the object it sees. Most of the computation required by ray tracing is in the
     computation of these intersections of the ray with the objects in the scene.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们通过从目标像素出发，沿着光线穿过场景，直到光线碰到其中一个物体来确定每个像素看到的颜色。然后我们说，像素会“看到”这个物体，并根据它所看到物体的颜色来分配像素的颜色。光线追踪所需的多数计算是在计算光线与场景中物体交点的过程。
 - en: Moreover, in more complex ray tracing models, shiny objects in the scene can
     reflect rays, and translucent objects can refract the rays of light. This creates
     secondary rays, tertiary rays, and so on. In fact, this is one of the attractive
     features of ray tracing; it is very simple to get a basic ray tracer working,
     but we can build models of more complex phenomena into the ray tracer in order
     to produce more realistic images.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，在更复杂的光线追踪模型中，场景中的光亮物体可能会反射光线，而半透明物体可能会折射光线。这就产生了二次光线、三次光线，依此类推。事实上，这也是光线追踪的一个吸引人之处；要让一个基本的光线追踪器正常工作非常简单，但我们可以将更多复杂现象的模型嵌入到光线追踪器中，从而生成更逼真的图像。
 - en: '**6.2.2 Ray Tracing on the GPU**'
+  id: totrans-20
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**6.2.2 GPU上的光线追踪**'
 - en: Since APIs such as OpenGL and DirectX are not designed to allow ray-traced rendering,
     we will have to use CUDA C to implement our basic ray tracer. Our ray tracer will
     be extraordinarily simple so that we can concentrate on the use of constant memory,
@@ -129,22 +175,30 @@
     we will not support any lighting of the scene to avoid the complications of secondary
     rays. Instead of computing lighting effects, we will simply assign each sphere
     a color and then shade them with some precomputed function if they are visible.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于像OpenGL和DirectX这样的API并不支持光线追踪渲染，我们将使用CUDA C来实现我们的基础光线追踪器。我们的光线追踪器将异常简单，以便我们专注于常量内存的使用，因此，如果你期待的是可以作为完整生产渲染器基础的代码，你可能会失望。我们的基础光线追踪器仅支持球体场景，且相机仅限于z轴，面向原点。此外，我们不会支持任何场景光照效果，以避免次级光线的复杂性。我们将不计算光照效果，而是简单地为每个球体分配一个颜色，并在它们可见时用一些预计算的函数进行着色。
 - en: So, what *will* the ray tracer do? It will fire a ray from each pixel and keep
     track of which rays hit which spheres. It will also track the depth of each of
     these hits. In the case where a ray passes through multiple spheres, only the
     sphere closest to the camera can be seen. In essence, our “ray tracer” is not
     doing much more than hiding surfaces that cannot be seen by the camera.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，*光线追踪器*会做什么呢？它会从每个像素发射一条光线，并追踪哪些光线击中了哪些球体。它还会追踪每个光线击中的深度。如果一条光线穿过多个球体，只有距离相机最近的球体是可见的。实际上，我们的“光线追踪器”做的并不复杂，主要是隐藏那些相机看不见的表面。
 - en: We will model our spheres with a data structure that stores the sphere’s center
     coordinate of `(x, y, z)`, its `radius`, and its color of `(r, b, g)`.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将用一个数据结构来表示球体，存储球体的中心坐标`(x, y, z)`、`radius`以及颜色`(r, b, g)`。
 - en: '![image](graphics/p0099-01.jpg)'
+  id: totrans-24
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0099-01.jpg)'
 - en: 'You will also notice that the structure has a method called `hit( float ox,
     float oy, float *n )`. Given a ray shot from the pixel at `(ox, oy)`, this method
     computes whether the ray intersects the sphere. If the ray *does* intersect the
@@ -152,57 +206,83 @@
     sphere. We need this information for the reason mentioned before: In the event
     that the ray hits more than one sphere, only the closest sphere can actually be
     seen.'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还会注意到，这个结构有一个方法叫`hit( float ox, float oy, float *n )`。给定从像素`(ox, oy)`发射的光线，这个方法计算光线是否与球体相交。如果光线*确实*与球体相交，该方法会计算光线与球体相交的距离，也就是光线击中球体的位置。我们需要这些信息，原因是：如果光线击中了多个球体，只有距离相机最近的球体才能被看到。
 - en: Our `main()` routine follows roughly the same sequence as our previous image-generating
     examples.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的`main()`函数大致遵循与之前图像生成示例相同的顺序。
 - en: '![image](graphics/p0099-02.jpg)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0099-02.jpg)'
 - en: We allocate memory for our input data, which is an array of spheres that compose
     our scene. Since we need this data on the GPU but are generating it with the CPU,
     we have to do both a `cudaMalloc()` *and* a `malloc()` to allocate memory on both
     the GPU and the CPU. We also allocate a bitmap image that we will fill with output
     pixel data as we ray trace our spheres on the GPU.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们为输入数据分配内存，这些数据是组成场景的球体数组。由于我们需要在GPU上处理这些数据，但又是由CPU生成的，所以我们必须分别进行`cudaMalloc()`*和*`malloc()`，以在GPU和CPU上分配内存。我们还分配了一个位图图像，用于在GPU上进行光线追踪时填充输出像素数据。
 - en: 'After allocating memory for input and output, we randomly generate the center
     coordinate, color, and radius for our spheres:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 在为输入和输出分配内存后，我们随机生成球体的中心坐标、颜色和半径：
 - en: '![image](graphics/p0100-01.jpg)'
+  id: totrans-30
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0100-01.jpg)'
 - en: The program currently generates a random array of 20 spheres, but this quantity
     is specified in a `#define` and can be adjusted accordingly.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序当前生成一个包含20个球体的随机数组，但这个数量是通过`#define`指定的，可以根据需要进行调整。
 - en: We copy this array of spheres to the GPU using `cudaMemcpy()` and then free
     the temporary buffer.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们使用`cudaMemcpy()`将这个球体数组复制到GPU，然后释放临时缓冲区。
 - en: '![image](graphics/p0101-01.jpg)'
+  id: totrans-33
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0101-01.jpg)'
 - en: Now that our input is on the GPU and we have allocated space for the output,
     we are ready to launch our kernel.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们的输入数据已经在GPU上，并且我们已为输出分配了空间，准备好启动我们的内核。
 - en: '![image](graphics/p0101-02.jpg)'
+  id: totrans-35
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0101-02.jpg)'
 - en: We will examine the kernel itself in a moment, but for now you should take it
     on faith that it ray traces the scene and generates pixel data for the input scene
     of spheres. Finally, we copy the output image back from the GPU and display it.
     It should go without saying that we free all allocated memory that hasn’t already
     been freed.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们稍后将检查内核本身，但现在你应该相信它会进行光线追踪并为输入的球体场景生成像素数据。最后，我们从GPU中复制输出图像并显示出来。不言而喻，我们会释放所有尚未释放的已分配内存。
 - en: '![image](graphics/p0101-03.jpg)'
+  id: totrans-37
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0101-03.jpg)'
 - en: All of this should be commonplace to you now. So, how do we do the actual ray
     tracing? Because we have settled on a very simple ray tracing model, our kernel
     will be very easy to understand. Each thread is generating one pixel for our output
@@ -210,18 +290,26 @@
     for the thread as well as the linearized `offset` into our output buffer. We will
     also shift our `(x,y)` image coordinates by `DIM/2` so that the z-axis runs through
     the center of the image.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 这一切现在应该对你来说是常识了。那么，我们如何进行实际的光线追踪呢？由于我们选择了一个非常简单的光线追踪模型，我们的内核将非常容易理解。每个线程生成一个像素用于输出图像，因此我们通常从计算线程的`x`和`y`坐标以及线性化的`offset`开始，计算输出缓冲区的位置。我们还将把我们的`(x,y)`图像坐标平移`DIM/2`，这样z轴就会穿过图像的中心。
 - en: '![image](graphics/p0102-01.jpg)'
+  id: totrans-39
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0102-01.jpg)'
 - en: Since each ray needs to check each sphere for intersection, we will now iterate
     through the array of spheres, checking each for a hit.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于每个光线需要检查每个球体是否相交，我们现在将遍历球体数组，检查每个球体是否被击中。
 - en: '![image](graphics/p0102-02.jpg)'
+  id: totrans-41
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0102-02.jpg)'
 - en: Clearly, the majority of the interesting computation lies in the `for()` loop.
     We iterate through each of the input spheres and call its `hit()` method to determine
     whether the ray from our pixel “sees” the sphere. If the ray hits the current
@@ -231,57 +319,84 @@
     the thread knows the color of the sphere that is closest to the camera. Since
     this is the color that the ray from our pixel “sees,” we conclude that this is
     the color of the pixel and store this value in our output image buffer.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 显然，大部分有趣的计算都在`for()`循环中。我们遍历每个输入球体，并调用它的`hit()`方法来判断从像素发出的光线是否“看见”该球体。如果光线击中了当前球体，我们还需要判断此次击中是否比之前的球体距离相机更近。如果更近，我们就将这个深度作为新的最近球体。除此之外，我们还会存储该球体的颜色，以便当循环结束时，线程知道哪个球体离相机最近。由于这是从像素发出的光线“看见”的颜色，我们就可以认为这是该像素的颜色，并将此值存储在输出图像缓冲区中。
 - en: After every sphere has been checked for intersection, we can store the current
     color into the output image.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 在检查完所有球体的相交情况后，我们可以将当前颜色存储到输出图像中。
 - en: '![image](graphics/p0103-01.jpg)'
+  id: totrans-44
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0103-01.jpg)'
 - en: Note that if no spheres have been hit, the color that we store will be whatever
     color we initialized the variables `r`, `b`, and `g` to. In this case, we set
     `r`, `b`, and `g` to zero so the background will be black. You can change these
     values to render a different color background. [Figure 6.2](ch06.html#ch06fig02)
     shows an example of what the output should look like when rendered with 20 spheres
     and a black background.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，如果没有球体被击中，我们存储的颜色将是我们初始化变量`r`、`b`和`g`时设置的颜色。在这种情况下，我们将`r`、`b`和`g`设置为零，因此背景将是黑色的。你可以更改这些值来渲染不同颜色的背景。[图
+    6.2](ch06.html#ch06fig02)展示了渲染20个球体和黑色背景时输出的示例。
 - en: '***Figure 6.2*** A screenshot from the ray tracing example'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: '***图 6.2*** 来自光线追踪示例的截图'
 - en: '![image](graphics/ch_06_figure_6-2.jpg)'
+  id: totrans-47
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/ch_06_figure_6-2.jpg)'
 - en: Since we randomly generated the sphere positions, colors, and sizes, we advise
     you not to panic if your output doesn’t match this image identically.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们随机生成了球体的位置、颜色和大小，如果你的输出图像与此图像不完全相同，也请不要慌张。
 - en: '**6.2.3 Ray Tracing with Constant Memory**'
+  id: totrans-49
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**6.2.3 使用常量内存进行光线追踪**'
 - en: You may have noticed that we never mentioned constant memory in the ray tracing
     example. Now it’s time to improve this example using the benefits of constant
     memory. Since we cannot modify constant memory, we clearly can’t use it for the
     output image data. And this example has only one input, the array of spheres,
     so it should be pretty obvious what data we will store in constant memory.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可能注意到，我们在光线追踪示例中从未提到常量内存。现在是时候利用常量内存的优势来改进这个示例了。由于我们不能修改常量内存，因此显然不能将其用于输出图像数据。这个示例只有一个输入，即球体数组，因此应该很明显我们将把什么数据存储到常量内存中。
 - en: 'The mechanism for declaring memory constant is identical to the one we used
     for declaring a buffer as shared memory. Instead of declaring our array like this:'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 声明常量内存的机制与我们声明共享内存缓冲区时使用的机制完全相同。我们不再像这样声明我们的数组：
 - en: Sphere *s;
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: Sphere *s;
 - en: 'we add the modifier `__constant__`before it:'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在其前面添加修饰符`__constant__`：
 - en: '![image](graphics/p0104-01.jpg)'
+  id: totrans-54
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0104-01.jpg)'
 - en: 'Notice that in the original example, we declared a pointer and then used `cudaMalloc()`
     to allocate GPU memory for it. When we changed it to constant memory, we also
     changed the declaration to statically allocate the space in constant memory. We
@@ -290,52 +405,74 @@
     For many applications, this is an acceptable trade-off for the performance benefits
     of constant memory. We will talk about these benefits momentarily, but first we
     will look at how the use of constant memory changes our `main()` routine:'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在原始示例中，我们声明了一个指针，然后使用`cudaMalloc()`为其分配了GPU内存。当我们将其改为常量内存时，我们也修改了声明，将空间静态分配到常量内存中。我们不再需要担心为我们的球体数组调用`cudaMalloc()`或`cudaFree()`，但我们确实需要在编译时为该数组承诺一个大小。对于许多应用程序来说，这是一个可以接受的权衡，考虑到常量内存带来的性能优势。我们稍后会讨论这些优势，但首先我们来看看常量内存如何改变我们的`main()`例程：
 - en: '![image](graphics/p0104-02.jpg)'
+  id: totrans-56
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0104-02.jpg)'
 - en: '![image](graphics/p0105-01.jpg)'
+  id: totrans-57
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0105-01.jpg)'
 - en: 'Largely, this is identical to the previous implementation of `main()`. As we
     mentioned previously, we no longer need the call to `cudaMalloc()` to allocate
     space for our array of spheres. The other change has been highlighted in the listing:'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 在很大程度上，这与之前的`main()`实现相同。正如我们之前提到的，我们不再需要调用`cudaMalloc()`来为我们的球体数组分配空间。另一个变化已经在代码中突出显示。
 - en: '![image](graphics/p0106-01.jpg)'
+  id: totrans-59
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0106-01.jpg)'
 - en: We use this special version of `cudaMemcpy()` when we copy from host memory
     to constant memory on the GPU. The only differences in functionality between `cudaMemcpyToSymbol()`
     and `cudaMemcpy()` is that `cudaMemcpyToSymbol()` can copy to constant memory
     and `cudaMemcpy()` can only copy to pointers in global memory.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们从主机内存复制到GPU上的常量内存时，我们使用这种特殊版本的`cudaMemcpy()`。`cudaMemcpyToSymbol()`和`cudaMemcpy()`之间唯一的功能差异是，`cudaMemcpyToSymbol()`可以复制到常量内存，而`cudaMemcpy()`只能复制到全局内存中的指针。
 - en: Outside the `__constant__` modifier and the two changes to `main()`, the versions
     with and without constant memory are identical.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了`__constant__`修饰符和`main()`中的两个变化外，使用和不使用常量内存的版本是相同的。
 - en: '**6.2.4 Performance with Constant Memory**'
+  id: totrans-62
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**6.2.4 使用常量内存的性能**'
 - en: 'Declaring memory as `__constant__` constrains our usage to be read-only. In
     taking on this constraint, we expect to get something in return. As we previously
     mentioned, reading from constant memory can conserve memory bandwidth when compared
     to reading the same data from global memory. There are two reasons why reading
     from the 64KB of constant memory can save bandwidth over standard reads of global
     memory:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 声明内存为`__constant__`将限制我们的使用为只读。在承担这一限制的同时，我们期望能获得一些回报。正如我们之前提到的，从常量内存中读取数据可以节省内存带宽，相较于从全局内存中读取相同的数据。阅读64KB常量内存比标准的全局内存读取节省带宽有两个原因：
 - en: • A single read from constant memory can be broadcast to other “nearby” threads,
     effectively saving up to 15 reads.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: • 从常量内存中的单次读取可以广播到其他“附近”的线程，有效地节省最多15次读取。
 - en: • Constant memory is cached, so consecutive reads of the same address will not
     incur any additional memory traffic.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: • 常量内存是缓存的，因此对相同地址的连续读取不会产生额外的内存流量。
 - en: What do we mean by the word *nearby*? To answer this question, we will need
     to explain the concept of a *warp*. For those readers who are more familiar with
     *Star Trek* than with weaving, a warp in this context has nothing to do with the
@@ -344,8 +481,10 @@
     refers to a collection of 32 threads that are “woven together” and get executed
     in lockstep. At every line in your program, each thread in a warp executes the
     same instruction on different data.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们说的*附近*是什么意思？为了回答这个问题，我们需要解释一下*warp*的概念。对于那些更熟悉*星际迷航*而非织布的读者来说，warp在这里和宇宙旅行速度没有任何关系。在织布的世界里，warp指的是一组正在编织成布的*经纱*。在CUDA架构中，*warp*指的是32个线程的集合，这些线程“并排执行”，并且以同步的方式执行。在程序的每一行中，warp中的每个线程都在不同的数据上执行相同的指令。
 - en: 'When it comes to handling constant memory, NVIDIA hardware can broadcast a
     single memory read to each half-warp. A half-warp—not nearly as creatively named
     as a warp—is a group of 16 threads: half of a 32-thread warp. If every thread
@@ -354,37 +493,49 @@
     every thread. If you are reading a lot of data from constant memory, you will
     generate only 1/16 (roughly 6 percent) of the memory traffic as you would when
     using global memory.'
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 在处理常量内存时，NVIDIA硬件可以将单个内存读取广播到每个半warp。半warp——这个名字的创造性远不及warp——是由16个线程组成的：32线程warp的一半。如果半warp中的每个线程都从常量内存中的相同地址请求数据，那么GPU只会生成一个读取请求，并随后将数据广播到每个线程。如果你从常量内存中读取大量数据，所产生的内存流量仅为使用全局内存时的1/16（大约6%）。
 - en: But the savings don’t stop at a 94 percent reduction in bandwidth when reading
     constant memory! Because we have committed to leaving the memory unchanged, the
     hardware can aggressively cache the constant data on the GPU. So after the first
     read from an address in constant memory, other half-warps requesting the same
     address, and therefore hitting the constant cache, will generate no additional
     memory traffic.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 但节省不仅仅体现在读取常量内存时带来94%的带宽减少！因为我们承诺保持内存不变，硬件可以在GPU上积极缓存常量数据。所以，在第一次从常量内存地址读取数据后，其他半波段请求相同地址的线程，并因此命中常量缓存，将不会产生额外的内存流量。
 - en: 'In the case of our ray tracer, every thread in the launch reads the data corresponding
     to the first sphere so the thread can test its ray for intersection. After we
     modify our application to store the spheres in constant memory, the hardware needs
     to make only a single request for this data. After caching the data, every other
     thread avoids generating memory traffic as a result of one of the two constant
     memory benefits:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的光线追踪器的例子中，启动时每个线程读取与第一个球体对应的数据，以便线程可以测试其光线是否发生交集。在我们修改应用程序，将球体存储在常量内存后，硬件只需要发出一次对该数据的请求。在缓存了数据之后，其他线程避免了由于常量内存带来的两大好处之一，从而不会产生额外的内存流量：
 - en: • It receives the data in a half-warp broadcast.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: • 它以半warp广播的方式接收数据。
 - en: • It retrieves the data from the constant memory cache.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: • 它从常量内存缓存中检索数据。
 - en: Unfortunately, there can potentially be a downside to performance when using
     constant memory. The half-warp broadcast feature is in actuality a double-edged
     sword. Although it can dramatically accelerate performance when all 16 threads
     are reading the same address, it actually slows performance to a crawl when all
     16 threads read different addresses.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，使用常量内存时可能会对性能产生潜在的负面影响。半warp广播功能实际上是一把双刃剑。虽然当所有16个线程读取相同地址时，它能够显著加速性能，但当所有16个线程读取不同的地址时，它反而会使性能大幅下降。
 - en: The trade-off to allowing the broadcast of a single read to 16 threads is that
     the 16 threads are allowed to place only a single read request at a time. For
     example, if all 16 threads in a half-warp need different data from constant memory,
@@ -392,12 +543,16 @@
     of time to place the request. If they were reading from conventional global memory,
     the request could be issued at the same time. In this case, reading from constant
     memory would probably be slower than using global memory.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 允许将单个读取广播到16个线程的权衡是，这16个线程每次只能发出一个读取请求。例如，如果16个线程中的每一个都需要从常量内存中读取不同的数据，这16个不同的读取请求会被串行化，从而使得发出请求的时间变为16倍。如果它们是从常规全局内存中读取，所有请求可以同时发出。在这种情况下，从常量内存读取的速度可能比使用全局内存更慢。
 - en: '**6.3 Measuring Performance with Events**'
+  id: totrans-74
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**6.3 使用事件测量性能**'
 - en: 'Fully aware that there may be either positive or negative implications, you
     have changed your ray tracer to use constant memory. How do you determine how
     this has impacted the performance of your program? One of the simplest metrics
@@ -409,8 +564,10 @@
     The only way to time these host computations is using the CPU or operating system
     timing mechanism. So to measure the time a GPU spends on a task, we will use the
     CUDA event API.'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 完全意识到这可能带来正面或负面的影响，你已经将光线追踪器更改为使用常量内存。你如何确定这对程序的性能产生了怎样的影响？其中一个最简单的度量标准是回答这个简单的问题：哪个版本的执行时间更短？我们可以使用CPU或操作系统的计时器，但这将包括来自各种来源的延迟和变化（操作系统线程调度、高精度CPU计时器的可用性等）。此外，在GPU内核执行时，我们可能在主机上异步执行计算。唯一能够计时这些主机计算的方法是使用CPU或操作系统的计时机制。因此，为了测量GPU在任务上花费的时间，我们将使用CUDA事件API。
 - en: 'An *event* in CUDA is essentially a GPU time stamp that is recorded at a user-specified
     point in time. Since the GPU itself is recording the time stamp, it eliminates
     a lot of the problems we might encounter when trying to time GPU execution with
@@ -419,27 +576,37 @@
     example, at the beginning of some sequence of code, we instruct the CUDA runtime
     to make a record of the current time. We do so by creating and then recording
     the event:'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 在CUDA中，*事件*本质上是一个GPU时间戳，它在用户指定的时间点记录。由于GPU本身记录时间戳，因此避免了我们在尝试用CPU计时器计时GPU执行时可能遇到的许多问题。该API相对简单易用，因为获取时间戳只需要两个步骤：创建事件和随后记录事件。例如，在某些代码序列的开始时，我们指示CUDA运行时记录当前时间。我们通过创建并记录事件来做到这一点：
 - en: '![image](graphics/p0108-01.jpg)'
+  id: totrans-77
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0108-01.jpg)'
 - en: You will notice that when we instruct the runtime to record the event `start`,
     we also pass it a second argument. In the previous example, this argument is 0\.
     The exact nature of this argument is unimportant for our purposes right now, so
     we intend to leave it mysteriously unexplained rather than open a new can of worms.
     If your curiosity is killing you, we intend to discuss this when we talk about
     *streams*.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 你会注意到，当我们指示运行时记录`start`事件时，我们还传递了第二个参数。在前面的例子中，这个参数是0。这个参数的确切含义目前对我们来说并不重要，所以我们打算保持神秘，不去打开新的“潘多拉盒子”。如果你的好奇心让你迫不及待，我们打算在讨论*流*时进行说明。
 - en: 'To time a block of code, we will want to create both a start event and a stop
     event. We will have the CUDA runtime record when we start, tell it to do some
     other work on the GPU, and then tell it to record when we’ve stopped:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 要对一段代码进行计时，我们需要创建一个开始事件和一个结束事件。我们会让CUDA运行时记录开始的时间，然后指示它在GPU上做一些其他工作，再指示它记录结束时间：
 - en: '![image](graphics/p0109-01.jpg)'
+  id: totrans-80
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0109-01.jpg)'
 - en: Unfortunately, there is still a problem with timing GPU code in this way. The
     fix will require only one line of code but will require some explanation. The
     trickiest part of using events arises as a consequence of the fact that some of
@@ -449,8 +616,10 @@
     This is excellent from a performance standpoint because it means we can be computing
     something on the GPU and CPU at the same time, but conceptually it makes timing
     tricky.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，以这种方式计时GPU代码仍然存在问题。解决方法只需要一行代码，但需要一些解释。使用事件的最棘手部分源于CUDA C中我们所做的一些调用实际上是*异步*的。例如，当我们在光线追踪器中启动内核时，GPU开始执行我们的代码，但在GPU完成之前，CPU会继续执行程序的下一行。从性能角度来看，这是非常棒的，因为这意味着我们可以同时在GPU和CPU上进行计算，但从概念上讲，这使得计时变得棘手。
 - en: 'You should imagine calls to `cudaEventRecord()` as an instruction to record
     the current time being placed into the GPU’s pending queue of work. As a result,
     our event won’t actually be recorded until the GPU finishes everything prior to
@@ -459,11 +628,15 @@
     value of the `stop` event until the GPU has completed its prior work and recorded
     the `stop` event. Fortunately, we have a way to instruct the CPU to synchronize
     on an event, the event API function `cudaEventSynchronize()`:'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 你应该将调用`cudaEventRecord()`视为将当前时间记录到GPU的待处理工作队列中的指令。因此，我们的事件实际上不会被记录，直到GPU完成调用`cudaEventRecord()`之前的所有工作。就`stop`事件测量正确时间而言，这正是我们想要的。但在GPU完成之前的工作并记录`stop`事件之前，我们不能安全地*读取*`stop`事件的值。幸运的是，我们有一种方法可以指示CPU同步一个事件，事件API函数`cudaEventSynchronize()`：
 - en: '![image](graphics/p0109-02.jpg)'
+  id: totrans-83
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0109-02.jpg)'
 - en: Now, we have instructed the runtime to block further instruction until the GPU
     has reached the `stop` event. When the call to `cudaEventSynchronize()` returns,
     we know that all GPU work before the `stop` event has completed, so it is safe
@@ -472,49 +645,71 @@
     of device and host code. That is, you will get unreliable results if you attempt
     to use CUDA events to time more than kernel executions and memory copies involving
     the device.
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们已经指示运行时在GPU到达`stop`事件之前阻止进一步的指令。当调用`cudaEventSynchronize()`返回时，我们知道所有在`stop`事件之前的GPU工作已经完成，因此可以安全地读取`stop`记录的时间戳。值得注意的是，由于CUDA事件是直接在GPU上实现的，它们不适用于计时设备和主机代码的混合。这就是说，如果你尝试使用CUDA事件来计时多个内核执行和涉及设备的内存复制操作，你会得到不可靠的结果。
 - en: '**6.3.1 Measuring Ray Tracer Performance**'
+  id: totrans-85
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '**6.3.1 测量光线追踪器性能**'
 - en: 'To time our ray tracer, we will need to create a start and stop event, just
     as we did when learning about events. The following is a timing-enabled version
     of the ray tracer that does *not* use constant memory:'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 要计时我们的光线追踪器，我们需要创建一个开始事件和一个结束事件，正如我们在学习事件时所做的那样。以下是一个启用了计时功能的光线追踪器版本，它*不*使用常量内存：
 - en: '![image](graphics/p0110-01.jpg)'
+  id: totrans-87
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0110-01.jpg)'
 - en: '![image](graphics/p0111-01.jpg)'
+  id: totrans-88
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0111-01.jpg)'
 - en: '![image](graphics/p0111-02.jpg)'
+  id: totrans-89
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0111-02.jpg)'
 - en: Notice that we have thrown two additional functions into the mix, the calls
     to `cudaEventElapsedTime()` and `cudaEventDestroy()`. The function `cudaEventElapsedTime()`
     is a utility that computes the elapsed time between two previously recorded events.
     The time in milliseconds elapsed between the two events is returned in the first
     argument, the address of a floating-point variable.
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，我们已经加入了两个额外的函数，分别是`cudaEventElapsedTime()`和`cudaEventDestroy()`的调用。函数`cudaEventElapsedTime()`是一个实用程序，用于计算两个先前记录的事件之间的经过时间。两个事件之间的毫秒数被返回到第一个参数，即一个浮动变量的地址。
 - en: The call to `cudaEventDestroy()` needs to be made when we’re finished using
     an event created with `cudaEventCreate()`. This is identical to calling `free()`
     on memory previously allocated with `malloc()`, so we needn’t stress how important
     it is to match every `cudaEventCreate()` with a `cudaEventDestroy()`.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们完成使用通过`cudaEventCreate()`创建的事件时，需要调用`cudaEventDestroy()`。这与调用`free()`释放之前通过`malloc()`分配的内存是一样的，所以我们不需要强调每个`cudaEventCreate()`都必须与`cudaEventDestroy()`匹配的重要性。
 - en: 'We can instrument the ray tracer that does use constant memory in the same
     fashion:'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以以相同的方式对使用常量内存的光线追踪器进行分析：
 - en: '![image](graphics/p0112-01.jpg)'
+  id: totrans-93
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0112-01.jpg)'
 - en: '![image](graphics/p0112-02.jpg)'
+  id: totrans-94
   prefs: []
   type: TYPE_IMG
+  zh: '![image](graphics/p0112-02.jpg)'
 - en: Now when we run our two versions of the ray tracer, we can compare the time
     it takes to complete the GPU work. This will tell us at a high level whether introducing
     constant memory has improved the performance of our application or worsened it.
@@ -523,12 +718,17 @@
     performing up to 50 percent faster than the version that uses global memory. On
     a different GPU, your mileage might vary, although the ray tracer that uses constant
     memory should always be at least as fast as the version without it.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们运行两种版本的光线追踪器时，可以比较完成 GPU 工作所需的时间。这将高层次地告诉我们，引入常量内存是提高了应用程序的性能还是使其变差。幸运的是，在这种情况下，使用常量内存显著提升了性能。我们在
+    GeForce GTX 280 上的实验表明，使用常量内存的光线追踪器比使用全局内存的版本快了最多 50%。在不同的 GPU 上，可能会有所不同，尽管使用常量内存的光线追踪器应该始终至少和不使用常量内存的版本一样快。
 - en: '**6.4 Chapter Review**'
+  id: totrans-96
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '**6.4 章节回顾**'
 - en: In addition to the global and shared memory we explored in previous chapters,
     NVIDIA hardware makes other types of memory available for our use. Constant memory
     comes with additional constraints over standard global memory, but in some cases,
@@ -539,13 +739,18 @@
     because of the presence of a constant memory cache on chip. Memory bandwidth bottlenecks
     a wide class of algorithms, so having mechanisms to ameliorate this situation
     can prove incredibly useful.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了我们在前几章中探讨的全局内存和共享内存，NVIDIA 硬件还为我们提供了其他类型的内存。常量内存相比标准的全局内存有额外的约束，但在某些情况下，遵循这些约束可以带来额外的性能。具体来说，当
+    warp 中的线程需要访问相同的只读数据时，我们可以看到性能的提升。对于具有这种访问模式的数据，使用常量内存可以节省带宽，因为它能够在半个 warp 中广播读取，并且芯片上有常量内存缓存。内存带宽是限制广泛类算法的瓶颈，因此，拥有可以缓解这种情况的机制可能非常有用。
 - en: We also learned how to use CUDA events to request the runtime to record time
     stamps at specific points during GPU execution. We saw how to synchronize the
     CPU with the GPU on one of these events and then how to compute the time elapsed
     between two events. In doing so, we built up a method to compare the running time
     between two different methods for ray tracing spheres, concluding that, for the
     application at hand, using constant memory gained us a significant amount of performance.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还学会了如何使用 CUDA 事件请求运行时在 GPU 执行的特定点记录时间戳。我们看到如何在这些事件之一上同步 CPU 和 GPU，然后如何计算两个事件之间经过的时间。通过这样做，我们建立了一种方法来比较两种不同的光线追踪球体的方法的运行时间，得出结论：对于当前的应用程序，使用常量内存使我们获得了显著的性能提升。
