@@ -1,0 +1,954 @@
+- en: Chapter 6\. Efficiently Using GPU MemoryThe importance of efficiently using
+    GPU memory cannot be overstated. With roughly three-orders-of-magnitude difference
+    in speed between the fastest on-chip register memory and mapped data that must
+    traverse the PCIe bus, literate CUDA developers must understand the most efficient
+    ways to use memory. Latency hiding through ILP or TLP is essential to application
+    performance. Prefetching can keep more memory transactions in flight to move data
+    to fast memory and speed even memory bandwidth-limited reduction operations. Irregular
+    data structures are a challenge with current GPU technology, but some techniques
+    can preserve performance even with random memory accesses. However, finding more
+    and better ways to utilize GPU memory is an area of active research as new libraries
+    become available that support irregular data structures such as graphs and sparse
+    matrices.**Keywords**Prefetch, reduction, L2 cache, L1 cache, PTX, mapped memory,
+    profilingThe importance of efficiently using GPU memory cannot be overstated.
+    With roughly three-orders-of-magnitude difference in speed between the fastest
+    on-chip register memory and mapped host memory that must traverse the PCIe bus,
+    literate CUDA developers must understand the most efficient ways to use memory.
+    Latency hiding through ILP or TLP is essential to application performance. Prefetching
+    can keep more memory transactions in flight to move data to fast memory and speed
+    even memory bandwidth-limited reduction operations. Irregular data structures
+    are a challenge with current GPU technology, but some techniques can preserve
+    performance even with random memory accesses. However, finding more and better
+    ways to utilize GPU memory is an area of active research as new libraries become
+    available that support irregular data structures such as graphs and sparse matrices.At
+    the end of this chapter, the reader will have a basic understanding of:■ Using
+    prefetch to better utilize global memory.■ Efficient use of registers, shared,
+    and global memory in an ILP-based reduction kernel.■ How to write generic methods
+    that utilize functors.■ Techniques to speed problems that have irregular and random
+    memory accesses.■ Generic approaches and libraries for sparse matrices.■ Graph
+    centrality metrics and codes that can provide 10- to 50-times speedups.■ Performance
+    reasons to use SoA.■ Stencils and tiles.
+  id: totrans-0
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '第六章 高效使用 GPU 内存  '
+- en: Reduction
+  id: totrans-1
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 降低
+- en: Reduction operations perform common tasks such as finding the minimum, maximum,
+    or sum of a vector. Writing a high-performance reduction for GPU computing is
+    surprisingly complex because it requires a detailed understanding of CUDA memory
+    spaces and the execution model.The thrust API provides a simple interface that
+    hides all the complexity of a reduction, making it both flexible and easy to use.
+    Thrust uses a reduction designed by Mark Harris at NVIDIA. The paper and example
+    code demonstrating various optimizations for reduction are included with the NVIDIA
+    SDK in the *reduction* directory. Both the paper and code are recommended reading.This
+    chapter provides a reduction example that ties together much of the discussion
+    in previous chapters and extends the reduction created by Mark Harris:■ C++ templates
+    extend the generality of the reduction code to use user-defined types such as
+    floats, doubles, integers, long integers, and others.■ New features of compute
+    2.0 devices such as the PTX prefetch instruction and inline assembly code are
+    used to increase global memory read performance.■ Temporary storage is passed
+    to the reduction method so that the programmer can eliminate redundant **cudaMalloc()**
+    and **cudaFree()** operations that slow the thrust implementation as noted in
+    [Chapter 3](B9780123884268000033.xhtml#B978-0-12-388426-8.00003-3).■ The passing
+    and use of inline functors is demonstrated to create a generic reduction operation
+    that is applicable more than just finding the sum of a vector.■ ILP, discussed
+    in [Chapter 4](B9780123884268000045.xhtml#B978-0-12-388426-8.00004-5), is utilized
+    both to make the code more understandable and to free SM resources for complicated
+    reductions such as the objective functions defined in [Chapter 3](B9780123884268000033.xhtml#B978-0-12-388426-8.00003-3)
+    and [Chapter 4](B9780123884268000045.xhtml#B978-0-12-388426-8.00004-5).
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 降低操作执行常见任务，如查找向量的最小值、最大值或求和。为GPU计算编写高性能的降低操作出乎意料地复杂，因为它需要对CUDA内存空间和执行模型有详细的理解。Thrust
+    API提供了一个简单的接口，隐藏了所有降低操作的复杂性，使其既灵活又易于使用。Thrust使用了NVIDIA的Mark Harris设计的降低方法。展示各种降低优化的论文和示例代码已包含在NVIDIA
+    SDK的*reduction*目录中。论文和代码都是推荐阅读的内容。本章提供了一个降低操作的示例，结合了前几章的讨论，并扩展了Mark Harris创建的降低方法：■
+    C++模板扩展了降低代码的通用性，可以使用用户定义的类型，如浮点数、双精度数、整数、长整型等。■ 使用计算2.0设备的新功能，如PTX预取指令和内联汇编代码，来提高全局内存读取性能。■
+    临时存储被传递给降低方法，以便程序员可以消除冗余的**cudaMalloc()**和**cudaFree()**操作，这些操作会减慢Thrust实现，如在[第3章](B9780123884268000033.xhtml#B978-0-12-388426-8.00003-3)中所指出的那样。■
+    演示了传递和使用内联函数对象（functors），以创建一种通用的降低操作，这种操作不仅仅适用于查找向量的和。■ 在[第4章](B9780123884268000045.xhtml#B978-0-12-388426-8.00004-5)中讨论的ILP被用于使代码更加易懂，并为复杂的降低操作（如在[第3章](B9780123884268000033.xhtml#B978-0-12-388426-8.00003-3)和[第4章](B9780123884268000045.xhtml#B978-0-12-388426-8.00004-5)中定义的目标函数）释放SM资源。
+- en: The Reduction Template
+  id: totrans-3
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 降低模板
+- en: 'The following walkthrough of the code for the generic reduction template *functionReduce.h*
+    covers the key concepts and thinking behind each section of code. The code snippets
+    can be combined to construct the complete *functionReduce.h* source file.The **#ifndef**
+    check of the preprocessor variable **REDUCE_H** protects against compiler errors,
+    should the template file ever be included multiple times; see [Example 6.1](#tb0010),
+    “Part 1 of *functionReduce.h*”:`#ifndef REDUCE_H``#define REDUCE_H`For simplicity,
+    the following section of the template defines the number of blocks and threads
+    for use on a C2050 or C2070 GPU. These definitions can be set manually from the
+    information determined by the NVIDIA SDK code **deviceQuery**. A production version
+    of this template might query the device properties and set these values automatically,
+    as in [Example 6.2](#tb0015), “Part 2 of *functionReduce.h*”:`// Define the number
+    of blocks as a multiple of the number of SM``// and the number of threads as the
+    maximum resident on the SM``#define N_BLOCKS (1*14)``#define N_THREADS 1024``#define
+    WARP_SIZE 32`[Example 6.3](#tb0020) starts the definition of the **_functionReduce()**
+    method:`template <class T, typename UnaryFunction, typename BinaryFunction>``__global__
+    void``_functionReduce(T *g_odata, unsigned int n, T initVal, UnaryFunction fcn,
+    BinaryFunction fcn1)``{`Notice that:■ All variables are defined in terms of the
+    template variable type **T** for generality. For example, **T** can be defined
+    as a **float**, **double**, **int**, or **char** type.■ A scratch region of memory
+    is provided so that each SM can write a single partial result of type **T** to
+    global memory. Passing a pointer allows reuse of the scratch space to avoid the
+    repetitive allocate and free overhead observed in the thrust reduction operation
+    in [Chapter 3](B9780123884268000033.xhtml#B978-0-12-388426-8.00003-3).■ The number
+    of calls to the unary function **fcn()** is passed to via the variable **n**.■
+    The unary function **fcn()** can be defined to fetch data from memory or calculate
+    some result on the fly. For example, the test code that follows this template
+    defines **fcn()** as a functor that fetches data from a vector in global memory.
+    Alternative functors can fetch data from complex data structures in global memory,
+    calculate a result based on numerous data structures in memory, perform a table
+    lookup, or avoid the use of global memory entirely by returning some constant
+    or computed value.■ As with the thrust reduction call, an initial value is passed.
+    This can be the starting value for a sum, or an initial value to use in a **minimum()**
+    or **maximum()** reduction.■ The binary function **fcn1()** defines a generic
+    operation on two of the values returned by **fcn()**. Examples include the **thrust::plus()**
+    functor when a sum is desired. Similarly, the **thrust::minimum()** or **thrust::maximum()**
+    functors can be used. Alternatively, the user can provide his or her own binary
+    functor.Each thread on the GPU starts out with the register variable **myVal**
+    set to **initVal**. Then each thread iterates through and calculates a partial
+    result in fast register memory. If **fcn1()** were a **plus()** operation and
+    **fcn()** fetched data from a vector in global memory, then **myVal** would contain
+    the partial sums of all the vector elements as shown in [Figure 6.1](#f0010).
+    This step reduces the data from **n** values (which could be on the order of millions)
+    to **N_BLOCKS*N_THREADS** partial values. Note that the loop traverses the vector
+    in reverse order, starting at the end and working toward the beginning. This approach
+    gives the author of **fcn()** the opportunity to confirm that any prefetching
+    does not access data prior to the start of the vector. Thus **fcn()** does not
+    need to know the end or length of the vector, which saves memory and a register.
+    See [Example 6.4](#tb0025), “Part 4 of *functionReduce.h*”:'
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '以下是通用还原模板*functionReduce.h*的代码逐步解析，涵盖了每个代码段背后的关键概念和思路。代码片段可以组合在一起，构建完整的*functionReduce.h*源文件。预处理器变量**REDUCE_H**的**#ifndef**检查可以防止编译器错误，避免模板文件被多次包含；请参见[示例6.1](#tb0010)，“*functionReduce.h*的第一部分”：`#ifndef
+    REDUCE_H``#define REDUCE_H`。为了简便，模板的下一部分定义了C2050或C2070 GPU上使用的块数和线程数。这些定义可以从NVIDIA
+    SDK代码**deviceQuery**确定的信息中手动设置。在这个模板的生产版本中，可能会查询设备属性并自动设置这些值，如[示例6.2](#tb0015)，“*functionReduce.h*的第二部分”所示：`//
+    定义块数为SM数目的倍数``// 定义线程数为SM上最大可驻留的线程数``#define N_BLOCKS (1*14)``#define N_THREADS
+    1024``#define WARP_SIZE 32`。[示例6.3](#tb0020)开始定义**_functionReduce()**方法：`template
+    <class T, typename UnaryFunction, typename BinaryFunction>``__global__ void``_functionReduce(T
+    *g_odata, unsigned int n, T initVal, UnaryFunction fcn, BinaryFunction fcn1)``{`注意以下几点：  '
+- en: '| ![B9780123884268000069/f06-01-9780123884268.jpg is missing](B9780123884268000069/f06-01-9780123884268.jpg)
+    |'
+  id: totrans-5
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000069/f06-01-9780123884268.jpg 缺失](B9780123884268000069/f06-01-9780123884268.jpg)
+    |'
+- en: '| **Figure 6.1**Iteratively fetching gridDim regions of data from global memory.
+    |'
+  id: totrans-6
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 6.1** 反复从全局内存中获取 gridDim 区域数据。 |'
+- en: '`T myVal = initVal;``{ // 1) Use fastest memory first.``const int gridSize
+    = blockDim.x*gridDim.x;``for(int i = n-1 -(blockIdx.x * blockDim.x + threadIdx.x);``i
+    >= 0; i -= gridSize)``myVal = fcn1(fcn(i), myVal);``}`After this loop completes,
+    the register variable **myVal** contains **N_BLOCKS*N_THREADS** partial values.
+    In CUDA, register variables are not accessible to other threads. For this reason,
+    it is necessary to move the partial values stored in **myVal** to slower shared
+    memory so that they can be accessed by other threads. The transfer from register
+    to shared memory happens in step 2 shown in [Example 6.5](#tb0030). This is a
+    parallel transfer all the threads in each thread block to the shared memory variable
+    **smem** inside each SM.Shared memory is a valuable resource, so only the minimum
+    amount is allocated. Based on the discussion of ILP in [Chapter 4](B9780123884268000045.xhtml#B978-0-12-388426-8.00004-5),
+    the parallelism of only one warp of threads is used to perform the reduction from
+    **N_THREADS** partial values on each SM to **WARP_SIZE** partial values. The register
+    variable **myVal** already contains the correct values for the first warp. Thus,
+    the shared memory **smem** variable needs only contain the contents of the **myVal**
+    register variables in threads with a **threadIdx.x** greater than or equal to
+    **WARP_SIZE**. As a result, **smem** can be allocated to contain **WARP_SIZE**
+    fewer elements than **N_THREADS**.Because the transfer from register to shared
+    memory occurs in parallel, the CUDA **__syncthreads()** method must be called
+    after the assignment to ensure that all the elements of **smem** have been written.
+    All of this happens in the few lines of [Example 6.5](#tb0030), “Part 5 of *functionReduce.h*”:`//
+    2) Use the second fastest memory (shared memory) in a warp``// synchronous fashion.``//
+    Create shared memory for per-block reduction.``// Reuse the registers in the first
+    warp.``volatile __shared__ T smem[N_THREADS-WARP_SIZE];``// put all the register
+    values into a shared memory``if(threadIdx.x >= WARP_SIZE) smem[threadIdx.x - WARP_SIZE]
+    = myVal;``__syncthreads(); // wait for all threads in the block to complete.`At
+    this point in the kernel, there is no reason to use more than the number of threads
+    in one warp because the SM can issue only a single instruction per warp. Because
+    there are no unresolved data dependencies, a single warp is sufficient to keep
+    the SM busy in reducing the contents of shared memory from (**N_THREADS – WARP_SIZE)**
+    elements to **WARP_SIZE** partial values on each SM. [¹](#fn0010) That is why
+    a conditional is used to keep only threads with a **threadIdx.x** less than **WARP_SIZE**
+    active. See [Example 6.6](#tb0035), “Part 6 of *functionReduce.h*”:¹Depending
+    on the compute generation, the SM might be able to issue instructions on the half-warp.`if(threadIdx.x
+    < WARP_SIZE) {``// now using just one warp. The SM can only run one warp at a
+    time``#pragma unroll``for(int i=threadIdx.x; i < (N_THREADS − WARP_SIZE); i +=
+    WARP_SIZE)``myVal = fcn1(myVal,(T)smem[i]);``smem[threadIdx.x] = myVal; // save
+    myVal in this warp to the start of smem``}`What remains is to reduce the values
+    in one warp to a single value on each SM. This equates to **N_BLOCKS** partial
+    values, as **N_BLOCKS** was defined to use one block per SM. It is worth noting
+    that the parallelism within the warp at this point does not contribute much to
+    the performance, as only five calls to **fcn1()** are made in [Example 6.7](#tb0040).An
+    alternative implementation can use a simple loop over **WARP_SIZE** running on
+    a single thread (e.g., when **threadIdx.x** == 0) to create the single partial
+    value per SM. If **fcn1()** were the **plus**() functor, this serial version would
+    perform only 27 extra additions that would consume only a trivial amount of extra
+    time—on the order of 100 nanoseconds. Thus, it is sometimes unnecessary to exploit
+    all the parallelism in a system. Still, the parallel code was simple, and it might
+    benefit us in a future compute generation, so we use the implementation in [Example
+    6.7](#tb0040), “Part 7 of *functionReduce.h*”:`// reduce shared memory.``if (threadIdx.x
+    < 16)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x + 16]);``if
+    (threadIdx.x < 8)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 8]);``if (threadIdx.x < 4)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 4]);``if (threadIdx.x < 2)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 2]);``if (threadIdx.x < 1)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 1]);`The final task requires reducing the remaining **N_BLOCKS** partial values
+    into a single value that completes the reduction. At this point, the code can
+    either:■ Transfer the **N_BLOCKS**, (14 for this example), partial values to the
+    host, where the final reduction will occur.■ Utilize atomic operations as described
+    in section B.5 of the *NVIDIA CUDA C Programming Guide* to ensure that all the
+    partial values are written to global memory before completing the reduction.Because
+    both implementations require the allocation of scratch space for the **N_BLOCKS**
+    partial values, [Example 6.8](#tb0045), “Part 8 of *functionReduce.h*,” performs
+    the transfer to the host because it demonstrates the use of the **fcn1()** functor
+    on both the host and device:`// 3) Use global memory as a last resort to transfer
+    results to the host``// write result for each block to global mem``if (threadIdx.x
+    == 0) g_odata[blockIdx.x] = smem[0];``// Can put the final reduction across SM
+    here if desired.``}`The host method **partialReduce()** allocates the partial
+    sums if needed and calls the CUDA kernel, as in [Example 6.9](#tb0050), “Part
+    8 of *functionReduce.h*”:`template<typename T, typename UnaryFunction, typename
+    BinaryFunction>``inline void partialReduce(const int n, T** d_partialVals, T initVal,
+    UnaryFunction const& fcn, BinaryFunction const& fcn1)``{``if(*d_partialVals ==
+    NULL)``cudaMalloc(d_partialVals, (N_BLOCKS+1) * sizeof(T));``_functionReduce<T><<<
+    N_BLOCKS, N_THREADS>>>(*d_partialVals, n, initVal, fcn, fcn1);``}`As can be seen
+    in [Example 6.10](#tb0055), “Part 9 of *functionReduce.h*,” the **N_BLOCK** partial
+    values are transferred from the GPU to the host, where a host-based version of
+    **fcn1()** is used to compete the reduction. An **#endif** completes the preprocessor
+    **#ifdef** statement to protect against compiler errors, should the header file
+    be included multiple times. See [Example 6.10](#tb0055), “Part 9 of *functionReduce.h*”:`template<typename
+    T, typename UnaryFunction, typename BinaryFunction>``inline T functionReduce(const
+    int n, T** d_partialVals, T initVal, UnaryFunction const& fcn, BinaryFunction
+    const& fcn1)``{``T h_partialVals[N_BLOCKS];``partialReduce(n, d_partialVals, initVal,
+    fcn, fcn1);``if(cudaMemcpy(h_partialVals, *d_partialVals, sizeof(T)*N_BLOCKS,
+    cudaMemcpyDeviceToHost) != cudaSuccess) {``cerr << "_functionReduce copy failed!"
+    << endl;``exit(1);``}``T val = h_partialVals[0];``for(int i=1; i < N_BLOCKS; i++)
+    val = fcn1(h_partialVals[i],val);``return(val);``}``#endif`'
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`T myVal = initVal;``{ // 1) 首先使用最快的内存。``const int gridSize = blockDim.x*gridDim.x;``for(int
+    i = n-1 -(blockIdx.x * blockDim.x + threadIdx.x);``i >= 0; i -= gridSize)``myVal
+    = fcn1(fcn(i), myVal);``}`在这个循环完成后，寄存器变量**myVal**包含了**N_BLOCKS*N_THREADS**个部分值。在CUDA中，寄存器变量对其他线程不可访问。因此，有必要将存储在**myVal**中的部分值移动到较慢的共享内存中，以便其他线程能够访问。这一从寄存器到共享内存的转移发生在步骤2中，如[示例6.5](#tb0030)所示。这是一个并行转移，所有线程块中的线程将数据转移到每个SM内的共享内存变量**smem**中。共享内存是宝贵的资源，因此只分配最少量的共享内存。根据[第4章](B9780123884268000045.xhtml#B978-0-12-388426-8.00004-5)中对ILP的讨论，只有一个warp的线程并行性被用来将每个SM上的**N_THREADS**个部分值减少到**WARP_SIZE**个部分值。寄存器变量**myVal**已经包含了第一个warp的正确值。因此，**smem**共享内存变量只需要包含**myVal**寄存器变量中**threadIdx.x**大于或等于**WARP_SIZE**的线程的内容。结果，**smem**可以分配给**WARP_SIZE**比**N_THREADS**少的元素。由于从寄存器到共享内存的转移是并行的，必须在赋值后调用CUDA的**__syncthreads()**方法，以确保所有**smem**的元素都已经写入。[示例6.5](#tb0030)中的几行代码完成了这一操作，“*functionReduce.h*
+    第5部分”：`// 2) 在warp中使用第二快的内存（共享内存）``// 按同步方式。``// 为每个块创建共享内存以进行归约。``// 重用第一个warp中的寄存器。``volatile
+    __shared__ T smem[N_THREADS-WARP_SIZE];``// 将所有寄存器值放入共享内存``if(threadIdx.x >= WARP_SIZE)
+    smem[threadIdx.x - WARP_SIZE] = myVal;``__syncthreads(); // 等待块中的所有线程完成.`此时，内核中没有理由使用超过一个warp线程数的线程，因为每个SM每次只能执行一个warp的指令。由于没有未解决的数据依赖性，单个warp足以保持SM忙于将共享内存中的内容从(**N_THREADS
+    – WARP_SIZE)**个元素减少到每个SM上的**WARP_SIZE**个部分值。[¹](#fn0010)这就是为什么使用条件语句来保持**threadIdx.x**小于**WARP_SIZE**的线程处于活动状态。请参见[示例6.6](#tb0035)，“*functionReduce.h*
+    第6部分”：¹根据计算代的不同，SM可能能够在半warp上发出指令。`if(threadIdx.x < WARP_SIZE) {``// 现在只使用一个warp。SM每次只能运行一个warp``#pragma
+    unroll``for(int i=threadIdx.x; i < (N_THREADS − WARP_SIZE); i += WARP_SIZE)``myVal
+    = fcn1(myVal,(T)smem[i]);``smem[threadIdx.x] = myVal; // 将myVal保存在此warp的smem开始位置``}`剩下的任务是将一个warp中的值归约成每个SM上的单一值。这等同于**N_BLOCKS**个部分值，因为**N_BLOCKS**定义为每个SM使用一个块。值得注意的是，此时warp内的并行性对性能的贡献不大，因为在[示例6.7](#tb0040)中只进行了五次**fcn1()**的调用。一种替代的实现方法是使用一个简单的循环，针对**WARP_SIZE**中的每个元素由单个线程（例如，当**threadIdx.x**
+    == 0时）执行，以创建每个SM上的单一部分值。如果**fcn1()**是**plus**()功能函数，这种串行版本将仅执行27次额外的加法，所消耗的时间几乎可以忽略不计，大约100纳秒。因此，有时并不需要充分利用系统中的所有并行性。然而，尽管如此，使用简单的并行代码，未来的计算代中可能会有所获益，因此我们使用了[示例6.7](#tb0040)中的实现，“*functionReduce.h*
+    第7部分”：`// 归约共享内存。``if (threadIdx.x < 16)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 16]);``if (threadIdx.x < 8)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 8]);``if (threadIdx.x < 4)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 4]);``if (threadIdx.x < 2)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 2]);``if (threadIdx.x < 1)``smem[threadIdx.x] = fcn1((T)smem[threadIdx.x],(T)smem[threadIdx.x
+    + 1]);`最终任务是将剩余的**N_BLOCKS**个部分值归约成一个单一的值，完成归约。在这一点上，代码可以选择：■ 将**N_BLOCKS**（在此示例中为14）个部分值转移到主机，由主机完成最终的归约。■
+    使用如*NVIDIA CUDA C编程指南* B.5节所述的原子操作，确保所有部分值在完成归约前都已写入全局内存。因为这两种实现都需要为**N_BLOCKS**部分值分配临时空间，[示例6.8](#tb0045)，“*functionReduce.h*
+    第8部分”，执行了数据转移到主机，因为它展示了如何在主机和设备上使用**fcn1()**功能函数：`// 3) 将全局内存作为最后手段，将结果传输到主机``//
+    将每个块的结果写入全局内存``if (threadIdx.x == 0) g_odata[blockIdx.x] = smem[0];``// 如果需要，可以在此进行SM间的最终归约。``}`主机方法**partialReduce()**在需要时分配部分和，并调用CUDA内核，如[示例6.9](#tb0050)，“*functionReduce.h*
+    第8部分”所示：`template<typename T, typename UnaryFunction, typename BinaryFunction>``inline
+    void partialReduce(const int n, T** d_partialVals, T initVal, UnaryFunction const&
+    fcn, BinaryFunction const& fcn1)``{``if(*d_partialVals == NULL)``cudaMalloc(d_partialVals,
+    (N_BLOCKS+1) * sizeof(T));``_functionReduce<T><<< N_BLOCKS, N_THREADS>>>(*d_partialVals,
+    n, initVal, fcn, fcn1);``}`如[示例6.10](#tb0055)，“*functionReduce.h* 第9部分”所示，**N_BLOCK**部分值从GPU转移到主机，在主机上使用**fcn1()**的主机版本完成归约。**#endif**完成了预处理器**#ifdef**语句，以防止头文件多次包含时发生编译错误。见[示例6.10](#tb0055)，“*functionReduce.h*
+    第9部分”：`template<typename T, typename UnaryFunction, typename BinaryFunction>``inline
+    T functionReduce(const int n, T** d_partialVals, T initVal, UnaryFunction const&
+    fcn, BinaryFunction const& fcn1)``{``T h_partialVals[N_BLOCKS];``partialReduce(n,
+    d_partialVals, initVal, fcn, fcn1);``if(cudaMemcpy(h_partialVals, *d_partialVals,
+    sizeof(T)*N_BLOCKS, cudaMemcpyDeviceToHost) != cudaSuccess) {``cerr << "_functionReduce
+    复制失败!" << endl;``exit(1);``}``T val = h_partialVals[0];``for(int i=1; i < N_BLOCKS;
+    i++) val = fcn1(h_partialVals[i],val);``return(val);``}``#endif`'
+- en: A Test Program for functionReduce.h
+  id: totrans-8
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 一个用于 functionReduce.h 的测试程序
+- en: 'The test program for the *functionReduce.h* template creates a vector of sequential
+    integers in memory similar to the examples in the first chapter. The size of the
+    vector can be specified via the command line. The user can also provide a numerical
+    option to run with a functor that utilizes the CUDA PTX **prefetch.global** assembly
+    instruction, a functor that reads from memory (without any prefetching), and a
+    **thrust::reduce()** call.The **fcn1()** method can be specified at compile time.
+    By default, the application performs a sum. Other functors such as **thrust::minimum()**
+    or **thrust::maximum()** can be used by changing the definition of **FCN1** either
+    in the code or via the **nvcc** command. The type of the run can be changed by
+    changing the preprocessor variable **RUNTYPE**. Specifying the preprocessor variable
+    **DO_CHECK** performs a verification test against the thrust reduction code.[Example
+    6.11](#tb0060), “Part 1 of *testPre.cu*,” is a walkthrough of the test code. If
+    desired, the individual code snippets can be combined to create a complete working
+    test. The necessary preprocessors and namespace definitions occur at the beginning
+    of the file:`#include <iostream>``using namespace std;``#include <thrust/host_vector.h>``#include
+    <thrust/device_vector.h>``#include <thrust/functional.h>``#include <thrust/random.h>``#include
+    "functionReduce.h"``#ifndef RUNTYPE``#define RUNTYPE int``#endif``#ifndef FCN1``#define
+    FCN1 plus``#endif``#include <iostream>``using namespace std;`The **prefetch**
+    functor is a persistent functor that keeps a pointer to device memory. Each call
+    to the functor returns the vector indexed by **i**. Prior to returning the vector
+    element, the index is checked to see whether it is possible to prefetch the next
+    grid of data values (e.g., **N_BLOCKS*N_THREADS** values) from global memory.The
+    prefetch index can be tested for validity because **_functionReduce()** traverses
+    the vector in reverse order. Testing that the index is greater than or equal to
+    zero ensures that only valid elements in the array will be prefetched. If the
+    index is valid, the PTX **prefetch.global.L2** assembly instruction is used to
+    perform the prefetch. This instruction is valid only for compute 2.0 devices.
+    See [Example 6.12](#tb0065), “Part 2 of *testPre.cu*”:`template<class T1, class
+    T2>``struct prefetch : public thrust::unary_function<T1,T2> {``const T1* data;``prefetch(T1*
+    _data) : data(_data) {};``__device__``// This method prefetchs the previous grid
+    of data point into the L2.``T1 operator()(T2 i) {``if( (i-N_BLOCKS*N_THREADS)
+    > 0) { //prefetch the previous grid``const T1 *pt = &data[i − (N_BLOCKS*N_THREADS)];``asm
+    volatile ("prefetch.global.L2 [%0];"::"l"(pt) );``}``return data[i];``}``};`The
+    **memFetch()** functor is similar to the **prefetch()** functor except that it
+    does not perform any prefetching. This functor can run on all compute devices.
+    See [Example 6.13](#tb0070), “Part 3 of *testPre.cu*”:`template<class T1, class
+    T2>``struct memFetch : public thrust::unary_function<T1,T2> {``const T1* data;``memFetch(T1*
+    _data) : data(_data) {};``__host__ __device__``T1 operator()(T2 i) {``return data[i];``}``};`This
+    test utilizes a random sequence of zeros and ones based on the lowest bit of a
+    random number. These numbers are created with the functor shown in the following
+    code:`// a parallel random number generator``// http://groups.google.com/group/thrust-users/browse_thread/thread/dca23bfa678689a5``struct
+    parallel_random_generator``{``__host__ __device__``unsigned int operator()(const
+    unsigned int n) const``{``thrust::default_random_engine rng;``// discard n numbers
+    to avoid correlation``rng.discard(n);``// return a random number``return rng()
+    & 0x01;``}``};`The **doTest()** routine is straightforward C++. The pointer to
+    the scratch space, **d_partialVals**, is set to NULL, which means that the first
+    call to **functionReduce()** will allocate the needed space. The device vector
+    **d_data** is allocated via the thrust API according the size passed to this method
+    in the variable **nData**.The variable **op** selects the test that will be performed.
+    A 0 specifies that no prefetching will be used; 1 selects the prefetching test.
+    Any other value specifies that the thrust reduction method is called. See [Example
+    6.15](#tb0080), “Part 4 of *testPre.cu*”:`/****************************************************************/``/*
+    The test routine*/``/****************************************************************/``#define
+    NTEST 100``template<typename T>``void doTest(const long nData, int op)``{``T*
+    d_partialVals=NULL;``thrust::device_vector<T> d_data(nData);``//fill d_data with
+    random numbers (either zero or one)``thrust::counting_iterator<int> index_sequence_begin(0);``thrust::transform(index_sequence_begin,
+    index_sequence_begin + nData, d_data.begin(), parallel_random_generator());``cudaThreadSynchronize();
+    // wait for all the queued tasks to finish``thrust::FCN1<T> fcn1;``double startTime,
+    endTime;``T d_sum;``T initVal = 0;``switch(op) {``case 0: {``memFetch<T,int> fcn(thrust::raw_pointer_cast(&d_data[0]));``startTime=omp_get_wtime();``for(int
+    loops=0; loops < NTEST; loops++)``d_sum = functionReduce<T>(nData, &d_partialVals,
+    initVal, fcn, fcn1);``endTime=omp_get_wtime();``cout << "NO prefetch ";``} break;``case
+    1: {``prefetch<T,int> fcnPre(thrust::raw_pointer_cast(&d_data[0]));``startTime=omp_get_wtime();``for(int
+    loops=0; loops < NTEST; loops++)``d_sum = functionReduce<T>(nData, &d_partialVals,
+    initVal, fcnPre, fcn1);``endTime=omp_get_wtime();``cout << "Using prefetch ";``}
+    break;``default:``startTime=omp_get_wtime();``for(int loops=0; loops < NTEST;
+    loops++)``d_sum = thrust::reduce(d_data.begin(), d_data.end(), initVal, fcn1);``endTime=omp_get_wtime();``cout
+    << "Thrust ";``}``cout << "Time for transform reduce " << (endTime-startTime)/NTEST
+    << endl;``cout << (sizeof(T)*nData/1e9) << " GB " << endl;``cout << "d_sum" <<
+    d_sum << endl;``cudaFree(d_partialVals);``#ifdef DO_CHECK``T testVal = thrust::reduce(d_data.begin(),
+    d_data.end(), initVal, fcn1);``cout << "testVal " << testVal << endl;``if(testVal
+    != (d_sum)) {cout << "ERROR " << endl;}``#endif``}`The **main()** routine simply
+    parses the command line and runs the test. See [Example 6.16](#tb0085), “Part
+    5 of *testPre.cu*”:`int main(int argc, char* argv[])``{``if(argc < 3) {``cerr
+    << "Use: nData(K) op(0:no prefetch, 1:prefetch, 2:thrust)" << endl;``return(1);``}``int
+    nData=(atof(argv[1])*1000000);``int op=atoi(argv[2]);``doTest<RUNTYPE>(nData,
+    op);``return 0;``}`'
+  id: totrans-9
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '*functionReduce.h* 模板的测试程序在内存中创建了一个顺序整数的向量，类似于第一章中的示例。向量的大小可以通过命令行指定。用户还可以提供一个数值选项，以使用一个包含
+    CUDA PTX **prefetch.global** 汇编指令的函数对象、一个从内存读取（没有任何预取）的函数对象，以及一个 **thrust::reduce()**
+    调用来运行。**fcn1()** 方法可以在编译时指定。默认情况下，应用程序执行求和操作。其他函数对象如 **thrust::minimum()** 或 **thrust::maximum()**
+    可以通过修改代码中的 **FCN1** 定义，或者通过 **nvcc** 命令来使用。通过修改预处理器变量 **RUNTYPE** 可以更改运行类型。指定预处理器变量
+    **DO_CHECK** 会对 thrust 降维代码执行验证测试。[示例 6.11](#tb0060)，“*testPre.cu* 的第 1 部分”是对测试代码的逐步讲解。如有需要，可以将单独的代码片段组合起来，创建一个完整的工作测试。必要的预处理器和命名空间定义出现在文件的开头：`#include
+    <iostream>``using namespace std;``#include <thrust/host_vector.h>``#include <thrust/device_vector.h>``#include
+    <thrust/functional.h>``#include <thrust/random.h>``#include "functionReduce.h"``#ifndef
+    RUNTYPE``#define RUNTYPE int``#endif``#ifndef FCN1``#define FCN1 plus``#endif``#include
+    <iostream>``using namespace std;`**prefetch** 函数对象是一个持久化的函数对象，它保存了一个指向设备内存的指针。每次调用此函数对象时，都会返回由
+    **i** 索引的向量。在返回向量元素之前，首先检查索引是否可以从全局内存中预取下一个数据值网格（例如，**N_BLOCKS*N_THREADS** 个值）。可以通过测试预取索引的有效性，因为
+    **_functionReduce()** 会反向遍历向量。测试索引是否大于或等于零，以确保只预取有效的数组元素。如果索引有效，则使用 PTX **prefetch.global.L2**
+    汇编指令执行预取。此指令仅在计算能力 2.0 设备上有效。参见 [示例 6.12](#tb0065)，“*testPre.cu* 的第 2 部分”：`template<class
+    T1, class T2>``struct prefetch : public thrust::unary_function<T1,T2> {``const
+    T1* data;``prefetch(T1* _data) : data(_data) {};``__device__``// 此方法将前一个数据点网格预取到
+    L2 中。``T1 operator()(T2 i) {``if( (i-N_BLOCKS*N_THREADS) > 0) { //预取前一个网格``const
+    T1 *pt = &data[i − (N_BLOCKS*N_THREADS)];``asm volatile ("prefetch.global.L2 [%0];"::"l"(pt)
+    );``}``return data[i];``}``};`**memFetch()** 函数对象与 **prefetch()** 函数对象类似，只是不执行任何预取操作。此函数对象可以在所有计算设备上运行。参见
+    [示例 6.13](#tb0070)，“*testPre.cu* 的第 3 部分”：`template<class T1, class T2>``struct
+    memFetch : public thrust::unary_function<T1,T2> {``const T1* data;``memFetch(T1*
+    _data) : data(_data) {};``__host__ __device__``T1 operator()(T2 i) {``return data[i];``}``};`此测试利用基于随机数最低位的零和一的随机序列。这些数字由以下代码中的函数对象创建：`//
+    并行随机数生成器``// http://groups.google.com/group/thrust-users/browse_thread/thread/dca23bfa678689a5``struct
+    parallel_random_generator``{``__host__ __device__``unsigned int operator()(const
+    unsigned int n) const``{``thrust::default_random_engine rng;``// 丢弃 n 个数字以避免相关性``rng.discard(n);``//
+    返回一个随机数``return rng() & 0x01;``}``};`**doTest()** 例程是直接的 C++ 代码。指向临时空间的指针 **d_partialVals**
+    被设置为 NULL，这意味着第一次调用 **functionReduce()** 时将分配所需的空间。设备向量 **d_data** 通过 thrust API
+    根据传递给该方法的 **nData** 变量的大小进行分配。变量 **op** 选择要执行的测试。0 表示不使用预取；1 选择预取测试。任何其他值表示调用
+    thrust 降维方法。参见 [示例 6.15](#tb0080)，“*testPre.cu* 的第 4 部分”：`/****************************************************************/``/*
+    测试例程*/``/****************************************************************/``#define
+    NTEST 100``template<typename T>``void doTest(const long nData, int op)``{``T*
+    d_partialVals=NULL;``thrust::device_vector<T> d_data(nData);``// 用随机数填充 d_data（零或一）``thrust::counting_iterator<int>
+    index_sequence_begin(0);``thrust::transform(index_sequence_begin, index_sequence_begin
+    + nData, d_data.begin(), parallel_random_generator());``cudaThreadSynchronize();
+    // 等待所有队列中的任务完成``thrust::FCN1<T> fcn1;``double startTime, endTime;``T d_sum;``T
+    initVal = 0;``switch(op) {``case 0: {``memFetch<T,int> fcn(thrust::raw_pointer_cast(&d_data[0]));``startTime=omp_get_wtime();``for(int
+    loops=0; loops < NTEST; loops++)``d_sum = functionReduce<T>(nData, &d_partialVals,
+    initVal, fcn, fcn1);``endTime=omp_get_wtime();``cout << "未使用预取 ";``} break;``case
+    1: {``prefetch<T,int> fcnPre(thrust::raw_pointer_cast(&d_data[0]));``startTime=omp_get_wtime();``for(int
+    loops=0; loops < NTEST; loops++)``d_sum = functionReduce<T>(nData, &d_partialVals,
+    initVal, fcnPre, fcn1);``endTime=omp_get_wtime();``cout << "使用预取 ";``} break;``default:``startTime=omp_get_wtime();``for(int
+    loops=0; loops < NTEST; loops++)``d_sum = thrust::reduce(d_data.begin(), d_data.end(),
+    initVal, fcn1);``endTime=omp_get_wtime();``cout << "Thrust ";``}``cout << "变换降维时间
+    " << (endTime-startTime)/NTEST << endl;``cout << (sizeof(T)*nData/1e9) << " GB
+    " << endl;``cout << "d_sum" << d_sum << endl;``cudaFree(d_partialVals);``#ifdef
+    DO_CHECK``T testVal = thrust::reduce(d_data.begin(), d_data.end(), initVal, fcn1);``cout
+    << "testVal " << testVal << endl;``if(testVal != (d_sum)) {cout << "错误 " << endl;}``#endif``}`**main()**
+    例程仅解析命令行并运行测试。参见 [示例 6.16](#tb0085)，“*testPre.cu* 的第 5 部分”：`int main(int argc,
+    char* argv[])``{``if(argc < 3) {``cerr << "用法：nData(K) op(0:不预取，1:预取，2:thrust)"
+    << endl;``return(1);``}``int nData=(atof(argv[1])*1000000);``int op=atoi(argv[2]);``doTest<RUNTYPE>(nData,
+    op);``return 0;``}``'
+- en: Results
+  id: totrans-10
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 结果
+- en: The results in [Table 6.1](#t0010) were generated on an NVIDIA C2070\. The time
+    per reduction, averaged over 100 runs, is reported. For smaller vector sizes,
+    **functionReduce()** clearly outperforms the thrust implementation with a maximum
+    8-times speedup. As noted in [Chapter 3](B9780123884268000033.xhtml#B978-0-12-388426-8.00003-3),
+    much of this speedup can be attributed to the fact that the time to allocate scratch
+    space occurs only once in the **functionReduce()** implementation. Care must be
+    exercised when interpreting the timings of small runs because they finish very
+    quickly. Even operating system daemon processes briefly waking up can affect performance,
+    as noted in the paper “The Case of the Missing Supercomputer Performance” ([Petrini,
+    Kerbyson, & Pakin, 2003](B978012388426800015X.xhtml#ref104)).
+  id: totrans-11
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[表 6.1](#t0010)中的结果是在 NVIDIA C2070 上生成的。报告的是在 100 次运行中每次归约的平均时间。对于较小的向量大小，**functionReduce()**
+    显然优于 Thrust 实现，最高加速比为 8 倍。如[第 3 章](B9780123884268000033.xhtml#B978-0-12-388426-8.00003-3)所述，部分加速可以归因于
+    **functionReduce()** 实现中分配临时空间的时间仅发生一次。在解释小规模运行的时间时需要小心，因为它们完成得非常快。正如在论文《消失的超级计算机性能》中所指出的，操作系统的守护进程即使短暂唤醒也会影响性能（[Petrini,
+    Kerbyson, & Pakin, 2003](B978012388426800015X.xhtml#ref104)）。'
+- en: '**Table 6.1** Speedups over Thrust::Reduce for Several Problem Sizes'
+  id: totrans-12
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**表 6.1** 针对多个问题大小的 Thrust::Reduce 加速比'
+- en: '| Number of Elements | No Prefetch (sec) | Prefetch (sec) | Thrust (sec) |
+    No Prefetch Speedup over Thrust | Prefetch Speedup over Thrust |'
+  id: totrans-13
+  prefs: []
+  type: TYPE_TB
+  zh: '| 元素数量 | 无预取（秒） | 预取（秒） | Thrust（秒） | 无预取相对于 Thrust 的加速比 | 预取相对于 Thrust 的加速比
+    |'
+- en: '| 1,000 M | 0.043434 | 0.033777 | 0.035986 | 0.8 | 1.1 |'
+  id: totrans-14
+  prefs: []
+  type: TYPE_TB
+  zh: '| 1,000 M | 0.043434 | 0.033777 | 0.035986 | 0.8 | 1.1 |'
+- en: '| 100 M | 0.004314 | 0.003387 | 0.003758 | 0.9 | 1.1 |'
+  id: totrans-15
+  prefs: []
+  type: TYPE_TB
+  zh: '| 100 M | 0.004314 | 0.003387 | 0.003758 | 0.9 | 1.1 |'
+- en: '| 10 M | 0.000447 | 0.000360 | 0.000536 | 1.2 | 1.5 |'
+  id: totrans-16
+  prefs: []
+  type: TYPE_TB
+  zh: '| 10 M | 0.000447 | 0.000360 | 0.000536 | 1.2 | 1.5 |'
+- en: '| 1 M | 0.000063 | 0.000055 | 0.000197 | 3.1 | 3.6 |'
+  id: totrans-17
+  prefs: []
+  type: TYPE_TB
+  zh: '| 1 M | 0.000063 | 0.000055 | 0.000197 | 3.1 | 3.6 |'
+- en: '| 100 K | 0.000021 | 0.000021 | 0.000160 | 7.8 | 7.7 |'
+  id: totrans-18
+  prefs: []
+  type: TYPE_TB
+  zh: '| 100 K | 0.000021 | 0.000021 | 0.000160 | 7.8 | 7.7 |'
+- en: '| 10 K | 0.000018 | 0.000018 | 0.000156 | 8.4 | 8.5 |'
+  id: totrans-19
+  prefs: []
+  type: TYPE_TB
+  zh: '| 10 K | 0.000018 | 0.000018 | 0.000156 | 8.4 | 8.5 |'
+- en: Use of the PTX prefetch instruction clearly benefits larger problems. The reason
+    is that it makes better use of the available global memory bandwidth. [Figure
+    6.2](#f0015) is a comparison plot created with the visual profiler shows that
+    the prefetch global memory read throughput (the top line) is 21.8 percent higher
+    than the nonprefetch version of the code. The higher global memory read performance
+    benefits larger vector problems, as the prefetch version is always faster than
+    the nonprefetch version. Prefetching is also slightly faster than the thrust implementation,
+    as shown in [Table 6.1](#t0010).
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用 PTX 预取指令显然有助于解决更大的问题。原因在于它能更好地利用可用的全局内存带宽。[图 6.2](#f0015)是通过视觉分析工具生成的对比图，显示了预取全局内存读取吞吐量（顶部线条）比非预取版本的代码高出21.8%。更高的全局内存读取性能有利于更大的向量问题，因为预取版本始终比非预取版本更快。预取方式也稍微比
+    Thrust 实现更快，如[表 6.1](#t0010)所示。
+- en: '| ![B9780123884268000069/f06-02-9780123884268.jpg is missing](B9780123884268000069/f06-02-9780123884268.jpg)
+    |'
+  id: totrans-21
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000069/f06-02-9780123884268.jpg 缺失](B9780123884268000069/f06-02-9780123884268.jpg)
+    |'
+- en: '| **Figure 6.2**Visual profiler comparison showing that prefetch achieves higher
+    global memory bandwidth. |'
+  id: totrans-22
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图6.2**可视化分析器比较，显示预取实现了更高的全局内存带宽。 |'
+- en: The cost of calculating the prefetch address does incur a slight performance
+    penalty over the nonprefetch version for small vector length reductions. Prefetching
+    data is beneficial only when the increased global memory bandwidth lets the kernel
+    run fast enough to overcome the extra costs associated with the prefetch calculation.
+    Keeping the cost of calculating the prefetch indexes is the reason why the example
+    **prefetch()** functor used such a simple calculation.
+  id: totrans-23
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 计算预取地址的成本确实会对小向量长度的减少带来轻微的性能损失，相较于不使用预取版本。预取数据只有在增加的全局内存带宽足以让内核运行得足够快，克服与预取计算相关的额外成本时，才是有益的。保持计算预取索引的成本是示例中**prefetch()**函数使用如此简单计算的原因。
+- en: Utilizing Irregular Data Structures
+  id: totrans-24
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 利用不规则数据结构
+- en: 'The preceding examples utilize very regular access patterns that stream information
+    from global memory.A large body of computational problems, such as graph and tree
+    algorithms, represents a worst-case scenario for coalescing parallel memory accesses
+    on GPUs. Most of these algorithms exhibit irregular and even random memory access
+    patterns.Graph algorithms are common in social media analysis ([Corley, Farber,
+    & Reynolds, 2011](B978012388426800015X.xhtml#ref21)) and, Biology (Jones and Pavel,
+    2004), and many other fields. Tree algorithms are commonly used for fast data
+    storage and retrieval. Similarly, vector *gather* and *scatter* operations are
+    commonly used in sparse matrix and numerical calculations.A vector gather operation
+    “gathers” data from arbitrary vector elements. See [Example 6.17](#tb0090), “A
+    Vector Gather Operation”:`for(int i = 0; i < n; i++) a[i] = b[index[i]];`A vector
+    scatter operation is one that “scatters” data throughout a vector in memory, as
+    in [Example 6.18](#tb0095), “A Vector Scatter Operation”:`for(int i = 0; i < n;
+    i++) a[index[i]] = b[i];`Irregular memory accesses are a challenge for massively
+    parallel computers because increasing memory bandwidth does not necessarily increase
+    performance. Coalesced memory accesses imply that memory accesses can be grouped
+    together into a single memory transaction that works on a number of consecutive
+    bytes of information. [Table 5.10](B9780123884268000057.xhtml#t0055) and [Table
+    5.11](B9780123884268000057.xhtml#t0060) show the coalesced memory efficiencies
+    for various use cases with caching enabled and disabled on compute 2.0 GPUs.Irregular
+    memory accesses break the assumption that memory transactions can be coalesced
+    into one or a few large memory transactions. For example, the **index** vector
+    in [Example 6.16](#tb0085) can contain random index values that will cause each
+    thread accessing **b**[**index**[**i**]] to generate a separate global memory
+    transaction. This is a worst-case scenario for the SM (along with the GPU memory
+    subsystem), as each warp will have to wait for all 32 memory accesses to complete
+    before the warp can issue an instruction. In the absolute worst case, all the
+    warps and SM will issue memory transactions that fall on a single memory partition
+    in global memory, which will decrease the available memory bandwidth to that of
+    a single memory subsystem.The L2 cache in compute 2.0 and later devices provides
+    the best single solution to accelerate algorithms that perform irregular memory
+    accesses. Though not a general solution, the L2 cache will transparently speed
+    most applications just because it provides a high-speed region of memory where
+    the threads on each SM can request small, irregular memory accesses.Localizing
+    memory accesses can make a tremendous difference in application performance because
+    it allows the L2 cache to work more effectively on behalf of the application threads.
+    Sorting the index array is a reasonable method to use for random data assuming
+    some reordering of the indices is allowed. Of course, much better performance
+    can be achieved when the programmer works to exploit the locality of reference
+    within the algorithm.The following program, *testGather.cu*, implements [Example
+    6.16](#tb0085) in a CUDA test code. The thrust API was used to conveniently transfer
+    data to and from the host as well as fill and sort the index array. The first
+    part of the program—[Example 6.19](#tb0100), “Part 1 of *testGather.cu*”—defines
+    a gather functor:`#include <omp.h>``#include <iostream>``using namespace std;``#include
+    <thrust/host_vector.h>``#include <thrust/device_vector.h>``#include <thrust/sort.h>``#include
+    <thrust/sequence.h>``#include <thrust/functional.h>``struct gather_functor {``const
+    int* index;``const int* data;``gather_functor(int* _data, int* _index) : data(_data),
+    index(_index) {};``__host__ __device__``int operator()(int i) {``return data[index[i]];``}``};`[Example
+    6.20](#tb0105), “Part 2 of *testGather.cu*,” parses the command-line arguments
+    and performs the test:`int main(int argc, char *argv[])``{``if(argc < 3) {``cerr
+    << "Use: size (k) nLoops sequential" << endl;``return(1);``}``int n = atof(argv[1])*1e3;``int
+    nLoops = atof(argv[2]);``int op = atoi(argv[3]);``cout << "Using " << (n/1.e6)
+    << "M elements and averaging over "``<< nLoops << " tests" << endl;``thrust::device_vector<int>
+    d_a(n), d_b(n), d_index(n);``thrust::sequence(d_a.begin(), d_a.end());``thrust::fill(d_b.begin(),
+    d_b.end(),-1);``thrust::host_vector<int> h_index(n);``switch(op) {``case 0:``//
+    Best case: sequential indicies``thrust::sequence(d_index.begin(), d_index.end());``cout
+    << "Sequential data " << endl;``break;``case 1:``// Mid-performance case: random
+    indices``for(int i=0; i < n; i++) h_index[i]=rand()%(n-1);``d_index = h_index;
+    // transfer to device``thrust::sort(d_index.begin(), d_index.end());``cout <<
+    "Sorted random data " << endl;``break;``default:``// Worst case: random indices``for(int
+    i=0; i < n; i++) h_index[i]=rand()%(n-1);``d_index = h_index; // transfer to device``cout
+    << "Random data " << endl;``break;``}``double startTime = omp_get_wtime();``for(int
+    i=0; i < nLoops; i++)``thrust::transform(thrust::counting_iterator<unsigned int>(0),``thrust::counting_iterator<unsigned
+    int>(n),``d_b.begin(),``gather_functor(thrust::raw_pointer_cast(&d_a[0]),``thrust::raw_pointer_cast(&d_index[0])));``cudaDeviceSynchronize();``double
+    endTime = omp_get_wtime();``// Double check the results``thrust::host_vector<int>
+    h_b = d_b;``thrust::host_vector<int> h_a = d_a;``h_index = d_index;``for(int i=0;
+    i < n; i++) {``if(h_b[i] != h_a[h_index[i]]) {``cout << "Error!" << endl; return(1);``}``}``cout
+    << "Success!" << endl;``cout << "Average time " << (endTime-startTime)/nLoops
+    << endl;``}`This program requires the user specify:■ The size of the vector in
+    millions of elements.■ The number of tests to perform in calculating the average
+    runtime.■ An integer value that specifies what type of test *testGather.cu* should
+    perform. The program understands the following values:■ A 0 value fills the index
+    vector with sequential values. All memory accesses are sequential and coalesced.■
+    A 1 specifies that **index** contains a sorted list of random index values. This
+    option shows the performance that can be achieved by regularizing the index values
+    to exploit any locality.■ The default is to fill **index** with random values.
+    This is a worst-case scenario for the GPU memory system.Running *testGather.cu*
+    on an NVIDIA C2070 GPU shows that the L2 cache does a remarkably good job when
+    handling small problems. It can provide an order of magnitude of increased performance
+    when the random accesses are localized by sorting. Of course, sorting is good
+    only in the average case. Worst-case performance will not be any different from
+    the random case. This test assumes that index will be reused, so the time to perform
+    the sort was not included in the runtimes reported in [Table 6.2](#t0015).'
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '前面的例子使用了非常规律的访问模式，这些模式从全局内存流式传输信息。大量计算问题，如图算法和树算法，代表了在GPU上合并并行内存访问的最坏情况。这些算法大多表现出不规律甚至是随机的内存访问模式。图算法在社交媒体分析中很常见（[Corley,
+    Farber, & Reynolds, 2011](B978012388426800015X.xhtml#ref21)）以及生物学（Jones和Pavel，2004）和许多其他领域。树算法通常用于快速数据存储和检索。同样，向量的*gather*和*scatter*操作常用于稀疏矩阵和数值计算。向量gather操作“聚集”来自任意向量元素的数据。参见[示例6.17](#tb0090)，“向量Gather操作”：`for(int
+    i = 0; i < n; i++) a[i] = b[index[i]];` 向量scatter操作是将数据“分散”到内存中的向量中的操作，参见[示例6.18](#tb0095)，“向量Scatter操作”：`for(int
+    i = 0; i < n; i++) a[index[i]] = b[i];` 不规则的内存访问对大规模并行计算机是一个挑战，因为增加内存带宽并不一定会提高性能。合并内存访问意味着内存访问可以组合成一个单一的内存事务，作用于一组连续的字节信息。[表5.10](B9780123884268000057.xhtml#t0055)和[表5.11](B9780123884268000057.xhtml#t0060)显示了在启用和禁用缓存的情况下，计算2.0
+    GPU上各种用例的合并内存效率。不规则的内存访问打破了内存事务可以合并为一个或几个大内存事务的假设。例如，[示例6.16](#tb0085)中的**index**向量可能包含随机的索引值，这将导致每个线程访问**b**[**index**[**i**]]时生成一个独立的全局内存事务。这对于SM（以及GPU内存子系统）来说是最坏的情况，因为每个warp必须等所有32个内存访问完成后才能发出指令。在最坏的情况下，所有warp和SM将发出内存事务，且这些事务落在全局内存的单一内存分区上，这会将可用的内存带宽降低到单一内存子系统的水平。计算2.0及更高版本的设备中的L2缓存提供了加速执行不规则内存访问算法的最佳单一解决方案。虽然这不是一种通用解决方案，但L2缓存会透明地加速大多数应用程序，因为它提供了一个高速内存区域，SM上的线程可以在此区域中请求小的、不规则的内存访问。局部化内存访问可以显著改善应用程序性能，因为它允许L2缓存更有效地为应用程序线程工作。对索引数组进行排序是处理随机数据的一个合理方法，前提是允许对索引进行某种重新排序。当然，当程序员努力利用算法中的引用局部性时，可以获得更好的性能。以下程序，*testGather.cu*，在CUDA测试代码中实现了[示例6.16](#tb0085)。使用了Thrust
+    API，以方便地将数据从主机传输到设备，并填充和排序索引数组。程序的第一部分—[示例6.19](#tb0100)，“*testGather.cu*的第1部分”—定义了一个gather
+    functor：`#include <omp.h>``#include <iostream>``using namespace std;``#include
+    <thrust/host_vector.h>``#include <thrust/device_vector.h>``#include <thrust/sort.h>``#include
+    <thrust/sequence.h>``#include <thrust/functional.h>``struct gather_functor {``const
+    int* index;``const int* data;``gather_functor(int* _data, int* _index) : data(_data),
+    index(_index) {};``__host__ __device__``int operator()(int i) {``return data[index[i]];``}``};`[示例6.20](#tb0105)，“*testGather.cu*的第2部分”，解析命令行参数并执行测试：`int
+    main(int argc, char *argv[])``{``if(argc < 3) {``cerr << "Use: size (k) nLoops
+    sequential" << endl;``return(1);``}``int n = atof(argv[1])*1e3;``int nLoops =
+    atof(argv[2]);``int op = atoi(argv[3]);``cout << "Using " << (n/1.e6) << "M elements
+    and averaging over "``<< nLoops << " tests" << endl;``thrust::device_vector<int>
+    d_a(n), d_b(n), d_index(n);``thrust::sequence(d_a.begin(), d_a.end());``thrust::fill(d_b.begin(),
+    d_b.end(),-1);``thrust::host_vector<int> h_index(n);``switch(op) {``case 0:``//
+    最佳情况：顺序索引``thrust::sequence(d_index.begin(), d_index.end());``cout << "顺序数据 "
+    << endl;``break;``case 1:``// 中等性能情况：随机索引``for(int i=0; i < n; i++) h_index[i]=rand()%(n-1);``d_index
+    = h_index; // 传输到设备``thrust::sort(d_index.begin(), d_index.end());``cout << "已排序的随机数据
+    " << endl;``break;``default:``// 最坏情况：随机索引``for(int i=0; i < n; i++) h_index[i]=rand()%(n-1);``d_index
+    = h_index; // 传输到设备``cout << "随机数据 " << endl;``break;``}``double startTime = omp_get_wtime();``for(int
+    i=0; i < nLoops; i++)``thrust::transform(thrust::counting_iterator<unsigned int>(0),``thrust::counting_iterator<unsigned
+    int>(n),``d_b.begin(),``gather_functor(thrust::raw_pointer_cast(&d_a[0]),``thrust::raw_pointer_cast(&d_index[0])));``cudaDeviceSynchronize();``double
+    endTime = omp_get_wtime();``// 双重检查结果``thrust::host_vector<int> h_b = d_b;``thrust::host_vector<int>
+    h_a = d_a;``h_index = d_index;``for(int i=0; i < n; i++) {``if(h_b[i] != h_a[h_index[i]])
+    {``cout << "错误!" << endl; return(1);``}``}``cout << "成功!" << endl;``cout << "平均时间
+    " << (endTime-startTime)/nLoops << endl;``}`此程序要求用户指定：■ 向量的大小（以百万个元素为单位）。■ 执行测试的次数，以计算平均运行时间。■
+    一个整数值，指定*testGather.cu*应执行的测试类型。该程序理解以下值：■ 0值将索引向量填充为顺序值。所有内存访问都是顺序的并且是合并的。■ 1指定**index**包含一个已排序的随机索引值列表。此选项显示通过规范化索引值以利用局部性所能实现的性能。■
+    默认情况下，将**index**填充为随机值。这是GPU内存系统的最坏情况。 在NVIDIA C2070 GPU上运行*testGather.cu*表明，当处理小问题时，L2缓存表现得非常出色。当通过排序局部化随机访问时，它可以提供数量级的性能提升。当然，排序仅在平均情况下有效。最坏情况下的性能与随机情况没有任何不同。该测试假设索引会被重用，因此未将排序的时间包含在[表6.2](#t0015)中报告的运行时间内。'
+- en: '**Table 6.2** Performance of *testGather.cu* on Various Problem Sizes'
+  id: totrans-26
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**表 6.2** *testGather.cu* 在不同问题规模上的性能'
+- en: '| Size | Op | nTests | Time | Slowdown Relative to Sequential Performance |'
+  id: totrans-27
+  prefs: []
+  type: TYPE_TB
+  zh: '| 大小 | 操作 | 测试次数 | 时间 | 相对于顺序性能的减慢倍率 |'
+- en: '| 0.01 M | Sequential | 1000 | 3.37E-06 |  |'
+  id: totrans-28
+  prefs: []
+  type: TYPE_TB
+  zh: '| 0.01 M | 顺序 | 1000 | 3.37E-06 |  |'
+- en: '| 0.01 M | Sorted | 1000 | 3.44E-06 | 1.0 |'
+  id: totrans-29
+  prefs: []
+  type: TYPE_TB
+  zh: '| 0.01 M | 排序 | 1000 | 3.44E-06 | 1.0 |'
+- en: '| 0.01 M | Random | 1000 | 7.46E-06 | 2.2 |'
+  id: totrans-30
+  prefs: []
+  type: TYPE_TB
+  zh: '| 0.01 M | 随机 | 1000 | 7.46E-06 | 2.2 |'
+- en: '| 0.1 M | Sequential | 1000 | 1.39E-05 |  |'
+  id: totrans-31
+  prefs: []
+  type: TYPE_TB
+  zh: '| 0.1 M | 顺序 | 1000 | 1.39E-05 |  |'
+- en: '| 0.1 M | Sorted | 1000 | 1.42E-05 | 1.0 |'
+  id: totrans-32
+  prefs: []
+  type: TYPE_TB
+  zh: '| 0.1 M | 排序 | 1000 | 1.42E-05 | 1.0 |'
+- en: '| 0.1 M | Random | 1000 | 6.94E-05 | 5.0 |'
+  id: totrans-33
+  prefs: []
+  type: TYPE_TB
+  zh: '| 0.1 M | 随机 | 1000 | 6.94E-05 | 5.0 |'
+- en: '| 1 M | Sequential | 1000 | 0.000107 |  |'
+  id: totrans-34
+  prefs: []
+  type: TYPE_TB
+  zh: '| 1 M | 顺序 | 1000 | 0.000107 |  |'
+- en: '| 1 M | Sorted | 1000 | 0.000106 | 1.0 |'
+  id: totrans-35
+  prefs: []
+  type: TYPE_TB
+  zh: '| 1 M | 排序 | 1000 | 0.000106 | 1.0 |'
+- en: '| 1 M | Random | 1000 | 0.000972 | 9.1 |'
+  id: totrans-36
+  prefs: []
+  type: TYPE_TB
+  zh: '| 1 M | 随机 | 1000 | 0.000972 | 9.1 |'
+- en: '| 10 M | Sequential | 1000 | 0.001077 |  |'
+  id: totrans-37
+  prefs: []
+  type: TYPE_TB
+  zh: '| 10 M | 顺序 | 1000 | 0.001077 |  |'
+- en: '| 10 M | Sorted | 1000 | 0.00105 | 1.0 |'
+  id: totrans-38
+  prefs: []
+  type: TYPE_TB
+  zh: '| 10 M | 排序 | 1000 | 0.00105 | 1.0 |'
+- en: '| 10 M | Random | 1000 | 0.011418 | 10.6 |'
+  id: totrans-39
+  prefs: []
+  type: TYPE_TB
+  zh: '| 10 M | 随机 | 1000 | 0.011418 | 10.6 |'
+- en: '| 100 M | Sequential | 1000 | 0.011553 |  |'
+  id: totrans-40
+  prefs: []
+  type: TYPE_TB
+  zh: '| 100 M | 顺序 | 1000 | 0.011553 |  |'
+- en: '| 100 M | Sorted | 1000 | 0.013233 | 1.1 |'
+  id: totrans-41
+  prefs: []
+  type: TYPE_TB
+  zh: '| 100 M | 排序 | 1000 | 0.013233 | 1.1 |'
+- en: '| 100 M | Random | 1000 | 0.132465 | 11.5 |'
+  id: totrans-42
+  prefs: []
+  type: TYPE_TB
+  zh: '| 100 M | 随机 | 1000 | 0.132465 | 11.5 |'
+- en: Sparse Matrices and the CUPS Library
+  id: totrans-43
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 稀疏矩阵与 CUPS 库
+- en: 'Sparse matrix structures arise in numerous computational disciplines. For many
+    applications, sparse matrix methods are often the rate-limiting methods that dictate
+    application performance. In particular, sparse matrix-vector multiplication (SpMV)
+    represents the dominant cost in many iterative methods for solving large linear
+    systems and eigenvalue problems that arise in a wide variety of scientific and
+    engineering applications.The CUSP library (Generic Parallel Algorithms for Sparse
+    Matrix and Graph Computations) is a thrust-based project for running sparse matrix
+    and graph computations on the GPU. It provides a flexible, high-level interface
+    for manipulating sparse matrices and solving sparse linear systems. The source
+    code for the library can be downloaded from Google Code, where the project is
+    hosted ([http://code.google.com/p/cusp-library/](http://code.google.com/p/cusp-library/)).
+    This library uses a variety of common sparse matrix formats with various advantages,
+    as described in the documentation.Results in the literature show a compute 1.x
+    GPU can deliver an order of magnitude increased performance over an Intel quad-core
+    Clovertown system ([Bell & Garland, 2009](B978012388426800015X.xhtml#ref6)). This
+    is an active area of research where people are investigating optimal use of the
+    hardware ([El Zein & Rendell, 2011](B978012388426800015X.xhtml#ref38)) and sparse
+    matrix representations ([Cao, Yao, Li, Wang, & Wang, 2010](B978012388426800015X.xhtml#ref12)).CUSP
+    provides a straightforward interface for sparse matrix operations, as can be seen
+    in [Example 6.21](#tb0110), to determine the maximal independent set, which is
+    an independent set that is not a subset of any other independent set. It is an
+    important metric used in social network analysis to identify groups or cliques
+    of people.`#include <cusp/graph/maximal_independent_set.h>``#include <cusp/gallery/poisson.h>``#include
+    <cusp/coo_matrix.h>``// This example computes a maximal independent set (MIS)``//
+    for a 10x10 grid. The graph for the 10x10 grid is``// described by the sparsity
+    pattern of a sparse matrix``// corresponding to a 10x10 Poisson problem.``//``//
+    [1] http://en.wikipedia.org/wiki/Maximal_independent_set``int main(void)``{``size_t
+    N = 10;``// initialize matrix representing 10x10 grid``cusp::coo_matrix<int, float,
+    cusp::device_memory> G;``cusp::gallery::poisson5pt(G, N, N);``// allocate storage
+    for the MIS``cusp::array1d<int, cusp::device_memory> stencil(G.num_rows);``//
+    compute the MIS``cusp::graph::maximal_independent_set(G, stencil);``// print MIS
+    as a 2d grid``std::cout << "maximal independent set (marked with Xs)\n";``for
+    (size_t i = 0; i < N; i++)``{``std::cout << " ";``for (size_t j = 0; j < N; j++)``{``std::cout
+    << ((stencil[N * i + j]) ? "X" : "0");``}``std::cout << "\n";``}``return 0;``}`'
+  id: totrans-44
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '稀疏矩阵结构出现在许多计算领域中。对于许多应用，稀疏矩阵方法通常是限制应用性能的瓶颈方法。特别是，稀疏矩阵-向量乘法（SpMV）在许多求解大规模线性系统和特征值问题的迭代方法中占据主导成本，这些问题出现在各种科学和工程应用中。CUSP
+    库（用于稀疏矩阵和图计算的通用并行算法）是一个基于推力的项目，旨在通过 GPU 执行稀疏矩阵和图的计算。它提供了一个灵活的高级接口，用于操作稀疏矩阵和求解稀疏线性系统。该库的源代码可以从
+    Google Code 下载，该项目在此处托管（[http://code.google.com/p/cusp-library/](http://code.google.com/p/cusp-library/)）。该库使用多种常见的稀疏矩阵格式，每种格式具有不同的优势，如文档中所述。文献中的结果表明，1.x
+    版 GPU 相较于 Intel 四核 Clovertown 系统，可以提供一个数量级的性能提升（[Bell & Garland, 2009](B978012388426800015X.xhtml#ref6)）。这是一个活跃的研究领域，人们正在研究如何最优地利用硬件（[El
+    Zein & Rendell, 2011](B978012388426800015X.xhtml#ref38)）以及稀疏矩阵表示法（[Cao, Yao, Li,
+    Wang, & Wang, 2010](B978012388426800015X.xhtml#ref12)）。CUSP 提供了一个简单的接口来进行稀疏矩阵操作，如在[示例
+    6.21](#tb0110)中所示，用于确定最大独立集，即一个不包含任何其他独立集的独立集。它是社交网络分析中用于识别群体或团体的重要度量。`#include
+    <cusp/graph/maximal_independent_set.h>``#include <cusp/gallery/poisson.h>``#include
+    <cusp/coo_matrix.h>``// 该示例计算最大独立集（MIS）``// 用于一个 10x10 网格。该 10x10 网格的图``// 由与
+    10x10 Poisson 问题相对应的稀疏矩阵的``// 稀疏模式描述。``//``// [1] http://en.wikipedia.org/wiki/Maximal_independent_set``int
+    main(void)``{``size_t N = 10;``// 初始化表示 10x10 网格的矩阵``cusp::coo_matrix<int, float,
+    cusp::device_memory> G;``cusp::gallery::poisson5pt(G, N, N);``// 为 MIS 分配存储空间``cusp::array1d<int,
+    cusp::device_memory> stencil(G.num_rows);``// 计算 MIS``cusp::graph::maximal_independent_set(G,
+    stencil);``// 将 MIS 打印为 2D 网格``std::cout << "最大独立集（标记为 X）\n";``for (size_t i =
+    0; i < N; i++)``{``std::cout << " ";``for (size_t j = 0; j < N; j++)``{``std::cout
+    << ((stencil[N * i + j]) ? "X" : "0");``}``std::cout << "\n";``}``return 0;``}``'
+- en: Graph Algorithms
+  id: totrans-45
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 图算法
+- en: Research on efficient graph algorithm implementations is also an active area
+    of research on GPUs and for parallel computing in general. Instead of using the
+    sparse matrix approach taken by CUSP, these efforts implement a graph data structure
+    composed of nodes and edges. [Figure 6.3](#f0020) shows an example of a labeled
+    graph containing six vertices and edges.
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 高效图算法实现的研究也是GPU和并行计算领域的一个活跃研究方向。与CUSP采用的稀疏矩阵方法不同，这些研究实现了一种由节点和边组成的图数据结构。[图 6.3](#f0020)展示了一个包含六个顶点和边的标记图示例。
+- en: '| ![B9780123884268000069/f06-03-9780123884268.jpg is missing](B9780123884268000069/f06-03-9780123884268.jpg)
+    |'
+  id: totrans-47
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000069/f06-03-9780123884268.jpg is missing](B9780123884268000069/f06-03-9780123884268.jpg)
+    |'
+- en: '| **Figure 6.3**An example of a graph. |'
+  id: totrans-48
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 6.3** 一个图的示例。 |'
+- en: 'Typical higher-level operations performed on a graph include finding a path
+    between two nodes via either depth-first or breadth-first search and finding the
+    shortest path between two nodes. Graph similarity is an important problem in pattern
+    recognition. For example, chemical compounds can be represented as a graph. In
+    searching chemical databases, it is frequently necessary to compare two graphs
+    to see if they are equal. This leads to interesting computational problems such
+    as how to canonically label a graph for exact search. With a canonical label,
+    it is possible to find graph structures via a string search. Alternatively, graph
+    isomorphism is an important method used to find graphs that have the same or similar
+    structure.Centrality in a graph is a measure of the relative importance of a vertex
+    within the graph. Examples include: how important a person is within a social
+    network and how critical a road is within a traffic network. The principle centrality
+    metrics are as follows ([Corley, Farber, & Reynolds, 2011](B978012388426800015X.xhtml#ref21)):■
+    Degree centrality: A metric of the connectedness of a node. It is simply a count
+    of the number of edges that attach to a node. For a graph *G* with *n* vertices,
+    edges *e* and vertices *v*, the degree centrality *C[D]*(*v*) for vertex *v* is:(6.1)![B9780123884268000069/si1.gif
+    is missing](B9780123884268000069/si1.gif)■ Closeness centrality: A metric that
+    counts the average distance of a node to all other nodes. Closeness can be productive
+    in communicating information among the nodes or actors in a graph. It is defined
+    in [Equation 6.2](#fm0015) as the average shortest path or geodesic distance from
+    node *v* and all reachable nodes (*t* in *V*/*v*):(6.2)![B9780123884268000069/si2.gif
+    is missing](B9780123884268000069/si2.gif)■ Betweenness centrality: A metric that
+    measures how often paths between nodes must traverse a given node. Betweenness
+    centrality ([Equation 6.3](#fm0020)) measures internode influence. In social media
+    analysis, for example, an individual or blog is central if it lies between other
+    individuals or blogs on their geodesics – the blog is “between” many others, where
+    *g[jk]* is the number of geodesics linking blog *j* and blog *k* (Wasserman and
+    Faust, 1994):(6.3)![B9780123884268000069/si3.gif is missing](B9780123884268000069/si3.gif)■
+    Page rank: Page rank ([Example 6.4](#tb0025)) is an example of eigenvector centrality
+    that measures the importance of a node by assuming links from more central nodes
+    contribute more to its ranking than less central nodes (Brin & Page, 1998). Let
+    *d* be a damping factor (usually 0.85), *n* be the index to the node of interest,
+    *p[n]* be the node, *M*(*p[i]*) be the set of nodes linking to *p[n]* and *L*(*p[j]*)
+    be the out-link counts on page *p[j]*:(6.4)![B9780123884268000069/si4.gif is missing](B9780123884268000069/si4.gif)Certain
+    complex metrics (e.g., betweenness, eigenvector centrality) can become intractable
+    when presented with large volumes of data unless appropriate machines and algorithms
+    are utilized. Developers and users must understand the runtime performance, accuracy,
+    and problem size trade-offs between exact and approximate centrality algorithms
+    ([Ediger et al., 2010](B978012388426800015X.xhtml#ref37)).It is possible for a
+    GPU to deliver an order of magnitude or more of increased performance on graph
+    centrality metrics. The **gpu-fan** (GPU-based Fast Analysis of Networks) project
+    at Vanderbilt provides a working software package that includes methods for computing
+    four shortest path-based centrality metrics. This project reports that the GPU
+    speeds up the application by 10 to 50 times on real-world protein interaction
+    and gene co-expression networks as well as simulated scale-free networks ([Shi
+    & Zhang, 2011](B978012388426800015X.xhtml#ref119)). The nascent thrust-graph library
+    that is hosted on Google Code is attempting to create a common graph API and set
+    of algorithms for CUDA-enabled GPUs.Programming graph algorithms on GPUs is in
+    a particularly early stage of development. The paper “Exploring the Limits of
+    GPUs with Parallel Graph Algorithms” ([Dehne & Yogaratnam, 2010](B978012388426800015X.xhtml#ref28))
+    is a recent survey of the field. A more dated but still relevant paper is “Accelerating
+    Large Graph Algorithms on the GPU Using CUDA” ([Harish & Narayanan, 2007](B978012388426800015X.xhtml#ref59)).'
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '图上的典型高级操作包括通过深度优先搜索或广度优先搜索找到两个节点之间的路径，以及找到两个节点之间的最短路径。图相似性是模式识别中的一个重要问题。例如，化学化合物可以表示为图。在搜索化学数据库时，常常需要比较两个图以查看它们是否相等。这导致了一些有趣的计算问题，比如如何为精确搜索规范化图的标签。通过规范化标签，可以通过字符串搜索找到图结构。或者，图同构是一种重要方法，用于找到具有相同或相似结构的图。图中的中心性是衡量一个顶点在图中相对重要性的度量。示例包括：一个人在社交网络中的重要性，以及一条道路在交通网络中的关键性。主要的中心性度量如下（[Corley,
+    Farber, & Reynolds, 2011](B978012388426800015X.xhtml#ref21)）：  '
+- en: SoA, AoS, and Other Structures
+  id: totrans-50
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: SoA、AoS 和其他结构
+- en: Many legacy applications store data as arrays of structures (AoS) that can lead
+    to coalescing issues. From a GPU performance perspective, it is preferable to
+    store data as a structure of arrays (SoA). [Example 6.22](#tb0115), “An AoS Example,”
+    creates an AoS:`struct S {``float x;``float y;``};``struct S myData[N];`Arranging
+    data in this fashion leads to coalescing issues as the data are interleaved. Performing
+    an operation that only requires the variable **x** will result in a 50 percent
+    loss of bandwidth and waste of L2 cache memory.[Example 6.23](#tb0120), “An SoA
+    Example,” shows how to allocate an SoA:`struct S {``float x[N];``float y[N];``};``struct
+    S myData;`Arranging data as an SoA makes full use of the memory bandwidth even
+    when individual elements of the structure are utilized. There is no data interleaving;
+    this data structure should provide coalesced memory accesses and achieve high
+    global memory performance.The CUDA program *sorting_aos_vs_soa.cu* is included
+    in the thrust teaching examples that are available for free download from Google
+    Code. It demonstrates how to sort SoA and AoS structures with thrust. The comments
+    in the code note that a 5-times speedup can be achieved by using a SoA data structure.
+  id: totrans-51
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 许多遗留应用将数据存储为结构数组（AoS），这可能会导致合并问题。从 GPU 性能的角度来看，最好将数据存储为数组的结构（SoA）。[示例 6.22](#tb0115)，“AoS
+    示例”，创建了一个 AoS：`struct S {``float x;``float y;``};``struct S myData[N];`以这种方式排列数据会导致合并问题，因为数据是交错存储的。执行一个只需要变量**x**的操作将导致
+    50% 的带宽损失，并浪费 L2 缓存内存。[示例 6.23](#tb0120)，“SoA 示例”，展示了如何分配一个 SoA：`struct S {``float
+    x[N];``float y[N];``};``struct S myData;`将数据排列为 SoA 即使在仅使用结构体的个别元素时也能充分利用内存带宽。没有数据交错；该数据结构应提供合并内存访问，并实现高效的全局内存性能。CUDA
+    程序 *sorting_aos_vs_soa.cu* 包含在可供免费下载的 thrust 教学示例中。它演示了如何使用 thrust 对 SoA 和 AoS
+    结构进行排序。代码中的注释指出，通过使用 SoA 数据结构可以实现 5 倍的加速。
+- en: Tiles and Stencils
+  id: totrans-52
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 瓦片与模板
+- en: 'The computational grid defined in the kernel execution configuration can be
+    used to break a computation into subproblems that execute in parallel. *Tiles*
+    and *stencils* are an abstraction used in the creation of these multidimensional
+    grids. In particular, these abstractions help the programmer group data accesses
+    into common patterns plus define shared memory usage for interthread communications
+    within a thread block.Matrix multiplication provides the textbook example of the
+    use of 2D regions, or *tiles*, on the GPU. The book *Programming Massively Parallel
+    Processors: A Hands-on Approach* ([Kirk & Hwu, 2010](B978012388426800015X.xhtml#ref79))
+    has a detailed discussion of matrix multiplication and the use of tiles. However,
+    tiles are a common design paradigm used in many problems aside from matrix multiplication.
+    The CUDA N-body SDK example is another excellent demonstration of the use of tiles
+    to solve a complicated problem on the GPU with high performance.Stencils are a
+    generalization of the concept of a tile to *n* dimensions. A stencil computation:■
+    Operates on each point in a discrete *n*-dimensional space.■ Uses neighboring
+    points in computation.■ Are often surrounded by a time loop.■ Can have diverse
+    boundary conditions.Both tiles and stencils help the CUDA developer formulate
+    problems to best utilize shared memory and register in the SM as well as exploit
+    parallelism across all the SM. The paper “3D Finite Difference Computation on
+    GPUs using CUDA” ([Micikevicius, 2010](B978012388426800015X.xhtml#ref94)) provides
+    a detailed discussion of stencils that can be freely downloaded from the NVIDIA
+    website. Volkov demonstrates how to use ILP to accelerate stencil problems in
+    “Programming Inverse Memory Hierarchy: Case of Stencils on GPUs” ([Volkov, 2010](B978012388426800015X.xhtml#ref139)).Tiles
+    and stencils are also important in performing GPU computations with *quadtrees*
+    and *octrees*. A quadtree is a tree-based structure in which each internal node
+    has four children. It is used to partition a two-dimensional space by recursively
+    dividing it into quadrants. An octree has eight children per internal node and
+    is used to recursively divide a 3D space into regions. Both of these data structures
+    can exhibit irregular global memory accesses. The book *GPU Computing Gems* ([Hwu,
+    2011](B978012388426800015X.xhtml#ref72)) contains several detailed examples of
+    how experts in the field have used these and other irregular data structures in
+    CUDA to solve complex scientific problems.'
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  id: totrans-54
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 总结
+- en: This chapter introduced techniques and examples to efficiently use GPU memory.
+    The three-orders-of-magnitude performance difference between the slowest and fastest
+    GPU memory systems means that GPU programmers have the opportunity to capitalize
+    on the extreme performance that GPU hardware offers.What makes CUDA so special
+    is that it exposes the features of the underlying hardware so that the full potential
+    of the hardware can be realized. As the reduction example in this chapter showed,
+    it is possible to delve down into the lowest levels of the hardware execution
+    model to attain high performance.Thrust, on the other hand, bundled this complexity
+    into a simple API call that was used in the very first program in this book. As
+    demonstrated in this chapter, generic programming lets CUDA programmers create
+    simple, generic methods that fully exploit the capability of the GPU.Much of the
+    future in CUDA development lies in creating generic libraries and APIs like thrust
+    and CUSP. As these interfaces mature, CUDA programmers will be able to do more
+    in less time. The concept is simple:■ Make your life easy and write your code
+    with the highest-level API that you feel comfortable using.■ Profile and see where
+    the bottlenecks occur. In most cases, the efficient use of global memory will
+    likely dominate the application performance.■ Drop down to a lower-level API to
+    get the performance needed.■ When possible, write generic methods that can potentially
+    be combined into a generic library for others to use.
+  id: totrans-55
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '本章介绍了高效使用GPU内存的技术和示例。最慢和最快的GPU内存系统之间性能差异达到三个数量级，这意味着GPU程序员有机会利用GPU硬件提供的极致性能。CUDA之所以特别，是因为它暴露了底层硬件的特性，从而可以充分发挥硬件的潜力。正如本章中的归约示例所示，我们可以深入到底层硬件执行模型，以达到高性能。另一方面，Thrust将这种复杂性封装成了一个简单的API调用，在本书的第一个程序中就已经使用了。正如本章所演示的，通用编程让CUDA程序员可以创建简单的通用方法，充分利用GPU的能力。CUDA开发的未来很大一部分在于创建像Thrust和CUSP这样的通用库和API。随着这些接口的成熟，CUDA程序员将能够在更短的时间内完成更多工作。其概念很简单：  '

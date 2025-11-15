@@ -1,0 +1,888 @@
+- en: '**Chapter 10 Streams**'
+  id: totrans-0
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: '**第10章 流**'
+- en: Time and time again in this book we have seen how the massively data-parallel
+    execution engine on a GPU can provide stunning performance gains over comparable
+    CPU code. However, there is yet another class of parallelism to be exploited on
+    NVIDIA graphics processors. This parallelism is similar to the *task parallelism*
+    that is found in multithreaded CPU applications. Rather than simultaneously computing
+    the same function on lots of data elements as one does with data parallelism,
+    task parallelism involves doing two or more completely different tasks in parallel.
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本书中，我们一次又一次地看到，GPU上大规模数据并行执行引擎能够提供比可比的CPU代码更惊人的性能提升。然而，NVIDIA图形处理器上还有另一种并行性等待我们去利用。这种并行性类似于多线程CPU应用中的*任务并行性*。与数据并行性通过在大量数据元素上同时计算相同的函数不同，任务并行性涉及同时执行两个或更多完全不同的任务。
+- en: 'In the context of parallelism, a *task* could be any number of things. For
+    example, an application could be executing two tasks: redrawing its GUI with one
+    thread while downloading an update over the network with another thread. These
+    tasks proceed in parallel, despite having nothing in common. Although the task
+    parallelism on GPUs is not currently as flexible as a general-purpose processor’s,
+    it still provides opportunities for us as programmers to extract even more speed
+    from our GPU-based implementations. In this chapter, we will look at CUDA streams
+    and the ways in which their careful use will enable us to execute certain operations
+    simultaneously on the GPU.'
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在并行处理的背景下，*任务*可以是任何数量的事情。例如，一个应用程序可能同时执行两个任务：一个线程重绘其图形用户界面（GUI），而另一个线程通过网络下载更新。这些任务并行进行，尽管它们没有任何共同之处。虽然GPU上的任务并行性目前不如通用处理器那样灵活，但它仍然为我们作为程序员提供了更多从GPU实现中提取速度的机会。在本章中，我们将探讨CUDA流，以及如何通过谨慎使用它们在GPU上同时执行某些操作。
+- en: '**10.1 Chapter Objectives**'
+  id: totrans-3
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**10.1 本章目标**'
+- en: 'Through the course of this chapter, you will accomplish the following:'
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章的过程中，你将完成以下任务：
+- en: • You will learn about allocating page-locked host memory.
+  id: totrans-5
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将学习如何分配页面锁定的主机内存。
+- en: • You will learn what CUDA *streams* are.
+  id: totrans-6
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将学习什么是CUDA *流*。
+- en: • You will learn how to use CUDA streams to accelerate your applications.
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将学习如何使用CUDA流来加速你的应用程序。
+- en: '**10.2 Page-Locked Host Memory**'
+  id: totrans-8
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**10.2 页面锁定的主机内存**'
+- en: 'In every example over the course of nine chapters, you have seen us allocate
+    memory on the GPU with `cudaMalloc()`. On the host, we have always allocated memory
+    with the vanilla, C library routine `malloc()`. However, the CUDA runtime offers
+    its own mechanism for allocating host memory: `cudaHostAlloc()`. Why would you
+    bother using this function when `malloc()` has served you quite well since day
+    one of your life as a C programmer?'
+  id: totrans-9
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在过去九章的每个示例中，你都看到了我们使用`cudaMalloc()`在GPU上分配内存。在主机上，我们一直使用标准的C库例程`malloc()`分配内存。然而，CUDA运行时提供了自己的主机内存分配机制：`cudaHostAlloc()`。既然`malloc()`从你成为C程序员的第一天起就已经很好地为你服务了，那么为什么还要使用这个函数呢？
+- en: 'In fact, there is a significant difference between the memory that `malloc()`
+    will allocate and the memory that `cudaHostAlloc()` allocates. The C library function
+    `malloc()` allocates standard, pageable host memory, while `cudaHostAlloc()` allocates
+    a buffer of *page-locked* host memory. Sometimes called *pinned* memory, page-locked
+    buffers have an important property: The operating system guarantees us that it
+    will never page this memory out to disk, which ensures its residency in physical
+    memory. The corollary to this is that it becomes safe for the OS to allow an application
+    access to the physical address of the memory, since the buffer will not be evicted
+    or relocated.'
+  id: totrans-10
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 实际上，`malloc()`分配的内存和`cudaHostAlloc()`分配的内存有显著的不同。C库函数`malloc()`分配的是标准的、可分页的主机内存，而`cudaHostAlloc()`分配的是*页面锁定*的主机内存。有时称为*固定*内存，页面锁定的缓冲区具有一个重要特性：操作系统保证它永远不会将这块内存分页到磁盘，从而确保它常驻物理内存。与此相关的是，操作系统可以安全地允许应用程序访问这块内存的物理地址，因为该缓冲区不会被逐出或重新定位。
+- en: Knowing the physical address of a buffer, the GPU can then use direct memory
+    access (DMA) to copy data to or from the host. Since DMA copies proceed without
+    intervention from the CPU, it also means that the CPU could be simultaneously
+    paging these buffers out to disk or relocating their physical address by updating
+    the operating system’s pagetables. The possibility of the CPU moving pageable
+    data means that using pinned memory for a DMA copy is essential. In fact, even
+    when you attempt to perform a memory copy with pageable memory, the CUDA driver
+    still uses DMA to transfer the buffer to the GPU. Therefore, your copy happens
+    twice, first from a pageable system buffer to a page-locked “staging” buffer and
+    then from the page-locked system buffer to the GPU.
+  id: totrans-11
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 知道缓冲区的物理地址后，GPU可以使用直接内存访问（DMA）将数据复制到主机或从主机复制数据。由于DMA复制在没有CPU干预的情况下进行，这也意味着CPU可以同时将这些缓冲区换出到磁盘或通过更新操作系统的页表来重新定位它们的物理地址。CPU移动可分页数据的可能性意味着使用固定内存进行DMA复制是至关重要的。事实上，即使你尝试使用可分页内存执行内存复制，CUDA驱动程序仍然使用DMA将缓冲区传输到GPU。因此，你的复制发生了两次，第一次是从可分页系统缓冲区到页面锁定的“暂存”缓冲区，然后是从页面锁定的系统缓冲区到GPU。
+- en: As a result, whenever you perform memory copies from pageable memory, you guarantee
+    that the copy speed will be bounded by the *lower* of the PCIE transfer speed
+    and the system front-side bus speeds. A large disparity in bandwidth between these
+    buses in some systems ensures that page-locked host memory enjoys roughly a twofold
+    performance advantage over standard pageable memory when used for copying data
+    between the GPU and the host. But even in a world where PCI Express and front-side
+    bus speeds were identical, pageable buffers would still incur the overhead of
+    an additional CPU-managed copy.
+  id: totrans-12
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因此，每当你从可分页内存执行内存复制时，你可以保证复制速度将受限于PCIE传输速度和系统前端总线速度中的*较低*者。在某些系统中，这些总线之间带宽的巨大差异确保了页面锁定的主机内存在用于在GPU和主机之间复制数据时，享有大约两倍的性能优势。但即使在PCI
+    Express和前端总线速度相同的情况下，可分页缓冲区仍会产生额外的CPU管理复制的开销。
+- en: However, you should resist the temptation to simply do a search-and-replace
+    on *malloc* to convert every one of your calls to use `cudaHostAlloc()`. Using
+    pinned memory is a double-edged sword. By doing so, you have effectively opted
+    out of all the nice features of virtual memory. Specifically, the computer running
+    the application needs to have available physical memory for every page-locked
+    buffer, since these buffers can never be swapped out to disk. This means that
+    your system will run out of memory much faster than it would if you stuck to standard
+    `malloc()` calls. Not only does this mean that your application might start to
+    fail on machines with smaller amounts of physical memory, but it means that your
+    application can affect the performance of other applications running on the system.
+  id: totrans-13
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，你应该抵制简单地对*malloc*进行搜索和替换，以将你所有的调用转换为使用`cudaHostAlloc()`。使用固定内存是一把双刃剑。这样做，你实际上是放弃了虚拟内存的所有优良特性。具体来说，运行应用程序的计算机需要为每个页面锁定的缓冲区提供可用的物理内存，因为这些缓冲区永远无法被换出到磁盘。这意味着你的系统将比坚持使用标准`malloc()`调用时更快地耗尽内存。这不仅意味着你的应用程序可能会在物理内存较小的机器上开始失败，还意味着你的应用程序可能会影响系统上其他应用程序的性能。
+- en: These warnings are not meant to scare you out of using `cudaHostAlloc()`, but
+    you should remain aware of the implications of page-locking buffers. We suggest
+    trying to restrict their use to memory that will be used as a source or destination
+    in calls to `cudaMemcpy()` and freeing them when they are no longer needed rather
+    than waiting until application shutdown to release the memory. The use of `cudaHostAlloc()`
+    should be no more difficult than anything else you’ve studied so far, but let’s
+    take a look at an example that will both illustrate how pinned memory is allocated
+    and demonstrate its performance advantage over standard pageable memory.
+  id: totrans-14
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这些警告并不是要吓跑你使用`cudaHostAlloc()`，但你应该意识到页面锁定缓冲区的影响。我们建议尽量将它们的使用限制在将作为`cudaMemcpy()`调用的源或目标的内存中，并在不再需要时释放它们，而不是等到应用程序关闭时再释放内存。使用`cudaHostAlloc()`应该和你到目前为止学习的其他内容一样简单，但让我们来看一个示例，既说明了如何分配固定内存，又展示了它相对于标准可分页内存的性能优势。
+- en: 'Our application will be very simple and serves primarily to benchmark `cudaMemcpy()`
+    performance with both pageable and page-locked memory. All we endeavor to do is
+    allocate a GPU buffer and a host buffer of matching sizes and then execute some
+    number of copies between these two buffers. We’ll allow the user of this benchmark
+    to specify the direction of the copy, either “up” (from host to device) or “down”
+    (from device to host). You will also notice that, in order to obtain accurate
+    timings, we set up CUDA events for the start and stop of the sequence of copies.
+    You probably remember how to do this from previous performance-testing examples,
+    but in case you’ve forgotten, the following will jog your memory:'
+  id: totrans-15
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的应用程序将非常简单，主要用于基准测试`cudaMemcpy()`在页面内存和页锁定内存中的性能。我们要做的就是分配一个GPU缓冲区和一个主机缓冲区，它们的大小匹配，然后在这两个缓冲区之间执行一些复制操作。我们允许基准测试的用户指定复制的方向，可以是“向上”（从主机到设备）或“向下”（从设备到主机）。你还会注意到，为了获得准确的时间，我们设置了CUDA事件来标记复制序列的开始和结束。你可能记得之前的性能测试示例中是如何做的，但如果你忘了，接下来的内容会提醒你：
+- en: '![image](graphics/p0188-01.jpg)'
+  id: totrans-16
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0188-01.jpg)'
+- en: Independent of the direction of the copies, we start by allocating a host and
+    GPU buffer of `size` integers. After this, we do 100 copies in the direction specified
+    by the argument `up`, stopping the timer after we’ve finished copying.
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 不论复制的方向如何，我们首先分配一个主机和GPU的缓冲区，大小为`size`个整数。之后，我们按照`up`参数指定的方向进行100次复制，完成复制后停止计时。
+- en: '![image](graphics/p0188-02.jpg)'
+  id: totrans-18
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0188-02.jpg)'
+- en: After the 100 copies, clean up by freeing the host and GPU buffers as well as
+    destroying our timing events.
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在完成100次复制后，清理工作包括释放主机和GPU缓冲区，并销毁我们的计时事件。
+- en: '![image](graphics/p0189-01.jpg)'
+  id: totrans-20
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0189-01.jpg)'
+- en: If you didn’t notice, the function `cuda_malloc_test()` allocated pageable host
+    memory with the standard C `malloc()` routine. The pinned memory version uses
+    `cudaHostAlloc()` to allocate a page-locked buffer.
+  id: totrans-21
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你没有注意到，`cuda_malloc_test()`函数使用标准的C语言`malloc()`例程分配了可分页的主机内存。页锁定内存版本则使用`cudaHostAlloc()`来分配页锁定缓冲区。
+- en: '![image](graphics/p0189-02.jpg)'
+  id: totrans-22
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0189-02.jpg)'
+- en: '![image](graphics/p0190-01.jpg)'
+  id: totrans-23
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0190-01.jpg)'
+- en: As you can see, the buffer allocated by `cudaHostAlloc()` is used in the same
+    way as a buffer allocated by `malloc()`. The other change from using `malloc()`
+    lies in the last argument, the value `cudaHostAllocDefault`. This last argument
+    stores a collection of flags that we can use to modify the behavior of `cudaHostAlloc()`
+    in order to allocate other varieties of pinned host memory. In the next chapter,
+    we’ll see how to use the other possible values of these flags, but for now we’re
+    content to use the default, page-locked memory so we pass `cudaHostAllocDefault`
+    in order to get the default behavior. To free a buffer that was allocated with
+    `cudaHostAlloc()`, we have to use `cudaFreeHost()`. That is, every `malloc()`
+    needs a `free()`, and every `cudaHostAlloc()` needs a `cudaFreeHost()`.
+  id: totrans-24
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如你所见，`cudaHostAlloc()`分配的缓冲区与使用`malloc()`分配的缓冲区用法相同。与`malloc()`的另一个区别在于最后一个参数，即`cudaHostAllocDefault`。这个最后的参数存储了一组标志，我们可以使用这些标志来修改`cudaHostAlloc()`的行为，从而分配其他类型的页锁定主机内存。在下一章中，我们将看到如何使用这些标志的其他可能值，但目前我们只使用默认的页锁定内存，因此传递`cudaHostAllocDefault`来获取默认行为。要释放使用`cudaHostAlloc()`分配的缓冲区，我们必须使用`cudaFreeHost()`。也就是说，每个`malloc()`都需要一个`free()`，每个`cudaHostAlloc()`都需要一个`cudaFreeHost()`。
+- en: The body of `main()` proceeds not unlike what you would expect.
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`main()`函数的主体执行方式与你预期的差不多。'
+- en: '![image](graphics/p0190-02.jpg)'
+  id: totrans-26
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0190-02.jpg)'
+- en: Because the `up` argument to `cuda_malloc_test()` is `true`, the previous call
+    tests the performance of copies from host to device, or “up” to the device. To
+    benchmark the calls in the opposite direction, we execute the same calls but with
+    `false` as the second argument.
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因为`cuda_malloc_test()`函数的`up`参数为`true`，所以之前的调用测试了从主机到设备的复制性能，也就是“向上”复制到设备。为了基准测试相反方向的调用，我们执行相同的调用，但第二个参数设为`false`。
+- en: '![image](graphics/p0191-01.jpg)'
+  id: totrans-28
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0191-01.jpg)'
+- en: We perform the same set of steps to test the performance of `cudaHostAlloc()`.
+    We call `cuda_ host_alloc_test()` twice, once with `up` as `true` and once with
+    it `false`.
+  id: totrans-29
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们执行相同的一系列步骤来测试`cudaHostAlloc()`的性能。我们调用`cuda_host_alloc_test()`两次，一次`up`为`true`，一次为`false`。
+- en: '![image](graphics/p0191-02.jpg)'
+  id: totrans-30
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0191-02.jpg)'
+- en: On a GeForce GTX 285, we observed copies from host to device improving from
+    2.77GB/s to 5.11GB/s when we use pinned memory instead of pageable memory. Copies
+    from the device down to the host improve similarly, from 2.43GB/s to 5.46GB/s.
+    So, for most PCIE bandwidth-limited applications, you will notice a marked improvement
+    when using pinned memory versus standard pageable memory. But page-locked memory
+    is not solely for performance enhancements. As we’ll see in the next sections,
+    there are situations where we are *required* to use page-locked memory.
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在GeForce GTX 285上，我们观察到从主机到设备的拷贝速度从2.77GB/s提高到5.11GB/s，使用的是固定内存而不是可分页内存。从设备到主机的拷贝速度也有类似的提升，从2.43GB/s提高到5.46GB/s。因此，对于大多数受限于PCIE带宽的应用程序，当使用固定内存而非标准的可分页内存时，你会注意到明显的性能提升。但页面锁定内存不仅仅是为了性能提升。正如我们将在接下来的章节中看到的那样，在某些情况下，我们*必须*使用页面锁定内存。
+- en: '**10.3 CUDA Streams**'
+  id: totrans-32
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**10.3 CUDA流**'
+- en: In [Chapter 6](ch06.html#ch06), we introduced the concept of CUDA events. In
+    doing so, we postponed an in-depth discussion of the second argument to `cudaEventRecord()`,
+    instead mentioning only that it specified the *stream* into which we were inserting
+    the event.
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在[第6章](ch06.html#ch06)中，我们介绍了CUDA事件的概念。在这样做时，我们推迟了对`cudaEventRecord()`第二个参数的深入讨论，而只是提到它指定了我们将事件插入的*流*。
+- en: '![image](graphics/p0192-01.jpg)'
+  id: totrans-34
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0192-01.jpg)'
+- en: CUDA streams can play an important role in accelerating your applications. A
+    CUDA *stream* represents a queue of GPU operations that get executed in a specific
+    order. We can add operations such as kernel launches, memory copies, and event
+    starts and stops into a stream. The order in which operations are added to the
+    stream specifies the order in which they will be executed. You can think of each
+    stream as a *task* on the GPU, and there are opportunities for these tasks to
+    execute in parallel. We’ll first see how streams are used, and then we’ll look
+    at how you can use streams to accelerate your applications.
+  id: totrans-35
+  prefs: []
+  type: TYPE_NORMAL
+  zh: CUDA流在加速你的应用程序中可以发挥重要作用。CUDA *流*表示GPU操作的队列，这些操作会按特定顺序执行。我们可以将内核启动、内存拷贝以及事件的启动和停止等操作添加到流中。添加到流中的操作顺序决定了它们将执行的顺序。你可以将每个流视为GPU上的一个*任务*，这些任务有机会并行执行。我们将首先看到流是如何使用的，然后再看看你如何利用流来加速你的应用程序。
+- en: '**10.4 Using a Single CUDA Stream**'
+  id: totrans-36
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**10.4 使用单个CUDA流**'
+- en: 'As we’ll see later, the real power of streams becomes apparent only when we
+    use more than one of them, but we’ll begin to illustrate the mechanics of their
+    use within an application that employs just a single stream. Imagine that we have
+    a CUDA C kernel that will take two input buffers of data, `a` and `b`. The kernel
+    will compute some result based on a combination of values in these buffers to
+    produce an output buffer `c`. Our vector addition example did something along
+    these lines, but in this example we’ll compute an average of three values in `a`
+    and three values in `b`:'
+  id: totrans-37
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如我们稍后所见，流的真正威力只有在使用多个流时才会显现，但我们将首先通过一个只使用单个流的应用程序来说明其使用机制。假设我们有一个CUDA C内核，它将接受两个输入数据缓冲区`a`和`b`。该内核将基于这些缓冲区中的值的组合计算某些结果，并生成一个输出缓冲区`c`。我们的向量加法示例做了类似的事情，但在这个示例中，我们将计算`a`中的三个值和`b`中的三个值的平均值：
+- en: '![image](graphics/p0193-01.jpg)'
+  id: totrans-38
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0193-01.jpg)'
+- en: This kernel is not incredibly important, so don’t get too hung up on it if you
+    aren’t sure exactly what it’s supposed to be computing. It’s something of a placeholder
+    since the important, stream-related component of this example resides in `main()`.
+  id: totrans-39
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个内核并不是非常重要，因此如果你不确定它究竟要计算什么，不必过于纠结。它算是一个占位符，因为这个示例中重要的、与流相关的部分在`main()`中。
+- en: '![image](graphics/p0193-02.jpg)'
+  id: totrans-40
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0193-02.jpg)'
+- en: 'The first thing we do is choose a device and check to see whether it supports
+    a feature known as *device overlap*. A GPU supporting device overlap possesses
+    the capacity to simultaneously execute a CUDA C kernel while performing a copy
+    between device and host memory. As we’ve promised before, we’ll use multiple streams
+    to achieve this overlap of computation and data transfer, but first we’ll see
+    how to create and use a single stream. As with all of our examples that aim to
+    measure performance improvements (or regressions), we begin by creating and starting
+    an event timer:'
+  id: totrans-41
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们首先要做的是选择一个设备，并检查它是否支持一种叫做*设备重叠*的特性。支持设备重叠的GPU具有在执行CUDA C内核的同时，进行设备和主机内存拷贝的能力。正如我们之前承诺的那样，我们将使用多个流来实现计算和数据传输的重叠，但首先我们将看看如何创建和使用单个流。与我们所有旨在衡量性能提升（或回退）的示例一样，我们首先通过创建和启动事件计时器来开始：
+- en: '![image](graphics/p0194-01.jpg)'
+  id: totrans-42
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0194-01.jpg)'
+- en: 'After starting our timer, we create the stream we want to use for this application:'
+  id: totrans-43
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 启动计时器后，我们创建了用于此应用程序的流：
+- en: '![image](graphics/p0194-02.jpg)'
+  id: totrans-44
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0194-02.jpg)'
+- en: Yeah, that’s pretty much all it takes to create a stream. It’s not really worth
+    dwelling on, so let’s press on to the data allocation.
+  id: totrans-45
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 是的，创建流几乎就这么简单。其实没有必要在这上面花太多时间，所以我们继续进行数据分配。
+- en: '![image](graphics/p0194-03.jpg)'
+  id: totrans-46
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0194-03.jpg)'
+- en: We have allocated our input and output buffers on both the GPU and the host.
+    Notice that we’ve decided to use pinned memory on the host by using `cudaHostAlloc()`
+    to perform the allocations. There is a very good reason for using pinned memory,
+    and it’s not strictly because it makes copies faster. We’ll see in detail momentarily,
+    but we will be using a new kind of `cudaMemcpy()` function, and this new function
+    *requires* that the host memory be page-locked. After allocating the input buffers,
+    we fill the host allocations with random integers using the C library call `rand()`.
+  id: totrans-47
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们已经在 GPU 和主机上分配了输入和输出缓冲区。请注意，我们决定通过使用`cudaHostAlloc()`来使用固定内存进行主机内存的分配。使用固定内存有一个非常好的理由，而不仅仅是因为它使复制速度更快。我们稍后会详细说明，但我们将使用一种新的`cudaMemcpy()`函数，这个新函数*要求*主机内存是页面锁定的。在分配输入缓冲区后，我们使用
+    C 库调用`rand()`将随机整数填充到主机分配的内存中。
+- en: With our stream and our timing events created and our device and host buffers
+    allocated, we’re ready to perform some computations! Typically we blast through
+    this stage by copying the two input buffers to the GPU, launching our kernel,
+    and copying the output buffer back to the host. We will follow this pattern again,
+    but this time with some small changes.
+  id: totrans-48
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在创建了我们的流和计时事件，分配了设备和主机缓冲区之后，我们已经准备好进行一些计算！通常，我们通过将两个输入缓冲区复制到 GPU，启动内核，并将输出缓冲区复制回主机来快速完成这个阶段。我们将再次遵循这个模式，但这次会有一些小的变化。
+- en: 'First, we will opt *not* to copy the input buffers in their entirety to the
+    GPU. Rather, we will split our inputs into smaller chunks and perform the three-step
+    process on each chunk. That is, we will take some fraction of the input buffers,
+    copy them to the GPU, execute our kernel on that fraction of the buffers, and
+    copy the resulting fraction of the output buffer back to the host. Imagine that
+    we need to do this because our GPU has much less memory than our host does, so
+    the computation needs to be staged in chunks because the entire buffer can’t fit
+    on the GPU at once. The code to perform this “chunkified” sequence of computations
+    will look like this:'
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 首先，我们选择*不*将输入缓冲区完整地复制到 GPU。相反，我们将输入拆分成更小的块，并对每个块执行三步过程。也就是说，我们将取输入缓冲区的一部分，复制到
+    GPU，执行内核操作，再将输出缓冲区的相应部分复制回主机。可以想象，由于我们的 GPU 内存远小于主机内存，因此需要分块处理计算，因为整个缓冲区无法一次性加载到
+    GPU 上。执行这个“分块”计算过程的代码如下所示：
+- en: '![image](graphics/p0196-01.jpg)'
+  id: totrans-50
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0196-01.jpg)'
+- en: But you will notice two other unexpected shifts from the norm in the preceding
+    excerpt. First, instead of using the familiar `cudaMemcpy()`, we’re copying the
+    data to and from the GPU with a new routine, `cudaMemcpyAsync()`. The difference
+    between these functions is subtle yet significant. The original `cudaMemcpy()`
+    behaves like the C library function `memcpy()`. Specifically, this function executes
+    *synchronously*, meaning that when the function returns, the copy has completed,
+    and the output buffer now contains the contents that were supposed to be copied
+    into it.
+  id: totrans-51
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 但你会注意到前面摘录中的两个其他意外变化。首先， вместо 使用熟悉的`cudaMemcpy()`，我们用一个新例程`cudaMemcpyAsync()`来进行数据的复制。两个函数的区别是微妙却显著的。原始的`cudaMemcpy()`行为像
+    C 库函数`memcpy()`。具体来说，这个函数是*同步*执行的，意味着当函数返回时，复制操作已经完成，输出缓冲区现在包含了应该复制到其中的内容。
+- en: The opposite of a *synchronous* function is an *asynchronous* function, which
+    inspired the name `cudaMemcpyAsync()`. The call to `cudaMemcpyAsync()` simply
+    places a *request* to perform a memory copy into the stream specified by the argument
+    `stream`. When the call returns, there is no guarantee that the copy has even
+    started yet, much less that it has finished. The guarantee that we have is that
+    the copy will definitely be performed before the next operation placed into the
+    same stream. It is required that any host memory pointers passed to `cudaMemcpyAsync()`
+    have been allocated by `cudaHostAlloc()`. That is, you are only allowed to schedule
+    asynchronous copies to or from page-locked memory.
+  id: totrans-52
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '*同步*函数的反义是*异步*函数，这也启发了`cudaMemcpyAsync()`这个名字。调用`cudaMemcpyAsync()`只会将一个*请求*放入由`stream`参数指定的流中，以执行内存拷贝。当调用返回时，无法保证拷贝是否已经开始，更不用说是否已经完成了。我们得到的保证是，在同一流中放入的下一个操作之前，拷贝一定会执行。要求传递给`cudaMemcpyAsync()`的任何主机内存指针必须通过`cudaHostAlloc()`分配。也就是说，你只能调度异步拷贝到或从页面锁定的内存中。'
+- en: Notice that the angle-bracketed kernel launch also takes an optional stream
+    argument. This kernel launch is asynchronous, just like the preceding two memory
+    copies to the GPU and the trailing memory copy back from the GPU. Technically,
+    we can end an iteration of this loop without having actually started any of the
+    memory copies or kernel execution. As we mentioned, all that we are guaranteed
+    is that the first copy placed into the stream will execute before the second copy.
+    Moreover, the second copy will complete before the kernel starts, and the kernel
+    will complete before the third copy starts. So as we’ve mentioned earlier in this
+    chapter, a stream acts just like an ordered queue of work for the GPU to perform.
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，角括号中的内核启动也接受一个可选的流参数。这个内核启动是异步的，就像前面提到的两个内存拷贝到GPU以及从GPU回传的内存拷贝一样。从技术上讲，我们可以在没有实际启动任何内存拷贝或内核执行的情况下结束这个循环的一次迭代。正如我们之前提到的，我们唯一可以保证的是，流中放入的第一个拷贝会在第二个拷贝之前执行。而且，第二个拷贝会在内核启动之前完成，内核会在第三个拷贝开始之前完成。所以，正如我们在本章前面提到的，流就像是一个按顺序排列的任务队列，供GPU执行。
+- en: 'When the `for()` loop has terminated, there could still be quite a bit of work
+    queued up for the GPU to finish. If we would like to guarantee that the GPU is
+    done with its computations and memory copies, we need to synchronize it with the
+    host. That is, we basically want to tell the host to sit around and wait for the
+    GPU to finish before proceeding. We accomplish that by calling `cudaStreamSynchronize()`
+    and specifying the stream that we want to wait for:'
+  id: totrans-54
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当`for()`循环终止时，GPU可能仍然有相当多的工作需要完成。如果我们希望确保GPU完成其计算和内存拷贝，我们需要将其与主机同步。也就是说，我们基本上是要告诉主机在GPU完成之前等着，然后再继续。我们通过调用`cudaStreamSynchronize()`并指定要等待的流来实现这一点：
+- en: '![image](graphics/p0197-01.jpg)'
+  id: totrans-55
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0197-01.jpg)'
+- en: Since the computations and copies have completed after synchronizing `stream`
+    with the host, we can stop our timer, collect our performance data, and free our
+    input and output buffers.
+  id: totrans-56
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于在与主机同步`stream`后，计算和拷贝已经完成，我们可以停止计时器，收集性能数据，并释放输入输出缓冲区。
+- en: '![image](graphics/p0198-01.jpg)'
+  id: totrans-57
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0198-01.jpg)'
+- en: Finally, before exiting the application, we destroy the stream that we were
+    using to queue the GPU operations.
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后，在退出应用程序之前，我们销毁了用于排队GPU操作的流。
+- en: '![image](graphics/p0198-02.jpg)'
+  id: totrans-59
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0198-02.jpg)'
+- en: To be honest, this example has done very little to demonstrate the power of
+    streams. Of course, even using a single stream can help speed up an application
+    if we have work we want to complete on the host while the GPU is busy churning
+    through the work we’ve stuffed into a stream. But assuming that we don’t have
+    much to do on the host, we can still speed up applications by using streams, and
+    in the next section we’ll take a look at how this can be accomplished.
+  id: totrans-60
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 坦白说，这个例子对于展示流的强大功能几乎没有什么帮助。当然，即使只使用一个流，如果我们在GPU忙于处理我们放入流中的任务时，主机有一些工作需要完成，使用流也能帮助加速应用程序。但假设我们在主机上没有太多事情需要做，我们仍然可以通过使用流来加速应用程序，在接下来的章节中，我们将看看如何实现这一点。
+- en: '**10.5 Using Multiple CUDA Streams**'
+  id: totrans-61
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**10.5 使用多个CUDA流**'
+- en: 'Let’s adapt the single-stream example from [Section 10.4](ch10.html#ch10lev4):
+    Using a Single CUDA Stream to perform its work in two different streams. At the
+    beginning of the previous example, we checked that the device indeed supported
+    *overlap* and broke the computation into chunks. The idea underlying the improved
+    version of this application is simple and relies on two things: the “chunked”
+    computation and the overlap of memory copies with kernel execution. We endeavor
+    to get stream 1 to copy its input buffers to the GPU while stream 0 is executing
+    its kernel. Then stream 1 will execute its kernel while stream 0 copies its results
+    to the host. Stream 1 will then copy its results to the host while stream 0 begins
+    executing its kernel on the next chunk of data. Assuming that our memory copies
+    and kernel executions take roughly the same amount of time, our application’s
+    execution timeline might look something like [Figure 10.1](ch10.html#ch10fig01).
+    The figure assumes that the GPU can perform a memory copy and a kernel execution
+    at the same time, so empty boxes represent time when one stream is waiting to
+    execute an operation that it cannot overlap with the other stream’s operation.
+    Note also that calls to `cudaMemcpyAsync()` are abbreviated in the remaining figures
+    in this chapter, represented simply as “`memcpy`.”'
+  id: totrans-62
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 让我们改编[第10.4节](ch10.html#ch10lev4)中的单流示例：使用单个CUDA流在两个不同的流中执行工作。在之前的示例开始时，我们检查了设备是否确实支持*重叠*，并将计算分解为多个块。该应用改进版本的基本思想很简单，依赖于两件事：分块计算和内存拷贝与内核执行的重叠。我们努力让流1在流0执行其内核时将输入缓冲区拷贝到GPU上。然后，流1将在流0将其结果拷贝到主机时执行其内核。接着，流1将把其结果拷贝到主机，而流0开始在下一个数据块上执行其内核。假设我们的内存拷贝和内核执行大致需要相同的时间，我们的应用执行时间线可能如下所示：[图10.1](ch10.html#ch10fig01)。图中假设GPU可以同时执行内存拷贝和内核执行，因此空白框表示一个流在等待执行它无法与另一个流的操作重叠的操作时的时间。还请注意，本章其余图中的`cudaMemcpyAsync()`调用被简化表示为“`memcpy`”。
+- en: '![image](graphics/ch_10_figure_10-1_u.jpg)'
+  id: totrans-63
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_10_figure_10-1_u.jpg)'
+- en: '***Figure 10.1*** Timeline of intended application execution using two independent
+    streams'
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图10.1*** 使用两个独立流执行应用程序的预期时间线'
+- en: In fact, the execution timeline can be even more favorable than this; some newer
+    NVIDIA GPUs support simultaneous kernel execution and *two* memory copies, one
+    *to* the device and one *from* the device. But on any device that supports the
+    overlap of memory copies and kernel execution, the overall application should
+    accelerate when we use multiple streams.
+  id: totrans-65
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 事实上，执行时间线甚至可以比这更有利；一些较新的NVIDIA GPU支持同时执行内核并进行*两次*内存拷贝，一次是*到*设备，另一次是*从*设备。但在任何支持内存拷贝和内核执行重叠的设备上，当我们使用多个流时，整体应用应该会加速。
+- en: Despite these grand plans to accelerate our application, the computation kernel
+    will remain unchanged.
+  id: totrans-66
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尽管我们有这些宏大的计划来加速我们的应用，计算内核将保持不变。
+- en: '![image](graphics/p0200-01.jpg)'
+  id: totrans-67
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0200-01.jpg)'
+- en: As with the single stream version, we will check that the device supports overlapping
+    computation with memory copy. If the device *does* support overlap, we proceed
+    as we did before by creating CUDA events to time the application.
+  id: totrans-68
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 与单流版本一样，我们将检查设备是否支持计算与内存拷贝的重叠。如果设备*确实*支持重叠，我们将像之前一样通过创建CUDA事件来计时应用。
+- en: '![image](graphics/p0200-02.jpg)'
+  id: totrans-69
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0200-02.jpg)'
+- en: Next, we create our two streams exactly as we created the single stream in the
+    previous section’s version of the code.
+  id: totrans-70
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们将像在上一节的单流版本代码中一样创建两个流。
+- en: '![image](graphics/p0201-01.jpg)'
+  id: totrans-71
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0201-01.jpg)'
+- en: We will assume that we still have two input buffers and a single output buffer
+    on the host. The input buffers are filled with random data exactly as they were
+    in the single-stream version of this application. However, now that we intend
+    to use two streams to process the data, we allocate two identical sets of GPU
+    buffers so that each stream can independently work on chunks of the input.
+  id: totrans-72
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们假设主机上仍然有两个输入缓冲区和一个输出缓冲区。这些输入缓冲区像单流版本应用中那样，已经填充了随机数据。然而，由于我们现在打算使用两个流来处理数据，我们为每个流分配了两组相同的GPU缓冲区，以便每个流可以独立地处理输入块。
+- en: '![image](graphics/p0201-02.jpg)'
+  id: totrans-73
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0201-02.jpg)'
+- en: '![image](graphics/p0202-01.jpg)'
+  id: totrans-74
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0202-01.jpg)'
+- en: 'We then loop over the chunks of input exactly as we did in the first attempt
+    at this application. But now that we’re using two streams, we process twice as
+    much data in each iteration of the `for()` loop. In `stream0`, we queue asynchronous
+    copies of `a` and `b` to the GPU, queue a kernel execution, and then queue a copy
+    back to `c`:'
+  id: totrans-75
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，我们像第一次尝试这个应用时一样，遍历输入数据块。但是现在我们使用了两个流，因此在`for()`循环的每次迭代中，我们处理的数据量是原来的两倍。在`stream0`中，我们排入异步复制操作，将`a`和`b`复制到GPU，排入一个内核执行，并将结果复制回`c`：
+- en: '![image](graphics/p0203-01.jpg)'
+  id: totrans-76
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0203-01.jpg)'
+- en: After queuing these operations in `stream0`, we queue identical operations on
+    the next chunk of data, but this time in `stream1`.
+  id: totrans-77
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在将这些操作排入`stream0`队列后，我们将相同的操作排入下一个数据块，但这次是在`stream1`中。
+- en: '![image](graphics/p0203-02.jpg)'
+  id: totrans-78
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0203-02.jpg)'
+- en: And so our `for()` loop proceeds, alternating the streams to which it queues
+    each chunk of data until it has queued every piece of input data for processing.
+    After terminating the `for()` loop, we synchronize the GPU with the CPU before
+    we stop our application timers. Since we are working in two streams, we need to
+    synchronize both.
+  id: totrans-79
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 于是我们的`for()`循环继续进行，交替地将每个数据块排入不同的流，直到所有输入数据都排入处理队列。在结束`for()`循环后，我们先同步GPU与CPU，然后再停止应用程序计时器。由于我们在使用两个流，所以需要同步这两个流。
+- en: '![image](graphics/p0204-01.jpg)'
+  id: totrans-80
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0204-01.jpg)'
+- en: 'We wrap up `main()` the same way we concluded our single-stream implementation.
+    We stop our timers, display the elapsed time, and clean up after ourselves. Of
+    course, we remember that we now need to destroy two streams and free twice as
+    many GPU buffers, but aside from that, this code is identical to what we’ve seen
+    already:'
+  id: totrans-81
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们像结束单流实现时一样结束了`main()`函数。我们停止计时器，显示经过的时间，并进行清理。当然，我们记得现在需要销毁两个流，并释放两倍数量的GPU缓冲区，除此之外，这段代码与我们之前看到的完全相同：
+- en: '![image](graphics/p0204-02.jpg)'
+  id: totrans-82
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0204-02.jpg)'
+- en: 'We benchmarked both the original, single-stream implementation from [Section
+    10.4](ch10.html#ch10lev4): Using a Single CUDA Stream and the improved double-stream
+    version on a GeForce GTX 285\. The original version takes 62ms to run to completion.
+    After modifying it to use two streams, it takes 61ms.'
+  id: totrans-83
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们对[第10.4节](ch10.html#ch10lev4)：使用单个CUDA流中的原始单流实现以及改进后的双流版本在GeForce GTX 285上进行了基准测试。原始版本运行完成需要62毫秒。修改为使用两个流后，耗时61毫秒。
+- en: Uh-oh.
+  id: totrans-84
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 哎呀。
+- en: Well, the good news is that this is the reason we bother to time our applications.
+    Sometimes, our most well-intended performance “enhancements” do nothing more than
+    introduce unnecessary complications to the code.
+  id: totrans-85
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 好消息是，这就是我们为何要计时应用程序的原因。有时，我们最初意图优化性能的“增强”反而只是给代码带来了不必要的复杂性。
+- en: But why didn’t this application get any faster? We even said that it would get
+    faster! Don’t lose hope yet, though, because we actually *can* accelerate the
+    single-stream version with a second stream, but we need to understand a bit more
+    about how streams are handled by the CUDA driver in order to reap the rewards
+    of device overlap. To understand how streams work behind the scenes, we’ll need
+    to look at both the CUDA driver and how the CUDA hardware architecture works.
+  id: totrans-86
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 那么，为什么这个应用程序并没有变得更快呢？我们甚至说它会更快！不过别灰心，因为我们实际上*可以*通过第二个流加速单流版本，但我们需要更多了解CUDA驱动如何处理流，才能真正利用设备重叠带来的好处。为了理解流是如何在幕后工作的，我们需要了解CUDA驱动和CUDA硬件架构是如何工作的。
+- en: '**10.6 GPU Work Scheduling**'
+  id: totrans-87
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**10.6 GPU工作调度**'
+- en: Although streams are logically independent queues of operations to be executed
+    on the GPU, it turns out that this abstraction does not exactly match the GPU’s
+    queuing mechanism. As programmers, we think about our streams as ordered sequences
+    of operations composed of a mixture of memory copies and kernel invocations. However,
+    the hardware has no notion of streams. Rather, it has one or more engines to perform
+    memory copies and an engine to execute kernels. These engines queue commands independently
+    from each other, resulting in a task-scheduling scenario like the one shown in
+    [Figure 10.2](ch10.html#ch10fig02). The arrows in the figure illustrate how operations
+    that have been queued into streams get scheduled on the hardware engines that
+    actually execute them.
+  id: totrans-88
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 虽然流在逻辑上是独立的 GPU 操作队列，但事实证明，这种抽象并不完全符合 GPU 的排队机制。作为程序员，我们通常将流视为包含内存复制和内核调用混合的有序操作序列。然而，硬件并没有流的概念。相反，它有一个或多个用于执行内存复制的引擎，以及一个用于执行内核的引擎。这些引擎独立排队命令，导致类似[图
+    10.2](ch10.html#ch10fig02)所示的任务调度场景。图中的箭头展示了已经排入流中的操作如何调度到硬件引擎进行实际执行。
+- en: So, the user and the hardware have somewhat orthogonal notions of how to queue
+    GPU work, and the burden of keeping both the user and hardware sides of this equation
+    happy falls on the CUDA driver. First and foremost, there are important dependencies
+    specified by the order in which operations are added to streams. For example,
+    in [Figure 10.2](ch10.html#ch10fig02), stream 0’s memory copy of A needs to be
+    completed before its memory copy of B, which in turn needs to be completed before
+    kernel A is launched. But once these operations are placed into the hardware’s
+    copy engine and kernel engine queues, these dependencies are lost, so the CUDA
+    driver needs to keep everyone happy by ensuring that the intrastream dependencies
+    remain satisfied by the hardware’s execution units.
+  id: totrans-89
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因此，用户和硬件在排队 GPU 工作的方式上有一些不同的看法，而保持用户和硬件两边都满足的责任落在 CUDA 驱动程序上。首先，操作被添加到流中的顺序指定了一些重要的依赖关系。例如，在[图
+    10.2](ch10.html#ch10fig02)中，流 0 对 A 的内存复制需要在对 B 的内存复制之前完成，而对 B 的内存复制又需要在内核 A 启动之前完成。但是，一旦这些操作被放入硬件的复制引擎和内核引擎队列中，这些依赖关系就丢失了，因此
+    CUDA 驱动程序需要确保硬件的执行单元保持流内依赖关系的满足，以让所有方面都能正常工作。
+- en: '***Figure 10.2*** Mapping of CUDA streams onto GPU engines'
+  id: totrans-90
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 10.2*** CUDA 流映射到 GPU 引擎'
+- en: '![image](graphics/ch_10_figure_10-2_u.jpg)'
+  id: totrans-91
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_10_figure_10-2_u.jpg)'
+- en: 'What does this mean to us? Well, let’s look at what’s actually happening with
+    our example in [Section 10.5](ch10.html#ch10lev5): Using Multiple CUDA Streams.
+    If we review the code, we see that our application basically amounts to a `cudaMemcpyAsync()`
+    of `a`, `cudaMemcpyAsync()` of `b`, our kernel execution, and then a `cudaMemcpyAsync()`
+    of `c` back to the host. The application enqueues all the operations from stream
+    0 followed by all the operations from stream 1\. The CUDA driver schedules these
+    operations on the hardware for us in the order they were specified, keeping the
+    interengine dependencies straight. These dependencies are illustrated in [Figure
+    10.3](ch10.html#ch10fig03) where an arrow from a copy to a kernel indicates that
+    the copy depends on the kernel completing execution before it can begin.'
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这对我们意味着什么呢？好吧，让我们看看在[第 10.5 节](ch10.html#ch10lev5)：使用多个 CUDA 流中的示例实际发生了什么。如果我们回顾代码，会发现我们的应用程序基本上是对
+    `a` 的 `cudaMemcpyAsync()`、对 `b` 的 `cudaMemcpyAsync()`、我们的内核执行，然后是将 `c` 传回主机的 `cudaMemcpyAsync()`。应用程序将流
+    0 中的所有操作排队，然后是流 1 中的所有操作。CUDA 驱动程序按照我们指定的顺序将这些操作调度到硬件上，确保引擎之间的依赖关系得以正确处理。这些依赖关系在[图
+    10.3](ch10.html#ch10fig03)中进行了说明，箭头从复制到内核表示复制依赖于内核执行完成后才能开始。
+- en: '***Figure 10.3*** Arrows depicting the dependency of `cudaMemcpyAsync()` calls
+    on kernel executions in the example from [Section 10.5](ch10.html#ch10lev5): Using
+    Multiple CUDA Streams'
+  id: totrans-93
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 10.3*** 箭头表示 `cudaMemcpyAsync()` 调用依赖于示例中[第 10.5 节](ch10.html#ch10lev5)：使用多个
+    CUDA 流中的内核执行'
+- en: '![image](graphics/ch_10_figure_10-3_u.jpg)'
+  id: totrans-94
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_10_figure_10-3_u.jpg)'
+- en: Given our newfound understanding of how the GPU schedules work, we can look
+    at a timeline of how these get executed on the hardware in [Figure 10.4](ch10.html#ch10fig04).
+  id: totrans-95
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通过我们对 GPU 调度工作的新理解，我们可以查看在硬件上如何执行这些操作的时间线，见[图 10.4](ch10.html#ch10fig04)。
+- en: '***Figure 10.4*** Execution timeline of the example from [Section 10.5](ch10.html#ch10lev5):
+    Using Multiple CUDA Streams'
+  id: totrans-96
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 10.4*** 示例执行时间线，来自[第 10.5 节](ch10.html#ch10lev5)：使用多个 CUDA 流'
+- en: '![image](graphics/ch_10_figure_10-4_u.jpg)'
+  id: totrans-97
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_10_figure_10-4_u.jpg)'
+- en: Because stream 0’s copy of `c` back to the host depends on its kernel execution
+    completing, stream 1’s completely independent copies of `a` and `b` to the GPU
+    get blocked because the GPU’s engines execute work in the order it’s provided.
+    This inefficiency explains why the two-stream version of our application showed
+    absolutely no speedup. The lack of improvement is a direct result of our assumption
+    that the hardware works in the same manner as the CUDA stream programming model
+    implies.
+  id: totrans-98
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因为流 0 中的 `c` 的拷贝回主机取决于其内核执行的完成，流 1 中完全独立的 `a` 和 `b` 的拷贝到 GPU 会被阻塞，因为 GPU 的引擎按照给定的顺序执行工作。这种低效性解释了为什么我们应用程序的双流版本没有任何加速。没有改进的原因是我们假设硬件的工作方式与
+    CUDA 流编程模型所暗示的相同。
+- en: The moral of this story is that we as programmers need to help out when it comes
+    to ensuring that independent streams actually get executed in parallel. Keeping
+    in mind that the hardware has independent engines that handle memory copies and
+    kernel executions, we need to remain aware that the order in which we enqueue
+    these operations in our streams will affect the way in which the CUDA driver schedules
+    these for execution. In the next section, we’ll see how to help the hardware achieve
+    overlap of memory copies and kernel execution.
+  id: totrans-99
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个故事的寓意是，我们作为程序员，需要在确保独立流实际并行执行时提供帮助。考虑到硬件具有独立的引擎来处理内存拷贝和内核执行，我们需要意识到，操作在流中排队的顺序会影响
+    CUDA 驱动程序调度这些操作的方式。在下一节中，我们将看到如何帮助硬件实现内存拷贝和内核执行的重叠。
+- en: '**10.7 Using Multiple CUDA Streams Effectively**'
+  id: totrans-100
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**10.7 有效使用多个 CUDA 流**'
+- en: As we saw in the previous section, if we schedule all of a particular stream’s
+    operations at once, it’s very easy to inadvertently block the copies or kernel
+    executions of another stream. To alleviate this problem, it suffices to enqueue
+    our operations breadth-first across streams rather than depth-first. That is,
+    rather than add the copy of `a`, copy of `b`, kernel execution, and copy of `c`
+    to stream 0 before starting to schedule on stream 1, we bounce back and forth
+    between the streams assigning work. We add the copy of `a` to stream 0, and then
+    we add the copy of `a` to stream 1\. Then we add the copy of `b` to stream 0,
+    and then we add the copy of `b` to stream 1\. We enqueue the kernel invocation
+    in stream 0, and then we enqueue one in stream 1\. Finally, we enqueue the copy
+    of `c` back to the host in stream 0 followed by the copy of `c` in stream 1.
+  id: totrans-101
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如我们在上一节中看到的，如果我们一次调度某个特定流的所有操作，就很容易不小心阻塞另一个流的拷贝或内核执行。为了解决这个问题，足够做的是广度优先地将操作排入队列，而不是深度优先。也就是说，我们不将
+    `a` 的拷贝、`b` 的拷贝、内核执行和 `c` 的拷贝都添加到流 0 中，然后再开始调度流 1，而是来回在流之间分配工作。我们将 `a` 的拷贝添加到流
+    0，然后将 `a` 的拷贝添加到流 1。接着，我们将 `b` 的拷贝添加到流 0，然后将 `b` 的拷贝添加到流 1。我们在流 0 中排队执行内核调用，然后在流
+    1 中也排队一个。最后，我们将 `c` 的拷贝返回到主机并排入流 0，然后将 `c` 的拷贝排入流 1。
+- en: 'To make this more concrete, let’s take a look at the code. All we’ve changed
+    is the order in which operations get assigned to each of our two streams, so this
+    will be strictly a copy-and-paste optimization. Everything else in the application
+    will remain unchanged, which means that our improvements are localized to the
+    `for()` loop. The new, breadth-first assignment to the two streams looks like
+    this:'
+  id: totrans-102
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了使这一点更加具体，我们来看看代码。我们所做的唯一改变是分配操作到每个流的顺序，因此这将严格是一个复制粘贴优化。应用程序中的其他部分将保持不变，这意味着我们的改进仅限于
+    `for()` 循环。新的、广度优先的流分配如下所示：
+- en: '![image](graphics/p0209-01.jpg)'
+  id: totrans-103
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0209-01.jpg)'
+- en: '![image](graphics/p0210-01.jpg)'
+  id: totrans-104
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0210-01.jpg)'
+- en: If we assume that our memory copies and kernel executions are roughly comparable
+    in execution time, our new execution timeline will look like [Figure 10.5](ch10.html#ch10fig05).
+    The interengine dependencies are highlighted with arrows simply to illustrate
+    that they are still satisfied with this new scheduling order.
+  id: totrans-105
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果我们假设内存拷贝和内核执行的执行时间大致相当，那么我们的新执行时间线将如下所示 [图 10.5](ch10.html#ch10fig05)。引擎间的依赖关系通过箭头突出显示，旨在说明它们仍然在这个新的调度顺序中得以满足。
+- en: '***Figure 10.5*** Execution timeline of the improved example with arrows indicating
+    interengine dependencies'
+  id: totrans-106
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 10.5*** 改进示例的执行时间线，箭头表示引擎间的依赖关系'
+- en: '![image](graphics/ch_10_figure_10-5_u.jpg)'
+  id: totrans-107
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_10_figure_10-5_u.jpg)'
+- en: Because we have queued our operations breadth-first across streams, we no longer
+    have stream 0’s copy of `c` blocking stream 1’s initial memory copies of `a` and
+    `b`. This allows the GPU to execute copies and kernels in parallel, allowing our
+    application to run significantly faster. The new code runs in 48ms, a 21 percent
+    improvement over our original, naïve double-stream implementation. For applications
+    that can overlap nearly all computation and memory copies, you can approach a
+    nearly twofold improvement in performance because the copy and kernel engines
+    will be cranking the entire time.
+  id: totrans-108
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因为我们已经按照宽度优先的方式排队操作流，所以不再有流0的`c`副本阻塞流1最初的`a`和`b`的内存复制。这使得GPU可以并行执行复制和内核，从而显著提高了应用程序的运行速度。新代码的运行时间为48毫秒，比我们原始的、简单的双流实现提高了21%。对于那些几乎可以重叠所有计算和内存复制的应用程序，你可以接近性能翻倍的提升，因为复制和内核引擎将持续工作。
+- en: '**10.8 Chapter Review**'
+  id: totrans-109
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**10.8 章节回顾**'
+- en: In this chapter, we looked at a method for achieving a kind of task-level parallelism
+    in CUDA C applications. By using two (or more) CUDA streams, we can allow the
+    GPU to simultaneously execute a kernel while performing a copy between the host
+    and GPU. We need to be careful about two things when we endeavor to do this, though.
+    First, the host memory involved needs to be allocated using `cudaHostAlloc()`
+    since we will queue our memory copies with `cudaMemcpyAsync()`, and asynchronous
+    copies need to be performed with pinned buffers. Second, we need to be aware that
+    the order in which we add operations to our streams will affect our capacity to
+    achieve overlapping of copies and kernel executions. The general guideline involves
+    a breadth-first, or round-robin, assignment of work to the streams you intend
+    to use. This can be counterintuitive if you don’t understand how the hardware
+    queuing works, so it’s a good thing to remember when you go about writing your
+    own applications.
+  id: totrans-110
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本章中，我们探讨了一种在CUDA C应用程序中实现任务级并行性的方法。通过使用两个（或更多）CUDA流，我们可以让GPU在执行内核的同时执行主机与GPU之间的复制操作。然而，在进行这种操作时，我们需要小心两点。首先，涉及的主机内存需要通过`cudaHostAlloc()`进行分配，因为我们将使用`cudaMemcpyAsync()`来排队内存复制，而异步复制需要使用固定缓冲区进行。其次，我们需要注意的是，向流中添加操作的顺序会影响我们实现复制和内核执行重叠的能力。一般的指导原则是将工作按宽度优先或轮询方式分配给你打算使用的流。如果你不理解硬件队列是如何工作的，这可能会违反直觉，因此在编写自己应用程序时，记住这一点是很重要的。

@@ -1,0 +1,725 @@
+- en: '**Chapter 7 Texture Memory**'
+  id: totrans-0
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: '**第 7 章 纹理内存**'
+- en: When we looked at constant memory, we saw how exploiting special memory spaces
+    under the right circumstances can dramatically accelerate applications. We also
+    learned how to measure these performance gains in order to make informed decisions
+    about performance choices. In this chapter, we will learn about how to allocate
+    and use *texture memory*. Like constant memory, texture memory is another variety
+    of read-only memory that can improve performance and reduce memory traffic when
+    reads have certain access patterns. Although texture memory was originally designed
+    for traditional graphics applications, it can also be used quite effectively in
+    some GPU computing applications.
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当我们研究常量内存时，我们看到在合适的条件下利用特殊内存空间可以显著加速应用程序。我们还学习了如何衡量这些性能提升，以便做出关于性能选择的明智决策。在本章中，我们将了解如何分配和使用*纹理内存*。与常量内存类似，纹理内存是另一种只读内存，可以在读取有特定访问模式时提高性能并减少内存流量。尽管纹理内存最初是为传统图形应用设计的，但它在一些
+    GPU 计算应用中也可以非常有效地使用。
+- en: '**7.1 Chapter Objectives**'
+  id: totrans-2
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**7.1 本章目标**'
+- en: 'Through the course of this chapter, you will accomplish the following:'
+  id: totrans-3
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，你将完成以下内容：
+- en: • You will learn about the performance characteristics of texture memory.
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将了解纹理内存的性能特性。
+- en: • You will learn how to use one-dimensional texture memory with CUDA C.
+  id: totrans-5
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将学习如何使用 CUDA C 进行一维纹理内存操作。
+- en: • You will learn how to use two-dimensional texture memory with CUDA C.
+  id: totrans-6
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将学习如何使用 CUDA C 进行二维纹理内存操作。
+- en: '**7.2 Texture Memory Overview**'
+  id: totrans-7
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**7.2 纹理内存概述**'
+- en: 'If you read the introduction to this chapter, the secret is already out: There
+    is yet another type of read-only memory that is available for use in your programs
+    written in CUDA C. Readers familiar with the workings of graphics hardware will
+    not be surprised, but the GPU’s sophisticated *texture memory* may also be used
+    for general-purpose computing. Although NVIDIA designed the texture units for
+    the classical OpenGL and DirectX rendering pipelines, texture memory has some
+    properties that make it extremely useful for computing.'
+  id: totrans-8
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你阅读了本章的简介，秘密已经揭晓：还有一种可供在 CUDA C 程序中使用的只读内存类型。熟悉图形硬件工作原理的读者不会感到惊讶，但 GPU 的复杂*纹理内存*也可以用于通用计算。尽管
+    NVIDIA 为经典的 OpenGL 和 DirectX 渲染管线设计了纹理单元，纹理内存也具有一些特性，使其在计算中非常有用。
+- en: Like constant memory, texture memory is cached on chip, so in some situations
+    it will provide higher effective bandwidth by reducing memory requests to off-chip
+    DRAM. Specifically, texture caches are designed for graphics applications where
+    memory access patterns exhibit a great deal of *spatial locality*. In a computing
+    application, this roughly implies that a thread is likely to read from an address
+    “near” the address that nearby threads read, as shown in [Figure 7.1](ch07.html#ch07fig01).
+  id: totrans-9
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 像常量内存一样，纹理内存是被缓存到芯片上的，因此在某些情况下，它通过减少对外部 DRAM 的内存请求，可以提供更高的有效带宽。具体而言，纹理缓存是为图形应用设计的，其中内存访问模式具有很强的*空间局部性*。在计算应用中，这大致意味着一个线程很可能会从“附近”线程读取的地址中读取数据，如[图
+    7.1](ch07.html#ch07fig01)所示。
+- en: '***Figure 7.1*** A mapping of threads into a two-dimensional region of memory'
+  id: totrans-10
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 7.1*** 线程映射到内存二维区域'
+- en: '![image](graphics/ch_07_figure_7-1-2_u.jpg)'
+  id: totrans-11
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_07_figure_7-1-2_u.jpg)'
+- en: Arithmetically, the four addresses shown are not consecutive, so they would
+    not be cached together in a typical CPU caching scheme. But since GPU texture
+    caches are designed to accelerate access patterns such as this one, you will see
+    an increase in performance in this case when using texture memory instead of global
+    memory. In fact, this sort of access pattern is not incredibly uncommon in general-purpose
+    computing, as we shall see.
+  id: totrans-12
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 从算术上讲，所示的四个地址并非连续的，因此它们在典型的 CPU 缓存方案中不会被一起缓存。但由于 GPU 纹理缓存的设计是为了加速像这样的访问模式，当使用纹理内存而非全局内存时，你会看到性能的提升。事实上，这种访问模式在通用计算中并不算特别罕见，正如我们将看到的那样。
+- en: '**7.3 Simulating Heat Transfer**'
+  id: totrans-13
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**7.3 模拟热传导**'
+- en: Physical simulations can be among the most computationally challenging problems
+    to solve. Fundamentally, there is often a trade-off between accuracy and computational
+    complexity. As a result, computer simulations have become more and more important
+    in recent years, thanks in large part to the increased accuracy possible as a
+    consequence of the parallel computing revolution. Since many physical simulations
+    can be parallelized quite easily, we will look at a very simple simulation model
+    in this example.
+  id: totrans-14
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 物理模拟可能是最具计算挑战性的问题之一。从根本上讲，精度和计算复杂度之间往往存在权衡。因此，计算机模拟近年来变得越来越重要，这在很大程度上要归功于并行计算革命带来的精度提升。由于许多物理模拟可以很容易地并行化，我们将在本示例中探讨一个非常简单的模拟模型。
+- en: '**7.3.1 Simple Heating Model**'
+  id: totrans-15
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**7.3.1 简单加热模型**'
+- en: To demonstrate a situation where you can effectively employ texture memory,
+    we will construct a simple two-dimensional heat transfer simulation. We start
+    by assuming that we have some rectangular room that we divide into a grid. Inside
+    the grid, we will randomly scatter a handful of “heaters” with various fixed temperatures.
+    [Figure 7.2](ch07.html#ch07fig02) shows an example of what this room might look
+    like.
+  id: totrans-16
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了演示一种可以有效使用纹理内存的情况，我们将构建一个简单的二维热传导模拟。我们假设有一个矩形房间，将其划分为网格。在网格内部，我们将随机分布一些具有不同固定温度的“加热器”。[图
+    7.2](ch07.html#ch07fig02)展示了这个房间可能的样子。
+- en: '***Figure 7.2*** A room with “heaters” of various temperature'
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 7.2*** 带有不同温度的“加热器”的房间'
+- en: '![image](graphics/ch_07_figure_7-2-1_full.jpg)'
+  id: totrans-18
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_07_figure_7-2-1_full.jpg)'
+- en: Given a rectangular grid and configuration of heaters, we are looking to simulate
+    what happens to the temperature in every grid cell as time progresses. For simplicity,
+    cells with heaters in them always remain at a constant temperature. At every step
+    in time, we will assume that heat “flows” between a cell and its neighbors. If
+    a cell’s neighbor is warmer than it is, the warmer neighbor will tend to warm
+    it up. Conversely, if a cell has a neighbor cooler than it is, it will cool off.
+    Qualitatively, [Figure 7.3](ch07.html#ch07fig03) represents this flow of heat.
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 给定一个矩形网格和加热器的配置，我们希望模拟随着时间推移，每个网格单元格内温度的变化。为了简化起见，包含加热器的单元格始终保持在一个恒定的温度。在每个时间步骤中，我们假设热量在单元格与其邻居之间“流动”。如果一个单元格的邻居比它温暖，那么较暖的邻居会倾向于加热它。相反，如果一个单元格的邻居比它冷，它就会变冷。从定性上看，[图
+    7.3](ch07.html#ch07fig03)表示了这种热量流动。
+- en: '***Figure 7.3*** Heat dissipating from warm cells into cold cells'
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 7.3*** 热量从温暖的单元格散发到寒冷的单元格'
+- en: '![image](graphics/ch_07_figure_7-2-4_full.jpg)'
+  id: totrans-21
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_07_figure_7-2-4_full.jpg)'
+- en: In our heat transfer model, we will compute the new temperature in a grid cell
+    as a sum of the differences between its temperature and the temperatures of its
+    neighbors, or, essentially, an update equation as shown in [Equation 7.1](ch07.html#ch07equ01).
+  id: totrans-22
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的热传导模型中，我们将计算每个网格单元格的新温度，作为该单元格温度与其邻居温度差异的总和，或者本质上是如[方程 7.1](ch07.html#ch07equ01)所示的更新方程。
+- en: '***Equation 7.1***'
+  id: totrans-23
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***方程 7.1***'
+- en: '![image](graphics/cm_equation_7-1.jpg)'
+  id: totrans-24
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/cm_equation_7-1.jpg)'
+- en: In the equation for updating a cell’s temperature, the constant `k` simply represents
+    the rate at which heat flows through the simulation. A large value of `k` will
+    drive the system to a constant temperature quickly, while a small value will allow
+    the solution to retain large temperature gradients longer. Since we consider only
+    four neighbors (top, bottom, left, right) and `k` and [`TOLD`] remain constant
+    in the equation, this update becomes like the one shown in [Equation 7.2](ch07.html#ch07equ02).
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在更新单元格温度的方程中，常数`k`仅表示热量在模拟中流动的速率。较大的`k`值会使系统迅速达到恒定温度，而较小的`k`值则会使解保持较大的温度梯度更长时间。由于我们只考虑四个邻居（上、下、左、右），且`k`和[`TOLD`]在方程中保持不变，因此这个更新类似于[方程
+    7.2](ch07.html#ch07equ02)所示的形式。
+- en: '***Equation 7.2***'
+  id: totrans-26
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***方程 7.2***'
+- en: '![image](graphics/cm_equation_7-2.jpg)'
+  id: totrans-27
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/cm_equation_7-2.jpg)'
+- en: Like with the ray tracing example in the previous chapter, this model is not
+    intended to be close to what might be used in industry (in fact, it is not really
+    even an approximation of something physically accurate). We have simplified this
+    model immensely in order to draw attention to the techniques at hand. With this
+    in mind, let’s take a look at how the update given by [Equation 7.2](ch07.html#ch07equ02)
+    can be computed on the GPU.
+  id: totrans-28
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 和上一章中的光线追踪示例一样，这个模型并不打算接近行业中可能使用的模型（事实上，它甚至不是某个物理准确模型的近似）。我们极大地简化了这个模型，以便突出所使用的技术。考虑到这一点，让我们来看看如何在GPU上计算[方程
+    7.2](ch07.html#ch07equ02)给出的更新。
+- en: '**7.3.2 Computing Temperature Updates**'
+  id: totrans-29
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**7.3.2 计算温度更新**'
+- en: 'We will cover the specifics of each step in a moment, but at a high level,
+    our update process proceeds as follows:'
+  id: totrans-30
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们稍后会详细讲解每个步骤的具体内容，但总体上，我们的更新过程如下：
+- en: 1\. Given some grid of input temperatures, copy the temperature of cells with
+    heaters to this grid. This will overwrite any previously computed temperatures
+    in these cells, thereby enforcing our restriction that “heating cells” remain
+    at a constant temperature. This copy gets performed in `copy_const_kernel()`.
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 1\. 给定某个输入温度网格，将带有加热器的单元的温度复制到这个网格中。这将覆盖这些单元中之前计算的任何温度，从而强制执行“加热单元”保持恒定温度的限制。这个复制操作在`copy_const_kernel()`中执行。
+- en: 2\. Given the input temperature grid, compute the output temperatures based
+    on the update in [Equation 7.2](ch07.html#ch07equ02). This update gets performed
+    in `blend_kernel()`.
+  id: totrans-32
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 2\. 给定输入温度网格，根据[方程 7.2](ch07.html#ch07equ02)中的更新计算输出温度。此更新在`blend_kernel()`中执行。
+- en: 3\. Swap the input and output buffers in preparation of the next time step.
+    The output temperature grid computed in step 2 will become the input temperature
+    grid that we start with in step 1 when simulating the next time step.
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 3\. 交换输入和输出缓冲区，为下一时间步做准备。步骤 2 中计算得到的输出温度网格将在模拟下一时间步时，成为步骤 1 开始时的输入温度网格。
+- en: Before beginning the simulation, we assume we have generated a grid of constants.
+    Most of the entries in this grid are zero, but some entries contain nonzero temperatures
+    that represent heaters at fixed temperatures. This buffer of constants will not
+    change over the course of the simulation and gets read at each time step.
+  id: totrans-34
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在开始仿真之前，我们假设已经生成了一个常量网格。这个网格中的大多数条目为零，但有一些条目包含表示加热器固定温度的非零值。这个常量缓冲区在整个仿真过程中不会变化，并将在每个时间步读取。
+- en: 'Because of the way we are modeling our heat transfer, we start with the output
+    grid from the previous time step. Then, according to step 1, we copy the temperatures
+    of the cells with heaters into this output grid, overwriting any previously computed
+    temperatures. We do this because we have assumed that the temperature of these
+    heater cells remains constant. We perform this copy of the constant grid onto
+    the input grid with the following kernel:'
+  id: totrans-35
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们模拟热传导的方式，我们从上一时间步的输出网格开始。然后，根据步骤 1，我们将带有加热器的单元的温度复制到这个输出网格中，覆盖任何先前计算的温度。我们这样做是因为我们假设这些加热器单元的温度保持不变。我们通过以下内核将这个常量网格复制到输入网格：
+- en: '![image](graphics/p0119-01.jpg)'
+  id: totrans-36
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0119-01.jpg)'
+- en: The first three lines should look familiar. The first two lines convert a thread’s
+    `threadIdx` and `blockIdx` into an `x`- and a `y`-coordinate. The third line computes
+    a linear `offset` into our constant and input buffers. The highlighted line performs
+    the copy of the heater temperature in `cptr[]` to the input grid in `iptr[]`.
+    Notice that the copy is performed only if the cell in the constant grid is nonzero.
+    We do this to preserve any values that were computed in the previous time step
+    within cells that do not contain heaters. Cells with heaters will have nonzero
+    entries in `cptr[]` and will therefore have their temperatures preserved from
+    step to step thanks to this copy kernel.
+  id: totrans-37
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 前三行应该很熟悉。前两行将线程的`threadIdx`和`blockIdx`转换为`x`和`y`坐标。第三行计算出一个线性`offset`，用于访问我们的常量和输入缓冲区。突出显示的这一行将`cptr[]`中的加热器温度复制到`iptr[]`中的输入网格。注意，只有当常量网格中的单元非零时，才会进行复制。我们这样做是为了保留那些没有加热器的单元在上一时间步中计算出的值。带有加热器的单元在`cptr[]`中会有非零值，因此它们的温度将通过这个复制内核在步骤之间得以保留。
+- en: Step 2 of the algorithm is the most computationally involved. To perform the
+    updates, we can have each thread take responsibility for a single cell in our
+    simulation. Each thread will read its cell’s temperature and the temperatures
+    of its neighboring cells, perform the previous update computation, and then update
+    its temperature with the new value. Much of this kernel resembles techniques you’ve
+    used before.
+  id: totrans-38
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 算法的第2步是最为计算密集的。为了执行更新，我们可以让每个线程负责模拟中的单个单元。每个线程会读取其单元的温度和邻居单元的温度，执行之前的更新计算，然后用新的值更新自己的温度。这个内核的许多部分与之前你使用过的技术相似。
+- en: '![image](graphics/p0120-01.jpg)'
+  id: totrans-39
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0120-01.jpg)'
+- en: Notice that we start exactly as we did for the examples that produced images
+    as their output. However, instead of computing the color of a pixel, the threads
+    are computing temperatures of simulation grid cells. Nevertheless, they start
+    by converting their `threadIdx` and `blockIdx` into an `x`, `y`, and `offset`.
+    You might be able to recite these lines in your sleep by now (although for your
+    sake, we hope you aren’t actually reciting them in your sleep).
+  id: totrans-40
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 请注意，我们的开始方式与产生图像输出的示例完全相同。然而，线程计算的不是像素的颜色，而是模拟网格单元的温度。尽管如此，它们仍然是通过将`threadIdx`和`blockIdx`转换为`x`、`y`和偏移量来启动的。现在你可能已经能在梦里背出这些代码（不过我们希望你不会真的在梦里背它们）。
+- en: Next, we determine the offsets of our left, right, top, and bottom neighbors
+    so that we can read the temperatures of those cells. We will need those values
+    to compute the updated temperature in the current cell. The only complication
+    here is that we need to adjust indices on the border so that cells around the
+    edges do not wrap around. Finally, in the highlighted line, we perform the update
+    from [Equation 7.2](ch07.html#ch07equ02), adding the old temperature and the scaled
+    differences of that temperature and the cell’s neighbors’ temperatures.
+  id: totrans-41
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们确定左右上下邻居的偏移量，以便读取这些单元的温度。我们将需要这些值来计算当前单元的更新温度。这里唯一的复杂性是，我们需要调整边界上的索引，以确保边缘周围的单元不会环绕。最后，在高亮显示的行中，我们从[方程式7.2](ch07.html#ch07equ02)执行更新，添加旧温度以及该温度与单元邻居温度之间的缩放差值。
+- en: '**7.3.3 Animating the Simulation**'
+  id: totrans-42
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**7.3.3 动画模拟**'
+- en: 'The remainder of the code primarily sets up the grid and then displays an animated
+    output of the heat map. We will walk through that code now:'
+  id: totrans-43
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 代码的其余部分主要是设置网格，然后显示热图的动画输出。我们现在将逐步讲解这些代码：
+- en: '![image](graphics/p0121-01.jpg)'
+  id: totrans-44
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0121-01.jpg)'
+- en: '![image](graphics/p0122-01.jpg)'
+  id: totrans-45
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0122-01.jpg)'
+- en: '![image](graphics/p0122-02.jpg)'
+  id: totrans-46
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0122-02.jpg)'
+- en: We have equipped the code with event-based timing as we did in the previous
+    chapter’s ray tracing example. The timing code serves the same purpose as it did
+    previously. Since we will endeavor to accelerate the initial implementation, we
+    have put in place a mechanism by which we can measure performance and convince
+    ourselves that we have succeeded.
+  id: totrans-47
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们为代码配备了基于事件的计时，就像在上一章的光线追踪示例中所做的那样。计时代码的作用与之前相同。由于我们将努力加速初始实现，因此我们已设置了一个机制，通过它可以测量性能，并确保自己成功达成目标。
+- en: 'The function `anim_gpu()` gets called by the animation framework on every frame.
+    The arguments to this function are a pointer to a `DataBlock` and the number of
+    `ticks` of the animation that have elapsed. As with the animation examples, we
+    use blocks of 256 threads that we organize into a two-dimensional grid of 16 x
+    16\. Each iteration of the `for()` loop in `anim_gpu()` computes a single time
+    step of the simulation as described by the three-step algorithm at the beginning
+    of Section 7.3.2: Computing Temperature Updates. Since the `DataBlock` contains
+    the constant buffer of heaters as well as the output of the last time step, it
+    encapsulates the entire state of the animation, and consequently, `anim_gpu()`
+    does not actually need to use the value of `ticks` anywhere.'
+  id: totrans-48
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 函数`anim_gpu()`会在每一帧被动画框架调用。这个函数的参数是指向`DataBlock`的指针，以及已经经过的动画`ticks`数。与动画示例类似，我们使用256个线程的块，并将它们组织成16
+    x 16的二维网格。`anim_gpu()`中`for()`循环的每次迭代计算模拟的单个时间步长，正如7.3.2节开头的三步算法中所描述的：计算温度更新。由于`DataBlock`包含加热器的常量缓冲区以及上一时间步的输出，它封装了动画的整个状态，因此`anim_gpu()`实际上不需要在任何地方使用`ticks`的值。
+- en: You will notice that we have chosen to do 90 time steps per frame. This number
+    is not magical but was determined somewhat experimentally as a reasonable trade-off
+    between having to download a bitmap image for every time step and computing too
+    many time steps per frame, resulting in a jerky animation. If you were more concerned
+    with getting the output of each simulation step than you were with animating the
+    results in real time, you could change this such that you computed only a single
+    step on each frame.
+  id: totrans-49
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你会注意到，我们选择每帧计算90个时间步。这个数字并不是神奇的，而是通过一定的实验确定的，是在每个时间步下载位图图像和每帧计算过多时间步之间的合理折中，避免出现卡顿的动画效果。如果你更关心每个仿真步骤的输出，而不是实时显示结果的动画效果，你可以将其修改为每帧仅计算一个时间步。
+- en: After computing the 90 time steps since the previous frame, `anim_gpu()` is
+    ready to copy a bitmap frame of the current animation back to the CPU. Since the
+    `for()` loop leaves the input and output swapped, we pass the input buffer to
+    the next kernel,, which actually contains the output of the 90th time step. We
+    convert the temperatures to colors using the kernel `float_to_color()` and then
+    copy the resultant image back to the CPU with a `cudaMemcpy()` that specifies
+    the direction of copy as `cudaMemcpyDeviceToHost`. Finally, to prepare for the
+    next sequence of time steps, we swap the output buffer back to the input buffer
+    since it will serve as input to the next time steps.
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在计算完自上一个帧以来的90个时间步后，`anim_gpu()`准备将当前动画的位图帧复制回CPU。由于`for()`循环将输入和输出交换，我们将输入缓冲区传递给下一个内核，该内核实际上包含了第90个时间步的输出。我们使用内核`float_to_color()`将温度转换为颜色，然后使用`cudaMemcpy()`将结果图像复制回CPU，复制方向指定为`cudaMemcpyDeviceToHost`。最后，为了为下一个时间步的序列做准备，我们将输出缓冲区交换回输入缓冲区，因为它将作为下一个时间步的输入。
+- en: '![image](graphics/p0124-01.jpg)'
+  id: totrans-51
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0124-01.jpg)'
+- en: '![image](graphics/p0125-01.jpg)'
+  id: totrans-52
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0125-01.jpg)'
+- en: '[Figure 7.4](ch07.html#ch07fig04) shows an example of what the output might
+    look like. You will notice in the image some of the “heaters” that appear to be
+    pixel-sized islands that disrupt the continuity of the temperature distribution.'
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[图 7.4](ch07.html#ch07fig04)展示了输出可能的样子。你会注意到图像中有一些“加热器”，它们看起来像是像素大小的岛屿，打破了温度分布的连续性。'
+- en: '***Figure 7.4*** A screenshot from the animated heat transfer simulation'
+  id: totrans-54
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 7.4*** 来自动画热传导仿真的屏幕截图'
+- en: '![image](graphics/ch_07_figure_7-2-5.jpg)'
+  id: totrans-55
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_07_figure_7-2-5.jpg)'
+- en: '**7.3.4 Using Texture Memory**'
+  id: totrans-56
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**7.3.4 使用纹理内存**'
+- en: There is a considerable amount of *spatial locality* in the memory access pattern
+    required to perform the temperature update in each step. As we explained previously,
+    this is exactly the type of access pattern that GPU texture memory is designed
+    to accelerate. Given that we want to use texture memory, we need to learn the
+    mechanics of doing so.
+  id: totrans-57
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在每个步骤中执行温度更新所需的内存访问模式中，存在相当多的*空间局部性*。正如我们之前解释的那样，这正是GPU纹理内存旨在加速的访问模式。鉴于我们希望使用纹理内存，我们需要了解如何进行操作。
+- en: First, we will need to declare our inputs as texture references. We will use
+    references to floating-point textures, since our temperature data is floating-point.
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 首先，我们需要将输入声明为纹理引用。由于我们的温度数据是浮点型的，因此我们将使用浮点纹理引用。
+- en: '![image](graphics/p0126-01.jpg)'
+  id: totrans-59
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0126-01.jpg)'
+- en: 'The next major difference is that after allocating GPU memory for these three
+    buffers, we need to *bind* the references to the memory buffer using `cudaBindTexture()`.
+    This basically tells the CUDA runtime two things:'
+  id: totrans-60
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 下一个主要区别是，在为这三个缓冲区分配GPU内存后，我们需要使用`cudaBindTexture()`将引用绑定到内存缓冲区。这基本上告诉CUDA运行时两件事：
+- en: • We intend to use the specified buffer as a texture.
+  id: totrans-61
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 我们打算将指定的缓冲区用作纹理。
+- en: • We intend to use the specified texture reference as the texture’s “name.”
+  id: totrans-62
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 我们打算将指定的纹理引用用作纹理的“名称”。
+- en: After the three allocations in our heat transfer simulation, we bind the three
+    allocations to the texture references declared earlier (`texConstSrc`, `texIn`,
+    and `texOut`).
+  id: totrans-63
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的热传导仿真中完成了三个分配后，我们将这三个分配绑定到先前声明的纹理引用（`texConstSrc`、`texIn` 和 `texOut`）。
+- en: '![image](graphics/p0127-01.jpg)'
+  id: totrans-64
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0127-01.jpg)'
+- en: At this point, our textures are completely set up, and we’re ready to launch
+    our kernel. However, when we’re reading from textures in the kernel, we need to
+    use special functions to instruct the GPU to route our requests through the texture
+    unit and not through standard global memory. As a result, we can no longer simply
+    use square brackets to read from buffers; we need to modify `blend_kernel()` to
+    use `tex1Dfetch()` when reading from memory.
+  id: totrans-65
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到此为止，我们的纹理已经完全设置好，我们准备启动内核了。然而，当我们在内核中从纹理读取数据时，我们需要使用特殊的函数来指示 GPU 通过纹理单元而不是通过标准全局内存来路由我们的请求。因此，我们不再能简单地使用方括号从缓冲区中读取数据；我们需要修改
+    `blend_kernel()`，使其在从内存读取时使用 `tex1Dfetch()`。
+- en: 'Additionally, there is another difference between using global and texture
+    memory that requires us to make another change. Although it looks like a function,
+    `tex1Dfetch()` is a compiler intrinsic. And since texture references must be declared
+    globally at file scope, we can no longer pass the input and output buffers as
+    parameters to `blend_kernel()` because the compiler needs to know at compile time
+    which textures `tex1Dfetch()` should be sampling. Rather than passing pointers
+    to input and output buffers as we previously did, we will pass to `blend_kernel()`
+    a boolean flag `dstOut` that indicates which buffer to use as input and which
+    to use as output. The changes to `blend_kernel()` are highlighted here:'
+  id: totrans-66
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此外，使用全局内存和纹理内存之间还有另一个区别，这要求我们进行另一个更改。虽然它看起来像一个函数，`tex1Dfetch()` 实际上是一个编译器内建函数。由于纹理引用必须在文件作用域内声明为全局变量，我们无法再像之前那样将输入和输出缓冲区作为参数传递给
+    `blend_kernel()`，因为编译器需要在编译时知道 `tex1Dfetch()` 应该采样哪些纹理。我们将不再像以前那样传递输入和输出缓冲区的指针，而是将一个布尔标志
+    `dstOut` 传递给 `blend_kernel()`，该标志指示使用哪个缓冲区作为输入，哪个作为输出。对 `blend_kernel()` 的更改如下所示：
+- en: '![image](graphics/p0128-01.jpg)'
+  id: totrans-67
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0128-01.jpg)'
+- en: '![image](graphics/p0128-02.jpg)'
+  id: totrans-68
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0128-02.jpg)'
+- en: 'Since the `copy_const_kernel()` kernel reads from our buffer that holds the
+    heater positions and temperatures, we will need to make a similar modification
+    there in order to read through texture memory instead of global memory:'
+  id: totrans-69
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于 `copy_const_kernel()` 内核从我们的缓冲区读取加热器位置和温度数据，我们需要在这里进行类似的修改，以便通过纹理内存读取，而不是通过全局内存：
+- en: '![image](graphics/p0129-01.jpg)'
+  id: totrans-70
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0129-01.jpg)'
+- en: 'Since the signature of `blend_kernel()` changed to accept a flag that switches
+    the buffers between input and output, we need a corresponding change to the `anim_gpu()`
+    routine. Rather than swapping buffers, we set `dstOut = !dstOut` to toggle the
+    flag after each series of calls:'
+  id: totrans-71
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于 `blend_kernel()` 的函数签名已经更改为接受一个标志来切换输入和输出缓冲区，我们需要对 `anim_gpu()` 例程进行相应的更改。我们不再交换缓冲区，而是每次调用系列后设置
+    `dstOut = !dstOut` 来切换标志：
+- en: '![image](graphics/p0129-02.jpg)'
+  id: totrans-72
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0129-02.jpg)'
+- en: '![image](graphics/p0130-01.jpg)'
+  id: totrans-73
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0130-01.jpg)'
+- en: 'The final change to our heat transfer routine involves cleaning up at the end
+    of the application’s run. Rather than just freeing the global buffers, we also
+    need to unbind textures:'
+  id: totrans-74
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对我们的热传递例程的最后一个更改是，在应用程序运行结束时进行清理。我们不仅需要释放全局缓冲区，还需要解绑纹理：
+- en: '![image](graphics/p0131-01.jpg)'
+  id: totrans-75
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0131-01.jpg)'
+- en: '**7.3.5 Using Two-Dimensional Texture Memory**'
+  id: totrans-76
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**7.3.5 使用二维纹理内存**'
+- en: Toward the beginning of this book, we mentioned how some problems have two-dimensional
+    domains, and therefore it can be convenient to use two-dimensional blocks and
+    grids at times. The same is true for texture memory. There are many cases when
+    having a two-dimensional memory region can be useful, a claim that should come
+    as no surprise to anyone familiar with multidimensional arrays in standard C.
+    Let’s look at how we can modify our heat transfer application to use two-dimensional
+    textures.
+  id: totrans-77
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本书的开头，我们提到过有些问题具有二维领域，因此有时使用二维块和网格会更方便。纹理内存也是如此。实际上，有许多情况下，拥有二维内存区域是非常有用的，对于熟悉标准
+    C 中多维数组的人来说，这并不令人感到惊讶。让我们来看一下如何修改我们的热传递应用程序，以便使用二维纹理。
+- en: First, our texture reference declarations change. If unspecified, texture references
+    are one-dimensional by default, so we add a dimensionality argument of 2 in order
+    to declare two-dimensional textures.
+  id: totrans-78
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 首先，我们的纹理引用声明会发生变化。如果未指定，纹理引用默认为一维，因此我们添加了一个维度参数 2，以便声明二维纹理。
+- en: '![image](graphics/p0131-02.jpg)'
+  id: totrans-79
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0131-02.jpg)'
+- en: The simplification promised by converting to two-dimensional textures comes
+    in the `blend_kernel()` method. Although we need to change our `tex1Dfetch()`
+    calls to `tex2D()` calls, we no longer need to use the linearized `offset` variable
+    to compute the set of offsets `top`, `left`, `right`, and `bottom`. When we switch
+    to a two-dimensional texture, we can use `x` and `y` directly to address the texture.
+  id: totrans-80
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 转换为二维纹理带来的简化出现在`blend_kernel()`方法中。尽管我们需要将`tex1Dfetch()`调用更改为`tex2D()`调用，但我们不再需要使用线性化的`offset`变量来计算偏移量集合`top`、`left`、`right`和`bottom`。当我们切换到二维纹理时，可以直接使用`x`和`y`来定位纹理。
+- en: Furthermore, we no longer have to worry about bounds overflow when we switch
+    to using `tex2D()`. If one of `x` or `y` is less than zero, `tex2D()` will return
+    the value at zero. Likewise, if one of these values is greater than the width,
+    `tex2D()` will return the value at width 1\. Note that in our application, this
+    behavior is ideal, but it’s possible that other applications would desire other
+    behavior.
+  id: totrans-81
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此外，当我们切换到使用`tex2D()`时，我们不再需要担心越界溢出。如果`x`或`y`中的一个小于零，`tex2D()`将返回零位置的值。同样地，如果其中一个值大于宽度，`tex2D()`将返回宽度1位置的值。请注意，在我们的应用程序中，这种行为是理想的，但其他应用程序可能会希望实现不同的行为。
+- en: As a result of these simplifications, our kernel cleans up nicely.
+  id: totrans-82
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于这些简化，我们的内核得到了很好的清理。
+- en: '![image](graphics/p0132-01.jpg)'
+  id: totrans-83
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0132-01.jpg)'
+- en: 'Since all of our previous calls to `tex1Dfetch()` need to be changed to `tex2D()`
+    calls, we make the corresponding change in `copy_const_kernel()`. Similarly to
+    the kernel `blend_kernel()`, we no longer need to use `offset` to address the
+    texture; we simply use `x` and `y` to address the constant source:'
+  id: totrans-84
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们之前所有对`tex1Dfetch()`的调用都需要更改为`tex2D()`调用，因此我们在`copy_const_kernel()`中做出相应的更改。与内核`blend_kernel()`类似，我们不再需要使用`offset`来定位纹理；我们只需使用`x`和`y`来定位常量源：
+- en: '![image](graphics/p0133-01.jpg)'
+  id: totrans-85
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0133-01.jpg)'
+- en: 'The final change to the one-dimensional texture version of our heat transfer
+    simulation is along the same lines as our previous changes. Specifically, in `main()`,
+    we need to change our texture binding calls to instruct the runtime that the buffer
+    we plan to use will be treated as a two-dimensional texture, not a one-dimensional
+    one:'
+  id: totrans-86
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的热传递仿真一维纹理版本的最终更改与之前的更改相似。具体来说，在`main()`中，我们需要更改纹理绑定调用，指示运行时我们计划使用的缓冲区将被作为二维纹理而非一维纹理处理：
+- en: '![image](graphics/p0133-02.jpg)'
+  id: totrans-87
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0133-02.jpg)'
+- en: As with the nontexture and one-dimensional texture versions, we begin by allocating
+    storage for our input arrays. We deviate from the one-dimensional example because
+    the CUDA runtime requires that we provide a `cudaChannelFormatDesc` when we bind
+    two-dimensional textures. The previous listing includes a declaration of a channel
+    format descriptor. In our case, we can accept the default parameters and simply
+    need to specify that we require a floating-point descriptor. We then bind the
+    three input buffers as two-dimensional textures using `cudaBindTexture2D()`, the
+    dimensions of the texture (`DIM` x `DIM`), and the channel format descriptor (`desc`).
+    The rest of `main()` remains the same.
+  id: totrans-88
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 与无纹理和一维纹理版本一样，我们首先为输入数组分配存储空间。与一维示例不同的是，CUDA运行时要求我们在绑定二维纹理时提供`cudaChannelFormatDesc`。前面的代码列出了一个通道格式描述符的声明。在我们的案例中，我们可以接受默认参数，只需指定我们需要一个浮动点描述符。然后，我们使用`cudaBindTexture2D()`将三个输入缓冲区绑定为二维纹理，指定纹理的尺寸（`DIM`
+    x `DIM`）以及通道格式描述符（`desc`）。其余的`main()`保持不变。
+- en: '![image](graphics/p0134-01.jpg)'
+  id: totrans-89
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0134-01.jpg)'
+- en: '![image](graphics/p0135-01.jpg)'
+  id: totrans-90
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0135-01.jpg)'
+- en: '![image](graphics/p0135-02.jpg)'
+  id: totrans-91
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0135-02.jpg)'
+- en: '![image](graphics/p0136-01.jpg)'
+  id: totrans-92
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0136-01.jpg)'
+- en: Although we needed different functions to instruct the runtime to bind one-dimensional
+    or two-dimensional textures, we use the same routine to unbind the texture, `cudaUnbindTexture()`.
+    Because of this, our cleanup routine can remain unchanged.
+  id: totrans-93
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尽管我们需要不同的函数来指示运行时绑定一维或二维纹理，但我们使用相同的例程来解除纹理绑定，即`cudaUnbindTexture()`。因此，我们的清理例程可以保持不变。
+- en: '![image](graphics/p0136-02.jpg)'
+  id: totrans-94
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0136-02.jpg)'
+- en: The version of our heat transfer simulation that uses two-dimensional textures
+    has essentially identical performance characteristics as the version that uses
+    one-dimensional textures. So from a performance standpoint, the decision between
+    one- and two-dimensional textures is likely to be inconsequential. For our particular
+    application, the code is a little simpler when using two-dimensional textures
+    because we happen to be simulating a two-dimensional domain. But in general, since
+    this is not always the case, we suggest you make the decision between one- and
+    two-dimensional textures on a case-by-case basis.
+  id: totrans-95
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 使用二维纹理的热传导模拟版本，其性能特征与使用一维纹理的版本基本相同。所以从性能角度来看，一维和二维纹理之间的选择可能没有太大影响。对于我们的具体应用，使用二维纹理时代码稍微简单一些，因为我们正模拟的是一个二维领域。但通常情况下，由于并非总是如此，我们建议你根据具体情况来决定使用一维或二维纹理。
+- en: '**7.4 Chapter Review**'
+  id: totrans-96
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**7.4 章节回顾**'
+- en: 'As we saw in the previous chapter with constant memory, some of the benefit
+    of texture memory comes as the result of on-chip caching. This is especially noticeable
+    in applications such as our heat transfer simulation: applications that have some
+    spatial coherence to their data access patterns. We saw how either one- or two-dimensional
+    textures can be used, both having similar performance characteristics. As with
+    a block or grid shape, the choice of one- or two-dimensional texture is largely
+    one of convenience. Since the code became somewhat cleaner when we switched to
+    two-dimensional textures and the borders are handled automatically, we would probably
+    advocate the use of a 2D texture in our heat transfer application. But as you
+    saw, it will work fine either way.'
+  id: totrans-97
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如我们在上一章中看到的常量内存一样，纹理内存的部分优势来自于片上缓存。这在像我们的热传导模拟这样的应用中尤为明显：这些应用的数据访问模式具有一定的空间一致性。我们看到一维或二维纹理都可以使用，它们具有相似的性能特征。与块状或网格形状一样，一维或二维纹理的选择主要取决于方便性。由于当我们切换到二维纹理时代码变得更加简洁，而且边界处理是自动的，我们可能会在热传导应用中提倡使用二维纹理。但正如你所看到的，无论选择哪种方式，它都能正常工作。
+- en: Texture memory can provide additional speedups if we utilize some of the conversions
+    that texture samplers can perform automatically, such as unpacking packed data
+    into separate variables or converting 8- and 16-bit integers to normalized floating-point
+    numbers. We didn’t explore either of these capabilities in the heat transfer application,
+    but they might be useful to you!
+  id: totrans-98
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果我们利用纹理采样器可以自动执行的一些转换，例如将打包数据解包为单独的变量，或将8位和16位整数转换为标准化的浮点数，纹理内存可以提供额外的加速。我们在热传导应用中没有探索这些功能，但它们可能对你有所帮助！

@@ -1,0 +1,933 @@
+- en: Chapter 3\. The CUDA Tool Suite
+  id: totrans-0
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 第三章. CUDA工具套件
+- en: Profiling a PCA/NLPCA Functor
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 对PCA/NLPCA函数对象进行分析
+- en: CUDA enables efficient GPGPU computing with just a few simple additions to the
+    C language. Simplicity of expression, however, does not equate to simplicity of
+    program execution. As when developing applications for any computer, identifying
+    performance bottlenecks can be complicated. Following the same economy of change
+    used to adapt C and C++, NVIDIA has extended several popular profiling tools to
+    support GPU computing. These are tools that most Windows and UNIX developers are
+    already proficient and comfortable using such as **gprof** and Visual Studio.
+    Additional tools such as hardware-level GPU profiling and a visual profiler have
+    been added. Those familiar with building, debugging, and profiling software under
+    Windows and UNIX should find the transition to CUDA straight-forward. All CUDA
+    tools are freely available on the NVIDIA website including the professional edition
+    of Parallel Nsight for Microsoft Visual Studio.**Keywords**Profiling, Principle
+    Components, PCA, NLPCA, data-mining, Visual profiler, Parallel NsightCUDA enables
+    efficient GPGPU computing with just a few simple additions to the C language.
+    Simplicity of expression, however, does not equate to simplicity of program execution.
+    As when developing applications for any computer, identifying performance bottlenecks
+    can be complicated. Following the same economy of change used to adapt C and C++,
+    NVIDIA has extended several popular profiling tools to support GPU computing.
+    These are tools that most Windows and UNIX developers are already proficient and
+    comfortable using such as **gprof** and Visual Studio. Additional tools such as
+    hardware-level GPU profiling and a visual profiler have been added. Those familiar
+    with building, debugging, and profiling software under Windows and UNIX should
+    find the transition to CUDA straight-forward. All CUDA tools are freely available
+    on the NVIDIA website including the professional edition of Parallel Nsight for
+    Microsoft Visual Studio.In this chapter, the Microsoft and UNIX profiling tools
+    for CUDA will be used to analyze the performance and scaling of the Nelder-Mead
+    optimization technique when optimizing a PCA and NLPCA functor.At the end of the
+    chapter, the reader will have a basic understanding of:■ PCA and NPLCA analysis,
+    including the applicability of this technique to data mining, dimension reduction,
+    feature extraction, and other data analysis and pattern recognition problems.■
+    How the CUDA profiling tools can be used to identify bottlenecks and scaling issues
+    in algorithms.■ Scalability issues and how even a simple dynamic memory allocation
+    can have dramatic performance implications on an application.
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+- en: PCA and NLPCA
+  id: totrans-3
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: PCA与NLPCA
+- en: Principle Components Analysis (PCA) is extensively used in data mining and data
+    analysis to (1) reduce the dimensionality of a data set and (2) extract features
+    from a data set. *Feature extraction* refers to the identification of the salient
+    aspects or properties of data to facilitate its use in a subsequent task, such
+    as regression or classification ([Duda & Hart, 1973](B978012388426800015X.xhtml#ref33)).
+    Obviously, extracting the principal features of a data set can help with interpretation,
+    analysis, and understanding.PCA analysis accounts for the maximum amount of variance
+    in a data set using a set of straight lines where each line is defined by a weighted
+    linear combination of the observed variables. The first line, or principle component,
+    accounts for the greatest amount of variance; each succeeding component accounts
+    for as much variance as possible while remaining orthogonal to (uncorrelated with)
+    the preceding components. For example, a cigar-shaped distribution would require
+    a single line (or principal component) to account for most of the variance in
+    the data set illustrated in [Figure 3.1](#f0010).
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 主成分分析（PCA）广泛应用于数据挖掘和数据分析中，主要用于（1）降低数据集的维度和（2）从数据集中提取特征。*特征提取*是指识别数据的显著方面或属性，以便在后续任务中使用，如回归或分类（[Duda
+    & Hart, 1973](B978012388426800015X.xhtml#ref33)）。显然，提取数据集的主要特征有助于数据的解释、分析和理解。PCA分析通过一组直线来解释数据集中的最大方差，其中每条线是由观察变量的加权线性组合定义的。第一条线，或主成分，解释了最大量的方差；每个后续的成分解释尽可能多的方差，同时保持与前一个成分正交（不相关）。例如，一个雪茄形状的分布需要一条直线（或主成分）来解释[图
+    3.1](#f0010)中数据集的大部分方差。
+- en: '| ![B9780123884268000033/f03-01-9780123884268.jpg is missing](B9780123884268000033/f03-01-9780123884268.jpg)
+    |'
+  id: totrans-5
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-01-9780123884268.jpg 文件丢失](B9780123884268000033/f03-01-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.1**A linear PCA data set. |'
+  id: totrans-6
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.1** 线性PCA数据集。 |'
+- en: PCA utilizes straight lines; NLPCA can utilize continuous open or closed curves
+    to account for variance in data ([Hsieh, 2004](B978012388426800015X.xhtml#ref68)).
+    A circle is one example of a *closed curve* that joins itself so there are no
+    end points. [Figure 3.2](#f0015) illustrates an open curve. As a result, NLPCA
+    has the ability to represent nonlinear problems in a lower dimensional space.
+    [Figure 3.2](#f0015) illustrates one data set in which a single curve could account
+    for most of the variance.
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: PCA使用直线；NLPCA则可以利用连续的开放或闭合曲线来解释数据中的方差（[Hsieh, 2004](B978012388426800015X.xhtml#ref68)）。圆形就是一种*闭合曲线*的例子，它将自身连接起来，因此没有终点。[图
+    3.2](#f0015)展示了一个开放曲线。因此，NLPCA能够在较低维度的空间中表示非线性问题。[图 3.2](#f0015)展示了一个数据集，其中一条曲线就能够解释大部分的方差。
+- en: '| ![B9780123884268000033/f03-02-9780123884268.jpg is missing](B9780123884268000033/f03-02-9780123884268.jpg)
+    |'
+  id: totrans-8
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-02-9780123884268.jpg 文件丢失](B9780123884268000033/f03-02-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.2**An NLPCA data set. |'
+  id: totrans-9
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.2** NLPCA数据集。 |'
+- en: NLPCA has wide applicability to numerous challenging problems, including image
+    and handwriting analysis ([Hinton & Salakhutdinov, 2006](B978012388426800015X.xhtml#ref63);
+    [Schölkopf & Klaus-Robert Müller, 1998](B978012388426800015X.xhtml#ref113)) as
+    well as biological modeling ([Scholz, 2007](B978012388426800015X.xhtml#ref114)),
+    climate ([Hsieh, 2001](B978012388426800015X.xhtml#ref68); [Monahan, 2000](B978012388426800015X.xhtml#ref98)),
+    and chemistry ([Kramer, 1991](B978012388426800015X.xhtml#ref82)). Geoffrey E.
+    Hinton has an excellent set of tutorials on his website at the University of Toronto
+    ([Hinton, 2011](B978012388426800015X.xhtml#ref62)). [Chapter 10](B9780123884268000100.xhtml#B978-0-12-388426-8.00010-0)
+    expands this use of MPI (Message Passing Interface) so that it can run across
+    hundreds of GPUs. [Chapter 12](B9780123884268000124.xhtml#B978-0-12-388426-8.00012-4)
+    provides a working framework for real-time vision analysis that can be used as
+    a starting point to explore these and more advanced techniques.
+  id: totrans-10
+  prefs: []
+  type: TYPE_NORMAL
+  zh: NLPCA在许多具有挑战性的问题中具有广泛的应用，包括图像和手写分析（[Hinton & Salakhutdinov, 2006](B978012388426800015X.xhtml#ref63);
+    [Schölkopf & Klaus-Robert Müller, 1998](B978012388426800015X.xhtml#ref113)），以及生物建模（[Scholz,
+    2007](B978012388426800015X.xhtml#ref114)）、气候（[Hsieh, 2001](B978012388426800015X.xhtml#ref68);
+    [Monahan, 2000](B978012388426800015X.xhtml#ref98)）和化学（[Kramer, 1991](B978012388426800015X.xhtml#ref82)）。Geoffrey
+    E. Hinton在他位于多伦多大学的网站上提供了一系列优秀的教程（[Hinton, 2011](B978012388426800015X.xhtml#ref62)）。[第10章](B9780123884268000100.xhtml#B978-0-12-388426-8.00010-0)扩展了MPI（消息传递接口）的应用，使其能够在数百个GPU上运行。[第12章](B9780123884268000124.xhtml#B978-0-12-388426-8.00012-4)提供了一个用于实时视觉分析的工作框架，可以作为探索这些以及更高级技术的起点。
+- en: Autoencoders
+  id: totrans-11
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 自编码器
+- en: In 1982, Erkki Oja proposed the use of a restricted number of linear hidden
+    neurons, or bottleneck neurons, in a neural network to perform PCA analysis ([Oja,
+    1982](B978012388426800015X.xhtml#ref102)). [Figure 3.3](#f0020) illustrates a
+    simple linear network with two inputs and one hidden neuron.
+  id: totrans-12
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 1982年，Erkki Oja提出在神经网络中使用受限数量的线性隐藏神经元或瓶颈神经元来执行PCA分析（[Oja, 1982](B978012388426800015X.xhtml#ref102)）。[图3.3](#f0020)展示了一个简单的线性网络，具有两个输入和一个隐藏神经元。
+- en: '| ![B9780123884268000033/f03-03-9780123884268.jpg is missing](B9780123884268000033/f03-03-9780123884268.jpg)
+    |'
+  id: totrans-13
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-03-9780123884268.jpg is missing](B9780123884268000033/f03-03-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.3**A two-input PCA network. |'
+  id: totrans-14
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图3.3** 一个两输入PCA网络。 |'
+- en: Such networks were later generalized to perform NLPCA. [Figure 3.1](#f0010)
+    illustrates an architecture recommended by [Kramer (1991)](B978012388426800015X.xhtml#ref82)
+    that uses multiple hidden layers with a sigmoidal nonlinear operator. The bottleneck
+    neuron can be either linear or nonlinear. Hsieh extended this architecture to
+    closed curves by using a circular node at the bottleneck (2001).During training,
+    the ANN essentially teaches itself because the input vectors are utilized as the
+    known output vectors, which forces the lower half of the network to transform
+    each input vector from a high- to low-dimensional space (from two dimensions to
+    one in [Figure 3.4](#f0025)) in such a way that the upper half of the network
+    can correctly reconstruct the original high-dimensional input vector at the output
+    neurons. A least-means-squared error is commonly used to determine the error over
+    all the vectors. Such networks are sometimes called *autoencoders*. A perfect
+    encoding would result in a zero error on the training set, as each vector would
+    be exactly reconstructed at the output neurons. During analysis, the lower half
+    of the network is used to calculate the low-dimensional encoding. Autoencoders
+    have been studied extensively in the literature ([Hinton & Salakhutdinov, 2006](B978012388426800015X.xhtml#ref63);
+    [Kramer, 1991](B978012388426800015X.xhtml#ref82)) and are part of several common
+    toolkits including MATLAB. One example is the nlpca toolkit on [nlpca.org](http://nlpca.org).
+  id: totrans-15
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这种网络后来被推广用于执行NLPCA。[图 3.1](#f0010)展示了[Kramer (1991)](B978012388426800015X.xhtml#ref82)推荐的一种架构，使用多个隐藏层和一个sigmoidal非线性操作符。瓶颈神经元可以是线性的也可以是非线性的。Hsieh通过在瓶颈处使用圆形节点将这种架构扩展到了闭合曲线（2001）。在训练过程中，人工神经网络（ANN）本质上是自我学习的，因为输入向量被用作已知的输出向量，这迫使网络的下半部分将每个输入向量从高维空间（[图
+    3.4](#f0025)中的二维）转换到低维空间（从二维到一维），以便网络的上半部分能够在输出神经元上正确地重建原始的高维输入向量。常常使用最小均方误差来确定所有向量的误差。这类网络有时被称为*自编码器*。完美的编码将导致训练集上的零误差，因为每个向量都会在输出神经元上被完全重建。在分析过程中，网络的下半部分被用来计算低维编码。自编码器在文献中已被广泛研究（[Hinton
+    & Salakhutdinov, 2006](B978012388426800015X.xhtml#ref63); [Kramer, 1991](B978012388426800015X.xhtml#ref82)），并且是包括MATLAB在内的几个常见工具包的一部分。一个例子是[nlpca.org](http://nlpca.org)上的nlpca工具包。
+- en: '| ![B9780123884268000033/f03-04-9780123884268.jpg is missing](B9780123884268000033/f03-04-9780123884268.jpg)
+    |'
+  id: totrans-16
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-04-9780123884268.jpg 图像缺失](B9780123884268000033/f03-04-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.4**An NPLCA network with one bottleneck neuron. |'
+  id: totrans-17
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.4** 一个带有瓶颈神经元的NPLCA网络。 |'
+- en: An Example Functor for PCA Analysis
+  id: totrans-18
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: PCA分析的一个示例函子
+- en: '[Example 3.1](#tb0010), “A PCA Functor Implementing the Network in [Figure
+    3.3](#f0020),” demonstrates the simplicity of the functor that describes the PCA
+    network illustrated in [Figure 3.3](#f0020). This functor is designed to be substituted
+    into the Nelder-Mead optimization source code from [Chapter 2](B9780123884268000021.xhtml#B978-0-12-388426-8.00002-1),
+    which contains the typename definition for **Real** and variables used in this
+    calculation.`static const int nInput = 2;``static const int nH1 = 1;``static const
+    int nOutput = nInput;``static const int nParam =``(nOutput+nH1) // Neuron Offsets``+
+    (nInput*nH1) // connections from I to H1``+ (nH1*nOutput); // connections from
+    H1 to O``static const int exLen = nInput;``struct CalcError {``const Real* examples;``const
+    Real* p;``const int nInput;``const int exLen;``CalcError( const Real* _examples,
+    constReal* _p,``const int _nInput, const int _exLen)``: examples(_examples), p(_p),
+    nInput(_nInput), exLen(_exLen) {};``__device__ __host__``Real operator()(unsigned
+    int tid)``{``const register Real* in = &examples[tid * exLen];``register int index=0;``register
+    Real h0 = p[index++];``for(int i=0; i < nInput; i++) {``register Real input=in[i];``h0
+    += input * p[index++];``}``register Real sum = 0.;``for(int i=0; i < nInput; i++)
+    {``register Real o = p[index++];``o += h0 * p[index++];``o −= in[i];``sum += o*o;``}``return
+    sum;``}``};`[Example 3.2](#tb0015), “A Linear Data Generator,” defines the subroutine
+    **genData()**, which creates a two-dimensional data set based on the linear relationship
+    between two variables *z*1 and *z*2 shown in [Equation 3.1](#fm0010). Noise is
+    superimposed onto *t* according to two uniformly distributed sequences, *e*1 and
+    *e*2 with zero mean. A variance of 0.1 was used to generate the training data
+    and for [Figure 3.1](#f0010).`template <typename Real>``void genData(thrust::host_vector<Real>
+    &h_data, int nVec, Real xVar)``{``Real xMax = 1.1; Real xMin = −xMax;``Real xRange
+    = (xMax − xMin);``for(int i=0; i < nVec; i++) {``Real t = xRange * f_rand();``Real
+    z1 = t +xVar * f_rand();``Real z2 = t +xVar * f_rand();``h_data.push_back( z1
+    );``h_data.push_back( z2 );``}``}`(3.1)![B9780123884268000033/si1.gif is missing](B9780123884268000033/si1.gif)[Figure
+    3.5](#f0030) shows how the PCA network was able to reconstruct 100 randomly generated
+    data points using **genData** with a zero variance (*xVar* equals zero).'
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[示例 3.1](#tb0010)，“实现[图 3.3](#f0020)中网络的PCA函数对象”展示了描述PCA网络的函数对象的简洁性，该网络如[图
+    3.3](#f0020)所示。这个函数对象设计为可以替换为来自[第 2 章](B9780123884268000021.xhtml#B978-0-12-388426-8.00002-1)的Nelder-Mead优化源代码，其中包含**Real**的类型定义和本计算中使用的变量。`static
+    const int nInput = 2;``static const int nH1 = 1;``static const int nOutput = nInput;``static
+    const int nParam =``(nOutput+nH1) // 神经元偏移量``+ (nInput*nH1) // 从输入到H1的连接``+ (nH1*nOutput);
+    // 从H1到输出的连接``static const int exLen = nInput;``struct CalcError {``const Real*
+    examples;``const Real* p;``const int nInput;``const int exLen;``CalcError( const
+    Real* _examples, constReal* _p,``const int _nInput, const int _exLen)``: examples(_examples),
+    p(_p), nInput(_nInput), exLen(_exLen) {};``__device__ __host__``Real operator()(unsigned
+    int tid)``{``const register Real* in = &examples[tid * exLen];``register int index=0;``register
+    Real h0 = p[index++];``for(int i=0; i < nInput; i++) {``register Real input=in[i];``h0
+    += input * p[index++];``}``register Real sum = 0.;``for(int i=0; i < nInput; i++)
+    {``register Real o = p[index++];``o += h0 * p[index++];``o −= in[i];``sum += o*o;``}``return
+    sum;``}``};`[示例 3.2](#tb0015)，“线性数据生成器”，定义了子程序**genData()**，该子程序基于[方程 3.1](#fm0010)中显示的两个变量*z*1和*z*2之间的线性关系创建一个二维数据集。噪声根据两个均匀分布的序列*e*1和*e*2（均值为零）叠加到*t*上。使用0.1的方差来生成训练数据，并用于[图
+    3.1](#f0010)。`template <typename Real>``void genData(thrust::host_vector<Real>
+    &h_data, int nVec, Real xVar)``{``Real xMax = 1.1; Real xMin = −xMax;``Real xRange
+    = (xMax − xMin);``for(int i=0; i < nVec; i++) {``Real t = xRange * f_rand();``Real
+    z1 = t +xVar * f_rand();``Real z2 = t +xVar * f_rand();``h_data.push_back( z1
+    );``h_data.push_back( z2 );``}``}`(3.1)![B9780123884268000033/si1.gif is missing](B9780123884268000033/si1.gif)[图
+    3.5](#f0030)显示了PCA网络如何使用**genData**（零方差，*xVar*为零）重建100个随机生成的数据点。'
+- en: '| ![B9780123884268000033/f03-05-9780123884268.jpg is missing](B9780123884268000033/f03-05-9780123884268.jpg)
+    |'
+  id: totrans-20
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-05-9780123884268.jpg 图片缺失](B9780123884268000033/f03-05-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.5**Nelder-Mead-trained PCA network reconstructing 100 random points.
+    |'
+  id: totrans-21
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.5** 使用Nelder-Mead算法训练的PCA网络重建100个随机点。 |'
+- en: The complete source code for this example can be downloaded from the book's
+    website. Those who wish to adapt the *xorNM.cu* example from [Chapter 2](B9780123884268000021.xhtml#B978-0-12-388426-8.00002-1)
+    can use the functor in [Example 3.1](#tb0010) and data generator in [Example 3.2](#tb0015).
+    In addition, the test for correctness will need to be modified. To attain high-accuracy,
+    this example required that **kcount** be set to 50000.
+  id: totrans-22
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 该示例的完整源代码可以从本书的网站下载。希望适配*xorNM.cu*示例的读者可以参考[第2章](B9780123884268000021.xhtml#B978-0-12-388426-8.00002-1)中的函数对象，以及[示例3.1](#tb0010)中的数据生成器和[示例3.2](#tb0015)中的内容。此外，正确性测试需要进行修改。为了达到高精度，本示例要求**kcount**设置为50000。
+- en: An Example Functor for NLPCA Analysis
+  id: totrans-23
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: NLPCA分析的示例函数对象
+- en: 'The NLPCA functor in [Example 3.3](#tb0020) implements the network shown in
+    [Figure 3.4](#f0025). This functor is designed to be substituted into the Nelder-Mead
+    optimization source code from [Chapter 2](B9780123884268000021.xhtml#B978-0-12-388426-8.00002-1),
+    which contains the typename definition for **Real** and variables used in this
+    calculation.`static const int nInput = 2;``static const int nH1 = 4;``static const
+    int nH2 = 1;``static const int nH3 = 4;``static const int nOutput = nInput;``static
+    const int nParam =``(nOutput+nH1+nH2+nH3) // Neuron Offsets``+ (nInput*nH1)//
+    connections from I to H1``+ (nH1*nH2)// connections from H1 to H2``+ (nH2*nH3)//
+    connections from H2 to H3``+ (nH3*nOutput); // connections from H3 to O``static
+    const int exLen = nInput;``struct CalcError {``const Real* examples;``const Real*
+    p;``const int nInput;``const int exLen;``CalcError( const Real* _examples, constReal*
+    _p,``const int _nInput, const int _exLen)``: examples(_examples), p(_p), nInput(_nInput),
+    exLen(_exLen) {};``__device__ __host__``Real operator()(unsigned int tid)``{``const
+    register Real* in = &examples[tid * exLen];``register int index=0;``register Real
+    h2_0 = p[index++]; // bottleneck neuron``{``register Real h1_0 = p[index++];``register
+    Real h1_1 = p[index++];``register Real h1_2 = p[index++];``register Real h1_3
+    = p[index++];``for(int i=0; i < nInput; i++) {``register Real input=in[i];``h1_0
+    += input * p[index++]; h1_1 += input * p[index++];``h1_2 += input * p[index++];
+    h1_3 += input * p[index++];``}``h1_0 = G(h1_0); h1_1 = G(h1_1);``h1_2 = G(h1_2);
+    h1_3 = G(h1_3);``h2_0 += p[index++] * h1_0; h2_0 += p[index++] * h1_1;``h2_0 +=
+    p[index++] * h1_2; h2_0 += p[index++] * h1_3;``}``register Real h3_0 = p[index++];``register
+    Real h3_1 = p[index++];``register Real h3_2 = p[index++];``register Real h3_3
+    = p[index++];``h3_0 += p[index++] * h2_0; h3_1 += p[index++] * h2_0;``h3_2 +=
+    p[index++] * h2_0; h3_3 += p[index++] * h2_0;``h3_0 = G(h3_0); h3_1 = G(h3_1);``h3_2
+    = G(h3_2); h3_3 = G(h3_3);``register Real sum = 0.;``for(int i=0; i < nOutput;
+    i++) {``register Real o = p[index++];``o += h3_0 * p[index++]; o += h3_1 * p[index++];``o
+    += h3_2 * p[index++]; o += h3_3 * p[index++];``o −= in[i];``sum += o*o;``}``return
+    sum;``}``};`The **genData** method is modified to define a nonlinear relationship
+    between *z*1 and *z*2 with *e*1 and *e*2 as described previously for the PCA data
+    generator. [Example 3.4](#tb0025) implements a nonlinear data generator using
+    [Equation 3.2](#fm0015).(3.2)![B9780123884268000033/si2.gif is missing](B9780123884268000033/si2.gif)`template
+    <typename Real>``void genData(thrust::host_vector<Real> &h_data, int nVec, Real
+    xVar)``{``Real xMax = 1.1; Real xMin = -xMax;``Real xRange = (xMax - xMin);``for(int
+    i=0; i < nVec; i++) {``Real t = xRange * f_rand();``Real z1 = t +xVar * f_rand();``Real
+    z2 = t*t*t +xVar * f_rand();``h_data.push_back( z1 );``h_data.push_back( z2 );``}``}`[Figure
+    3.6](#f0035) shows that the network found a reasonable solution with a bottleneck
+    of one neuron. The scatterplot reconstructs the high-dimensional data for 100
+    randomly chosen points on the curve.'
+  id: totrans-24
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[示例 3.3](#tb0020)中的NLPCA运算符实现了[图 3.4](#f0025)所示的网络。这个运算符设计用来替代[第二章](B9780123884268000021.xhtml#B978-0-12-388426-8.00002-1)中的Nelder-Mead优化源代码，其中包含了**Real**的类型定义以及该计算中使用的变量。`static
+    const int nInput = 2;``static const int nH1 = 4;``static const int nH2 = 1;``static
+    const int nH3 = 4;``static const int nOutput = nInput;``static const int nParam
+    =``(nOutput+nH1+nH2+nH3) // 神经元偏移量``+ (nInput*nH1)// 从I到H1的连接``+ (nH1*nH2)// 从H1到H2的连接``+
+    (nH2*nH3)// 从H2到H3的连接``+ (nH3*nOutput); // 从H3到O的连接``static const int exLen =
+    nInput;``struct CalcError {``const Real* examples;``const Real* p;``const int
+    nInput;``const int exLen;``CalcError( const Real* _examples, const Real* _p,``const
+    int _nInput, const int _exLen)``: examples(_examples), p(_p), nInput(_nInput),
+    exLen(_exLen) {};``__device__ __host__``Real operator()(unsigned int tid)``{``const
+    register Real* in = &examples[tid * exLen];``register int index=0;``register Real
+    h2_0 = p[index++]; // 瓶颈神经元``{``register Real h1_0 = p[index++];``register Real
+    h1_1 = p[index++];``register Real h1_2 = p[index++];``register Real h1_3 = p[index++];``for(int
+    i=0; i < nInput; i++) {``register Real input=in[i];``h1_0 += input * p[index++];
+    h1_1 += input * p[index++];``h1_2 += input * p[index++]; h1_3 += input * p[index++];``}``h1_0
+    = G(h1_0); h1_1 = G(h1_1);``h1_2 = G(h1_2); h1_3 = G(h1_3);``h2_0 += p[index++]
+    * h1_0; h2_0 += p[index++] * h1_1;``h2_0 += p[index++] * h1_2; h2_0 += p[index++]
+    * h1_3;``}``register Real h3_0 = p[index++];``register Real h3_1 = p[index++];``register
+    Real h3_2 = p[index++];``register Real h3_3 = p[index++];``h3_0 += p[index++]
+    * h2_0; h3_1 += p[index++] * h2_0;``h3_2 += p[index++] * h2_0; h3_3 += p[index++]
+    * h2_0;``h3_0 = G(h3_0); h3_1 = G(h3_1);``h3_2 = G(h3_2); h3_3 = G(h3_3);``register
+    Real sum = 0.;``for(int i=0; i < nOutput; i++) {``register Real o = p[index++];``o
+    += h3_0 * p[index++]; o += h3_1 * p[index++];``o += h3_2 * p[index++]; o += h3_3
+    * p[index++];``o -= in[i];``sum += o*o;``}``return sum;``}``};`**genData**方法被修改，以定义一个非线性关系，*z*1和*z*2与*e*1和*e*2之间的关系，如前文中PCA数据生成器所述。[示例
+    3.4](#tb0025)使用[方程 3.2](#fm0015)实现了一个非线性数据生成器。(3.2)![B9780123884268000033/si2.gif
+    丢失](B9780123884268000033/si2.gif)`template <typename Real>``void genData(thrust::host_vector<Real>
+    &h_data, int nVec, Real xVar)``{``Real xMax = 1.1; Real xMin = -xMax;``Real xRange
+    = (xMax - xMin);``for(int i=0; i < nVec; i++) {``Real t = xRange * f_rand();``Real
+    z1 = t +xVar * f_rand();``Real z2 = t*t*t +xVar * f_rand();``h_data.push_back(
+    z1 );``h_data.push_back( z2 );``}``}`[图 3.6](#f0035)显示网络找到了一个合理的解，并且瓶颈处有一个神经元。散点图重建了曲线上100个随机选择点的高维数据。'
+- en: '| ![B9780123884268000033/f03-06-9780123884268.jpg is missing](B9780123884268000033/f03-06-9780123884268.jpg)
+    |'
+  id: totrans-25
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-06-9780123884268.jpg 缺失](B9780123884268000033/f03-06-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.6**NLPCA Nelder-Mead-trained curve overlaid with 100 random test
+    points. |'
+  id: totrans-26
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.6**NLPCA Nelder-Mead 训练曲线与 100 个随机测试点叠加。 |'
+- en: The complete source code can be downloaded from the book's website.
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 完整的源代码可以从本书的网站下载。
+- en: Obtaining Basic Profile Information
+  id: totrans-28
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 获取基本的个人资料信息
+- en: The collection of low-level GPU profiling information can be enabled through
+    use of the environmental variable **CUDA_PROFILE**. Setting this variable to 1
+    tells CUDA to collect runtime profiling information from hardware counters on
+    the GPU. Gathering this information does not require special compiler flags, nor
+    does it affect application performance. Setting **CUDA_PROFILE** to 0 disables
+    the collection of the profile information.By default, the CUDA profiler writes
+    information to the file *cuda_profile_0.log* in the current directory. The name
+    of the destination file can be changed through the environment variable **CUDA_PROFILE_LOG**.
+    Further, the user can specify an options file to select the specific information
+    that is to be gathered from the hardware counters with the environmental variable
+    **CUDA_PROFILE_CONFIG**. The types and amounts of profile information that can
+    be collected differ between GPU generations. Please consult the NVIDIA profiler
+    documentation to see what information can be gathered from your GPGPU.Examining
+    the contents of *cuda_profile_0.log* after running **nlpcaNM_GPU32** with **CUDA_PROFILE**=1
+    shows that indeed this is the raw profiler output. Just looking at the first few
+    lines, one can see that several data transfers occurred from the host to device
+    after the application started, which we can infer are the movement of the training
+    set, parameters, and other information to the GPGPU. Highlighted in [Example 3.5](#tb0030),
+    “CUDA GPU Profile for Single-Precision Nelder-Mead NLPCA Optimization,” is a reported
+    *occupancy* value, which is a measure of GPU thread-level parallelization (TLP).
+    High occupancy is generally good, but high application performance can also be
+    achieved by applications with lower occupancy that attain high instruction-level
+    parallelism (ILP). To understand occupancy, you need to understand some basics
+    about the GPU hardware and execution model as discussed in the next chapter.`#
+    CUDA_PROFILE_LOG_VERSION 2.0``# CUDA_DEVICE 0 Tesla C2070``# TIMESTAMPFACTOR fffff6faa0f3f368``method,gputime,cputime,occupancy``method=[
+    memcpyHtoD ] gputime=[ 1752.224 ] cputime=[ 1873.000 ]``method=[ memcpyDtoD ]
+    gputime=[ 179.296 ] cputime=[ 20.000 ]``method=[ _ZN6thrust6detail6device4cuda6detail23launch_closure_by_valueINS2_18for_each_n_closureINS_10device_ptrIyEEjNS0_16generate_functorINS0_12fill_functorIyEEEEEEEEvT_
+    ] gputime=[ 5.056 ] cputime=[ 7.000 ] **occupancy=[ 0.500 ]**``method=[ _ZN6thrust6detail6device4cuda6detail23launch_closure_by_valueINS2_18for_each_n_closureINS_10device_ptrIfEEjNS0_16generate_functorINS0_12fill_functorIfEEEEEEEEvT_
+    ] gputime=[ 2.144 ] cputime=[ 5.000 ] **occupancy=[ 0.500 ]**``method=[ memcpyDtoD
+    ] gputime=[ 2.048 ] cputime=[ 5.000 ]``method=[ memcpyHtoD ] gputime=[ 1.120 ]
+    cputime=[ 5.000 ]``method=[ memcpyHtoD ] gputime=[ 1.088 ] cputime=[ 3.000 ]``method=[
+    _ZN6thrust6detail6device4cuda6detail23launch_closure_by_valueINS3_21reduce_n_smem_closureINS_18transform_iteratorIN7ObjFuncIfE9CalcErrorENS_17counting_iteratorIjNS_11use_defaultESB_
+    SB_EEfSB_EElfNS_4plusIfEEEEEEvT_ ] gputime=[ 850.144 ] cputime= [ 5.000 ] occupancy=[
+    0.625 ]``method=[ _ZN6thrust6detail6device4cuda6detail23launch_closure_by_valueINS3_21reduce_n_smem_closureINS0_15normal_iteratorINS_10device_ptrIfEEEElfNS_4plusIfEEEEEEvT_
+    ] gputime=[ 5.952 ] cputime=[ 4.000 ] occupancy=[ 0.500 ]``method=[ memcpyDtoH
+    ] gputime=[ 1.952 ] cputime=[ 856.000 ]``method=[ memcpyHtoD ] gputime=[ 1.120
+    ] cputime=[ 4.000 ]``method=[ memcpyHtoD ] gputime=[ 1.088 ] cputime=[ 4.000 ]``...`
+  id: totrans-29
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通过使用环境变量**CUDA_PROFILE**，可以启用低级GPU分析信息的收集。将此变量设置为1会告诉CUDA从GPU的硬件计数器收集运行时分析信息。收集这些信息不需要特殊的编译器标志，也不会影响应用程序的性能。将**CUDA_PROFILE**设置为0则禁用分析信息的收集。默认情况下，CUDA分析器会将信息写入当前目录下的文件*cuda_profile_0.log*。目标文件的名称可以通过环境变量**CUDA_PROFILE_LOG**进行更改。此外，用户还可以指定一个选项文件，通过环境变量**CUDA_PROFILE_CONFIG**选择要从硬件计数器收集的特定信息。可以收集的分析信息的类型和数量因GPU代际而异。请参考NVIDIA分析器文档，查看可从您的GPGPU收集的信息。在运行**nlpcaNM_GPU32**并将**CUDA_PROFILE**设置为1后，检查*cuda_profile_0.log*的内容，可以看到这确实是原始的分析器输出。仅查看前几行，可以看到应用程序启动后，从主机到设备发生了多个数据传输，我们可以推测这些是训练集、参数和其他信息移动到GPGPU的过程。在[示例3.5](#tb0030)中突出显示了一个报告的*occupancy*值，这是GPU线程级并行化（TLP）的度量。高的occupancy通常是好的，但高的应用程序性能也可以通过低occupancy的应用程序实现，这些应用程序通过高指令级并行性（ILP）来提高性能。要理解occupancy，您需要了解下一章中讨论的GPU硬件和执行模型的一些基础知识。`#
+    CUDA_PROFILE_LOG_VERSION 2.0``# CUDA_DEVICE 0 Tesla C2070``# TIMESTAMPFACTOR fffff6faa0f3f368``method,gputime,cputime,occupancy``method=[
+    memcpyHtoD ] gputime=[ 1752.224 ] cputime=[ 1873.000 ]``method=[ memcpyDtoD ]
+    gputime=[ 179.296 ] cputime=[ 20.000 ]``method=[ _ZN6thrust6detail6device4cuda6detail23launch_closure_by_valueINS2_18for_each_n_closureINS_10device_ptrIyEEjNS0_16generate_functorINS0_12fill_functorIyEEEEEEEEvT_
+    ] gputime=[ 5.056 ] cputime=[ 7.000 ] **occupancy=[ 0.500 ]**``method=[ _ZN6thrust6detail6device4cuda6detail23launch_closure_by_valueINS2_18for_each_n_closureINS_10device_ptrIfEEjNS0_16generate_functorINS0_12fill_functorIfEEEEEEEEvT_
+    ] gputime=[ 2.144 ] cputime=[ 5.000 ] **occupancy=[ 0.500 ]**``method=[ memcpyDtoD
+    ] gputime=[ 2.048 ] cputime=[ 5.000 ]``method=[ memcpyHtoD ] gputime=[ 1.120 ]
+    cputime=[ 5.000 ]``method=[ memcpyHtoD ] gputime=[ 1.088 ] cputime=[ 3.000 ]``method=[
+    _ZN6thrust6detail6device4cuda6detail23launch_closure_by_valueINS3_21reduce_n_smem_closureINS_18transform_iteratorIN7ObjFuncIfE9CalcErrorENS_17counting_iteratorIjNS_11use_defaultESB_
+    SB_EEfSB_EElfNS_4plusIfEEEEEEvT_ ] gputime=[ 850.144 ] cputime= [ 5.000 ] occupancy=[
+    0.625 ]``method=[ _ZN6thrust6detail6device4cuda6detail23launch_closure_by_valueINS3_21reduce_n_smem_closureINS0_15normal_iteratorINS_10device_ptrIfEEEElfNS_4plusIfEEEEEEvT_
+    ] gputime=[ 5.952 ] cputime=[ 4.000 ] occupancy=[ 0.500 ]``method=[ memcpyDtoH
+    ] gputime=[ 1.952 ] cputime=[ 856.000 ]``method=[ memcpyHtoD ] gputime=[ 1.120
+    ] cputime=[ 4.000 ]``method=[ memcpyHtoD ] gputime=[ 1.088 ] cputime=[ 4.000 ]``...
+- en: 'Gprof: A Common UNIX Profiler'
+  id: totrans-30
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: Gprof：一个常用的 UNIX 性能分析工具
+- en: 'To gain insight into host side performance, a CUDA application can be compiled
+    with the **-****profile** command-line option as seen in the **nvcc** command
+    in [Example 3.6](#tb0035):`nvcc --profile -arch=sm_20 -O3 -Xcompiler -fopenmp
+    nlpcaNM.cu`The Linux **gprof** profiler can then be used to examine the host-side
+    behavior. The following output shows that the Nelder-Mead optimization method
+    **nelmin (**highlighted in the following example), consumed only 10.79% of the
+    runtime. The next largest consumer of host-only time is the allocation of the
+    four STL (Standard Template library) vectors in **nelmin()** aside from two host-side
+    methods supporting thrust on the GPU. Gprof reports that **nelmin()** is only
+    called once, allowing us to conclude that the Nelder-Mead optimization code does
+    not make significant demands on the host processor. See [Example 3.7](#tb0040),
+    “Example gprof Output”:`Flat profile:``Each sample counts as 0.01 seconds.``%cumulativeselfselftotal``timesecondssecondscallss/calls/callname``**10.790.220.2210.221.08void
+    nelmin <float>(float (*)(float*), int, float*, float*, float*, float, float*,
+    int, int, int*, int*, int*)**``9.800.420.20105088800.000.00unsigned long thrust::detail::util::divide_ri<unsigned
+    long, unsigned long>(unsigned long, unsigned long)``8.330.590.1735029600.000.00thrust::
+    detail::device::cuda::arch::max_active_blocks_per_multiprocessor(cudaDeviceProp
+    const&, cudaFuncAttributes const&, unsigned long, unsigned long)``4.410.680.09120011440.000.00void
+    thrust::advance<thrust::detail::normal_iterator<float*>, unsigned long>(thrust::detail::normal_iterator<float*>&,
+    unsigned long)``3.920.760.08697305620.000.00std:: vector<float, std::allocator<float>
+    >::operator[](unsigned long)``...`The combined output of both the CUDA profiler
+    and **gprof** demonstrate that the optimization functor dominates the runtime
+    of this application. Although much useful information can be gathered with **gprof**
+    and the CUDA profiler, it still takes considerable work and some guesswork to
+    extract and analyze the information.More information about can be found in the
+    **gprof** manual. The NVIDIA documentation on the visual profiler is an excellent
+    source of information about the low-level CUDA profiler.'
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '为了深入了解主机端性能，可以使用**-****profile**命令行选项编译CUDA应用程序，如[示例3.6](#tb0035)中所示的**nvcc**命令：`nvcc
+    --profile -arch=sm_20 -O3 -Xcompiler -fopenmp nlpcaNM.cu`。然后可以使用Linux的**gprof**分析器来检查主机端的行为。以下输出显示，Nelder-Mead优化方法**nelmin**（在下一个示例中突出显示）仅消耗了10.79%的运行时间。下一个占用主机端时间最多的操作是为**nelmin()**分配四个STL（标准模板库）向量，除了两个支持GPU上thrust的主机端方法。Gprof报告显示**nelmin()**只被调用一次，这使我们得出结论：Nelder-Mead优化代码对主机处理器的需求并不大。参见[示例3.7](#tb0040)，“gprof输出示例”：`Flat
+    profile:``每个样本计为0.01秒。``%cumulativeselfselftotal``timesecondssecondscallss/calls/callname``**10.790.220.2210.221.08void
+    nelmin <float>(float (*)(float*), int, float*, float*, float*, float, float*,
+    int, int, int*, int*, int*)**``9.800.420.20105088800.000.00unsigned long thrust::detail::util::divide_ri<unsigned
+    long, unsigned long>(unsigned long, unsigned long)``8.330.590.1735029600.000.00thrust::
+    detail::device::cuda::arch::max_active_blocks_per_multiprocessor(cudaDeviceProp
+    const&, cudaFuncAttributes const&, unsigned long, unsigned long)``4.410.680.09120011440.000.00void
+    thrust::advance<thrust::detail::normal_iterator<float*>, unsigned long>(thrust::detail::normal_iterator<float*>&,
+    unsigned long)``3.920.760.08697305620.000.00std:: vector<float, std::allocator<float>
+    >::operator[](unsigned long)``...`CUDA分析器和**gprof**的联合输出表明，优化函数占据了此应用程序的运行时间。虽然可以通过**gprof**和CUDA分析器收集大量有用的信息，但提取和分析这些信息仍然需要相当的工作量和一些猜测。更多信息可以参考**gprof**手册。NVIDIA关于可视化分析器的文档是了解低级CUDA分析器的极好信息来源。'
+- en: 'The NVIDIA Visual Profiler: Computeprof'
+  id: totrans-32
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: NVIDIA视觉分析器：Computeprof
+- en: NVIDIA provides the visual profiler **computeprof** for UNIX, Windows, and Mac
+    to collect and analyze the low-level GPU profiler output for the user. As with
+    the low-level profiler, the application does not need to be compiled with any
+    special flags. By default, the visual profiler runs the application 15 times for
+    30 seconds per run to gather an ensemble of measurements.The visual profiler is
+    simple to use:■ Launch the CUDA visual profiler using the **computeprof** command.■
+    In the dialog that comes up, press the “Profile application” button in the “Session”
+    pane.■ In the next dialog that comes up, type in the full path to your compiled
+    CUDA program in the “Launch” text area.■ Provide any arguments to your program
+    in the “Arguments” text area. Leave this blank if your code doesn't take any arguments.■
+    Make sure the “Enable profiling at application launch” and “CUDA API Trace” settings
+    are checked.■ Press the “Launch” button at the bottom of the dialog to begin profiling.[Table
+    3.1](#t0010) shows the information presented by default on the visual profiler
+    summary screen after profiling the binary for *nlpcaNM.cu*.
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: NVIDIA为UNIX、Windows和Mac提供了视觉分析器**computeprof**，用于收集和分析低级GPU分析器的输出。与低级分析器一样，应用程序无需使用任何特殊标志进行编译。默认情况下，视觉分析器会将应用程序运行15次，每次运行30秒，以收集一系列的测量结果。视觉分析器使用简单：■
+    使用**computeprof**命令启动CUDA视觉分析器。■ 在弹出的对话框中，点击“Profile application”按钮，位于“Session”窗格中。■
+    在下一个弹出的对话框中，在“Launch”文本框中输入已编译CUDA程序的完整路径。■ 在“Arguments”文本框中提供程序的任何参数。如果代码没有参数，可以保持空白。■
+    确保勾选了“Enable profiling at application launch”和“CUDA API Trace”设置。■ 点击对话框底部的“Launch”按钮开始分析。[表
+    3.1](#t0010)展示了默认情况下，在对*nlpcaNM.cu*二进制文件进行分析后的视觉分析器摘要屏幕上呈现的信息。
+- en: '**Table 3.1** Output Summary from the Visual Profiler on the nlpcaNM.cu Binary'
+  id: totrans-34
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**表 3.1** 来自视觉分析器的nlpcaNM.cu二进制文件输出摘要'
+- en: '| Method | #Calls | GPU Time (us) | CPU Time (us) | %GPU Time | Glob Mem Read
+    Throughput | Glob Mem Write Throughput | IPC | l1 Gld Hit Rate % |'
+  id: totrans-35
+  prefs: []
+  type: TYPE_TB
+  zh: '| Method | #Calls | GPU Time (us) | CPU Time (us) | %GPU Time | Glob Mem Read
+    Throughput | Glob Mem Write Throughput | IPC | l1 Gld Hit Rate % |'
+- en: '| launch_closure_by_value-2 | 58 | 49919.4 | 50240.4 | 83.86 | 10.6109 | 0.10275
+    | 1.77138 | 94.4175 |'
+  id: totrans-36
+  prefs: []
+  type: TYPE_TB
+  zh: '| launch_closure_by_value-2 | 58 | 49919.4 | 50240.4 | 83.86 | 10.6109 | 0.10275
+    | 1.77138 | 94.4175 |'
+- en: '| launch_closure_by_value-3 | 57 | 325.248 | 572.552 | 0.54 | 33.4966 | 12.1854
+    | 0.658475 | 0 |'
+  id: totrans-37
+  prefs: []
+  type: TYPE_TB
+  zh: '| launch_closure_by_value-3 | 57 | 325.248 | 572.552 | 0.54 | 33.4966 | 12.1854
+    | 0.658475 | 0 |'
+- en: '| launch_closure_by_value-0 | 1 | 5.312 | 8 | 0 | 27.3012 | 0.0783133 | 0.240059
+    | 0 |'
+  id: totrans-38
+  prefs: []
+  type: TYPE_TB
+  zh: '| launch_closure_by_value-0 | 1 | 5.312 | 8 | 0 | 27.3012 | 0.0783133 | 0.240059
+    | 0 |'
+- en: '| launch_closure_by_value-1 | 1 | 2.144 | 6 | 0 | 64.3582 | 0.134328 | 0.541946
+    | 0 |'
+  id: totrans-39
+  prefs: []
+  type: TYPE_TB
+  zh: '| launch_closure_by_value-1 | 1 | 2.144 | 6 | 0 | 64.3582 | 0.134328 | 0.541946
+    | 0 |'
+- en: '| memcpyHtoD | 117 | 1897.09 | 2406 | 3.18 |  |  |  |  |'
+  id: totrans-40
+  prefs: []
+  type: TYPE_TB
+  zh: '| memcpyHtoD | 117 | 1897.09 | 2406 | 3.18 |  |  |  |  |'
+- en: '| memcpyDtoD | 2 | 181.792 | 208.744 | 0.3 |  |  |  |  |'
+  id: totrans-41
+  prefs: []
+  type: TYPE_TB
+  zh: '| memcpyDtoD | 2 | 181.792 | 208.744 | 0.3 |  |  |  |  |'
+- en: '| memcpyDtoH | 57 | 88.896 | 48717 | 0.14 |  |  |  |  |'
+  id: totrans-42
+  prefs: []
+  type: TYPE_TB
+  zh: '| memcpyDtoH | 57 | 88.896 | 48717 | 0.14 |  |  |  |  |'
+- en: 'Thrust generates some obscure names, but we can infer that **launch_closure_by_value-2**
+    is **transform_reduce** performing a transform with the **CalcError** functor.
+    The **launch_closure_by_value-3** method is the following reduction operation.
+    The number of transform and reduce operations should be the same. We can infer
+    that the different number of calls in the report (58 vs. 57) was caused by termination
+    of the application by the visual profiler after 30 seconds of runtime.According
+    to the three rules of efficient GPGPU programming introduced in [Chapter 1](B978012388426800001X.xhtml#B978-0-12-388426-8.00001-X),
+    [Table 3.1](#t0010) shows that our application is very efficient:1\. Get the data
+    on the GPGPU and keep it there.This application is not limited by PCIe bus speed,
+    as less than 4% of the runtime is consumed by the combined data transfer operations
+    (**memcpyHtoD()**, **memcpyDtoD()**, and **memcpyDtoH()**).2\. Give the GPGPU
+    enough work to do.This application is not bound by kernel startup legacy, as the
+    dominant method consumes 83.38% of the runtime and takes an average 49,919 microseconds
+    to complete—far beyond the nominal kernel startup time of four microseconds.3\.
+    Focus on data reuse within the GPGPU to avoid memory bandwidth limitations.The
+    runtime is dominated by a method that has an instructions per clock count (IPC)
+    of 1.77, which is close to the peak theoretical limit of two instructions per
+    clock for a 20-series Fermi GPGPU like the C2070\. Further, this kernel is not
+    limited by memory bandwidth, as the global memory bandwidth usage of 10.63 GB/s
+    is less than 10% of the 143 GB/s the C2070 memory subsystem can provide. Further
+    the l1 gld (Global Load) hit rate shows that the cache is being utilized effectively
+    94% of the time.The visual profiler will automatically perform much of the preceding
+    analysis for the user by clicking on a method name in the *Method* field. The
+    report in [Example 3.8](#tb0045), “Visual Profiler Kernel Analysis,” was generated
+    after clicking on *launch_closure_by_value-2*:`Analysis for kernel launch_closure_by_value-2
+    on device Tesla C2070``Summary profiling information for the kernel:``Number of
+    calls:58``Minimum GPU time(us):794.37``Maximum GPU time(us):951.78``Average GPU
+    time(us):860.68``GPU time (%):83.86``Grid size:[1411]``Block size:[96011]``Limiting
+    Factor``Achieved Instruction Per Byte Ratio:45.92 ( Balanced Instruction Per Byte
+    Ratio: 3.58 )``Achieved Occupancy:0.63 ( Theoretical Occupancy: 0.62 )``IPC:1.77
+    ( Maximum IPC: 2 )``Achieved global memory throughput:10.71 ( Peak global memory
+    throughput(GB/s): 143.42 )``Hint(s)``The achieved instructions per byte ratio
+    for the kernel is greater than the balanced instruction per byte ratio for the
+    device. Hence, the kernel is likely compute bound. For details, click on Instruction
+    Throughput Analysis.`Clicking the “Instruction Throughput Analysis*”* button shows
+    that this kernel is indeed achieving a very high instruction throughput. There
+    is some branching in the kernel that most likely happens inside the **tanh()**
+    function, which suggests using another sigmoidal function to increase performance.
+    See [Example 3.9](#tb0050), “Visual Profiler Instruction Analysis”:`IPC: 1.77``Maximum
+    IPC: 2``Divergent branches(%): 13.47``Control flow divergence(%): 12.62``Replayed
+    Instructions(%): 1.08``Global memory replay(%): 0.55``Local memory replays(%):
+    0.00``Shared bank conflict replay(%): 0.00``Shared memory bank conflict per shared
+    memory instruction(%): 0.00`The NVIDIA visual profiler (**computeprof**) collects
+    and provides a wealth of additional information and analysis not discussed here.
+    The Visual Profiler manual is an excellent source of information, [¹](#fn0010)
+    as is the help tab on the startup screen. Just type **computeprof** and click
+    on *help* in the GUI. Later chapters will reference important **computeprof**
+    profiler measurements to aid in the understanding and interpretation of GPU performance.
+    Because the Visual Profiler runs on all CUDA-enabled operating systems (Windows,
+    UNIX, and Mac OS X), these discussions should benefit all readers.¹Downloadable
+    along with CUDA at [http://developer.nvidia.com/cuda-downloads](http://developer.nvidia.com/cuda-downloads).'
+  id: totrans-43
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 'Thrust生成了一些模糊的名称，但我们可以推测**launch_closure_by_value-2**是**transform_reduce**，使用**CalcError**功能进行转换。**launch_closure_by_value-3**方法是后续的归约操作。转换和归约操作的次数应该是相同的。我们可以推测报告中调用次数的不同（58与57）是由于视觉分析器在应用程序运行30秒后终止所导致的。根据[第1章](B978012388426800001X.xhtml#B978-0-12-388426-8.00001-X)中介绍的高效GPGPU编程三大规则，[表3.1](#t0010)显示我们的应用程序非常高效：1\.
+    将数据加载到GPGPU并保持在那里。此应用程序不受PCIe总线速度的限制，因为在运行时，少于4%的时间被数据传输操作（**memcpyHtoD()**，**memcpyDtoD()**，和**memcpyDtoH()**）消耗掉。2\.
+    给GPGPU足够的工作量。此应用程序不受内核启动遗留问题的影响，因为主方法消耗了83.38%的运行时间，并且平均完成时间为49,919微秒—远超内核启动的标称时间四微秒。3\.
+    聚焦于GPGPU内的数据重用，以避免内存带宽限制。运行时间由一个方法主导，该方法的每时钟指令数（IPC）为1.77，接近于20系列Fermi GPGPU（如C2070）的理论最大每时钟两条指令的极限。此外，该内核不受内存带宽的限制，因为全球内存带宽使用量为10.63
+    GB/s，仅占C2070内存子系统143 GB/s最大带宽的不到10%。另外，L1全局加载（Global Load）命中率表明缓存被有效地利用，命中率为94%。视觉分析器通过点击*方法*字段中的方法名称，自动执行上述分析。点击*launch_closure_by_value-2*后生成的报告如[示例3.8](#tb0045)中所示，“视觉分析器内核分析”：“内核launch_closure_by_value-2在Tesla
+    C2070上的分析”：  '
+- en: Parallel Nsight for Microsoft Visual Studio
+  id: totrans-44
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: Parallel Nsight for Microsoft Visual Studio
+- en: Parallel Nsight is the debugging and analysis tool that NVIDIA provides for
+    Microsoft developers; it installs as a plug-in within Microsoft Visual Studio.
+    Parallel Nsight allows both debugging and analysis on the machine as well as on
+    remote machines, which can be located at a customer's site. Be aware that the
+    capabilities of Parallel Nsight vary with the hardware configuration, as can be
+    seen in [Table 3.2](#t0015).
+  id: totrans-45
+  prefs: []
+  type: TYPE_NORMAL
+  zh: Parallel Nsight是NVIDIA为微软开发者提供的调试和分析工具，它作为插件安装在Microsoft Visual Studio中。Parallel
+    Nsight不仅支持本地机器的调试和分析，也支持远程机器的调试，远程机器可以位于客户现场。需要注意的是，Parallel Nsight的功能会根据硬件配置有所不同，具体可以参见[表格3.2](#t0015)。
+- en: '**Table 3.2** Parallel Nsight Capabilities According to Machine Configuration'
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '**表格3.2** Parallel Nsight根据机器配置的功能'
+- en: '| Hardware Configuration | Single-GPU System | Dual-GPU System | Two Systems,
+    Each with a GPU | Dual-GPU System SLI MultiOS |'
+  id: totrans-47
+  prefs: []
+  type: TYPE_TB
+  zh: '| 硬件配置 | 单GPU系统 | 双GPU系统 | 每个系统一个GPU | 双GPU系统SLI多操作系统 |'
+- en: '| CUDA C/C++ Parallel Debugger |  | ☑ | ☑ | ☑ |'
+  id: totrans-48
+  prefs: []
+  type: TYPE_TB
+  zh: '| CUDA C/C++并行调试器 |  | ☑ | ☑ | ☑ |'
+- en: '| Direct3D Shader Debugger |  |  | ☑ | ☑ |'
+  id: totrans-49
+  prefs: []
+  type: TYPE_TB
+  zh: '| Direct3D着色器调试器 |  |  | ☑ | ☑ |'
+- en: '| Direct3D Graphics Inspector | ☑ | ☑ | ☑ | ☑ |'
+  id: totrans-50
+  prefs: []
+  type: TYPE_TB
+  zh: '| Direct3D图形检查器 | ☑ | ☑ | ☑ | ☑ |'
+- en: '| Analyzer | ☑ | ☑ | ☑ | ☑ |'
+  id: totrans-51
+  prefs: []
+  type: TYPE_TB
+  zh: '| 分析器 | ☑ | ☑ | ☑ | ☑ |'
+- en: The following discussion highlights only a few features of Parallel Nsight as
+    part of our analysis of *nlpcaNM.cu*. Parallel Nsight is an extensive package
+    that is growing and maturing quickly. The most current information—including videos
+    and user forums—can be found on the Parallel Nsight web portal ([http://www.nvidia.com/ParallelNsight](http://www.nvidia.com/ParallelNsight))
+    as well as in the help section in Visual Studio.
+  id: totrans-52
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 以下讨论仅突出展示了Parallel Nsight的一些功能，这是我们分析*nlpcaNM.cu*的一部分。Parallel Nsight是一个功能丰富的工具包，正在快速发展和成熟。最新的信息——包括视频和用户论坛——可以在Parallel
+    Nsight的网络门户网站上找到([http://www.nvidia.com/ParallelNsight](http://www.nvidia.com/ParallelNsight))，也可以在Visual
+    Studio的帮助部分找到。
+- en: The Nsight Timeline Analysis
+  id: totrans-53
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: Nsight时间线分析
+- en: As can be seen in Trace timeline in [Figure 3.7](#f0040), Parallel Nsight provides
+    a tremendous amount of information that is easily accessible via mouseover and
+    zooming operations, as well as various filtering operations. Given the volume
+    of information available in these traces, it is essential to know that regions
+    of the timeline can be selected by clicking the mouse on the screen at a desired
+    starting point of time. A vertical line will appear on the screen. Then press
+    the Shift key and move the mouse (with the button pressed) to the end region of
+    interest. This action will result in a gray overlay, as shown in [Figure 3.7](#f0040).
+    A nice feature is that the time interval for the region is calculated and displayed.
+  id: totrans-54
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '如[图 3.7](#f0040)中的追踪时间轴所示，Parallel Nsight 提供了大量的信息，用户可以通过鼠标悬停、缩放操作以及各种过滤操作轻松访问。鉴于这些追踪中提供的信息量，了解如何通过点击屏幕上的某个时间起点来选择时间轴区域是非常重要的。此时，屏幕上会出现一条垂直线。接着，按住
+    Shift 键并按住鼠标左键移动鼠标到感兴趣区域的结束位置。这个操作将会显示一个灰色覆盖层，如[图 3.7](#f0040)所示。一个很实用的功能是，所选区域的时间间隔会被计算并显示出来。  '
+- en: '| ![B9780123884268000033/f03-07-9780123884268.jpg is missing](B9780123884268000033/f03-07-9780123884268.jpg)
+    |'
+  id: totrans-55
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-07-9780123884268.jpg 图片丢失](B9780123884268000033/f03-07-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.7**Parallel Nsight timeline. |'
+  id: totrans-56
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.7** 并行 Nsight 时间轴。 |'
+- en: The timeline can be used to determine if the application is CPU-bound, memory-bound,
+    or kernel-bound:■ **CPU-bound:** There will be large areas where the kernel is
+    shown to be running.■ **PCIe transfer–limited:** Kernel execution is blocked while
+    waiting on memory transfers to or from the device, which can be seen by looking
+    at the Memory row. If much time is being spent waiting on memory copies, consider
+    using the Streams API to pipeline the application. This API allows data transfers
+    and kernel execution to overlap. Before modifying code, compare the duration of
+    the transfers and kernels to ensure that a performance gain will be realized.■
+    **Kernel-bound:** If the majority of the application time is spent waiting on
+    kernels to complete, then switch to the “Profile CUDA” activity and rerun the
+    application to collect information from the hardware counters. This information
+    can help guide the optimization of kernel performance.Zooming into a region of
+    the timeline view allows Parallel Nsight to provide the names of the functions
+    and methods as sufficient space becomes available in each region, which really
+    helps the readability of the traces.
+  id: totrans-57
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '时间轴可以用来判断应用程序是**CPU绑定**、**内存绑定**还是**内核绑定**：  '
+- en: The NVTX Tracing Library
+  id: totrans-58
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: NVTX 跟踪库
+- en: 'The NVTX library provides a powerful way to label sections of the computation
+    to provide an easy-to-follow link to what the actual code is doing. Annotating
+    Parallel Nsight traces can greatly help in understanding what is going on and
+    provide information that will be missed by other CUDA tracing tools.The simplest
+    two NVTX methods are:■ **nvtxRangePushA**(char*): This method pushes a string
+    on the NVTX stack that will be visible in the timeline. Nested labels are allowed
+    to annotate asynchronous events.■ **nvtxRangePop**(): Pop the topmost label off
+    the stack so that it is no longer visible on the timeline trace.The *nvToolsExt.h*
+    header file is included in those source files that use the NVTX library. In addition,
+    the 32- or 64-bit version of the nvToolsExt library must be linked with the executable.
+    The simplicity of these library calls is shown in [Example 3.10](#tb0055), “NVTX
+    Instrumented Transform_Reduce,” to annotate the **thrust::transform_reduce** call
+    in *nlpcaNM.cu*:`nvtxRangePushA("Transform Reduce");``Real sum = thrust::transform_reduce(``thrust::counting_iterator<unsigned
+    int>(0),``thrust::counting_iterator<unsigned int>(nExamples),``getError,``(Real)
+    0.,``thrust::plus<Real>());``nvtxRangePop();`[Figure 3.7](#f0040) is a screenshot
+    showing the amount of detail that is available on a timeline trace. This timeline
+    shows three **transform_reduce** operations. The middle operation has been highlighted
+    in gray to help separate the three annotated operations. The traces at the top
+    show GPU activity and API calls; the bottom traces show activity on the system
+    and related to the application on all the multiprocessor cores.Parallel Nsight
+    makes excellent use of color to help with interpretations, which is not shown
+    in this grayscale image. A large monitor is suggested when using Parallel Nsight,
+    as the timeline contains much information, including labels and scrollable, interactive
+    regions.'
+  id: totrans-59
+  prefs: []
+  type: TYPE_NORMAL
+  zh: NVTX 库提供了一种强大的方式来标记计算的各个部分，从而提供一个易于跟随的链接，帮助理解实际代码的执行情况。注解并行 Nsight 跟踪可以大大帮助理解正在发生的事情，并提供其他
+    CUDA 跟踪工具无法获得的信息。最简单的两个 NVTX 方法是：■ **nvtxRangePushA**(char*)：此方法将一个字符串推送到 NVTX
+    栈中，该字符串将在时间轴上显示。支持嵌套标签来注解异步事件。■ **nvtxRangePop**()：从栈中弹出最上面的标签，使其不再显示在时间轴跟踪中。*nvToolsExt.h*
+    头文件包含在那些使用 NVTX 库的源文件中。此外，必须将 32 位或 64 位版本的 nvToolsExt 库与可执行文件链接。这些库调用的简洁性在 [示例
+    3.10](#tb0055) 中得到了展示，示例注解了 *nlpcaNM.cu* 中的 **thrust::transform_reduce** 调用：`nvtxRangePushA("Transform
+    Reduce");``Real sum = thrust::transform_reduce(``thrust::counting_iterator<unsigned
+    int>(0),``thrust::counting_iterator<unsigned int>(nExamples),``getError,``(Real)
+    0.,``thrust::plus<Real>());``nvtxRangePop();`[图 3.7](#f0040) 是一张截图，展示了时间轴跟踪中可用的详细信息。该时间轴显示了三次
+    **transform_reduce** 操作。中间的操作已被灰色突出显示，以帮助区分三个注解的操作。顶部的跟踪显示 GPU 活动和 API 调用；底部的跟踪显示系统和所有多处理器核心上的应用相关活动。Parallel
+    Nsight 极其有效地利用颜色帮助解释，但在这张灰度图像中没有显示。当使用 Parallel Nsight 时，建议使用大屏幕显示器，因为时间轴包含大量信息，包括标签和可滚动的交互区域。
+- en: Scaling Behavior of the CUDA API
+  id: totrans-60
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: CUDA API 的扩展行为
+- en: Looking at the timeline for the NLPCA example ([Figure 3.8](#f0045)), we see
+    that the functor occupies most of the GPU runtime. For three runs—using a full-size
+    and a 10x and a 100x smaller data set—the timelines show that the repeated allocation
+    and deallocation of a small scratch region of memory for the reduction consumes
+    an ever greater percentage of the runtime. This consumption represents a scaling
+    challenge in the current CUDA 4.0 implantation. The NVTX library was used to annotate
+    the timeline.
+  id: totrans-61
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 查看 NLPCA 示例的时间轴（见[图 3.8](#f0045)），我们可以看到，函数对象占用了 GPU 运行时的大部分时间。对于三次运行—使用完整数据集、10
+    倍和 100 倍缩小的数据集—时间轴显示，重复分配和释放用于归约的小内存区域消耗了越来越多的运行时百分比。这种消耗代表了当前 CUDA 4.0 实现中的一个扩展性挑战。NVTX
+    库被用来标注时间轴。
+- en: '| ![B9780123884268000033/f03-08-9780123884268.jpg is missing](B9780123884268000033/f03-08-9780123884268.jpg)
+    |'
+  id: totrans-62
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-08-9780123884268.jpg 文件丢失](B9780123884268000033/f03-08-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.8**nlpcaNM.cu full data size. |'
+  id: totrans-63
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.8** nlpcaNM.cu 完整数据大小。 |'
+- en: Reducing the data by a factor of 10 times ([Figure 3.9](#f0050)) shows that
+    **cudaMalloc**() occupies more of the **transform_reduce** runtime.
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 将数据减少 10 倍（见[图 3.9](#f0050)）表明，**cudaMalloc**()占用了更多的**transform_reduce**运行时。
+- en: '| ![B9780123884268000033/f03-09-9780123884268.jpg is missing](B9780123884268000033/f03-09-9780123884268.jpg)
+    |'
+  id: totrans-65
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-09-9780123884268.jpg 文件丢失](B9780123884268000033/f03-09-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.9**nlpcaNM.cu 1/10 data size. |'
+  id: totrans-66
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.9** nlpcaNM.cu 1/10 数据大小。 |'
+- en: At 100 times smaller, when using 10,000 examples ([Figure 3.10](#f0055)), the
+    time to allocate and free temporary space for **transform_reduce** consumes a
+    significant amount of the runtime.
+  id: totrans-67
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在数据缩小到 100 倍时，使用 10,000 个示例（见[图 3.10](#f0055)），分配和释放**transform_reduce**临时空间消耗了大量的运行时。
+- en: '| ![B9780123884268000033/f03-10-9780123884268.jpg is missing](B9780123884268000033/f03-10-9780123884268.jpg)
+    |'
+  id: totrans-68
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-10-9780123884268.jpg 文件丢失](B9780123884268000033/f03-10-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.10**nlpcaNM.cu 10k examples. |'
+  id: totrans-69
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.10** nlpcaNM.cu 10k 示例。 |'
+- en: Even with the inefficiency of the allocation, Parallel Nsight graphically shows
+    that the NLPCA functor achieves very high efficiency, as it performs nearly two
+    operations per clock on all the multiprocessors of a C2050 ([Figure 3.11](#f0060)).
+  id: totrans-70
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 即使存在分配效率低下的问题，Parallel Nsight 图形化显示了 NLPCA 函数对象的高效性，因为它在 C2050 的所有多处理器上几乎每时钟周期执行两个操作（见[图
+    3.11](#f0060)）。
+- en: '| ![B9780123884268000033/f03-11-9780123884268.jpg is missing](B9780123884268000033/f03-11-9780123884268.jpg)
+    |'
+  id: totrans-71
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-11-9780123884268.jpg 文件丢失](B9780123884268000033/f03-11-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.11**Parallel Nsight instructions per clock for nlpcaNM.cu. |'
+  id: totrans-72
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.11** nlpcaNM.cu 每时钟周期的 Parallel Nsight 指令数。 |'
+- en: Parallel Nsight also reports that all the multiprocessors on the GPU are fully
+    utilized ([Figure 3.12](#f0065)), which rounds out the analysis that the **CalcError**
+    functor is good use of the GPU capabilities.
+  id: totrans-73
+  prefs: []
+  type: TYPE_NORMAL
+  zh: Parallel Nsight 还报告称，GPU 上的所有多处理器都已完全利用（见[图 3.12](#f0065)），这进一步证明了**CalcError**函数对象充分利用了
+    GPU 能力。
+- en: '| ![B9780123884268000033/f03-12-9780123884268.jpg is missing](B9780123884268000033/f03-12-9780123884268.jpg)
+    |'
+  id: totrans-74
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000033/f03-12-9780123884268.jpg 缺失](B9780123884268000033/f03-12-9780123884268.jpg)
+    |'
+- en: '| **Figure 3.12**Multiprocessor activity on the GPU for nlpcaNM.cu. |'
+  id: totrans-75
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 3.12** GPU 上的多处理器活动，针对 nlpcaNM.cu。 |'
+- en: Tuning and Analysis Utilities (TAU)
+  id: totrans-76
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: Tuning and Analysis Utilities (TAU)
+- en: NIVIDA is not the only provider of analysis and debugging tools for CUDA. Tuning
+    and Analysis Utilities (TAU) is a program and performance analysis tool framework
+    being developed for the Department of Energy (DOE) Office of Sciences that is
+    capable of gathering performance information through instrumentation of functions,
+    methods, basic blocks, and statements. All C++ language features are supported,
+    including templates and namespaces. TAU's profile visualization tool, **paraprof**,
+    provides graphical displays of all the performance analysis results in aggregate
+    and single node/context/thread forms. The user can quickly identify sources of
+    performance bottlenecks in the application using the GUI. In addition, TAU can
+    generate event traces that can be displayed with the Vampir, Paraver, or JumpShot
+    trace visualization tools.The paper “Parallel Performance Measurement of Heterogeneous
+    Parallel Systems with GPUs” is the latest publication about the CUDA implementation
+    ([Malony et al., 2011](B978012388426800015X.xhtml#ref91); [Malony, Biersdorff,
+    Spear, & Mayanglamba, 2010](B978012388426800015X.xhtml#ref92)). The software is
+    available for free download from the Performance Research Laboratory (PRL). [²](#fn0015)²[http://www.cs.uoregon.edu/research/tau](http://www.cs.uoregon.edu/research/tau).
+  id: totrans-77
+  prefs: []
+  type: TYPE_NORMAL
+  zh: NIVIDA 并不是唯一提供 CUDA 分析和调试工具的供应商。Tuning and Analysis Utilities (TAU) 是一个为能源部（DOE）科学办公室开发的程序和性能分析工具框架，能够通过对函数、方法、基本块和语句的插桩收集性能信息。所有
+    C++ 语言特性均受到支持，包括模板和命名空间。TAU 的性能可视化工具 **paraprof** 提供图形化显示所有性能分析结果，以聚合和单节点/上下文/线程的形式呈现。用户可以通过
+    GUI 快速识别应用中的性能瓶颈。此外，TAU 还能生成事件跟踪，并可以与 Vampir、Paraver 或 JumpShot 跟踪可视化工具一起展示。论文《利用
+    GPU 测量异构并行系统的并行性能》是关于 CUDA 实现的最新出版物（[Malony 等, 2011](B978012388426800015X.xhtml#ref91);
+    [Malony, Biersdorff, Spear, & Mayanglamba, 2010](B978012388426800015X.xhtml#ref92)）。该软件可以从性能研究实验室（PRL）免费下载。[²](#fn0015)²[http://www.cs.uoregon.edu/research/tau](http://www.cs.uoregon.edu/research/tau)。
+- en: Summary
+  id: totrans-78
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 摘要
+- en: With this accessible computational power, many past supercomputing techniques
+    are now available for everyone to use—even on a laptop. In the 2006 paper “Reducing
+    the Dimensionality of Data with Neural Networks,” Hinton and Salakhutdinov noted:It
+    has been obvious since the 1980s that backpropagation through deep autoencoders
+    would be very effective for nonlinear dimensionality reduction, provided that
+    computers were fast enough, data sets were big enough, and the initial weights
+    were close enough to a good solution. All three conditions are now satisfied.
+    ([Hinton & Salakhutdinov, 2006](B978012388426800015X.xhtml#ref63), p. 506)The
+    techniques discussed in this chapter, including autoencoders, can be applied to
+    a host of data fitting, data analysis, dimension reduction, vision, and classification
+    problems. Conveniently, they are able to scale from laptops to the largest supercomputers
+    in the world.As this chapter showed, achieving high performance inside a functor
+    does not guarantee good performance across all problem sizes. Sometimes the bottlenecks
+    that limit performance are as subtle as the dynamic memory allocation of temporary
+    space, as identified in the **thrust::transform_reduce** method.Without being
+    able to see what the GPU is doing, performance monitoring is guesswork. Having
+    the right performance analysis tool is key to finding performance limitations.
+    For this reason, the CUDA tool suite contains a number of common profiling and
+    debugging tools that have been adapted to GPU computing. These are tools that
+    Windows, UNIX, and Max developers are already comfortable with. Although each
+    tool has both strengths and weaknesses, they all provide a useful view into GPU
+    performance while requiring only a minimal learning investment. In this way, CUDA
+    offers a smooth transition to massively parallel GPU programming.
+  id: totrans-79
+  prefs: []
+  type: TYPE_NORMAL

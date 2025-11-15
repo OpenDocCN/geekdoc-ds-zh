@@ -1,0 +1,887 @@
+- en: '**Chapter 9 Atomics**'
+  id: totrans-0
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: '**第9章 原子操作**'
+- en: In the first half of the book, we saw many occasions where something complicated
+    to accomplish with a single-threaded application becomes quite easy when implemented
+    using CUDA C. For example, thanks to the behind-the-scenes work of the CUDA runtime,
+    we no longer needed `for()` loops in order to do per-pixel updates in our animations
+    or heat simulations. Likewise, thousands of parallel blocks and threads get created
+    and automatically enumerated with thread and block indices simply by calling a
+    `__global__` function from host code.
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本书的前半部分，我们看到很多情况下，用单线程应用程序实现的复杂任务，在使用 CUDA C 实现时变得非常简单。例如，得益于 CUDA 运行时的后台工作，我们不再需要使用
+    `for()` 循环来进行动画或热模拟中的逐像素更新。同样，成千上万的并行块和线程被创建，并通过调用来自主机代码的 `__global__` 函数自动枚举线程和块索引。
+- en: On the other hand, there are some situations where something incredibly simple
+    in single-threaded applications actually presents a serious problem when we try
+    to implement the same algorithm on a massively parallel architecture. In this
+    chapter, we’ll take a look at some of the situations where we need to use special
+    primitives in order to safely accomplish things that can be quite trivial to do
+    in a traditional, single-threaded application.
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 另一方面，也有一些情况，在单线程应用程序中非常简单的操作，在我们尝试在大规模并行架构上实现同一算法时，实际上会变成一个严重的问题。在本章中，我们将看看一些需要使用特殊原语来安全地完成的情况，这些原语在传统的单线程应用程序中可以非常轻松地完成。
+- en: '**9.1 Chapter Objectives**'
+  id: totrans-3
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**9.1 本章目标**'
+- en: 'Through the course of this chapter, you will accomplish the following:'
+  id: totrans-4
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，你将完成以下任务：
+- en: • You will learn about the *compute capability* of various NVIDIA GPUs.
+  id: totrans-5
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将了解各种 NVIDIA GPU 的 *计算能力*。
+- en: • You will learn about what atomic operations are and why you might need them.
+  id: totrans-6
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将了解什么是原子操作，以及为什么你可能需要它们。
+- en: • You will learn how to perform arithmetic with atomic operations in your CUDA
+    C kernels.
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将学习如何在 CUDA C 核心中使用原子操作进行算术运算。
+- en: '**9.2 Compute Capability**'
+  id: totrans-8
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**9.2 计算能力**'
+- en: All of the topics we have covered to this point involve capabilities that every
+    CUDA-enabled GPU possesses. For example, every GPU built on the CUDA Architecture
+    can launch kernels, access global memory, and read from constant and texture memories.
+    But just like different models of CPUs have varying capabilities and instruction
+    sets (for example, MMX, SSE, or SSE2), so too do CUDA-enabled graphics processors.
+    NVIDIA refers to the supported features of a GPU as its *compute capability*.
+  id: totrans-9
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 目前为止我们讨论的所有主题涉及的是每个 CUDA 启用的 GPU 都具备的能力。例如，所有基于 CUDA 架构的 GPU 都可以启动内核，访问全局内存，并从常量和纹理内存中读取数据。但就像不同型号的
+    CPU 具有不同的能力和指令集（例如，MMX、SSE 或 SSE2），CUDA 启用的图形处理器也是如此。NVIDIA 将 GPU 支持的功能称为其 *计算能力*。
+- en: '**9.2.1 The Compute Capability of NVIDIA GPUs**'
+  id: totrans-10
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**9.2.1 NVIDIA GPU 的计算能力**'
+- en: As of press time, NVIDIA GPUs could potentially support compute capabilities
+    1.0, 1.1, 1.2, 1.3, or 2.0\. Higher-capability versions represent supersets of
+    the versions below them, implementing a “layered onion” or “Russian nesting doll”
+    hierarchy (depending on your metaphorical preference). For example, a GPU with
+    compute capability 1.2 supports all the features of compute capabilities 1.0 and
+    1.1\. The *NVIDIA CUDA Programming Guide* contains an up-to-date list of all CUDA-capable
+    GPUs and their corresponding compute capability. [Table 9.1](ch09.html#ch09tab01)
+    lists the NVIDIA GPUs available at press time. The compute capability supported
+    by each GPU is listed next to the device’s name.
+  id: totrans-11
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 截至目前，NVIDIA GPU 可能支持计算能力 1.0、1.1、1.2、1.3 或 2.0。更高的计算能力版本表示包含以下版本的超集，实现了一种“分层洋葱”或“俄罗斯套娃”层次结构（具体取决于你偏好的隐喻）。例如，计算能力为
+    1.2 的 GPU 支持计算能力 1.0 和 1.1 的所有特性。*NVIDIA CUDA 编程指南*包含了所有支持 CUDA 的 GPU 及其相应计算能力的最新列表。[表
+    9.1](ch09.html#ch09tab01)列出了截至目前的 NVIDIA GPU。每个 GPU 支持的计算能力会列在设备名称旁边。
+- en: '***Table 9.1*** Selected CUDA-Enabled GPUs and Their Corresponding Compute
+    Capabilities'
+  id: totrans-12
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***表 9.1*** 选定的 CUDA 启用 GPU 及其对应的计算能力'
+- en: '![image](graphics/t0165-01.jpg)'
+  id: totrans-13
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/t0165-01.jpg)'
+- en: '![image](graphics/t0165-02.jpg)'
+  id: totrans-14
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/t0165-02.jpg)'
+- en: '![image](graphics/t0166-01.jpg)'
+  id: totrans-15
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/t0166-01.jpg)'
+- en: Of course, since NVIDIA releases new graphics processors all the time, this
+    table will undoubtedly be out-of-date the moment this book is published. Fortunately,
+    NVIDIA has a website, and on this website you will find the CUDA Zone. Among other
+    things, the CUDA Zone is home to the most up-to-date list of supported CUDA devices.
+    We recommend that you consult this list before doing anything drastic as a result
+    of being unable to find your new GPU in [Table 9.1](ch09.html#ch09tab01). Or you
+    can simply run the example from [Chapter 3](ch03.html#ch03) that prints the compute
+    capability of each CUDA device in the system.
+  id: totrans-16
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 当然，由于NVIDIA不断发布新的图形处理器，这张表格在本书发布的瞬间可能就已经过时了。幸运的是，NVIDIA有一个网站，在这个网站上你可以找到CUDA专区。在这个专区中，你可以找到最新的支持CUDA的设备列表。我们建议你在因找不到新GPU而考虑采取任何极端措施之前，先查阅这个列表。或者，你也可以直接运行[第3章](ch03.html#ch03)中的示例，打印出系统中每个CUDA设备的计算能力。
+- en: Because this is the chapter on atomics, of particular relevance is the hardware
+    capability to perform atomic operations on memory. Before we look at what atomic
+    operations are and why you care, you should know that atomic operations on global
+    memory are supported only on GPUs of compute capability 1.1 or higher. Furthermore,
+    atomic operations on *shared* memory require a GPU of compute capability 1.2 or
+    higher. Because of the superset nature of compute capability versions, GPUs of
+    compute capability 1.2 therefore support both shared memory atomics and global
+    memory atomics. Similarly, GPUs of compute capability 1.3 support both of these
+    as well.
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于本章讨论的是原子操作，特别相关的是执行内存上原子操作的硬件能力。在我们了解什么是原子操作以及为何关心它们之前，你应该知道，只有计算能力为1.1及以上的GPU才支持在全局内存上的原子操作。此外，*共享*内存上的原子操作需要计算能力为1.2及以上的GPU。由于计算能力版本是超集的关系，计算能力为1.2的GPU因此支持全局内存原子操作和共享内存原子操作。同样，计算能力为1.3的GPU也支持这两者。
+- en: If it turns out that your GPU is of compute capability 1.0 and it doesn’t support
+    atomic operations on global memory, well maybe we’ve just given you the perfect
+    excuse to upgrade! If you decide you’re not ready to splurge on a new atomics-enabled
+    graphics processor, you can continue to read about atomic operations and the situations
+    in which you might want to use them. But if you find it too heartbreaking that
+    you won’t be able to run the examples, feel free to skip to the next chapter.
+  id: totrans-18
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果结果显示你的GPU属于计算能力1.0且不支持全局内存上的原子操作，那么或许我们刚好给了你一个升级的完美理由！如果你决定暂时不准备为一块支持原子操作的新图形处理器大肆消费，你仍然可以继续阅读关于原子操作以及你可能想要使用它们的场景。但是，如果你发现不能运行示例让你感到太失望，随时可以跳到下一章。
+- en: '**9.2.2 Compiling for a Minimum Compute Capability**'
+  id: totrans-19
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**9.2.2 为最低计算能力编译**'
+- en: 'Suppose that we have written code that requires a certain minimum compute capability.
+    For example, imagine that you’ve finished this chapter and go off to write an
+    application that relies heavily on global memory atomics. Having studied this
+    text extensively, you know that global memory atomics require a compute capability
+    of 1.1\. To compile your code, you need to inform the compiler that the kernel
+    cannot run on hardware with a capability less than 1.1\. Moreover, in telling
+    the compiler this, you’re also giving it the freedom to make other optimizations
+    that may be available only on GPUs of compute capability 1.1 or greater. Informing
+    the compiler of this is as simple as adding a command-line option to your invocation
+    of `nvcc`:'
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 假设我们已经编写了需要某个最小计算能力的代码。例如，想象一下你已经完成了本章内容，并开始编写一个高度依赖全局内存原子操作的应用程序。经过本书的学习，你知道全局内存原子操作需要计算能力为1.1。为了编译代码，你需要告知编译器该内核不能在计算能力低于1.1的硬件上运行。此外，告知编译器这些信息也让它可以进行其他优化，这些优化可能仅在计算能力为1.1或更高的GPU上可用。告知编译器这一点非常简单，只需在调用`nvcc`时添加一个命令行选项：
+- en: nvcc -arch=sm_11
+  id: totrans-21
+  prefs: []
+  type: TYPE_NORMAL
+  zh: nvcc -arch=sm_11
+- en: 'Similarly, to build a kernel that relies on shared memory atomics, you need
+    to inform the compiler that the code requires compute capability 1.2 or greater:'
+  id: totrans-22
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 类似地，要构建一个依赖于共享内存原子操作的内核，你需要告知编译器该代码需要计算能力1.2或更高：
+- en: nvcc -arch=sm_12
+  id: totrans-23
+  prefs: []
+  type: TYPE_NORMAL
+  zh: nvcc -arch=sm_12
+- en: '**9.3 Atomic Operations Overview**'
+  id: totrans-24
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**9.3 原子操作概述**'
+- en: 'Programmers typically never need to use atomic operations when writing traditional
+    single-threaded applications. If this is the situation with you, don’t worry;
+    we plan to explain what they are and why we might need them in a multithreaded
+    application. To clarify atomic operations, we’ll look at one of the first things
+    you learned when learning C or C++, the increment operator:'
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 程序员在编写传统的单线程应用程序时通常不需要使用原子操作。如果你正是这种情况，不必担心；我们计划解释原子操作是什么，以及为什么在多线程应用程序中可能需要它们。为了澄清原子操作，我们将回顾你在学习
+    C 或 C++ 时学到的其中一项内容——递增运算符：
+- en: x++;
+  id: totrans-26
+  prefs: []
+  type: TYPE_NORMAL
+  zh: x++;
+- en: This is a single expression in standard C, and after executing this expression,
+    the value in `x` should be one greater than it was prior to executing the increment.
+    But what sequence of operations does this imply? To add one to the value of `x`,
+    we first need to know what value is currently in `x`. After reading the value
+    of `x`, we can modify it. And finally, we need to write this value back to `x`.
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这是标准 C 中的一个单一表达式，执行该表达式后，`x` 的值应该比递增操作之前多 1。但这意味着什么样的操作顺序呢？为了将 `x` 的值加 1，我们首先需要知道
+    `x` 当前的值。在读取 `x` 的值后，我们可以对其进行修改。最后，我们需要将这个值写回 `x`。
+- en: 'So the three steps in this operation are as follows:'
+  id: totrans-28
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 所以，这个操作的三个步骤如下：
+- en: 1\. Read the value in `x`.
+  id: totrans-29
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 1\. 读取 `x` 中的值。
+- en: 2\. Add 1 to the value read in step 1.
+  id: totrans-30
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 2\. 将步骤 1 中读取的值加 1。
+- en: 3\. Write the result back to `x`.
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 3\. 将结果写回 `x`。
+- en: Sometimes, this process is generally called a *read-modify-write* operation,
+    since step 2 can consist of any operation that changes the value that was read
+    from `x`.
+  id: totrans-32
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 有时，这个过程通常被称为 *读-修改-写* 操作，因为步骤 2 可以是任何更改从 `x` 读取的值的操作。
+- en: Now consider a situation where two threads need to perform this increment on
+    the value in `x`. Let’s call these threads `A` and `B`. For `A` and `B` to both
+    increment the value in `x`, both threads need to perform the three operations
+    we’ve described. Let’s suppose `x` starts with the value 7\. Ideally we would
+    like thread `A` and thread `B` to do the steps shown in [Table 9.2](ch09.html#ch09tab02).
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在考虑一种情况，其中两个线程需要递增 `x` 中的值。我们称这两个线程为 `A` 和 `B`。为了让 `A` 和 `B` 都递增 `x` 的值，两个线程都需要执行我们已经描述的三个操作。假设
+    `x` 初始值为 7。理想情况下，我们希望线程 `A` 和线程 `B` 执行[表 9.2](ch09.html#ch09tab02)中显示的步骤。
+- en: '***Table 9.2*** Two threads incrementing the value in `x`'
+  id: totrans-34
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***表 9.2*** 两个线程递增 `x` 的值'
+- en: '![image](graphics/t0169-01.jpg)'
+  id: totrans-35
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/t0169-01.jpg)'
+- en: Since `x` starts with the value 7 and gets incremented by two threads, we would
+    expect it to hold the value 9 after they’ve completed. In the previous sequence
+    of operations, this is indeed the result we obtain. Unfortunately, there are many
+    other orderings of these steps that produce the wrong value. For example, consider
+    the ordering shown in [Table 9.3](ch09.html#ch09tab03) where thread A and thread
+    B’s operations become interleaved with each other.
+  id: totrans-36
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于 `x` 初始值为 7，且由两个线程递增，我们期望在两个线程完成操作后 `x` 的值为 9。在前面的操作序列中，这确实是我们得到的结果。不幸的是，这些步骤有许多其他执行顺序，会产生错误的值。例如，考虑[表
+    9.3](ch09.html#ch09tab03)中所示的顺序，其中线程 A 和线程 B 的操作互相交替。
+- en: '***Table 9.3*** Two threads incrementing the value in `x` with interleaved
+    operations'
+  id: totrans-37
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***表 9.3*** 两个线程交替操作，递增 `x` 的值'
+- en: '![image](graphics/t0169-02.jpg)'
+  id: totrans-38
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/t0169-02.jpg)'
+- en: Therefore, if our threads get scheduled unfavorably, we end up computing the
+    wrong result. There are many other orderings for these six operations, some of
+    which produce correct results and some of which do not. When moving from a single-threaded
+    to a multithreaded version of this application, we suddenly have potential for
+    unpredictable results if multiple threads need to read or write shared values.
+  id: totrans-39
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 因此，如果我们的线程调度不利，最终会计算出错误的结果。这六个操作有许多不同的执行顺序，其中一些会产生正确的结果，而另一些则不会。当从单线程版本迁移到多线程版本时，如果多个线程需要读取或写入共享的值，我们突然就可能会得到不可预测的结果。
+- en: In the previous example, we need a way to perform the *read-modify-write* without
+    being interrupted by another thread. Or more specifically, no other thread can
+    read or write the value of `x` until we have completed our operation. Because
+    the execution of these operations cannot be broken into smaller parts by other
+    threads, we call operations that satisfy this constraint as *atomic*. CUDA C supports
+    several atomic operations that allow you to operate safely on memory, even when
+    thousands of threads are potentially competing for access.
+  id: totrans-40
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在前一个示例中，我们需要一种方式来执行 *读-修改-写* 操作，而不被其他线程打断。更具体地说，在我们完成操作之前，其他线程不能读取或写入 `x` 的值。由于这些操作的执行不能被其他线程分割成更小的部分，我们将满足这一约束的操作称为
+    *原子* 操作。CUDA C 支持多种原子操作，即使有成千上万的线程可能在争用访问内存时，也能安全地进行内存操作。
+- en: Now we’ll take a look at an example that requires the use of atomic operations
+    to compute correct results.
+  id: totrans-41
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们将通过一个示例来看看如何使用原子操作来计算正确的结果。
+- en: '**9.4 Computing Histograms**'
+  id: totrans-42
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**9.4 计算直方图**'
+- en: Oftentimes, algorithms require the computation of a *histogram* of some set
+    of data. If you haven’t had any experience with histograms in the past, that’s
+    not a big deal. Essentially, given a data set that consists of some set of elements,
+    a histogram represents a count of the frequency of each element. For example,
+    if we created a histogram of the letters in the phrase *Programming with CUDA
+    C*, we would end up with the result shown in [Figure 9.1](ch09.html#ch09fig01).
+  id: totrans-43
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通常，算法需要计算某组数据的 *直方图*。如果你以前没有接触过直方图，也不用担心。基本上，给定一个由某组元素组成的数据集，直方图表示每个元素出现的频率。例如，如果我们为短语
+    *Programming with CUDA C* 创建一个字母直方图，我们最终会得到如 [图 9.1](ch09.html#ch09fig01) 所示的结果。
+- en: '***Figure 9.1*** Letter frequency histogram built from the string *Programming
+    with CUDA C*'
+  id: totrans-44
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图 9.1*** 从字符串 *Programming with CUDA C* 构建的字母频率直方图'
+- en: '![image](graphics/ch_09_figure_9-1.jpg)'
+  id: totrans-45
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_09_figure_9-1.jpg)'
+- en: Although simple to describe and understand, computing histograms of data arises
+    surprisingly often in computer science. It’s used in algorithms for image processing,
+    data compression, computer vision, machine learning, audio encoding, and many
+    others. We will use histogram computation as the algorithm for the following code
+    examples.
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尽管描述和理解起来很简单，但在计算机科学中，计算数据的直方图却是一个相当常见的问题。它被广泛应用于图像处理、数据压缩、计算机视觉、机器学习、音频编码等算法中。我们将使用直方图计算作为以下代码示例的算法。
+- en: '**9.4.1 CPU Histogram Computation**'
+  id: totrans-47
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**9.4.1 CPU 直方图计算**'
+- en: Because the computation of a histogram may not be familiar to all readers, we’ll
+    start with an example of how to compute a histogram on the CPU. This example will
+    also serve to illustrate how computing a histogram is relatively simple in a single-threaded
+    CPU application. The application will be given some large stream of data. In an
+    actual application, the data might signify anything from pixel colors to audio
+    samples, but in our sample application, it will be a stream of randomly generated
+    bytes. We can create this random stream of bytes using a utility function we have
+    provided called `big_random_block()`. In our application, we create 100MB of random
+    data.
+  id: totrans-48
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于直方图的计算可能对所有读者来说并不熟悉，我们将从一个如何在 CPU 上计算直方图的示例开始。这个示例也将帮助说明，在单线程的 CPU 应用中，计算直方图是相对简单的。该应用程序将接收一大段数据流。在实际应用中，数据可能代表从像素颜色到音频样本的任何内容，但在我们的示例应用中，它将是一个随机生成的字节流。我们可以使用我们提供的一个名为
+    `big_random_block()` 的工具函数来创建这个随机字节流。在我们的应用中，我们创建了 100MB 的随机数据。
+- en: '![image](graphics/p0171-01.jpg)'
+  id: totrans-49
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0171-01.jpg)'
+- en: Since each random 8-bit byte can be any of 256 different values (from `0x00`
+    to `0xFF`), our histogram needs to contain 256 *bins* in order to keep track of
+    the number of times each value has been seen in the data. We create a 256-bin
+    array and initialize all the bin counts to zero.
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于每个随机的 8 位字节可以是 256 种不同的值（从 `0x00` 到 `0xFF`），我们的直方图需要包含 256 个 *桶*，以便跟踪每个值在数据中出现的次数。我们创建一个包含
+    256 个桶的数组，并将所有桶的计数初始化为零。
+- en: '![image](graphics/p0171-02.jpg)'
+  id: totrans-51
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0171-02.jpg)'
+- en: Once our histogram has been created and all the bins are initialized to zero,
+    we need to tabulate the frequency with which each value appears in the data contained
+    in `buffer[]`. The idea here is that whenever we see some value `z` in the array
+    `buffer[]`, we want to increment the value in bin `z` of our histogram. This way,
+    we’re counting the number of times we have seen an occurrence of the value `z`.
+  id: totrans-52
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一旦我们的直方图创建完成，并且所有桶都初始化为零，我们需要统计每个值在`buffer[]`中的出现频率。这里的想法是，当我们在数组`buffer[]`中看到某个值`z`时，我们希望在直方图的桶`z`中递增值。这样，我们就能统计出值`z`出现的次数。
+- en: If `buffer[i]` is the current value we are looking at, we want to increment
+    the count we have in the bin numbered `buffer[i]`. Since bin `buffer[i]` is located
+    at `histo[buffer[i]]`, we can increment the appropriate counter in a single line
+    of code.
+  id: totrans-53
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果`buffer[i]`是我们正在查看的当前值，我们希望增加在编号为`buffer[i]`的桶中的计数。由于桶`buffer[i]`位于`histo[buffer[i]]`，因此我们可以通过一行代码增加相应的计数器。
+- en: histo[buffer[i]]++;
+  id: totrans-54
+  prefs: []
+  type: TYPE_NORMAL
+  zh: histo[buffer[i]]++;
+- en: 'We do this for each element in `buffer[]` with a simple `for()` loop:'
+  id: totrans-55
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们通过一个简单的`for()`循环为`buffer[]`中的每个元素执行此操作：
+- en: '![image](graphics/p0172-01.jpg)'
+  id: totrans-56
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0172-01.jpg)'
+- en: At this point, we’ve completed our histogram of the input data. In a full application,
+    this histogram might be the input to the next step of computation. In our simple
+    example, however, this is all we care to compute, so we end the application by
+    verifying that all the bins of our histogram sum to the expected value.
+  id: totrans-57
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到此为止，我们已经完成了输入数据的直方图计算。在完整的应用程序中，这个直方图可能是下一步计算的输入。然而，在我们的简单示例中，这就是我们要计算的全部内容，所以我们通过验证所有桶的总和是否符合预期值来结束应用程序。
+- en: '![image](graphics/p0172-02.jpg)'
+  id: totrans-58
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0172-02.jpg)'
+- en: If you’ve followed closely, you will realize that this sum will always be the
+    same, regardless of the random input array. Each bin counts the number of times
+    we have seen the corresponding data element, so the sum of all of these bins should
+    be the total number of data elements we’ve examined. In our case, this will be
+    the value `SIZE`.
+  id: totrans-59
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你仔细观察，你会发现这个总和总是相同的，无论输入数组是什么样的随机数据。每个桶都统计了我们看到相应数据元素的次数，因此这些桶的总和应该是我们检查过的所有数据元素的总数。在我们的例子中，这个总和就是`SIZE`的值。
+- en: And needless to say (but we will anyway), we clean up after ourselves and return.
+  id: totrans-60
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 不用多说（但我们还是要说），我们会在操作完成后清理干净，并返回。
+- en: '![image](graphics/p0172-03.jpg)'
+  id: totrans-61
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0172-03.jpg)'
+- en: On our benchmark machine, a Core 2 Duo, the histogram of this 100MB array of
+    data can be constructed in 0.416 seconds. This will provide a baseline performance
+    for the GPU version we intend to write.
+  id: totrans-62
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们的基准机器上，一个Core 2 Duo处理器，这个100MB的数据数组的直方图可以在0.416秒内构建完成。这将为我们打算编写的GPU版本提供一个基准性能。
+- en: '**9.4.2 GPU Histogram Computation**'
+  id: totrans-63
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**9.4.2 GPU 直方图计算**'
+- en: 'We would like to adapt the histogram computation example to run on the GPU.
+    If our input array is large enough, it might save a considerable amount of time
+    to have different threads examining different parts of the buffer. Having different
+    threads read different parts of the input should be easy enough. After all, it’s
+    very similar to things we have seen so far. The problem with computing a histogram
+    from the input data arises from the fact that multiple threads may want to increment
+    the same bin of the output histogram at the same time. In this situation, we will
+    need to use atomic increments to avoid a situation like the one described in [Section
+    9.3](ch09.html#ch09lev3): Atomic Operations Overview.'
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们希望将直方图计算示例适配到GPU上运行。如果我们的输入数组足够大，那么让不同的线程处理缓冲区的不同部分可能会节省大量时间。让不同的线程读取输入的不同部分应该足够简单。毕竟，这与我们迄今为止所看到的内容非常相似。问题在于，从输入数据计算直方图时，多个线程可能会同时想要递增输出直方图的同一个桶。在这种情况下，我们需要使用原子递增来避免出现[第9.3节](ch09.html#ch09lev3)中描述的情况：原子操作概述。
+- en: 'Our `main()` routine looks very similar to the CPU version, although we will
+    need to add some of the CUDA C plumbing in order to get input to the GPU and results
+    from the GPU. However, we start exactly as we did on the CPU:'
+  id: totrans-65
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的`main()`例程与CPU版本非常相似，尽管我们需要添加一些CUDA C的代码来将输入传递到GPU，并从GPU获取结果。然而，我们的开始方式和在CPU上完全一样：
+- en: '![image](graphics/p0173-01.jpg)'
+  id: totrans-66
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0173-01.jpg)'
+- en: We will be interested in measuring how our code performs, so we initialize events
+    for timing exactly like we always have.
+  id: totrans-67
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们将关注如何测量代码的执行性能，因此我们像往常一样初始化事件来精确计时。
+- en: '![image](graphics/p0173-02.jpg)'
+  id: totrans-68
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0173-02.jpg)'
+- en: After setting up our input data and events, we look to GPU memory. We will need
+    to allocate space for our random input data and our output histogram. After allocating
+    the input buffer, we copy the array we generated with `big_random_block()` to
+    the GPU. Likewise, after allocating the histogram, we initialize it to zero just
+    like we did in the CPU version.
+  id: totrans-69
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在设置好输入数据和事件后，我们开始查看GPU内存。我们需要为随机输入数据和输出直方图分配空间。在分配输入缓冲区后，我们将使用`big_random_block()`生成的数组复制到GPU。同样，在分配完直方图后，我们像在CPU版本中一样将其初始化为零。
+- en: '![image](graphics/p0174-01.jpg)'
+  id: totrans-70
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0174-01.jpg)'
+- en: You may notice that we slipped in a new CUDA runtime function, `cudaMemset()`.
+    This function has a similar signature to the standard C function `memset()`, and
+    the two functions behave nearly identically. The difference in signature between
+    these functions is that `cudaMemset()` returns an error code while the C library
+    function `memset()` does not. This error code will inform the caller whether anything
+    bad happened while attempting to set GPU memory. Aside from the error code return,
+    the only difference is that `cudaMemset()` operates on GPU memory while `memset()`
+    operates on host memory.
+  id: totrans-71
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你可能注意到我们引入了一个新的CUDA运行时函数`cudaMemset()`。该函数的签名与标准C函数`memset()`类似，且这两个函数的行为几乎相同。这两个函数的签名区别在于，`cudaMemset()`会返回一个错误码，而C库函数`memset()`则不会。这个错误码会告知调用者在设置GPU内存时是否发生了错误。除了返回错误码外，唯一的区别是，`cudaMemset()`作用于GPU内存，而`memset()`作用于主机内存。
+- en: After initializing the input and output buffers, we are ready to compute our
+    histogram. You will see how we prepare and launch the histogram kernel momentarily.
+    For the time being, assume that we have computed the histogram on the GPU. After
+    finishing, we need to copy the histogram back to the CPU, so we allocate a 256-entry
+    array and perform a copy from device to host.
+  id: totrans-72
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在初始化输入和输出缓冲区之后，我们准备开始计算直方图。稍后你将看到我们如何准备并启动直方图内核。目前，假设我们已经在GPU上计算好了直方图。完成后，我们需要将直方图复制回CPU，因此我们分配了一个256项的数组，并执行从设备到主机的复制操作。
+- en: '![image](graphics/p0174-02.jpg)'
+  id: totrans-73
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0174-02.jpg)'
+- en: At this point, we are done with the histogram computation so we can stop our
+    timers and display the elapsed time. Just like the previous event code, this is
+    identical to the timing code we’ve used for several chapters.
+  id: totrans-74
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到此为止，我们完成了直方图的计算，因此可以停止计时器并显示经过的时间。就像之前的事件代码一样，这与我们在几个章节中使用的计时代码相同。
+- en: '![image](graphics/p0175-01.jpg)'
+  id: totrans-75
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0175-01.jpg)'
+- en: 'At this point, we could pass the histogram as input to another stage in the
+    algorithm, but since we are not using the histogram for anything else, we will
+    simply verify that the computed GPU histogram matches what we get on the CPU.
+    First, we verify that the histogram sum matches what we expect. This is identical
+    to the CPU code shown here:'
+  id: totrans-76
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 到此为止，我们可以将直方图作为输入传递给算法的另一个阶段，但由于我们不会将直方图用于其他目的，我们将简单地验证计算出来的GPU直方图是否与CPU得到的结果匹配。首先，我们验证直方图的总和是否符合预期。这与这里显示的CPU代码完全相同：
+- en: '![image](graphics/p0175-02.jpg)'
+  id: totrans-77
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0175-02.jpg)'
+- en: 'To fully verify the GPU histogram, though, we will use the CPU to compute the
+    same histogram. The obvious way to do this would be to allocate a new histogram
+    array, compute a histogram from the input using the code from Section 9.4.1: CPU
+    Histogram Computation, and, finally, ensure that each bin in the GPU and CPU version
+    match. But rather than allocate a new histogram array, we’ll opt to start with
+    the GPU histogram and compute the CPU histogram “in reverse.”'
+  id: totrans-78
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，为了完全验证GPU直方图，我们将使用CPU来计算相同的直方图。显而易见的方法是分配一个新的直方图数组，使用第9.4.1节中的代码：CPU直方图计算，从输入数据计算直方图，然后确保GPU和CPU版本中的每个数据箱匹配。但我们不打算分配一个新的直方图数组，而是选择从GPU直方图开始，并“反向”计算CPU直方图。
+- en: By computing the histogram “in reverse,” we mean that rather than starting at
+    zero and incrementing bin values when we see data elements, we will start with
+    the GPU histogram and *decrement* the bin’s value when the CPU sees data elements.
+    Therefore, the CPU has computed the same histogram as the GPU if and only if every
+    bin has the value zero when we are finished. In some sense, we are computing the
+    difference between these two histograms. The code will look remarkably like the
+    CPU histogram computation but with a decrement operator instead of an increment
+    operator.
+  id: totrans-79
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 通过“反向计算”直方图，我们的意思是，不是从零开始，在看到数据元素时递增桶的值，而是从GPU的直方图开始，当CPU看到数据元素时*递减*桶的值。因此，只有当我们完成时，每个桶的值都为零，CPU计算出的直方图与GPU计算的直方图才是相同的。从某种意义上讲，我们正在计算这两个直方图之间的差异。代码看起来会非常像CPU的直方图计算，但我们使用的是递减操作符，而不是递增操作符。
+- en: '![image](graphics/p0176-01.jpg)'
+  id: totrans-80
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0176-01.jpg)'
+- en: As usual, the finale involves cleaning up our allocated CUDA events, GPU memory,
+    and host memory.
+  id: totrans-81
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 和往常一样，最后一步是清理我们分配的CUDA事件、GPU内存和主机内存。
+- en: '![image](graphics/p0176-02.jpg)'
+  id: totrans-82
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0176-02.jpg)'
+- en: Before, we assumed that we had launched a kernel that computed our histogram
+    and then pressed on to discuss the aftermath. Our kernel launch is slightly more
+    complicated than usual because of performance concerns. Because the histogram
+    contains 256 bins, using 256 threads per block proves convenient as well as results
+    in high performance. But we have a lot of flexibility in terms of the number of
+    blocks we launch. For example, with 100MB of data, we have 104,857,600 bytes of
+    data. We could launch a single block and have each thread examine 409,600 data
+    elements. Likewise, we could launch 409,600 blocks and have each thread examine
+    a single data element.
+  id: totrans-83
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 之前，我们假设已经启动了一个计算直方图的内核，然后继续讨论后续的内容。由于性能考虑，我们的内核启动比平常稍微复杂一些。因为直方图包含256个桶，所以每个块使用256个线程既方便又能获得高性能。但在启动块的数量上，我们有很大的灵活性。例如，对于100MB的数据，我们有104,857,600字节的数据。我们可以启动一个块，让每个线程处理409,600个数据元素。同样，我们也可以启动409,600个块，让每个线程处理一个数据元素。
+- en: As you might have guessed, the optimal solution is at a point between these
+    two extremes. By running some performance experiments, optimal performance is
+    achieved when the number of blocks we launch is exactly twice the number of multiprocessors
+    our GPU contains. For example, a GeForce GTX 280 has 30 multiprocessors, so our
+    histogram kernel happens to run fastest on a GeForce GTX 280 when launched with
+    60 parallel blocks.
+  id: totrans-84
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 正如你可能猜到的，最佳解决方案位于这两种极端之间。通过进行一些性能实验，最佳性能出现在我们启动的块数恰好是GPU中多处理器数量的两倍时。例如，一块GeForce
+    GTX 280拥有30个多处理器，因此，当启动60个并行块时，我们的直方图内核在GeForce GTX 280上的运行速度最快。
+- en: In [Chapter 3](ch03.html#ch03), we discussed a method for querying various properties
+    of the hardware on which our program is running. We will need to use one of these
+    device properties if we intend to dynamically size our launch based on our current
+    hardware platform. To accomplish this, we will use the following code segment.
+    Although you haven’t yet seen the kernel implementation, you should still be able
+    to follow what is going on.
+  id: totrans-85
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在[第3章](ch03.html#ch03)中，我们讨论了查询程序运行所在硬件各种属性的方法。如果我们打算根据当前的硬件平台动态调整启动参数，我们将需要使用其中一种设备属性。为了实现这一点，我们将使用以下代码段。虽然你还没有看到内核实现，但你应该仍然能够理解发生了什么。
+- en: '![image](graphics/p0177-01.jpg)'
+  id: totrans-86
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0177-01.jpg)'
+- en: 'Since our walk-through of `main()` has been somewhat fragmented, here is the
+    entire routine from start to finish:'
+  id: totrans-87
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们对`main()`的讲解有些零散，下面是从头到尾的完整代码：
+- en: '![image](graphics/p0177-02.jpg)'
+  id: totrans-88
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0177-02.jpg)'
+- en: '![image](graphics/p0178-01.jpg)'
+  id: totrans-89
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0178-01.jpg)'
+- en: '![image](graphics/p0178-02.jpg)'
+  id: totrans-90
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0178-02.jpg)'
+- en: '**Histogram Kernel Using Global Memory Atomics**'
+  id: totrans-91
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+  zh: '**使用全局内存原子操作的直方图内核**'
+- en: 'And now for the fun part: the GPU code that computes the histogram! The kernel
+    that computes the histogram itself needs to be given a pointer to the input data
+    array, the length of the input array, and a pointer to the output histogram. The
+    first thing our kernel needs to compute is a linearized offset into the input
+    data array. Each thread will start with an offset between 0 and the number of
+    threads minus 1\. It will then stride by the total number of threads that have
+    been launched. We hope you remember this technique; we used the same logic to
+    add vectors of arbitrary length when you first learned about threads.'
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在进入有趣的部分：计算直方图的GPU代码！计算直方图的内核需要传入输入数据数组的指针、输入数组的长度，以及输出直方图的指针。我们内核需要计算的第一件事是输入数据数组的线性化偏移量。每个线程将从0到线程数减1之间的一个偏移量开始。然后，它将按已启动的线程总数进行步进。希望你还记得这种技术；我们在第一次学习线程时使用相同的逻辑来加法运算任意长度的向量。
+- en: '![image](graphics/p0179-01.jpg)'
+  id: totrans-93
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0179-01.jpg)'
+- en: Once each thread knows its starting offset `i` and the stride it should use,
+    the code walks through the input array incrementing the corresponding histogram
+    bin.
+  id: totrans-94
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一旦每个线程知道了它的起始偏移量`i`和它应该使用的步幅，代码就会遍历输入数组，递增相应的直方图桶。
+- en: '![image](graphics/p0179-02.jpg)'
+  id: totrans-95
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0179-02.jpg)'
+- en: The highlighted line represents the way we use atomic operations in CUDA C.
+    The call `atomicAdd( addr, y );` generates an atomic sequence of operations that
+    read the value at address `addr`, adds `y` to that value, and stores the result
+    back to the memory address `addr`. The hardware guarantees us that no other thread
+    can read or write the value at address `addr` while we perform these operations,
+    thus ensuring predictable results. In our example, the address in question is
+    the location of the histogram bin that corresponds to the current byte. If the
+    current byte is `buffer[i]`, just like we saw in the CPU version, the corresponding
+    histogram bin is `histo[buffer[i]]`. The atomic operation needs the address of
+    this bin, so the first argument is therefore `&(histo[buffer[i]])`. Since we simply
+    want to increment the value in that bin by one, the second argument is 1.
+  id: totrans-96
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 高亮的那一行表示我们在CUDA C中使用原子操作的方式。调用`atomicAdd( addr, y );`会生成一系列原子操作，这些操作先读取地址`addr`处的值，再将`y`加到该值上，并将结果写回地址`addr`。硬件保证，在我们执行这些操作时，没有其他线程可以读取或写入地址`addr`处的值，从而确保了结果的可预测性。在我们的例子中，相关地址是与当前字节对应的直方图桶的位置。如果当前字节是`buffer[i]`，就像我们在CPU版本中看到的那样，对应的直方图桶就是`histo[buffer[i]]`。原子操作需要这个桶的地址，因此第一个参数是`&(histo[buffer[i]])`。由于我们只需要将该桶中的值递增1，所以第二个参数是1。
+- en: So after all that hullabaloo, our GPU histogram computation is fairly similar
+    to the corresponding CPU version.
+  id: totrans-97
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 所以，经过这一番折腾后，我们的GPU直方图计算与相应的CPU版本非常相似。
+- en: '![image](graphics/p0180-01.jpg)'
+  id: totrans-98
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0180-01.jpg)'
+- en: However, we need to save the celebrations for later. After running this example,
+    we discover that a GeForce GTX 285 can construct a histogram from 100MB of input
+    data in 1.752 seconds. If you read the section on CPU-based histograms, you will
+    realize that this performance is terrible. In fact, this is more than four times
+    slower than the CPU version! But this is why we always measure our baseline performance.
+    It would be a shame to settle for such a low-performance implementation simply
+    because it runs on the GPU.
+  id: totrans-99
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，我们需要等到以后再庆祝。在运行这个例子后，我们发现一块GeForce GTX 285显卡能在1.752秒内从100MB的输入数据构建一个直方图。如果你阅读关于基于CPU的直方图部分，你会意识到这个性能很糟糕。事实上，这比CPU版本慢了四倍多！但这就是我们为什么总是测量基准性能的原因。如果仅仅因为它在GPU上运行，就满足于这样的低性能实现，那将是一个遗憾。
+- en: Since we do very little work in the kernel, it is quite likely that the atomic
+    operation on global memory is causing the problem. Essentially, when thousands
+    of threads are trying to access a handful of memory locations, a great deal of
+    contention for our 256 histogram bins can occur. To ensure atomicity of the increment
+    operations, the hardware needs to serialize operations to the same memory location.
+    This can result in a long queue of pending operations, and any performance gain
+    we might have had will vanish. We will need to improve the algorithm itself in
+    order to recover this performance.
+  id: totrans-100
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们在内核中进行的工作非常少，因此很可能是对全局内存的原子操作引发了问题。实际上，当成千上万的线程试图访问少量内存位置时，我们的256个直方图桶会出现大量争用。为了确保增量操作的原子性，硬件需要对访问同一内存位置的操作进行序列化。这可能导致大量待处理操作的队列，而我们可能获得的任何性能提升都会消失。我们将需要改进算法本身，以恢复这一性能。
+- en: '**Histogram Kernel Using Shared and Global Memory Atomics**'
+  id: totrans-101
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+  zh: '**使用共享和全局内存原子操作的直方图内核**'
+- en: Ironically, despite that the atomic operations cause this performance degradation,
+    alleviating the slowdown actually involves using *more* atomics, not fewer. The
+    core problem was not the use of atomics so much as the fact that thousands of
+    threads were competing for access to a relatively small number of memory addresses.
+    To address this issue, we will split our histogram computation into two phases.
+  id: totrans-102
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 具有讽刺意味的是，尽管原子操作会导致性能下降，但缓解这种慢速实际上需要使用*更多*的原子操作，而不是更少。核心问题并非是使用原子操作，而是成千上万的线程在竞争访问相对较少的内存地址。为了解决这个问题，我们将把直方图计算分为两个阶段。
+- en: In phase one, each parallel block will compute a separate histogram of the data
+    that its constituent threads examine. Since each block does this independently,
+    we can compute these histograms in shared memory, saving us the time of sending
+    each write-off chip to DRAM. Doing this does not free us from needing atomic operations,
+    though, since multiple threads within the block can still examine data elements
+    with the same value. However, the fact that only 256 threads will now be competing
+    for 256 addresses will reduce contention from the global version where thousands
+    of threads were competing.
+  id: totrans-103
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在第一个阶段，每个并行块将计算它所处理的数据的单独直方图。由于每个块都是独立执行这一操作的，因此我们可以在共享内存中计算这些直方图，从而节省将每个写入操作传输到
+    DRAM 的时间。不过，这并不能让我们摆脱使用原子操作的需求，因为块内的多个线程仍然可能会检查具有相同值的数据元素。然而，只有 256 个线程将竞争 256
+    个地址，这将减少来自全局版本中的成千上万线程的竞争。
+- en: The first phase then involves allocating and zeroing a shared memory buffer
+    to hold each block’s intermediate histogram. Recall from [Chapter 5](ch05.html#ch05)
+    that since the subsequent step will involve reading and modifying this buffer,
+    we need a `__syncthreads()` call to ensure that every thread’s write has completed
+    before progressing.
+  id: totrans-104
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 第一个阶段涉及分配并归零一个共享内存缓冲区，用于存储每个块的中间直方图。回顾[第5章](ch05.html#ch05)，由于后续步骤将涉及读取和修改这个缓冲区，因此我们需要一个`__syncthreads()`调用，以确保每个线程的写操作完成后再进行下一步。
+- en: '![image](graphics/p0181-01.jpg)'
+  id: totrans-105
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0181-01.jpg)'
+- en: After zeroing the histogram, the next step is remarkably similar to our original
+    GPU histogram. The sole differences here are that we use the shared memory buffer
+    `temp[]` instead of the global memory buffer `histo[]` and that we need a subsequent
+    call to `__syncthreads()` to ensure the last of our writes have been committed.
+  id: totrans-106
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在将直方图归零后，下一步与我们最初的 GPU 直方图非常相似。唯一的区别是，我们使用共享内存缓冲区`temp[]`代替全局内存缓冲区`histo[]`，并且我们需要随后的`__syncthreads()`调用，以确保我们最后的写入操作已被提交。
+- en: '![image](graphics/p0182-01.jpg)'
+  id: totrans-107
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0182-01.jpg)'
+- en: 'The last step in our modified histogram example requires that we merge each
+    block’s temporary histogram into the global buffer `histo[]`. Suppose we split
+    the input in half and two threads look at different halves and compute separate
+    histograms. If thread A sees byte `0xFC` 20 times in the input and thread B sees
+    byte `0xFC` 5 times, the byte `0xFC` must have appeared 25 times in the input.
+    Likewise, each bin of the final histogram is just the sum of the corresponding
+    bin in thread A’s histogram and thread B’s histogram. This logic extends to any
+    number of threads, so merging every block’s histogram into a single final histogram
+    involves adding each entry in the block’s histogram to the corresponding entry
+    in the final histogram. For all the reasons we’ve seen already, this needs to
+    be done atomically:'
+  id: totrans-108
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们修改后的直方图示例的最后一步要求我们将每个块的临时直方图合并到全局缓冲区`histo[]`中。假设我们将输入分为两半，两个线程分别查看不同的半部分并计算各自的直方图。如果线程
+    A 在输入中看到字节`0xFC` 20 次，线程 B 看到字节`0xFC` 5 次，那么字节`0xFC`在输入中应该出现了 25 次。同样，最终直方图的每个桶就是线程
+    A 和线程 B 直方图中相应桶的总和。这一逻辑适用于任意数量的线程，因此将每个块的直方图合并成一个最终的直方图需要将每个块直方图中的每个条目添加到最终直方图中相应的条目。出于我们已经看到的所有原因，这必须以原子方式进行：
+- en: '![image](graphics/p0182-02.jpg)'
+  id: totrans-109
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0182-02.jpg)'
+- en: Since we have decided to use 256 threads and have 256 histogram bins, each thread
+    atomically adds a single bin to the final histogram’s total. If these numbers
+    didn’t match, this phase would be more complicated. Note that we have no guarantees
+    about what order the blocks add their values to the final histogram, but since
+    integer addition is commutative, we will always get the same answer provided that
+    the additions occur atomically.
+  id: totrans-110
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们决定使用256个线程，并且有256个直方图桶，每个线程原子地将一个桶添加到最终直方图的总和中。如果这些数字不匹配，这一阶段将会更加复杂。请注意，我们无法保证各个块将值添加到最终直方图的顺序，但是由于整数加法是交换律的，所以只要加法是原子性的，我们总会得到相同的结果。
+- en: 'And with this, our two phase histogram computation kernel is complete. Here
+    it is from start to finish:'
+  id: totrans-111
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 至此，我们的两阶段直方图计算内核已经完成。以下是从头到尾的代码：
+- en: '![image](graphics/p0183-01.jpg)'
+  id: totrans-112
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0183-01.jpg)'
+- en: This version of our histogram example improves dramatically over the previous
+    GPU version. Adding the shared memory component drops our running time on a GeForce
+    GTX 285 to 0.057 seconds. Not only is this significantly better than the version
+    that used global memory atomics only, but this beats our original CPU implementation
+    by an order of magnitude (from 0.416 seconds to 0.057 seconds). This improvement
+    represents greater than a sevenfold boost in speed over the CPU version. So despite
+    the early setback in adapting the histogram to a GPU implementation, our version
+    that uses both shared and global atomics should be considered a success.
+  id: totrans-113
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个版本的直方图示例在性能上比之前的GPU版本有了显著提升。加入共享内存组件后，我们在GeForce GTX 285上的运行时间降到了0.057秒。这不仅比只使用全局内存原子操作的版本好得多，而且比我们最初的CPU实现快了一个数量级（从0.416秒降到0.057秒）。这个改进意味着我们比CPU版本快了七倍以上。因此，尽管在将直方图移植到GPU实现时遇到了一些初步的挫折，但我们使用共享内存和全局内存原子操作的版本应该被视为一个成功。
+- en: '**9.5 Chapter Review**'
+  id: totrans-114
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**9.5 章节回顾**'
+- en: Although we have frequently spoken at length about how easy parallel programming
+    can be with CUDA C, we have largely ignored some of the situations when massively
+    parallel architectures such as the GPU can make our lives as programmers more
+    difficult. Trying to cope with potentially tens of thousands of threads simultaneously
+    modifying the same memory addresses is a common situation where a massively parallel
+    machine can seem burdensome. Fortunately, we have hardware-supported atomic operations
+    available to help ease this pain.
+  id: totrans-115
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尽管我们曾多次详细讨论过使用CUDA C进行并行编程的简便性，但我们大多忽视了当GPU等大规模并行架构让我们的编程生活变得更加复杂的一些情况。试图应对成千上万的线程同时修改相同内存地址的情况，就是一个典型的例子，在这种情况下，大规模并行机器可能会显得负担沉重。幸运的是，我们有硬件支持的原子操作可以帮助缓解这种痛苦。
+- en: However, as you saw with the histogram computation, sometimes reliance on atomic
+    operations introduces performance issues that can be resolved only by rethinking
+    parts of the algorithm. In the histogram example, we moved to a two-stage algorithm
+    that alleviated contention for global memory addresses. In general, this strategy
+    of looking to lessen memory contention tends to work well, and you should keep
+    it in mind when using atomics in your own applications.
+  id: totrans-116
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然而，正如你在直方图计算中所看到的，有时依赖原子操作会引入性能问题，这些问题只有通过重新思考算法的某些部分才能解决。在直方图示例中，我们采用了一个两阶段的算法，缓解了对全局内存地址的争用。通常，减少内存争用的策略往往效果不错，在你自己应用程序中使用原子操作时，应该牢记这一点。

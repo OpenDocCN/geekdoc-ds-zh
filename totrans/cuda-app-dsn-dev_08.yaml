@@ -1,0 +1,739 @@
+- en: Chapter 7\. Techniques to Increase ParallelismCUDA was designed to exploit the
+    massive parallelism inside the GPU as well as through the use of concurrent streams
+    of execution to utilize multiple GPUs, asynchronous data transfers, and simultaneous
+    kernel execution on a single device. By default, CUDA creates a single stream
+    of execution on a one GPU, which is usually device 0\. All data transfers and
+    kernel invocations are queued on this single stream and processed sequentially
+    in the order they were queued. By explicitly creating and using multiple streams
+    of execution, a CUDA programmer can perform more work per unit time to make applications
+    run faster. For example, multiple GPUs can be utilized by simply changing the
+    device with **cudaSetDevice()**. Work can then be queued on each device, which
+    can potentially increase application performance by the number of GPUs in the
+    system. CUDA programmers can overlap computation and data transfers to reduce
+    application runtime plus enable real-time data processing on both single and multi-GPU
+    systems. Under special circumstances, greater efficiency per device can be achieved
+    when running multiple streams on a single device to exploit concurrent kernel
+    execution. The addition of UVA in CUDA 4.0 simplifies data management to facilitate
+    the use of these techniques to increase parallelism and application performance.**Keywords**MultiGPU,
+    UVA (Unified Virtual Address) space, Mapped memory, Asynchronous kernel execution,
+    task parallelism, data parallelismCUDA was designed to exploit the massive parallelism
+    inside the GPU as well as through the use of concurrent streams of execution to
+    utilize multiple GPUs, asynchronous data transfers, and simultaneous kernel execution
+    on a single device. By default, CUDA creates a single stream of execution on a
+    one GPU, which is usually device 0\. [¹](#fn0010) All data transfers and kernel
+    invocations are queued on this single stream and processed sequentially in the
+    order they were queued. By explicitly creating and using multiple streams of execution,
+    a CUDA programmer can perform more work per unit time to make applications run
+    faster. For example, multiple GPUs can be utilized by simply changing the device
+    with **cudaSetDevice()**. Work can then be queued on each device, which can potentially
+    increase application performance by the number of GPUs in the system. CUDA programmers
+    can overlap computation and data transfers to reduce application runtime plus
+    enable real-time data processing on both single and multi-GPU systems. Under special
+    circumstances, greater efficiency per device can be achieved when running multiple
+    streams on a single device to exploit concurrent kernel execution. The addition
+    of UVA in CUDA 4.0 simplifies data management to facilitate the use of these techniques
+    to increase parallelism and application performance.¹As will be discussed, the
+    default GPU device can be changed by either the programmer or the systems administrator.At
+    the end of this chapter, the reader will have a basic understanding of:■ How to
+    run on multiple GPUs in a system.■ UVA and how it makes multi-GPU applications
+    simpler.■ How to use asynchronous data transfers to speed application performance.■
+    The use and performance implications of using mapped memory.■ How to use asynchronous
+    kernel execution; plus, how it can benefit application performance and potentially
+    decrease kernel performance.■ The use of the profiler to understand performance
+    and identify bottlenecks in multi-GPU systems.
+  id: totrans-0
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '第七章 技术提升并行性  '
+- en: CUDA Contexts Extend Parallelism
+  id: totrans-1
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: CUDA上下文扩展并行性
+- en: A CUDA application interacts with the GPU hardware through the device driver
+    as shown in [Figure 7.1](#f0010).
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 一个CUDA应用程序通过设备驱动程序与GPU硬件进行交互，如[图 7.1](#f0010)所示。
+- en: '| ![B9780123884268000070/f07-01-9780123884268.jpg is missing](B9780123884268000070/f07-01-9780123884268.jpg)
+    |'
+  id: totrans-3
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000070/f07-01-9780123884268.jpg 丢失](B9780123884268000070/f07-01-9780123884268.jpg)
+    |'
+- en: '| **Figure 7.1**GPUs and the host communicate via the device driver. |'
+  id: totrans-4
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 7.1**GPU与主机通过设备驱动程序进行通信。 |'
+- en: The driver supports multiple concurrent applications by creating a separate
+    *context* for each GPU-based application that runs on the system. The context
+    contains all of the driver state information required by the application such
+    as the virtual address space, streams, events, allocated blocks of memory, and
+    other data necessary to run a GPU-based application. By switching between contexts,
+    the device driver acts like a small operating system that can multitask multiple
+    GPU applications. For example, a user can run multiple OpenGL rendering applications
+    plus multiple CUDA computational applications at the same time. In a similar fashion,
+    the GPU device driver lets individual CUDA applications utilize multiple devices
+    simply by giving the application access to multiple contexts in the device driver.Only
+    one context can be active at a time, which is why the CUDA driver incorporates
+    a timer to detect GPU applications that hang while performing some operation on
+    the GPU. Mistakenly running a CUDA kernel that contains an infinite loop is one
+    example of an application that will cause a time out. The good news is that control
+    eventually reverts to the user so that he or she can correct the problem without
+    rebooting the system.By default, CUDA creates a context during the first call
+    to a function that changes the state of the driver. Calling **cudaMalloc()** is
+    one such call that changes the context state. Many CUDA programmers rely on this
+    default behavior to transparently utilize a single GPU. Note that a context is
+    usually created on GPU zero by default unless another GPU is selected by the programmer
+    prior to context creation with **cudaSetDevice()**. The context is destroyed either
+    by calling **cudaDeviceReset()** or when the controlling host process exits.Starting
+    with CUDA 2.2, a Linux administrator can select *exclusive mode* via the SMI (System
+    Management Interface) tool. In exclusive mode, a context is no longer created
+    by default on GPU 0, but rather on a GPU that does not have an active context.
+    If there are no available GPUs, or if **cudaSetDevice()** specifies a GPU that
+    already has an active context, the first CUDA call that attempts to change the
+    device state will fail and return an error. This capability can be used to run
+    compute or memory intensive applications on unused GPUs in a system.
+  id: totrans-5
+  prefs: []
+  type: TYPE_NORMAL
+- en: Streams and Contexts
+  id: totrans-6
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 流与上下文
+- en: CUDA applications manage work and concurrency by queuing operations onto a stream.
+    CUDA implicitly creates a stream when it creates a context so commands can be
+    queued for execution on the device. For example, calling **cudaMemcpy()** queues
+    a blocking data transfer on the current stream. Similarly, calling a CUDA kernel
+    queues the kernel invocation on the stream associated with the current device.
+    If desired, the programmer can specify the stream in the execution configuration
+    as shown in [Example 7.1](#tb0010), “An Execution Configuration Including a Stream
+    Specification”:`Kernel<<<nBlocks, nThreadsPerBlock, 0, stream[i]>>>(parameters)`All
+    operations queued on a stream execute *in order*, which means that each operation
+    is pulled off the queue in the order it was placed on the queue. In other words,
+    the queue acts as a FIFO (first-in, first-out) buffer whereby operations are sequentially
+    pulled off the queue in the order they appeared for execution on the device.Multiple
+    streams are required for concurrent execution across devices or to run multiple
+    kernels concurrently on a single device.
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: CUDA应用程序通过将操作排队到流中来管理工作和并发。CUDA在创建上下文时隐式地创建一个流，这样命令就可以排队在设备上执行。例如，调用**cudaMemcpy()**会在当前流上排队一个阻塞的数据传输。同样，调用CUDA内核会将内核调用排队到与当前设备关联的流中。如果需要，程序员可以在执行配置中指定流，如[示例
+    7.1](#tb0010)中所示，“包含流规范的执行配置”：`Kernel<<<nBlocks, nThreadsPerBlock, 0, stream[i]>>>(parameters)`。所有在流上排队的操作按*顺序*执行，这意味着每个操作都会按照它被放入队列的顺序从队列中取出。换句话说，队列充当一个FIFO（先进先出）缓冲区，操作会按顺序被从队列中取出并在设备上执行。多个流是并发执行跨设备操作或在单个设备上并发运行多个内核所必需的。
+- en: Multiple GPUs
+  id: totrans-8
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 多个GPU
+- en: The simplest way to use multiple GPUs in a single application is to implicitly
+    create a single stream per context per device as shown in the following example.
+    The method **cudaGetDeviceCount()** is used to determine the number of devices
+    in the system. Calling **cudaSetDevice()** sets the device. In this code snippet,
+    **cudaMalloc()** was used to induce the creation of the context by causing a change
+    of context state. If desired, additional device properties can be enumerated via
+    the **cudaDeviceProp** variable passed to **cudaGetDeviceProperties()**. See [Example
+    7.2](#tb0015), “Creating Contexts on Multiple Devices”:`cudaGetDeviceCount(&nGPU);``int
+    *d_A[nGPU];``for(int i=0; i < nGPU; i++) {``cudaSetDevice(i);``cudaMalloc(&d_A[i],n*sizeof(int));``}`Work
+    can then be queued on the default stream associated with each device. Again, **cudaSetDevice()**
+    is used to select the device context. All GPU operations queued after a **cudaSetDevice()**
+    are implicitly queued on the stream associated with the device unless a stream
+    is explicitly specified in the API call or kernel execution.
+  id: totrans-9
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在单个应用程序中使用多个 GPU 的最简单方法是隐式地为每个设备的每个上下文创建一个流，如下面的示例所示。**cudaGetDeviceCount()**
+    方法用于确定系统中的设备数量。调用 **cudaSetDevice()** 来设置设备。在这个代码片段中，使用 **cudaMalloc()** 通过引起上下文状态变化来诱发上下文的创建。如果需要，可以通过传递给
+    **cudaGetDeviceProperties()** 的 **cudaDeviceProp** 变量枚举额外的设备属性。参见 [示例 7.2](#tb0015)，"在多个设备上创建上下文"：`cudaGetDeviceCount(&nGPU);``int
+    *d_A[nGPU];``for(int i=0; i < nGPU; i++) {``cudaSetDevice(i);``cudaMalloc(&d_A[i],n*sizeof(int));``}``然后，可以将工作排队到与每个设备相关联的默认流上。同样，**cudaSetDevice()**
+    用于选择设备上下文。所有在 **cudaSetDevice()** 之后排队的 GPU 操作都会隐式地排队到与设备相关联的流上，除非在 API 调用或内核执行时显式指定了流。
+- en: Explicit Synchronization
+  id: totrans-10
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 显式同步
+- en: There are various ways to explicitly synchronize streams with each other.*Events*
+    are a way for the programmer to create a placeholder in a stream. The event can
+    then be monitored to determine when a group of tasks have completed. Note that:■
+    CUDA 4.0 also allows events to be shared across contexts, which gives events the
+    ability to coordinate tasks across multiple devices in a system.■ Events in stream
+    0 complete after all tasks in all streams have completed.■ For profiling purposes,
+    the elapsed time between two events can be determined with **cudaEventElapsedTime()**.The
+    following example shows how to create two events in variables **stop** and **start**.
+    The **start** event is placed on the queue after which one or more tasks are queued.
+    The **stop** event is then pushed on the queue. The host then stops at the call
+    to **cudaEventSynchronize()**. Execution will not continue on the host until after
+    the stop event has been marked complete.Meanwhile, the driver asynchronously works
+    through the queue in order. This means that it processes and marks the **start**
+    event as complete. Work proceeds through the rest of the tasks on the queue. Eventually
+    the driver processes the **stop** event and marks that it is completed. This wakes
+    up the host thread, which continues on to process the code after the call to **cudaEventSynchronize()**.As
+    shown in this example, time is a property associated with an event. The difference
+    between the time when the **start** and **stop** events were marked complete is
+    retrieved with the call to **cudaEventElapsedTime()**. Thus, [Example 7.3](#tb0020),
+    “Timing Tasks with Events,” demonstrates how to time a group of tasks:`// create
+    two events``cudaEvent_t start, stop;``cudaEventCreate(&start); cudaEventCreate(&stop);``cudaEventRecord(start,
+    0)``// Queue some tasks``...``cudaEventRecord(stop, 0);``cudaEventSynchronize(stop);``//
+    get the elapsed time``float elapsedTime;``cudaEventElapsedTime(&elapsedTime, start,
+    stop);``// destroy the events``cudaEventDestroy(start);``cudaEventDestroy(stop)`Following
+    are runtime methods for explicitly synchronizing streams and events:■ **cudaDeviceSynchronize()**
+    waits until all preceding commands in all streams of all host threads have completed.■
+    **cudaStreamSynchronize()** takes a stream as a parameter and waits until all
+    preceding commands in the given stream have completed. It can be used to synchronize
+    the host with a specific stream, allowing other streams to continue executing
+    on a device.■ **cudaStreamWaitEvent()** takes a stream and an event as parameters
+    and makes all the commands added to the given stream after the call to **cudaStreamWaitEvent()**
+    delay their execution until the given event has completed. The stream can be 0,
+    in which case all the commands added to any stream after the call to **cudaStreamWaitEvent()**
+    wait on the event.■ **cudaStreamQuery()** checks whether all preceding commands
+    in a stream have completed.
+  id: totrans-11
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 有多种方式可以显式地使流与流之间进行同步。*事件*是一种方法，程序员可以在流中创建占位符。然后可以监控该事件，以确定一组任务何时完成。请注意：■ CUDA
+    4.0还允许跨上下文共享事件，这使得事件能够在系统中的多个设备之间协调任务。■ 流0中的事件在所有流中的所有任务完成后才会完成。■ 为了进行性能分析，可以通过**cudaEventElapsedTime()**来确定两个事件之间的经过时间。以下示例展示了如何在变量**stop**和**start**中创建两个事件。**start**事件被放置在队列中，之后会排队一个或多个任务。然后将**stop**事件推入队列。主机随后在调用**cudaEventSynchronize()**时停止。主机执行不会继续，直到**stop**事件被标记为完成。与此同时，驱动程序会按顺序异步处理队列。这意味着它会处理并标记**start**事件为完成。工作继续处理队列中的其余任务。最终，驱动程序处理**stop**事件并标记其为完成。这会唤醒主机线程，主机线程继续处理**cudaEventSynchronize()**调用后的代码。如本示例所示，时间是与事件相关联的属性。通过调用**cudaEventElapsedTime()**可以获取**start**事件和**stop**事件标记为完成时的时间差。因此，[示例
+    7.3](#tb0020)，“使用事件计时任务”，演示了如何计时一组任务：`// 创建两个事件``cudaEvent_t start, stop;``cudaEventCreate(&start);
+    cudaEventCreate(&stop);``cudaEventRecord(start, 0)``// 排队一些任务``...``cudaEventRecord(stop,
+    0);``cudaEventSynchronize(stop);``// 获取经过的时间``float elapsedTime;``cudaEventElapsedTime(&elapsedTime,
+    start, stop);``// 销毁事件``cudaEventDestroy(start);``cudaEventDestroy(stop)`以下是显式同步流和事件的运行时方法：■
+    **cudaDeviceSynchronize()** 会等待，直到所有主机线程中所有流中的前置命令都完成。■ **cudaStreamSynchronize()**
+    以流作为参数，并等待直到指定流中的所有前置命令完成。它可以用来将主机与特定流同步，允许其他流继续在设备上执行。■ **cudaStreamWaitEvent()**
+    以流和事件作为参数，确保在调用**cudaStreamWaitEvent()**后，添加到指定流中的所有命令的执行会延迟，直到给定事件完成。流可以为0，在这种情况下，添加到任何流中的所有命令都会在调用**cudaStreamWaitEvent()**后等待该事件。■
+    **cudaStreamQuery()** 检查指定流中所有前置命令是否已完成。
+- en: Implicit Synchronization
+  id: totrans-12
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 隐式同步
+- en: Tasks queued on different streams generally run concurrently. Some host-based
+    operations force all streams to pause until the host operation completes. Care
+    must be taken when performing the following host operations, as they will stop
+    all concurrent operations and negatively impact application performance:■ A page-locked
+    host memory allocation.■ A device memory allocation.■ A device memory set.■ A
+    device–device memory copy.■ A switch between the L1/shared memory configurations.
+  id: totrans-13
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 排队在不同流上的任务通常会并行运行。一些基于主机的操作会强制所有流暂停，直到主机操作完成。在执行以下主机操作时需要小心，因为它们会停止所有并发操作，并对应用程序性能产生负面影响：■
+    页面锁定的主机内存分配。■ 设备内存分配。■ 设备内存设置。■ 设备之间的内存复制。■ L1/共享内存配置之间的切换。
+- en: The Unified Virtual Address Space
+  id: totrans-14
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 统一虚拟地址空间
+- en: UVA space provides a single address space for all host and GPU devices in a
+    system. UVA is available to all 64-bit applications on Windows Vista/7 running
+    in TCC mode, on Windows XP, and on Linux. UVA does not work on 32-bit systems.On
+    supported systems, the pointer returned from any allocation made with **cudaHostAlloc()**
+    or any of the **cudaMalloc*()** methods (**cudaMalloc()**, **cudaMallocPitch()**,
+    and others) uniquely identifies both the region of memory and the device upon
+    which the memory resides. If desired, the CUDA programmer can determine where
+    the memory resides with **cudaPointerGetAttributes()**.As a consequence of UVA:■
+    The **cudaMemcpy()** method no longer pays attention to the **cudaMemcpyKind**
+    parameter. For compatibility with non-UVA environments, the direction of the transfer
+    (host to device or device to host) can still be specified. If portability is not
+    a concern, **cudaMemcpyDefault** can be used for convenience.■ High-performance
+    GPU to GPU transfers are now possible by simply specifying pointers to memory
+    on the two devices.■ On UVA systems, host memory pointers returned by **cudaHostAlloc()**
+    can be used directly by device kernels. There is no need to obtain a device pointer
+    via **cudaHostGetDevicePointer()**. This includes mapped memory created by passing
+    the flag **cudaHostAllocMapped** to **cudaHostAlloc()** or **cudaHostRegisterMapped**
+    to **cudaHostRegister()**. For compatibility with compute 1.x devices and 32-bit
+    applications, **cudaHostGetDevicePointer()** can still be used. Thrust-based applications
+    will need to cast the pointer with **thrust::device_pointer_cast()**.Applications
+    may query whether the unified address space is used for a particular device by
+    checking that the **unifiedAddressing** device property is set.
+  id: totrans-15
+  prefs: []
+  type: TYPE_NORMAL
+  zh: UVA空间为系统中的所有主机和GPU设备提供了一个单一的地址空间。UVA适用于在TCC模式下运行的Windows Vista/7上的所有64位应用程序、Windows
+    XP和Linux。UVA在32位系统上无法使用。在受支持的系统上，通过**cudaHostAlloc()**或任何**cudaMalloc*()**方法（如**cudaMalloc()**、**cudaMallocPitch()**等）进行的任何内存分配所返回的指针，唯一地标识了内存区域及其所在的设备。如果需要，CUDA程序员可以通过**cudaPointerGetAttributes()**来确定内存的具体位置。由于UVA的存在：■
+    **cudaMemcpy()**方法不再关注**cudaMemcpyKind**参数。为了兼容非UVA环境，仍然可以指定数据传输的方向（主机到设备或设备到主机）。如果不考虑移植性，**cudaMemcpyDefault**可以为方便起见使用。■
+    现在，通过简单地指定指向两个设备内存的指针，可以实现高性能的GPU到GPU数据传输。■ 在UVA系统上，通过**cudaHostAlloc()**返回的主机内存指针可以直接被设备内核使用。无需通过**cudaHostGetDevicePointer()**获取设备指针。这包括通过将标志**cudaHostAllocMapped**传递给**cudaHostAlloc()**或将**cudaHostRegisterMapped**传递给**cudaHostRegister()**创建的映射内存。为了兼容计算能力为1.x的设备和32位应用程序，仍然可以使用**cudaHostGetDevicePointer()**。基于Thrust的应用程序需要使用**thrust::device_pointer_cast()**来转换指针。应用程序可以通过检查**unifiedAddressing**设备属性是否设置，来查询是否为特定设备使用了统一地址空间。
+- en: A Simple Example
+  id: totrans-16
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 一个简单的示例
+- en: The following example demonstrates how to concurrently run one or more GPUs.
+    It:1\. Allocates space for **n** integers on each GPU. In this example, **n**
+    is one million.2\. Concurrently fills the vectors on each GPU to create a single
+    large vector of consecutive integers.3\. Asynchronously transfers the GPU memory
+    to the host memory.4\. Checks the result for correctness.The following walkthrough
+    discusses the multi-GPU and concurrent aspects of the code. All the code segments
+    can be combined into a single source file that can be compiled and executed.The
+    CUDA kernel, **fillKernel()**, writes the sequential integers **offset**+0 to
+    **offset**+**n** to the vector on the device. Each integer is written 100 times
+    to global memory to increase the runtime of **fillKernel()** to better illustrate
+    the concurrent execution of this kernel on two GPUs, as shown in [Figure 7.2](#f0015).
+    See [Example 7.4](#tb0025), “Part 1 of *multiGPU.cu*”:`#include <stdio.h>``__global__
+    void fillKernel(int *a, int n, int offset)``{``int tid = blockIdx.x*blockDim.x
+    + threadIdx.x ;``if (tid < n)``for(int i=0 ; i < 100 ; i++)``a[tid] = offset+tid
+    ;``}`The **main()** routine starts by calling **cudaGetDeviceCount()** to determine
+    the number of GPUs in the system. The value is saved in the variable **nGPU**.
+    See [Example 7.5](#tb0030), “Part 2 of *multiGPU.cu*”:`int main(int argc, char*
+    argv[])``{``int nGPU ;``int n = 1000000 ;``int size=n*sizeof(int) ;``cudaGetDeviceCount(&nGPU)
+    ;`Memory is allocated on the host with **cudaHostAlloc().** The flag **cudaHostAllocPortable**
+    specifies that the host memory will be page-locked. The page-locked memory permits
+    the following:■ Copies between page-locked host memory and device memory can be
+    performed concurrently with kernel execution.■ On systems with a front-side bus,
+    bandwidth between host memory and device memory is higher if host memory is allocated
+    as page-locked.The method **cudaSetDevice()** is then used to change the context
+    to each GPU device. The context is actually created with the call to **cudaMalloc()**,
+    which changes the state of the context and implicitly creates a stream per device,
+    as in [Example 7.6](#tb0035), “Part 3 of *multiGPU.cu*”:`int *d_A[nGPU];``for(int
+    i=0; i < nGPU; i++) {``cudaSetDevice(i);``cudaMalloc(&d_A[i],size);``}`The **fillKernel()**
+    kernel is then queued on each device along with a call to **cudaMemcpyAsync()**
+    to transfer the values back to the host. The method **cudaDeviceSynchronize()**
+    is used to ensure that the work on all devices has completed. See [Example 7.7](#tb0040),
+    “Part 4 of *multiGPU.cu*”:`int *h_A;``cudaHostAlloc(&h_A, nGPU*n*sizeof(int),
+    cudaHostAllocPortable);``for(int i=0; i < nGPU; i++) {``int nThreadsPerBlock=
+    512;``int nBlocks= n/nThreadsPerBlock + ((n%nThreadsPerBlock)?1:0);``cudaSetDevice(i);``fillKernel<<<nBlocks,
+    nThreadsPerBlock>>>(d_A[i], n, i*n);``cudaMemcpyAsync(&h_A[i*n], d_A[i], size,
+    cudaMemcpyDeviceToHost);``}``cudaDeviceSynchronize();`The host then checks the
+    vector for correctness, as in [Example 7.8](#tb0045), “Part 5 of *multiGPU.cu*”:`for(int
+    i=0; i < nGPU*n; i++)``if(h_A[i] != i) {``printf("Error h_A[%d] = %d\n",i,h_A[i]);
+    exit(1);``}``printf("Success!\n");`All the device resources are freed, as in [Example
+    7.9](#tb0050), “Part 6 of *multiGPU.cu*”:`cudaFreeHost(h_A) ;``for(int i=0; i
+    < nGPU; i++) {``cudaSetDevice(i); // to be same, set the context for the free``cudaFree(d_A[i]);``}``return(0);``}`This
+    source code can be saved to a file *multiGPU.cu*. The application can be compiled
+    and executed with the following **nvcc** command. Note the use of the **-run**
+    command-line option. The application reports that multiple GPUs were used to successfully
+    fill the vector with consecutive integers.`$ nvcc multiGPU.cu –run``Success!`
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 以下示例演示了如何同时运行一个或多个GPU。它：1\. 为每个GPU分配**n**个整数的空间。在本示例中，**n**为一百万。2\. 同时填充每个GPU上的向量，以创建一个包含连续整数的大向量。3\.
+    异步地将GPU内存传输到主机内存。4\. 检查结果的正确性。以下讲解讨论了代码中的多GPU和并发执行的方面。所有代码段可以合并为一个源文件，进行编译和执行。CUDA内核**fillKernel()**将连续的整数**offset**+0到**offset**+**n**写入设备上的向量。每个整数会被写入100次，以增加**fillKernel()**的运行时间，来更好地说明该内核在两个GPU上的并发执行，如[图7.2](#f0015)所示。参见[示例7.4](#tb0025)，“*multiGPU.cu*的第一部分”：
+- en: Profiling Results
+  id: totrans-18
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 性能分析结果
+- en: '[Figure 7.2](#f0015), a width plot from the Visual Profiler, clearly shows
+    that **fillKernel()** runs concurrently on both device 0 and device 1\. Further,
+    the asynchronous memory transfers also run concurrently. Due to variations in
+    when operations start on each queue, one of the data transfers finishes slightly
+    later that the other.'
+  id: totrans-19
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '[图 7.2](#f0015)来自可视化分析器的宽度图清楚地显示了**fillKernel()**在设备 0 和设备 1 上并行运行。此外，异步内存传输也并行进行。由于每个队列上的操作开始时间不同，其中一个数据传输稍微比另一个晚完成。'
+- en: '| ![B9780123884268000070/f07-02-9780123884268.jpg is missing](B9780123884268000070/f07-02-9780123884268.jpg)
+    |'
+  id: totrans-20
+  prefs: []
+  type: TYPE_TB
+  zh: '| ![B9780123884268000070/f07-02-9780123884268.jpg 文件丢失](B9780123884268000070/f07-02-9780123884268.jpg)
+    |'
+- en: '| **Figure 7.2**Visual Profiler width plot showing concurrent device execution.
+    |'
+  id: totrans-21
+  prefs: []
+  type: TYPE_TB
+  zh: '| **图 7.2** 可视化分析器宽度图，显示并行设备执行。 |'
+- en: Out-of-Order Execution with Multiple Streams
+  id: totrans-22
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 多流的乱序执行
+- en: CUDA developers can also explicitly create streams with **cudaStreamCreate()**.
+    As shown in [Example 7.11](#tb0060), “Example Showing the Creation of Multiple
+    Streams,” **cudaSetDevice()** can be called to set the device (and context) in
+    which the stream will be created.`for(int i=0; i < nGPU; i++) {``cudaSetDevice(i)``if(cudaStreamCreate(&streams[i])
+    != 0) {``fprintf(stderr,"Stream create failed!\n"); exit(1);``}``}`A kernel launch
+    or memory copy will fail if it is issued to a stream that is not associated to
+    the current device as illustrated in [Example 7.12](#tb0065), “Example Showing
+    that the Correct Context Must Be Used,” taken from the *NVIDIA CUDA C Programming
+    Guide*:`cudaSetDevice(0);// Set device 0 as current``cudaStream_t s0;``cudaStreamCreate(&s0);//
+    Create stream s0 on device 0``MyKernel<<<100, 64, 0, s0>>>(); // Launch kernel
+    on device 0 in s0``cudaSetDevice(1);// Set device 1 as current``cudaStream_t s1;``cudaStreamCreate(&s1);//
+    Create stream s1 on device 1``MyKernel<<<100, 64, 0, s1>>>(); // Launch kernel
+    on device 1 in s1``// This kernel launch will fail:``MyKernel<<<100, 64, 0, s0>>>();
+    // Launch kernel on device 1 in s0`As demonstrated in *multGPU.cu*, multiple streams
+    can be created in different contexts to perform *out-of-order execution* to support
+    multiple GPUs in a single host thread. In other words, there is no guarantee that
+    the commands on different streams will run in the same order relative to each
+    other. Similarly, multiple streams can be created within a single context to support
+    out-of-order execution within a single context. Asynchronous kernel execution
+    is one example of out-of-order execution within a single context, where multiple
+    kernels run concurrently on the same device.The following source code ([Example
+    7.13](#tb0070)) modifies *multiGPU.cu* to demonstrate concurrent kernel execution
+    on a single GPU. Changes are highlighted in the source code:■ The number of loops
+    in **fillKernel()** was increased to better highlight the difference between synchronous
+    versus concurrent kernel runtime.■ The value of **n** was decreased to 1024, so
+    only two blocks are utilized by **fillKernel()** to process each vector.■ Five
+    streams are created that run concurrent **fillKernel()** instances.■ For timing
+    comparison, all the kernels will run sequentially on **stream[0]** when the C
+    processor variable **USE_SINGLE_STREAM** is defined.`__global__ void fillKernel(int
+    *a, int n, int offset)``{``int tid = blockIdx.x*blockDim.x + threadIdx.x;``if
+    (tid < n) {``register int delay=1000000;``while(delay > 0) delay--;``a[tid] =
+    delay + offset+tid;``}``}``int main(int argc, char* argv[])``{``int nStreams=5;``**int
+    n = 1024;**``int size = n * sizeof(int);``**cudaStream_t streams[nStreams];**``int
+    *d_A[nStreams];``**for(int i=0; i < nStreams; i++) {**``**cudaMalloc(&d_A[i],size);**``**if(cudaStreamCreate(&streams[i])
+    != 0) {**``**fprintf(stderr,"Stream create failed!\n"); exit(1);**``**}**``}``int
+    *h_A;``cudaHostAlloc(&h_A, nStreams*size, cudaHostAllocPortable);``int nThreadsPerBlock=
+    512;``int nBlocks= n/nThreadsPerBlock + ((n%nThreadsPerBlock)?1:0);``double startTime
+    = omp_get_wtime();``for(int i=0; i < nStreams; i++) {``**#ifdef USE_SINGLE_STREAM**``**fillKernel<<<nBlocks,
+    nThreadsPerBlock>>>(d_A[i], n, i*n);**``**#else**``**fillKernel<<<nBlocks, nThreadsPerBlock,
+    0, streams[i]>>>(d_A[i], n, i*n);**``**#endif**``}``cudaDeviceSynchronize();``double
+    endTime= omp_get_wtime();``printf("runtime %f\n",endTime-startTime);``for(int
+    i=0; i < nStreams; i++) {``cudaMemcpyAsync(&h_A[i*n], d_A[i], size, cudaMemcpyDefault,
+    streams[i]);``}``cudaDeviceSynchronize();``for(int i=0; i < nStreams*n; i++)``if(h_A[i]
+    != i) {``printf("Error h_A[%d] = %d\n",i,h_A[i]); exit(1);``}``printf("Success!\n");``for(int
+    i=0; i < nStreams; i++) {``cudaFree(d_A[i]);``}``return(0);``}`[Example 7.13](#tb0070)
+    can be saved to a file called *asyncGPU.cu*. The following commands demonstrate
+    how to build and run the code. A comparison of the runtime between the sequential
+    and parallel version shows that asynchronous kernel execution does speed this
+    application according to the number of concurrent kernels. See [Example 7.14](#tb0075),
+    “*asyncGPU.cu* Results”:`$ nvcc -D USE_SINGLE_STREAM -arch sm_20 -O3 -Xcompiler
+    -fopenmp asyncGPU.cu -run``runtime 4.182832``Success!``$ nvcc -arch sm_20 -O3
+    -Xcompiler -fopenmp asyncGPU.cu -run``runtime 0.836606``Success!`In CUDA 4.0,
+    the visual profiler cannot profile concurrent kernel execution. For this reason,
+    wallclock time as reported by **omp_get_wtime()** is utilized to detect a speedup.
+    This example demonstrates nearly perfect speedup by a factor of 5 as the runtime
+    decreased according to the number of concurrent streams that ran on the GPU.
+  id: totrans-23
+  prefs: []
+  type: TYPE_NORMAL
+  zh: CUDA 开发者也可以通过 **cudaStreamCreate()** 显式创建流。如 [示例 7.11](#tb0060) “展示创建多个流的示例”
+    中所示，可以调用 **cudaSetDevice()** 来设置流将要创建的设备（及上下文）。`for(int i=0; i < nGPU; i++) {``cudaSetDevice(i)``if(cudaStreamCreate(&streams[i])
+    != 0) {``fprintf(stderr,"Stream create failed!\n"); exit(1);``}``}`若将命令提交到未与当前设备关联的流，则会导致内核启动或内存拷贝失败，如
+    [示例 7.12](#tb0065) “展示必须使用正确上下文的示例” 中所示，该示例取自 *NVIDIA CUDA C 编程指南*：`cudaSetDevice(0);//
+    设置设备 0 为当前设备``cudaStream_t s0;``cudaStreamCreate(&s0);// 在设备 0 上创建流 s0``MyKernel<<<100,
+    64, 0, s0>>>(); // 在设备 0 上通过流 s0 启动内核``cudaSetDevice(1);// 设置设备 1 为当前设备``cudaStream_t
+    s1;``cudaStreamCreate(&s1);// 在设备 1 上创建流 s1``MyKernel<<<100, 64, 0, s1>>>(); //
+    在设备 1 上通过流 s1 启动内核``// 该内核启动将失败：``MyKernel<<<100, 64, 0, s0>>>(); // 在设备 1 上通过流
+    s0 启动内核`如 *multGPU.cu* 中所示，可以在不同上下文中创建多个流，以执行 *无序执行* 支持在单个主机线程中使用多个 GPU。换句话说，不保证不同流上的命令相对彼此的执行顺序。类似地，可以在单个上下文内创建多个流，以支持在单个上下文内的无序执行。异步内核执行就是单一上下文内无序执行的一个示例，其中多个内核可以在同一设备上并行执行。以下源代码
+    ([示例 7.13](#tb0070)) 修改了 *multiGPU.cu* 以演示在单个 GPU 上的并发内核执行。源代码中的修改部分已标出：■ **fillKernel()**
+    中的循环次数增加，以更好地突出同步与并发内核运行时间的差异。■ **n** 的值减少到 1024，以便 **fillKernel()** 仅使用两个块来处理每个向量。■
+    创建了五个流，运行并发的 **fillKernel()** 实例。■ 为了进行时间对比，当 C 处理器变量 **USE_SINGLE_STREAM** 被定义时，所有内核将按顺序运行在
+    **stream[0]** 上。`__global__ void fillKernel(int *a, int n, int offset)``{``int
+    tid = blockIdx.x*blockDim.x + threadIdx.x;``if (tid < n) {``register int delay=1000000;``while(delay
+    > 0) delay--;``a[tid] = delay + offset+tid;``}``}``int main(int argc, char* argv[])``{``int
+    nStreams=5;``**int n = 1024;**``int size = n * sizeof(int);``**cudaStream_t streams[nStreams];**``int
+    *d_A[nStreams];``**for(int i=0; i < nStreams; i++) {**``**cudaMalloc(&d_A[i],size);**``**if(cudaStreamCreate(&streams[i])
+    != 0) {**``**fprintf(stderr,"Stream create failed!\n"); exit(1);**``**}**``}``int
+    *h_A;``cudaHostAlloc(&h_A, nStreams*size, cudaHostAllocPortable);``int nThreadsPerBlock=
+    512;``int nBlocks= n/nThreadsPerBlock + ((n%nThreadsPerBlock)?1:0);``double startTime
+    = omp_get_wtime();``for(int i=0; i < nStreams; i++) {``**#ifdef USE_SINGLE_STREAM**``**fillKernel<<<nBlocks,
+    nThreadsPerBlock>>>(d_A[i], n, i*n);**``**#else**``**fillKernel<<<nBlocks, nThreadsPerBlock,
+    0, streams[i]>>>(d_A[i], n, i*n);**``**#endif**``}``cudaDeviceSynchronize();``double
+    endTime= omp_get_wtime();``printf("runtime %f\n",endTime-startTime);``for(int
+    i=0; i < nStreams; i++) {``cudaMemcpyAsync(&h_A[i*n], d_A[i], size, cudaMemcpyDefault,
+    streams[i]);``}``cudaDeviceSynchronize();``for(int i=0; i < nStreams*n; i++)``if(h_A[i]
+    != i) {``printf("Error h_A[%d] = %d\n",i,h_A[i]); exit(1);``}``printf("Success!\n");``for(int
+    i=0; i < nStreams; i++) {``cudaFree(d_A[i]);``}``return(0);``}`[示例 7.13](#tb0070)
+    可以保存为名为 *asyncGPU.cu* 的文件。以下命令演示如何构建并运行代码。顺序版本和并行版本的运行时间对比表明，异步内核执行的确能根据并发内核的数量加速该应用。见
+    [示例 7.14](#tb0075)，“*asyncGPU.cu* 结果”：`$ nvcc -D USE_SINGLE_STREAM -arch sm_20
+    -O3 -Xcompiler -fopenmp asyncGPU.cu -run``runtime 4.182832``Success!``$ nvcc -arch
+    sm_20 -O3 -Xcompiler -fopenmp asyncGPU.cu -run``runtime 0.836606``Success!`在 CUDA
+    4.0 中，视觉分析器无法分析并发内核执行。因此，采用 **omp_get_wtime()** 报告的墙钟时间来检测加速效果。这个示例展示了几乎完美的加速效果，按并发流的数量，运行时间减少了五倍。
+- en: Tip for Concurrent Kernel Execution on the Same GPU
+  id: totrans-24
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 同一GPU上的并发内核执行技巧
+- en: The linear speedup according to the number of kernels exhibited by *asyncGPU.cu*
+    demonstrates that concurrent kernel execution can be an important tool to increase
+    performance when running small compute-bound kernels. It is important to consider
+    how the multiple kernels will interact with global memory. For example, a single
+    kernel may access global memory in a cache friendly high-performance coalesced
+    manner. Running multiple kernels may change the locality of reference, increase
+    L2 cache misses, and reduce or eliminate the effectiveness of this cache. Concurrently
+    running different kernels can exacerbate this problem and introduce additional
+    problems with bank conflicts and memory partition camping, as discussed in [Chapter
+    5](B9780123884268000057.xhtml#B978-0-12-388426-8.00005-7). As a result, performance
+    will degrade. Although the overall speedup when running multiple concurrent kernels
+    will likely be better than running each kernel sequentially, a linear speedup
+    may not always be possible.The following guidelines should improve the potential
+    for concurrent kernel execution on devices that support concurrent kernel execution:■
+    All independent operations should be issued before dependent operations.■ Synchronization
+    of any kind should be delayed as long as possible.
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 根据*asyncGPU.cu*展示的线性加速与内核数量的关系，表明当运行小型计算密集型内核时，并发内核执行可以作为提高性能的重要工具。需要考虑多个内核如何与全局内存交互。例如，单个内核可能以缓存友好的高性能合并方式访问全局内存。运行多个内核可能会改变引用的局部性，增加L2缓存未命中，并减少或消除该缓存的有效性。并发运行不同的内核可能会加剧这个问题，并引入其他如银行冲突和内存分区竞争等问题，正如在[第5章](B9780123884268000057.xhtml#B978-0-12-388426-8.00005-7)中讨论的那样。因此，性能会下降。尽管运行多个并发内核时的整体加速通常比顺序执行每个内核要好，但线性加速并不总是可能的。以下准则应能提升支持并发内核执行设备上的并发内核执行潜力：■
+    所有独立操作应在依赖操作之前发出。■ 任何形式的同步应尽可能延迟。
+- en: Atomic Operations for Implicitly Concurrent Kernels
+  id: totrans-26
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 隐式并发内核的原子操作
+- en: CUDA is designed to let each SM run independently of each other. In this way,
+    the CUDA model does not impose any scalability limit on the number of devices.
+    The gating factor for kernel scalability in a kernel is the number of thread blocks.
+    With concurrent kernel execution, the scalability of an application is limited
+    by the number of blocks of all the independent tasks that can run at one time.The
+    **functionReduce()** example from [Chapter 6](B9780123884268000069.xhtml#B978-0-12-388426-8.00006-9)
+    demonstrates that the CUDA model does introduce some complexity for reduction
+    types of operations. By definition, a reduction operation must provide a single
+    value that is based on computations performed by all the SM on the GPU, which
+    requires that some form of synchronization happen between computational units.
+    This is antithetical to the CUDA programming model. The simple solution used by
+    the **functionReduce()** example was to move the data to the host, where the final
+    step of the reduction is performed. This approach works but presents challenges
+    when programming with multiple devices or streams because host-side operations
+    are not queued on a CUDA stream.There are two options that allow the complete
+    reduction to a single value to happen via a CUDA stream:1\. Write a separate kernel
+    that runs after **functionReduce()**. CUDA guarantees that all global memory transactions
+    will be completed prior to the start of the next kernel. Because global memory
+    has the lifetime of the application, the partial sums stored in global memory
+    can be used by the second kernel to complete the reduction operation.2\. Utilize
+    atomic operations to synchronize operations within a kernel. Basically, an atomically
+    incremented counter is used to determine which SM is the last to finish. An atomic
+    operation performed on a memory location is guaranteed to complete before any
+    other processing element can access the result of the operation. The atomic increment
+    lets the CUDA programmer determine when all the SM on the GPU have finished performing
+    their part of the reduction. Atomic operations force each SM to serially access
+    a single memory location, which imposes obvious scaling limitations. However,
+    atomic operations do allow kernels such as **functionReduce()** to perform a reduction
+    to one value in a single kernel call.The NVIDIA SDK includes *threadFenceReduction*,
+    a well-documented example that utilizes atomic operations to synchronize all the
+    SM on a GPU. This SDK example is rather long and complicated. [Example 7.15](#tb0080),
+    “Using Atomics to Complete a Reduction Inside a Kernel,” is a concise and highly
+    abbreviated example that utilizes an **atomicInc()** in the same fashion as the
+    SDK example:`#include <iostream>``using namespace std;``__global__ void gmem_add(int
+    *a, int n, unsigned int *counter, int *result)``{``bool finishSum;``if(threadIdx.x
+    == 0) {``// introduce some variable delay based on threadIdx.x``register int delay=blockIdx.x
+    * 1000000;``while(delay >0) delay--;``// write blockIdx.x to global memory``a[blockIdx.x]
+    = blockIdx.x;``__threadfence();``}``// Use an atomic increment to find the last
+    SM to finish.``// The counter must start at zero!``if(threadIdx.x == 0) {``unsigned
+    int ticket = atomicInc(counter, gridDim.x);``finishSum = (ticket == gridDim.x-1);``}``if(finishSum)
+    {``register int sum = a[0];``#pragma unroll``for(int i=1; i < n; i++) sum += a[i];``result[0]
+    = sum;``}``counter=0; // reset the counter``}``#define N_BLOCKS 1400``int main(int
+    argc, char *argv[])``{``int *d_a, *d_result;``unsigned int *d_counter;``cudaMalloc(&d_a,
+    sizeof(int)*N_BLOCKS);``cudaMalloc(&d_result, sizeof(int));``cudaMalloc(&d_counter,
+    sizeof(unsigned int));``int zero=0;``cudaMemcpy(d_counter, &zero, sizeof(int),
+    cudaMemcpyHostToDevice);``gmem_add<<<N_BLOCKS, 64>>>(d_a, N_BLOCKS, d_counter,
+    d_result);``int h_a[N_BLOCKS], h_result;``cudaMemcpy(h_a, d_a, sizeof(int)*N_BLOCKS,
+    cudaMemcpyDeviceToHost);``cudaMemcpy(&h_result, d_result, sizeof(int), cudaMemcpyDeviceToHost);``int
+    sum=0;``for(int i=0; i< N_BLOCKS; i++) sum += h_a[i];``cout << "should be " <<
+    sum << " got " << h_result << endl;``}`In [Example 7.15](#tb0080):1\. The first
+    thread in each thread block is delayed by a variable amount.2\. The first thread
+    in each thread block atomically increments a counter to show that the thread block
+    has completed all prior work.3\. Only the first thread in the last thread block
+    will see that the counter equals the number of thread blocks. That indicates it
+    is safe for it to perform the final sum.
+  id: totrans-27
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 'CUDA 旨在让每个 SM 相互独立运行。通过这种方式，CUDA 模型不会对设备数量的可扩展性施加任何限制。在内核中，影响内核可扩展性的因素是线程块的数量。通过并发内核执行，应用程序的可扩展性受限于所有独立任务的线程块数量，这些任务可以同时运行。来自[第
+    6 章](B9780123884268000069.xhtml#B978-0-12-388426-8.00006-9)的**functionReduce()**示例演示了CUDA模型确实为归约类型的操作引入了一些复杂性。根据定义，归约操作必须提供一个单一的值，这个值是基于
+    GPU 上所有 SM 执行的计算，这要求计算单元之间进行某种形式的同步。这与CUDA编程模型是相悖的。**functionReduce()**示例中使用的简单解决方案是将数据移动到主机端，在主机端执行归约的最后一步。这个方法有效，但在使用多个设备或流进行编程时会带来挑战，因为主机端的操作不会排队在
+    CUDA 流上。有两种方法可以通过 CUDA 流完成归约到一个单一值的操作：  '
+- en: Tying Data to Computation
+  id: totrans-28
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 将数据与计算绑定
+- en: Tying data to computation is essential to attaining program correctness and
+    performance in a distributed multi-GPU environment. CUDA programmers have the
+    following options to make data available to kernels running on multiple GPUs:■
+    Map the memory into the memory space of all the GPUs. In this case, data will
+    be transparently transferred between the host and GPUs.■ Manually allocate space
+    and transfer the data.■ For applications that will run in a distributed MPI (Message
+    Passing Interface) environment, space can be allocated on each device and transferred
+    directly to the GPU via MPI send and receive calls. This is discussed further
+    in [Chapter 10](B9780123884268000100.xhtml#B978-0-12-388426-8.00010-0).
+  id: totrans-29
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在分布式多GPU环境中，将数据与计算绑定对于程序正确性和性能至关重要。CUDA程序员有以下几种方法可以使数据在多个GPU上运行的内核之间可用：■ 将内存映射到所有GPU的内存空间中。在这种情况下，数据将在主机和GPU之间透明地传输。■
+    手动分配空间并传输数据。■ 对于将在分布式MPI（消息传递接口）环境中运行的应用程序，可以在每个设备上分配空间，并通过MPI的发送和接收调用直接传输到GPU。有关更多内容，请参见[第10章](B9780123884268000100.xhtml#B978-0-12-388426-8.00010-0)。
+- en: Manually Partitioning Data
+  id: totrans-30
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 手动分区数据
+- en: The most flexible, scalable, and highest-performance method to tie data to computation
+    is manually partitioning and transfering data amongst devices. With this technique,
+    the programmer can control and optimize all aspects of the computation. Unlike
+    mapped memory, the programmer assumes the responsibility of ensuring that all
+    data is on the GPU when it is needed. The *multiGPU.cu* example (starting with
+    [Example 7.4](#tb0025)) provided a simple demonstration that manually partitioned
+    data.Effectively partitioning data across many devices is a hard problem. The
+    decision-making process of how to distribute data across devices does create a
+    very deep and detailed insight into the computational problem being solved. Most
+    important from a performance perspective, this design process highlights how asynchronous
+    data transfers and overlapped kernel execution can speed performance. The good
+    news is that the technical and scientific literature contains numerous examples
+    of excellent parallelization schemes that have been created by very bright people.
+    Look to these sources early in your design process to see how others have addressed
+    parallelism in problems similar to the one to be solved.The discussion in [Chapter
+    6](B9780123884268000069.xhtml#B978-0-12-388426-8.00006-9) concerning tiles, stencils,
+    and quad- and octrees provides some good starting points for research. Data-parallel
+    APIs such as Thrust implement common parallel design patterns that can be used
+    to simplify and implement many high-performance applications. Again, the good
+    news is that these general libraries are rapidly expanding and improving.For all
+    applications, the three rules of high-performance GPU programming discussed in
+    this book should be used as a basic starting point in all your design efforts:1\.
+    Get the data on the GPGPU and keep it there.2\. Give the GPGPU enough work to
+    do.3\. Focus on data reuse within the GPGPU to avoid memory bandwidth limitations.
+  id: totrans-31
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 将数据与计算绑定的最灵活、可扩展且高性能的方法是手动划分数据并在设备之间传输数据。使用这种技术，程序员可以控制和优化计算的各个方面。与映射内存不同，程序员需要承担确保所有数据在需要时都能存在于GPU上的责任。*multiGPU.cu*
+    示例（从[示例 7.4](#tb0025)开始）提供了一个简单的演示，展示了手动划分数据。有效地在多个设备之间划分数据是一个难题。如何将数据分配到各个设备的决策过程确实能深入且详细地洞察正在解决的计算问题。从性能角度来看，最重要的是，这个设计过程突出了异步数据传输和重叠内核执行如何加速性能。好消息是，技术和科学文献中有很多优秀的并行化方案示例，它们是由非常聪明的人们创造的。在设计过程中，尽早参考这些资料，看看别人是如何解决类似问题中的并行性的。[第6章](B9780123884268000069.xhtml#B978-0-12-388426-8.00006-9)中关于瓦片、模板以及四叉树和八叉树的讨论提供了一些很好的研究起点。像Thrust这样的数据并行API实现了常见的并行设计模式，可以用来简化和实现许多高性能应用程序。同样的好消息是，这些通用库正在快速扩展和改进。对于所有应用程序，本书中讨论的高性能GPU编程的三条规则应作为所有设计工作的基本起点：1\.
+    将数据加载到GPGPU并保持在那里。2\. 给GPGPU足够的工作量。3\. 专注于GPGPU内的数据重用，以避免内存带宽限制。
+- en: Mapped Memory
+  id: totrans-32
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 映射内存
+- en: 'Simplicity is the advantage of mapping memory among the devices in a system:■
+    There is no need to partition data. All devices see the complete memory image.■
+    There is no need to allocate space in device memory or to manually copy data.
+    All data transfers are implicitly performed by the kernel as needed.■ There is
+    no need to use streams to overlap data transfers with kernel execution. All data
+    transfers originate from the kernel and are asynchronous.Application performance
+    is the cost associated with this simplicity. Using mapped memory does mean that
+    the programmer gives up control over the data movement between the host and devices.
+    From the forums and experience, it is not unusual for kernel performance to drop
+    when using mapped memory because there are no guarantees when or how often data
+    will need to be transferred across the PCIe bus. Other considerations to using
+    mapped memory include:■ If the contents of the mapped memory are modified, the
+    application must synchronize memory accesses using streams or events to avoid
+    any potential read-after-write, write-after-read, or write-after write hazards.■
+    The host memory needs to be page aligned. The simplest and most portable way to
+    enforce this is to use **cudaAllocHost()** when allocating mapped host memory.The
+    simplicity of using mapped memory is illustrated by the following example ([Example
+    7.16](#tb0085)), which fills a mapped memory vector using one or more GPUs in
+    the system. The highlighted command **cudaHostAlloc()** creates a mapped region
+    of memory when passed the **cudaHostAllocMapped** flag. This region is freed at
+    the end of the program with **cudaFreeHost()**.Thrust was used to make this code
+    concise and easy to read. The **device_pointer_cast()** method was used to correctly
+    cast the mapped host memory for the thrust **sequence()** method.The highlighted
+    call to **cudaDeviceSynchronize()** ensures that the mapped data is synchronized
+    between the host and devices prior to checking the results on the host. All data
+    transfers occur transparently and asynchronously. Finally, the contents of the
+    mapped region of memory are checked for correctness on the host and the mapped
+    region is freed.`#include <iostream>``using namespace std;``#include <thrust/device_vector.h>``#include
+    <thrust/sequence.h>``int main(int argc, char* argv[])``{``int nGPU;``if(argc <
+    2) {``cerr << "Use: number of integers" << endl;``return(1);``}``cudaGetDeviceCount(&nGPU);``int
+    n = atoi(argv[1]);``int size = nGPU * n * sizeof(int);``cout << "nGPU " << nGPU
+    << " " << (n*nGPU*sizeof(int)/1e6) << "MB" << endl;``int *h_A;``**cudaHostAlloc(&h_A,
+    size, cudaHostAllocMapped);**``for(int i=0; i < nGPU; i++) {``cudaSetDevice(i);``thrust::sequence(thrust::device_pointer_cast(h_A
+    + i*n),``thrust::device_pointer_cast(h_A + (i+1)*n),``i*n);``}``**cudaDeviceSynchronize();
+    // synchronize the writes**``for(int i=0; i < nGPU*n; i++)``if(h_A[i] != i) {
+    cout << "Error " << h_A[i] << endl; exit(1); }``cout << "Success!\n" << endl;``**cudaFreeHost(h_A);**``return(0);``}`Compiling
+    and running this example on a system containing two GPUs shows that the vector
+    **h_A** is correctly initialized for both very small and large problems ([Example
+    7.17](#tb0090), “Sample Output from the Mapped Memory Example”):`$ ./mappedGPUsthrust
+    2``nGPU 2 1.6e-05MB``Success!``$ ./mappedGPUsthrust 200000000``nGPU 2 1600MB``Success!`The
+    result when using two integers per GPU illustrates a very important characteristic
+    of mapped memory: it allows multiple devices to correctly update adjacent, nonoverlapping
+    locations in memory! This makes mapped memory a very valuable tool, as programmers
+    need to ensure only that their codes write to nonoverlapping addresses in memory.
+    Of course, concurrent writes to the same memory location are undefined. Also,
+    writes will become visible across devices only after synchronization.'
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '简单性是系统中设备之间映射内存的优势：■ 无需分区数据。所有设备都能看到完整的内存映像。■ 无需在设备内存中分配空间或手动复制数据。所有数据传输都会在需要时由内核隐式执行。■
+    无需使用流来与内核执行重叠数据传输。所有数据传输都源自内核，并且是异步的。应用性能是这种简单性的代价。使用映射内存确实意味着程序员放弃了对主机和设备之间数据移动的控制。从论坛和经验来看，使用映射内存时，内核性能下降并不罕见，因为没有关于何时以及多频繁需要通过PCIe总线传输数据的保证。使用映射内存时还需要考虑其他因素：■
+    如果映射内存的内容被修改，应用程序必须使用流或事件同步内存访问，以避免潜在的读后写、写后读或写后写的危险。■ 主机内存需要按页对齐。强制执行此要求最简单且最具移植性的方法是使用**cudaAllocHost()**分配映射的主机内存。使用映射内存的简单性通过以下示例进行了说明（[示例
+    7.16](#tb0085)），该示例使用系统中的一个或多个GPU填充映射内存向量。高亮的命令**cudaHostAlloc()**在传入**cudaHostAllocMapped**标志时创建一个映射的内存区域。该区域在程序结束时通过**cudaFreeHost()**释放。为了使代码简洁易读，使用了Thrust库。**device_pointer_cast()**方法用于正确地将映射的主机内存转换为Thrust的**sequence()**方法所需的类型。高亮的**cudaDeviceSynchronize()**调用确保在检查主机上的结果之前，主机和设备之间的映射数据已同步。所有数据传输都是透明且异步的。最后，检查映射内存区域的内容是否正确，随后释放该区域。`#include
+    <iostream>``using namespace std;``#include <thrust/device_vector.h>``#include
+    <thrust/sequence.h>``int main(int argc, char* argv[])``{``int nGPU;``if(argc <
+    2) {``cerr << "Use: number of integers" << endl;``return(1);``}``cudaGetDeviceCount(&nGPU);``int
+    n = atoi(argv[1]);``int size = nGPU * n * sizeof(int);``cout << "nGPU " << nGPU
+    << " " << (n*nGPU*sizeof(int)/1e6) << "MB" << endl;``int *h_A;``**cudaHostAlloc(&h_A,
+    size, cudaHostAllocMapped);**``for(int i=0; i < nGPU; i++) {``cudaSetDevice(i);``thrust::sequence(thrust::device_pointer_cast(h_A
+    + i*n),``thrust::device_pointer_cast(h_A + (i+1)*n),``i*n);``}``**cudaDeviceSynchronize();
+    // synchronize the writes**``for(int i=0; i < nGPU*n; i++)``if(h_A[i] != i) {
+    cout << "Error " << h_A[i] << endl; exit(1); }``cout << "Success!\n" << endl;``**cudaFreeHost(h_A);**``return(0);``}``在包含两个GPU的系统上编译并运行此示例时，结果显示向量**h_A**在非常小和非常大的问题中都能正确初始化（[示例
+    7.17](#tb0090)，“映射内存示例的示例输出”）：`$ ./mappedGPUsthrust 2``nGPU 2 1.6e-05MB``Success!``$
+    ./mappedGPUsthrust 200000000``nGPU 2 1600MB``Success!`使用每个GPU两个整数的结果说明了映射内存的一个非常重要的特性：它允许多个设备正确地更新内存中相邻的、不重叠的位置！这使得映射内存成为一个非常有价值的工具，因为程序员只需要确保他们的代码写入内存中不重叠的地址。当然，对同一内存位置的并发写入是未定义的。此外，写入数据将在同步后在设备之间可见。'
+- en: How Mapped Memory Works
+  id: totrans-34
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: 映射内存是如何工作的
+- en: All CUDA threads operate in a virtual address space. This means that every address
+    generated by a CUDA kernel is translated by the MMU (Memory Management Unit) into
+    a physical address that is used by the hardware to actually read data from the
+    physical memory. Virtual memory makes life simple for application programmers,
+    as they can use a single virtual memory address to correctly access data within
+    a kernel or across devices – even when that same data resides at a different physical
+    address on each separate device.When presented with a virtual address, the MMU
+    consults an internal cache (called a TLB or Translation Lookaside Buffer) to find
+    the correct value needed to translate the virtual address into a physical address.
+    The MMU views memory in terms of fixed-sized blocks of memory called pages. If
+    the MMU does not find the page offset for a given virtual address, it will load
+    the correct offset into the TLB from a data structure in physical memory called
+    a page table. No address translation is required for page table access by the
+    MMU. Once the MMU has the correct offset in the TLB, the address translation completes,
+    which lets the application memory transaction proceed at the correct location
+    in physical memory.Microbenchmarks indicate that the size of a page of memory
+    in a GPU can vary according to the hardware and the CUDA driver. Generally, 4
+    KB is the accepted size of a GPU page, but 64 KB pages have also been observed
+    ([Wong, Papadopoulou, Sadooghi-Alvandi, & Moshovos, 2010](B978012388426800015X.xhtml#ref143)).
+    The lesson learned is that the page size can vary even across device driver updates.In
+    addition to translating virtual addresses to physical memory, the MMU also keeps
+    track of other information in the page table. For example, each page in the page
+    table contains a bit that specifies whether the page is resident in memory. When
+    the MMU is asked to translate an address for a page that is not resident, it generates
+    a page fault that informs the device driver that it needs to fetch some data on
+    behalf of the GPU. Address translation resumes only once the page has been loaded
+    into the GPU memory.When a region of memory is mapped, none of the pages are marked
+    as resident. As a result, the first access to each page of mapped memory will
+    be slow, as the GPU must wait while the GPU and device driver interact to transfer
+    the required page of memory. Later accesses will be very fast, as the page will
+    already be resident on the GPU. Of course, the GPU can decide at any time to free
+    memory for other purposes, in which case a follow-on page access will again be
+    slow.The successful two-integer test case using the code in [Example 7.16](#tb0085)
+    tell us that the device driver has implemented a mechanism that correctly modifies
+    adjacent, nonoverlapping regions of mapped memory *even when multiple devices
+    modify addresses that reside in the same page*. The implication for the CUDA programmer
+    is that data can be modified in mapped memory as long as the programmer:■ Takes
+    care not to modify the same memory location on different devices.■ Synchronizes
+    as needed to make updates visible to all devices.
+  id: totrans-35
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  id: totrans-36
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+  zh: 概述
+- en: This chapter introduced multi-GPU programming, which is one of the most exciting
+    areas of research and application development in GPU computing. Current technology
+    allows up to 16 GPUs devices to be installed in a single workstation or computational
+    node. Such a workstation has a potential computational capability that is three
+    times greater than the $30 million supercomputer at Pacific Northwest National
+    Laboratory that was replaced in 2006.Data partitioning and scalability are key
+    challenges for multi-GPU application development. Ideally, CUDA programmers should
+    be able to achieve a linear speedup according to the number of devices in the
+    system. This is where understanding the computational problem and creative thinking
+    can really make a difference in application performance.Still to be discussed
+    is MPI programming for distributed GPU clusters. With this technology, CUDA programmers
+    can scale to literally thousands of GPU devices to address big computational problems.
+    It also creates opportunities to perform “leadership”-class computations on some
+    of the largest supercomputers in the world. To accelerate performance for distributed
+    applications, NVIDIA has introduced GPUdirect technology, which allows GPUs to
+    communicate directly with each other across a distributed network. [Chapter 10](B9780123884268000100.xhtml#B978-0-12-388426-8.00010-0)
+    discusses this technology and the use of GPUs for distributed computing and supercomputers.
+  id: totrans-37
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本章介绍了多GPU编程，这是GPU计算中最激动人心的研究和应用开发领域之一。当前的技术允许最多16个GPU设备安装在单个工作站或计算节点中。这样的工作站的计算能力是2006年被替代的太平洋西北国家实验室价值3000万美元超级计算机的三倍。数据划分和可扩展性是多GPU应用开发的关键挑战。理想情况下，CUDA程序员应该能够根据系统中设备的数量实现线性加速。这正是理解计算问题和创新思维能够真正提高应用性能的地方。关于分布式GPU集群的MPI编程还有待讨论。通过这项技术，CUDA程序员可以扩展到成千上万的GPU设备，解决巨大的计算问题。这也为在世界上一些最大的超级计算机上执行“领先”级别的计算创造了机会。为了加速分布式应用的性能，NVIDIA推出了GPUdirect技术，允许GPU在分布式网络中直接相互通信。[第10章](B9780123884268000100.xhtml#B978-0-12-388426-8.00010-0)讨论了这项技术以及GPU在分布式计算和超级计算中的应用。

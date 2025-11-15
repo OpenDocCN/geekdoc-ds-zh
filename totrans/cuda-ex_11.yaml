@@ -1,0 +1,893 @@
+- en: '**Chapter 8 Graphics Interoperability**'
+  id: totrans-0
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+  zh: '**第8章 图形互操作性**'
+- en: 'Since this book has focused on general-purpose computation, for the most part
+    we’ve ignored that GPUs contain some special-purpose components as well. The GPU
+    owes its success to its ability to perform complex rendering tasks in real time,
+    freeing the rest of the system to concentrate on other work. This leads us to
+    the obvious question: Can we use the GPU for both rendering *and* general-purpose
+    computation in the same application? What if the images we want to render rely
+    on the results of our computations? Or what if we want to take the frame we’ve
+    rendered and perform some image-processing or statistics computations on it?'
+  id: totrans-1
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于本书专注于通用计算，因此大部分时间我们忽略了GPU中也包含一些专用组件。GPU的成功归功于其能够实时执行复杂的渲染任务，从而使系统的其余部分可以专注于其他工作。这引出了一个显而易见的问题：我们能否在同一个应用程序中同时使用GPU进行渲染*和*通用计算？如果我们要渲染的图像依赖于计算结果呢？或者如果我们希望对渲染的帧进行一些图像处理或统计计算呢？
+- en: Fortunately, not only is this interaction between general-purpose computation
+    and rendering modes possible, but it’s fairly easy to accomplish given what you
+    already know. CUDA C applications can seamlessly interoperate with either of the
+    two most popular real-time rendering APIs, OpenGL and DirectX. This chapter will
+    look at the mechanics by which you can enable this functionality.
+  id: totrans-2
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 幸运的是，通用计算与渲染模式之间的交互不仅是可能的，而且在你已经掌握的知识基础上相对容易实现。CUDA C应用程序可以与两种最流行的实时渲染API——OpenGL和DirectX无缝互操作。本章将探讨如何启用此功能的机制。
+- en: The examples in this chapter deviate some from the precedents we’ve set in previous
+    chapters. In particular, this chapter assumes a significant amount about your
+    background with other technologies. Specifically, we have included a considerable
+    amount of OpenGL and GLUT code in these examples, almost none of which will we
+    explain in great depth. There are many superb resources to learn graphics APIs,
+    both online and in bookstores, but these topics are well beyond the intended scope
+    of this book. Rather, this chapter intends to focus on CUDA C and the facilities
+    it offers to incorporate it into your graphics applications. If you are unfamiliar
+    with OpenGL or DirectX, you are unlikely to derive much benefit from this chapter
+    and may want to skip to the next.
+  id: totrans-3
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 本章中的示例与我们在前几章中设定的先例有所偏离。特别是，本章假设你对其他技术有一定了解。具体而言，我们在这些示例中包含了大量的OpenGL和GLUT代码，其中几乎没有会进行深入讲解的内容。网上和书店有许多优秀的资源可以学习图形API，但这些话题超出了本书的预期范围。本章的目的是专注于CUDA
+    C及其提供的功能，将其融入到你的图形应用程序中。如果你不熟悉OpenGL或DirectX，那么你可能无法从本章中获得太多收益，可能需要跳到下一章。
+- en: '**8.1 Chapter Objectives**'
+  id: totrans-4
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**8.1 章节目标**'
+- en: 'Through the course of this chapter, you will accomplish the following:'
+  id: totrans-5
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在本章中，你将完成以下任务：
+- en: • You will learn what *graphics interoperability* is and why you might use it.
+  id: totrans-6
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将了解什么是*图形互操作性*以及为什么你可能会使用它。
+- en: • You will learn how to set up a CUDA device for graphics interoperability.
+  id: totrans-7
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将了解如何设置CUDA设备以实现图形互操作性。
+- en: • You will learn how to share data between your CUDA C kernels and OpenGL rendering.
+  id: totrans-8
+  prefs: []
+  type: TYPE_NORMAL
+  zh: • 你将了解如何在CUDA C内核和OpenGL渲染之间共享数据。
+- en: '**8.2 Graphics Interoperation**'
+  id: totrans-9
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**8.2 图形互操作**'
+- en: To demonstrate the mechanics of interoperation between graphics and CUDA C,
+    we’ll write an application that works in two steps. The first step uses a CUDA
+    C kernel to generate image data. In the second step, the application passes this
+    data to the OpenGL driver to render. To accomplish this, we will use much of the
+    CUDA C we have seen in previous chapters along with some OpenGL and GLUT calls.
+  id: totrans-10
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了演示图形与CUDA C之间的互操作机制，我们将编写一个分为两个步骤的应用程序。第一步使用CUDA C内核生成图像数据。第二步，应用程序将这些数据传递给OpenGL驱动程序进行渲染。为此，我们将结合前几章中学到的大部分CUDA
+    C代码，并使用一些OpenGL和GLUT调用。
+- en: To start our application, we include the relevant GLUT and CUDA headers in order
+    to ensure the correct functions and enumerations are defined. We also define the
+    size of the window into which our application plans to render. At 512 x 512 pixels,
+    we will do relatively small drawings.
+  id: totrans-11
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了启动我们的应用程序，我们包含相关的GLUT和CUDA头文件，以确保定义了正确的函数和枚举。我们还定义了应用程序计划渲染的窗口大小。由于窗口大小为512
+    x 512像素，我们将进行相对较小的绘图。
+- en: '![image](graphics/p0140-01.jpg)'
+  id: totrans-12
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0140-01.jpg)'
+- en: Additionally, we declare two global variables that will store handles to the
+    data we intend to share between OpenGL and data. We will see momentarily how we
+    use these two variables, but they will store different handles to the *same* buffer.
+    We need two separate variables because OpenGL and CUDA will both have different
+    “names” for the buffer. The variable `bufferObj` will be OpenGL’s name for the
+    data, and the variable `resource` will be the CUDA C name for it.
+  id: totrans-13
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 此外，我们声明了两个全局变量，用于存储我们打算在OpenGL和数据之间共享的句柄。我们将很快看到如何使用这两个变量，但它们将存储指向*同一*缓冲区的不同句柄。我们需要两个单独的变量，因为OpenGL和CUDA对缓冲区有不同的“名称”。变量`bufferObj`将是OpenGL对数据的名称，而变量`resource`将是CUDA
+    C对它的名称。
+- en: '![image](graphics/p0141-01.jpg)'
+  id: totrans-14
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0141-01.jpg)'
+- en: Now let’s take a look at the actual application. The first thing we do is select
+    a CUDA device on which to run our application. On many systems, this is not a
+    complicated process, since they will often contain only a single CUDA-enabled
+    GPU. However, an increasing number of systems contain more than one CUDA-enabled
+    GPU, so we need a method to choose one. Fortunately, the CUDA runtime provides
+    such a facility to us.
+  id: totrans-15
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在让我们来看看实际应用。我们首先要做的是选择一个CUDA设备来运行我们的应用程序。在许多系统上，这个过程并不复杂，因为它们通常只包含一个CUDA支持的GPU。然而，越来越多的系统包含多个CUDA支持的GPU，因此我们需要一种选择其中一个的方法。幸运的是，CUDA运行时为我们提供了这样的功能。
+- en: '![image](graphics/p0141-02.jpg)'
+  id: totrans-16
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0141-02.jpg)'
+- en: You may recall that we saw `cudaChooseDevice()` in [Chapter 3](ch03.html#ch03),
+    but since it was something of an ancillary point, we’ll review it again now. Essentially,
+    this code tells the runtime to select any GPU that has a *compute capability*
+    of version 1.0 or better. It accomplishes this by first creating and clearing
+    a `cudaDeviceProp` structure and then by setting its `major` version to 1 and
+    `minor` version to 0\. It passes this information to `cudaChooseDevice()`, which
+    instructs the runtime to select a GPU in the system that satisfies the constraints
+    specified by the `cudaDeviceProp` structure. In the next chapter, we will look
+    more at what is meant by a GPU’s *compute capability*, but for now it suffices
+    to say that it roughly indicates the features a GPU supports. All CUDA-capable
+    GPUs have at least compute capability 1.0, so the net effect of this call is that
+    the runtime will select any CUDA-capable device and return an identifier for this
+    device in the variable `dev`. There is no guarantee that this device is the best
+    or fastest GPU, nor is there a guarantee that the device will be the same GPU
+    from version to version of the CUDA runtime.
+  id: totrans-17
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你可能还记得我们在[第3章](ch03.html#ch03)中看到过`cudaChooseDevice()`，但由于这只是一个附带的点，我们现在再回顾一下。基本上，这段代码告诉运行时选择任何具有*计算能力*版本1.0或更高的GPU。它通过首先创建并清除一个`cudaDeviceProp`结构，然后将其`major`版本设置为1，`minor`版本设置为0来实现。它将这些信息传递给`cudaChooseDevice()`，该函数指示运行时选择系统中满足`cudaDeviceProp`结构所指定约束的GPU。在下一章中，我们将更详细地了解GPU的*计算能力*的含义，但现在可以简单地说，它大致指示了GPU支持的特性。所有CUDA支持的GPU至少具有计算能力1.0，因此这次调用的净效果是运行时将选择任何CUDA支持的设备，并在变量`dev`中返回该设备的标识符。不能保证该设备是最佳或最快的GPU，也不能保证该设备在CUDA运行时的不同版本中是相同的GPU。
+- en: 'If the result of device selection is so seemingly underwhelming, why do we
+    bother with all this effort to fill a `cudaDeviceProp` structure and call `cudaChooseDevice()`
+    to get a valid device ID? Furthermore, we never hassled with this tomfoolery before,
+    so why now? These are good questions. It turns out that we need to know the CUDA
+    device ID so that we can tell the CUDA runtime that we intend to use the device
+    for CUDA *and* OpenGL. We achieve this with a call to `cudaGLSetGLDevice()`, passing
+    the device ID `dev` we obtained from `cudaChooseDevice()`:'
+  id: totrans-18
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果设备选择的结果看起来如此平淡无奇，为什么我们还要费尽心思填充`cudaDeviceProp`结构并调用`cudaChooseDevice()`以获取有效的设备ID呢？此外，我们之前从未为这些无聊的事情烦恼过，为什么现在要这样？这些都是好问题。事实证明，我们需要知道CUDA设备ID，以便告诉CUDA运行时我们打算将该设备用于CUDA
+    *和* OpenGL。我们通过调用`cudaGLSetGLDevice()`来实现这一点，传递我们从`cudaChooseDevice()`获得的设备ID
+    `dev`：
+- en: '![image](graphics/p0142-01.jpg)'
+  id: totrans-19
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0142-01.jpg)'
+- en: 'After the CUDA runtime initialization, we can proceed to initialize the OpenGL
+    driver by calling our GL Utility Toolkit (GLUT) setup functions. This sequence
+    of calls should look relatively familiar if you’ve used GLUT before:'
+  id: totrans-20
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在CUDA运行时初始化之后，我们可以通过调用我们的GL实用工具工具包（GLUT）设置函数来初始化OpenGL驱动程序。如果你之前使用过GLUT，这一系列调用应该看起来相对熟悉：
+- en: '![image](graphics/p0142-02.jpg)'
+  id: totrans-21
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0142-02.jpg)'
+- en: At this point in `main()`, we’ve prepared our CUDA runtime to play nicely with
+    the OpenGL driver by calling `cudaGLSetGLDevice()`. Then we initialized GLUT and
+    created a window named “bitmap” in which to draw our results. Now we can get on
+    to the actual OpenGL interoperation!
+  id: totrans-22
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在`main()`函数中，我们已经通过调用`cudaGLSetGLDevice()`将CUDA运行时准备好与OpenGL驱动程序协同工作。然后，我们初始化了GLUT，并创建了一个名为“bitmap”的窗口来绘制我们的结果。现在，我们可以开始真正的OpenGL互操作了！
+- en: 'Shared data buffers are the key component to interoperation between CUDA C
+    kernels and OpenGL rendering. To pass data between OpenGL and CUDA, we will first
+    need to create a buffer that can be used with both APIs. We start this process
+    by creating a pixel buffer object in OpenGL and storing the handle in our global
+    variable `GLuint bufferObj`:'
+  id: totrans-23
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 共享数据缓冲区是CUDA C内核与OpenGL渲染之间互操作的关键组件。为了在OpenGL和CUDA之间传递数据，我们首先需要创建一个可以同时与这两个API使用的缓冲区。我们通过在OpenGL中创建一个像素缓冲对象（PBO）并将句柄存储在全局变量`GLuint
+    bufferObj`中开始这个过程：
+- en: '![image](graphics/p0142-03.jpg)'
+  id: totrans-24
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0142-03.jpg)'
+- en: 'If you have never used a pixel buffer object (PBO) in OpenGL, you will typically
+    create one with these three steps: First, we generate a buffer handle with `glGenBuffers()`.
+    Then, we bind the handle to a pixel buffer with `glBindBuffer()`. Finally, we
+    request the OpenGL driver to allocate a buffer for us with `glBufferData()`. In
+    this example, we request a buffer to hold `DIM` x `DIM` 32-bit values and use
+    the enumerant `GL_DYNAMIC_DRAW_ARB` to indicate that the buffer will be modified
+    repeatedly by the application. Since we have no data to preload the buffer with,
+    we pass `NULL` as the penultimate argument to `glBufferData()`.'
+  id: totrans-25
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你从未在OpenGL中使用过像素缓冲对象（PBO），你通常会通过以下三个步骤来创建一个：首先，我们通过`glGenBuffers()`生成一个缓冲区句柄。然后，我们通过`glBindBuffer()`将句柄绑定到一个像素缓冲区。最后，我们通过`glBufferData()`请求OpenGL驱动程序为我们分配一个缓冲区。在这个示例中，我们请求一个用于存储`DIM`
+    x `DIM` 32位值的缓冲区，并使用枚举常量`GL_DYNAMIC_DRAW_ARB`表示该缓冲区将会被应用程序反复修改。由于我们没有数据预加载到缓冲区，因此我们将`NULL`作为`glBufferData()`的倒数第二个参数传递。
+- en: All that remains in our quest to set up graphics interoperability is notifying
+    the CUDA runtime that we intend to share the OpenGL buffer named `bufferObj` with
+    CUDA. We do this by registering `bufferObj` with the CUDA runtime as a graphics
+    resource.
+  id: totrans-26
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在我们设置图形互操作性的过程中，剩下的任务就是通知CUDA运行时，我们打算将名为`bufferObj`的OpenGL缓冲区与CUDA共享。我们通过将`bufferObj`注册为图形资源，来完成这项任务。
+- en: '![image](graphics/p0143-01.jpg)'
+  id: totrans-27
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0143-01.jpg)'
+- en: We specify to the CUDA runtime that we intend to use the OpenGL PBO `bufferObj`
+    with both OpenGL and CUDA by calling `cudaGraphicsGLRegisterBuffer()`. The CUDA
+    runtime returns a CUDA-friendly handle to the buffer in the variable `resource`.
+    This handle will be used to refer to `bufferObj` in subsequent calls to the CUDA
+    runtime.
+  id: totrans-28
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们通过调用`cudaGraphicsGLRegisterBuffer()`，向CUDA运行时指定我们打算将OpenGL的PBO `bufferObj`与OpenGL和CUDA一起使用。CUDA运行时会返回一个CUDA友好的缓冲区句柄，保存在变量`resource`中。这个句柄将用于后续对CUDA运行时的调用中引用`bufferObj`。
+- en: The flag `cudaGraphicsMapFlagsNone` specifies that there is no particular behavior
+    of this buffer that we want to specify, although we have the option to specify
+    with `cudaGraphicsMapFlagsReadOnly` that the buffer will be readonly. We could
+    also use `cudaGraphicsMapFlagsWriteDiscard` to specify that the previous contents
+    will be discarded, making the buffer essentially write-only. These flags allow
+    the CUDA and OpenGL drivers to optimize the hardware settings for buffers with
+    restricted access patterns, although they are not required to be set.
+  id: totrans-29
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 标志`cudaGraphicsMapFlagsNone`指定我们不想为此缓冲区指定任何特定行为，尽管我们可以选择使用`cudaGraphicsMapFlagsReadOnly`来指定该缓冲区为只读。我们也可以使用`cudaGraphicsMapFlagsWriteDiscard`来指定丢弃缓冲区的先前内容，使其基本上成为只写缓冲区。这些标志允许CUDA和OpenGL驱动程序针对具有限制访问模式的缓冲区优化硬件设置，尽管它们不是必须设置的。
+- en: Effectively, the call to `glBufferData()` requests the OpenGL driver to allocate
+    a buffer large enough to hold `DIM` x `DIM` 32-bit values. In subsequent OpenGL
+    calls, we’ll refer to this buffer with the handle `bufferObj`, while in CUDA runtime
+    calls, we’ll refer to this buffer with the pointer `resource`. Since we would
+    like to read from and write to this buffer from our CUDA C kernels, we will need
+    more than just a handle to the object. We will need an actual address in device
+    memory that can be passed to our kernel. We achieve this by instructing the CUDA
+    runtime to map the shared resource and then by requesting a pointer to the mapped
+    resource.
+  id: totrans-30
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 实际上，对`glBufferData()`的调用请求OpenGL驱动分配足够大的缓冲区以容纳`DIM` x `DIM`个32位值。在随后的OpenGL调用中，我们将使用句柄`bufferObj`引用此缓冲区，而在CUDA运行时调用中，我们将使用指针`resource`来引用此缓冲区。由于我们希望从CUDA
+    C内核中读取和写入这个缓冲区，我们不仅需要一个对象的句柄，还需要一个实际的设备内存地址，才能将其传递给我们的内核。我们通过指示CUDA运行时映射共享资源，然后请求指向映射资源的指针来实现这一点。
+- en: '![image](graphics/p0144-01.jpg)'
+  id: totrans-31
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0144-01.jpg)'
+- en: 'We can then use `devPtr` as we would use any device pointer, except that the
+    data can also be used by OpenGL as a pixel source. After all these setup shenanigans,
+    the rest of `main()` proceeds as follows: First, we launch our kernel, passing
+    it the pointer to our shared buffer. This kernel, the code of which we have not
+    seen yet, generates image data to be rendered. Next, we unmap our shared resource.
+    This call is important to make prior to performing rendering tasks because it
+    provides synchronization between the CUDA and graphics portions of the application.
+    Specifically, it implies that all CUDA operations performed prior to the call
+    to `cudaGraphicsUnmapResources()` will complete before ensuing graphics calls
+    begin.'
+  id: totrans-32
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 然后，我们可以像使用任何设备指针一样使用`devPtr`，只是数据也可以被OpenGL作为像素源使用。在完成所有这些设置之后，`main()`的其余部分如下：首先，我们启动内核，传递给它指向共享缓冲区的指针。这个内核，我们还没有看到其代码，生成要渲染的图像数据。接下来，我们取消映射共享资源。这个调用在执行渲染任务之前非常重要，因为它为CUDA和图形部分的应用程序之间提供了同步。具体来说，它意味着在调用`cudaGraphicsUnmapResources()`之前执行的所有CUDA操作都将在开始后续图形调用之前完成。
+- en: Lastly, we register our keyboard and display callback functions with GLUT (`key_func`
+    and `draw_func`), and we relinquish control to the GLUT rendering loop with `glutMainLoop()`.
+  id: totrans-33
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后，我们将键盘和显示回调函数注册到GLUT（`key_func`和`draw_func`），并通过`glutMainLoop()`将控制权交给GLUT渲染循环。
+- en: '![image](graphics/p0144-02.jpg)'
+  id: totrans-34
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0144-02.jpg)'
+- en: The remainder of the application consists of the three functions we just highlighted,
+    `kernel()`, `key_func()`, and `draw_func()`. So, let’s take a look at those.
+  id: totrans-35
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 应用程序的其余部分由我们刚才提到的三个函数组成：`kernel()`、`key_func()`和`draw_func()`。接下来，我们来看看它们。
+- en: 'The kernel function takes a device pointer and generates image data. In the
+    following example, we’re using a kernel inspired by the ripple example in [Chapter
+    5](ch05.html#ch05):'
+  id: totrans-36
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 内核函数接收一个设备指针并生成图像数据。在以下示例中，我们使用的是受[第5章](ch05.html#ch05)波纹示例启发的内核：
+- en: '![image](graphics/p0145-01.jpg)'
+  id: totrans-37
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0145-01.jpg)'
+- en: Many familiar concepts are at work here. The method for turning thread and block
+    indices into `x`- and `y`-coordinates and a linear offset has been examined several
+    times. We then perform some reasonably arbitrary computations to determine the
+    color for the pixel at that `(x,y)` location, and we store those values to memory.
+    We’re again using CUDA C to procedurally generate an image on the GPU. The important
+    thing to realize is that this image will then be handed *directly* to OpenGL for
+    rendering without the CPU ever getting involved. On the other hand, in the ripple
+    example of [Chapter 5](ch05.html#ch05), we generated image data on the GPU very
+    much like this, but our application then copied the buffer back to the CPU for
+    display.
+  id: totrans-38
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这里涉及了许多熟悉的概念。线程和块索引转化为`x`和`y`坐标以及线性偏移的方法已经被多次讨论。然后，我们执行一些合理的任意计算来确定该`(x,y)`位置像素的颜色，并将这些值存储到内存中。我们再次使用CUDA
+    C在GPU上程序化地生成图像。需要注意的是，这个图像将被*直接*交给OpenGL进行渲染，CPU完全不参与。另一方面，在[第5章](ch05.html#ch05)的波纹示例中，我们也在GPU上生成了类似的图像数据，但我们的应用程序随后将缓冲区复制回CPU以进行显示。
+- en: 'So, how do we draw the CUDA-generated buffer using OpenGL? Well, if you recall
+    the setup we performed in `main()`, you’ll remember the following:'
+  id: totrans-39
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 那么，我们如何使用OpenGL绘制CUDA生成的缓冲区呢？嗯，如果你还记得我们在`main()`中所做的设置，你会记得以下内容：
+- en: glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, bufferObj );
+  id: totrans-40
+  prefs: []
+  type: TYPE_NORMAL
+  zh: glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, bufferObj );
+- en: 'This call bound the shared buffer as a pixel source for the OpenGL driver to
+    use in all subsequent calls to `glDrawPixels()`. Essentially, this means that
+    a call to `glDrawPixels()` is all that we need in order to render the image data
+    our CUDA C kernel generated. Consequently, the following is all that our `draw_func()`
+    needs to do:'
+  id: totrans-41
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个调用将共享缓冲区绑定为OpenGL驱动程序在所有后续`glDrawPixels()`调用中使用的像素源。实际上，这意味着我们只需要调用`glDrawPixels()`，就能渲染CUDA
+    C内核生成的图像数据。因此，以下是我们的`draw_func()`需要做的全部内容：
+- en: '![image](graphics/p0146-01.jpg)'
+  id: totrans-42
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0146-01.jpg)'
+- en: It’s possible you’ve seen `glDrawPixels()` with a buffer pointer as the last
+    argument. The OpenGL driver will copy from this buffer if no buffer is bound as
+    a `GL_PIXEL_UNPACK_BUFFER_ARB` source. However, since our data is already on the
+    GPU and we *have* bound our shared buffer as the `GL_PIXEL_UNPACK_BUFFER_ARB`
+    source, this last parameter instead becomes an offset into the bound buffer. Because
+    we want to render the entire buffer, this offset is zero for our application.
+  id: totrans-43
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 你可能已经见过`glDrawPixels()`函数，它的最后一个参数是一个缓冲区指针。如果没有将缓冲区绑定为`GL_PIXEL_UNPACK_BUFFER_ARB`源，OpenGL驱动程序将从该缓冲区复制数据。然而，由于我们的数据已经在GPU上，并且我们*已经*将共享缓冲区绑定为`GL_PIXEL_UNPACK_BUFFER_ARB`源，因此这个最后的参数变成了绑定缓冲区中的偏移量。因为我们希望渲染整个缓冲区，因此对于我们的应用程序，这个偏移量为零。
+- en: 'The last component to this example seems somewhat anticlimactic, but we’ve
+    decided to give our users a method to exit the application. In this vein, our
+    `key_func()` callback responds only to the Esc key and uses this as a signal to
+    clean up and exit:'
+  id: totrans-44
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这个示例的最后一个组件看起来有些平淡无奇，但我们决定为用户提供一种退出应用程序的方法。在这个方面，我们的`key_func()`回调函数只响应Esc键，并使用它作为清理和退出的信号：
+- en: '![image](graphics/p0146-02.jpg)'
+  id: totrans-45
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0146-02.jpg)'
+- en: '***Figure 8.1*** A screenshot of the hypnotic graphics interoperation example'
+  id: totrans-46
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '***图8.1*** 迷幻图形互操作示例的截图'
+- en: '![image](graphics/ch_08_figure_8-1-1.jpg)'
+  id: totrans-47
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/ch_08_figure_8-1-1.jpg)'
+- en: When run, this example draws a mesmerizing picture in “NVIDIA Green” and black,
+    shown in [Figure 8.1](ch08.html#ch08fig01). Try using it to hypnotize your friends
+    (or enemies).
+  id: totrans-48
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 运行时，这个示例会绘制一幅迷人的图像，颜色为“NVIDIA绿色”和黑色，如[图8.1](ch08.html#ch08fig01)所示。试着用它来催眠你的朋友（或敌人）。
+- en: '**8.3 GPU Ripple with Graphics Interoperability**'
+  id: totrans-49
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**8.3 GPU波纹与图形互操作性**'
+- en: 'In “[Section 8.2](ch08.html#ch08lev2): Graphics Interoperation,” we referred
+    to [Chapter 5](ch05.html#ch05)’s GPU ripple example a few times. If you recall,
+    that application created a `CPUAnimBitmap` and passed it a function to be called
+    whenever a frame needed to be generated.'
+  id: totrans-50
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在“[第8.2节](ch08.html#ch08lev2)：图形互操作”中，我们几次提到了[第5章](ch05.html#ch05)的GPU波纹示例。如果你还记得，该应用程序创建了一个`CPUAnimBitmap`并传递了一个函数，在每次需要生成帧时调用它。
+- en: '![image](graphics/p0147-01.jpg)'
+  id: totrans-51
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0147-01.jpg)'
+- en: 'With the techniques we’ve learned in the previous section, we intend to create
+    a `GPUAnimBitmap` structure. This structure will serve the same purpose as the
+    `CPUAnimBitmap`, but in this improved version, the CUDA and OpenGL components
+    will cooperate without CPU intervention. When we’re done, the application will
+    use a `GPUAnimBitmap` so that `main()` will become simply as follows:'
+  id: totrans-52
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 运用我们在上一节中学到的技术，我们打算创建一个`GPUAnimBitmap`结构体。这个结构体将与`CPUAnimBitmap`有相同的目的，但在这个改进版本中，CUDA和OpenGL组件将无需CPU干预即可合作。当我们完成时，应用程序将使用`GPUAnimBitmap`，使得`main()`变得非常简单，像下面这样：
+- en: '![image](graphics/p0148-01.jpg)'
+  id: totrans-53
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0148-01.jpg)'
+- en: 'The `GPUAnimBitmap` structure uses the same calls we just examined in [Section
+    8.2](ch08.html#ch08lev2): Graphics Interoperation. However, now these calls will
+    be abstracted away in a `GPUAnimBitmap` structure so that future examples (and
+    potentially your own applications) will be cleaner.'
+  id: totrans-54
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`GPUAnimBitmap`结构体使用我们刚刚在[第8.2节](ch08.html#ch08lev2)：图形互操作中查看的相同调用。然而，现在这些调用将被抽象为一个`GPUAnimBitmap`结构体，这样未来的示例（以及可能是你自己的应用程序）将会更加简洁。'
+- en: '**8.3.1 The GPUanimbitmap Structure**'
+  id: totrans-55
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**8.3.1 GPUAnimBitmap结构体**'
+- en: 'Several of the data members for our `GPUAnimBitmap` will look familiar to you
+    from [Section 8.2](ch08.html#ch08lev2): Graphics Interoperation.'
+  id: totrans-56
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们的`GPUAnimBitmap`的几个数据成员你可能会在[第8.2节](ch08.html#ch08lev2)中看到：图形互操作。
+- en: '![image](graphics/p0148-02.jpg)'
+  id: totrans-57
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0148-02.jpg)'
+- en: We know that OpenGL and the CUDA runtime will have different names for our GPU
+    buffer, and we know that we will need to refer to both of these names, depending
+    on whether we are making OpenGL or CUDA C calls. Therefore, our structure will
+    store both OpenGL’s `bufferObj` name and the CUDA runtime’s `resource` name. Since
+    we are dealing with a bitmap image that we intend to display, we know that the
+    image will have a width and height to it.
+  id: totrans-58
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们知道OpenGL和CUDA运行时会为我们的GPU缓冲区使用不同的名称，而且我们知道我们需要根据是调用OpenGL还是CUDA C来引用这两个名称。因此，我们的结构将同时存储OpenGL的`bufferObj`名称和CUDA运行时的`resource`名称。由于我们正在处理一个要显示的位图图像，我们知道该图像将具有宽度和高度。
+- en: To allow users of our `GPUAnimBitmap` to register for certain callback events,
+    we will also store a `void*` pointer to arbitrary user data in `dataBlock`. Our
+    structure will never look at this data but will simply pass it back to any registered
+    callback functions. The callbacks that a user may register are stored in `fAnim`,
+    `animExit`, and `clickDrag`. The function `fAnim()` gets called in every call
+    to `glutIdleFunc()`, and this function is responsible for producing the image
+    data that will be rendered in the animation. The function `animExit()` will be
+    called once, when the animation exits. This is where the user should implement
+    cleanup code that needs to be executed when the animation ends. Finally, `clickDrag()`,
+    an optional function, implements the user’s response to mouse click/drag events.
+    If the user registers this function, it gets called after every sequence of mouse
+    button press, drag, and release events. The location of the initial mouse click
+    in this sequence is stored in `(dragStartX`, `dragStartY)` so that the start and
+    endpoints of the click/drag event can be passed to the user when the mouse button
+    is released. This can be used to implement interactive animations that will impress
+    your friends.
+  id: totrans-59
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 为了允许我们的`GPUAnimBitmap`的用户注册某些回调事件，我们还将存储一个指向任意用户数据的`void*`指针在`dataBlock`中。我们的结构不会查看这些数据，而是简单地将其传递给任何已注册的回调函数。用户可以注册的回调函数存储在`fAnim`、`animExit`和`clickDrag`中。`fAnim()`函数会在每次调用`glutIdleFunc()`时被调用，负责生成将在动画中渲染的图像数据。`animExit()`函数会在动画退出时被调用一次，这是用户实现清理代码的地方，用于在动画结束时执行必要的清理工作。最后，`clickDrag()`是一个可选函数，用于实现用户对鼠标点击/拖动事件的响应。如果用户注册了这个函数，它会在每次鼠标按键、拖动和释放事件的序列后被调用。该序列中首次点击的位置会被存储在`(dragStartX,
+    dragStartY)`中，这样当鼠标按钮被释放时，点击/拖动事件的起点和终点就能传递给用户。这可以用来实现互动动画，给你的朋友留下深刻印象。
+- en: 'Initializing a `GPUAnimBitmap` follows the same sequence of code that we saw
+    in our previous example. After stashing away arguments in the appropriate structure
+    members, we start by querying the CUDA runtime for a suitable CUDA device:'
+  id: totrans-60
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 初始化`GPUAnimBitmap`遵循与我们之前示例中相同的代码顺序。在将参数存储到适当的结构成员中后，我们首先查询CUDA运行时，以找到合适的CUDA设备：
+- en: '![image](graphics/p0149-01.jpg)'
+  id: totrans-61
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0149-01.jpg)'
+- en: 'After finding a compatible CUDA device, we make the important `cudaGLSetGLDevice()`
+    call to the CUDA runtime in order to notify it that we intend to use `dev` as
+    a device for interoperation with OpenGL:'
+  id: totrans-62
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在找到兼容的CUDA设备后，我们调用重要的`cudaGLSetGLDevice()`，通知CUDA运行时我们打算使用`dev`作为与OpenGL互操作的设备：
+- en: '![image](graphics/p0150-01.jpg)'
+  id: totrans-63
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0150-01.jpg)'
+- en: Since our framework uses GLUT to create a windowed rendering environment, we
+    need to initialize GLUT. This is unfortunately a bit awkward, since `glutInit()`
+    wants command-line arguments to pass to the windowing system. Since we have none
+    we want to pass, we would like to simply specify zero command-line arguments.
+    Unfortunately, some versions of GLUT have a bug that causes applications to crash
+    when zero arguments are given. So, we trick GLUT into thinking that we’re passing
+    an argument, and as a result, life is good.
+  id: totrans-64
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于我们的框架使用GLUT来创建一个窗口化的渲染环境，我们需要初始化GLUT。遗憾的是，这有点尴尬，因为`glutInit()`需要命令行参数来传递给窗口系统。由于我们没有要传递的参数，我们希望简单地指定零个命令行参数。可惜的是，某些版本的GLUT存在一个bug，当传递零个参数时会导致应用崩溃。因此，我们通过欺骗GLUT让它以为我们传递了一个参数，这样一来，一切顺利。
+- en: '![image](graphics/p0150-02.jpg)'
+  id: totrans-65
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0150-02.jpg)'
+- en: We continue initializing GLUT exactly as we did in the previous example. We
+    create a window in which to render, specifying a title with the string “bitmap.”
+    If you’d like to name your window something more interesting, be our guest.
+  id: totrans-66
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们继续按照之前的示例初始化GLUT。我们创建一个渲染窗口，并指定标题为“bitmap”。如果你希望给你的窗口起个更有趣的名字，随你便。
+- en: '![image](graphics/p0150-03.jpg)'
+  id: totrans-67
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0150-03.jpg)'
+- en: 'Next, we request for the OpenGL driver to allocate a buffer handle that we
+    immediately bind to the `GL_PIXEL_UNPACK_BUFFER_ARB` target to ensure that future
+    calls to `glDrawPixels()` will draw to our interop buffer:'
+  id: totrans-68
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 接下来，我们请求 OpenGL 驱动程序分配一个缓冲区句柄，并立即将其绑定到 `GL_PIXEL_UNPACK_BUFFER_ARB` 目标，以确保未来对
+    `glDrawPixels()` 的调用将绘制到我们的互操作缓冲区：
+- en: '![image](graphics/p0151-01.jpg)'
+  id: totrans-69
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0151-01.jpg)'
+- en: Last, but most certainly not least, we request that the OpenGL driver allocate
+    a region of GPU memory for us. Once this is done, we inform the CUDA runtime of
+    this buffer and request a CUDA C name for this buffer by registering `bufferObj`
+    with `cudaGraphicsGLRegisterBuffer()`.
+  id: totrans-70
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后但绝对不是最不重要的，我们请求 OpenGL 驱动程序为我们分配一个 GPU 内存区域。一旦完成，我们将通知 CUDA 运行时这个缓冲区，并通过 `cudaGraphicsGLRegisterBuffer()`
+    注册 `bufferObj` 来请求为该缓冲区分配一个 CUDA C 名称。
+- en: '![image](graphics/p0151-02.jpg)'
+  id: totrans-71
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0151-02.jpg)'
+- en: With the `GPUAnimBitmap` set up, the only remaining concern is exactly how we
+    perform the rendering. The meat of the rendering will be done in our `glutIdleFunc()`.
+    This function will essentially do three things. First, it maps our shared buffer
+    and retrieves a GPU pointer for this buffer.
+  id: totrans-72
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 在 `GPUAnimBitmap` 设置好之后，唯一剩下的关注点是如何进行渲染。渲染的核心工作将由我们的 `glutIdleFunc()` 完成。这个函数基本上会做三件事。首先，它映射我们的共享缓冲区并检索该缓冲区的
+    GPU 指针。
+- en: '![image](graphics/p0151-03.jpg)'
+  id: totrans-73
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0151-03.jpg)'
+- en: Second, it calls the user-specified function `fAnim()` that presumably will
+    launch a CUDA C kernel to fill the buffer at `devPtr` with image data.
+  id: totrans-74
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 其次，它调用用户指定的函数 `fAnim()`，该函数可能会启动一个 CUDA C 核心，以填充 `devPtr` 缓冲区中的图像数据。
+- en: '![image](graphics/p0152-01.jpg)'
+  id: totrans-75
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0152-01.jpg)'
+- en: And lastly, it unmaps the GPU pointer that will release the buffer for use by
+    the OpenGL driver in rendering. This rendering will be triggered by a call to
+    `glutPostRedisplay()`.
+  id: totrans-76
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 最后，它取消映射 GPU 指针，从而释放缓冲区以供 OpenGL 驱动程序在渲染时使用。这个渲染将通过调用 `glutPostRedisplay()`
+    来触发。
+- en: '![image](graphics/p0152-02.jpg)'
+  id: totrans-77
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0152-02.jpg)'
+- en: The remainder of the `GPUAnimBitmap` structure consists of important but somewhat
+    tangential infrastructure code. If you have an interest in it, you should by all
+    means examine it. But we feel that you’ll be able to proceed successfully, even
+    if you lack the time or interest to digest the rest of the code in `GPUAnimBitmap`.
+  id: totrans-78
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`GPUAnimBitmap` 结构的其余部分包含了一些重要但稍微偏离主题的基础设施代码。如果你对它感兴趣，完全可以进行深入研究。但我们认为，即使你没有时间或兴趣去理解
+    `GPUAnimBitmap` 中的其余代码，你也能成功地继续进行下去。'
+- en: '**8.3.2 GPU Ripple Redux**'
+  id: totrans-79
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+  zh: '**8.3.2 GPU 波纹重制**'
+- en: Now that we have a GPU version of `CPUAnimBitmap`, we can proceed to retrofit
+    our GPU ripple application to perform its animation entirely on the GPU. To begin,
+    we will include `gpu_anim.h`, the home of our implementation of `GPUAnimBitmap`.
+    We also include nearly the same kernel as we examined in [Chapter 5](ch05.html#ch05).
+  id: totrans-80
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 现在我们拥有了 `GPUAnimBitmap` 的 GPU 版本，可以继续改造我们的 GPU 波纹应用程序，让它完全在 GPU 上执行动画。首先，我们将包含
+    `gpu_anim.h`，它是我们实现 `GPUAnimBitmap` 的地方。我们还包括了几乎与我们在[第 5 章](ch05.html#ch05)中检查的内核相同的内核。
+- en: '![image](graphics/p0153-01.jpg)'
+  id: totrans-81
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0153-01.jpg)'
+- en: The one and only change we’ve made is highlighted. The reason for this change
+    is because OpenGL interoperation requires that our shared surfaces be “graphics
+    friendly.” Because real-time rendering typically uses arrays of four-component
+    (red/green/blue/alpha) data elements, our target buffer is no longer simply an
+    array of `unsigned char` as it previously was. It’s now required to be an array
+    of type `uchar4`. In reality, we treated our buffer in [Chapter 5](ch05.html#ch05)
+    as a four-component buffer, so we always indexed it with `ptr[offset*4+k]`, where
+    `k` indicates the component from 0 to 3\. But now, the four-component nature of
+    the data is made explicit with the switch to a `uchar4` type.
+  id: totrans-82
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们做的唯一更改已被突出显示。做出这个更改的原因是因为 OpenGL 的互操作要求我们的共享表面是“图形友好的”。因为实时渲染通常使用四个分量（红色/绿色/蓝色/透明度）的数据元素数组，所以我们的目标缓冲区不再仅仅是之前的
+    `unsigned char` 数组。现在，它必须是 `uchar4` 类型的数组。实际上，我们在[第 5 章](ch05.html#ch05)中就将缓冲区当作四分量缓冲区处理，所以我们总是使用
+    `ptr[offset*4+k]` 来索引它，其中 `k` 表示从 0 到 3 的分量。但现在，通过切换到 `uchar4` 类型，数据的四分量特性被明确表示出来。
+- en: 'Since `kernel()` is a CUDA C function that generates image data, all that remains
+    is writing a host function that will be used as a callback in the `idle_func()`
+    member of `GPUAnimBitmap`. For our current application, all this function does
+    is launch the CUDA C kernel:'
+  id: totrans-83
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于 `kernel()` 是一个生成图像数据的 CUDA C 函数，剩下的任务就是编写一个主机函数，该函数将作为回调函数用于 `GPUAnimBitmap`
+    的 `idle_func()` 成员。对于我们当前的应用程序，这个函数所做的唯一工作就是启动 CUDA C 核心：
+- en: '![image](graphics/p0154-01.jpg)'
+  id: totrans-84
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0154-01.jpg)'
+- en: That’s basically everything we need, since all of the heavy lifting was done
+    in the `GPUAnimBitmap` structure. To get this party started, we just create a
+    `GPUAnimBitmap` and register our animation callback function, `generate_frame()`.
+  id: totrans-85
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 这基本上就是我们所需的所有内容，因为所有的重活都在`GPUAnimBitmap`结构中完成了。为了开始这一过程，我们只需要创建一个`GPUAnimBitmap`并注册我们的动画回调函数`generate_frame()`。
+- en: '![image](graphics/p0154-02.jpg)'
+  id: totrans-86
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0154-02.jpg)'
+- en: '**8.4 Heat Transfer with Graphics Interop**'
+  id: totrans-87
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**8.4 使用图形互操作进行热传递**'
+- en: 'So, what has been the point of doing all of this? If you look at the internals
+    of the `CPUAnimBitmap`, the structure we used for previous animation examples,
+    we would see that it works almost exactly like the rendering code in [Section
+    8.2](ch08.html#ch08lev2): Graphics Interoperation.'
+  id: totrans-88
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 那么，做这一切的意义何在呢？如果你查看`CPUAnimBitmap`的内部结构，这是我们在之前动画示例中使用的结构体，你会发现它几乎与[第8.2节](ch08.html#ch08lev2)：图形互操作中的渲染代码完全相同。
+- en: '*Almost.*'
+  id: totrans-89
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '*几乎是这样。*'
+- en: The key difference between the `CPUAnimBitmap` and the previous example is buried
+    in the call to `glDrawPixels()`.
+  id: totrans-90
+  prefs: []
+  type: TYPE_NORMAL
+  zh: '`CPUAnimBitmap`和之前示例之间的主要区别隐藏在`glDrawPixels()`的调用中。'
+- en: '![image](graphics/p0155-01.jpg)'
+  id: totrans-91
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0155-01.jpg)'
+- en: We remarked in the first example of this chapter that you may have previously
+    seen calls to `glDrawPixels()` with a buffer pointer as the last argument. Well,
+    if you hadn’t before, you have now. This call in the `Draw()` routine of `CPUAnimBitmap`
+    triggers a copy of the CPU buffer in `bitmap->pixels` to the GPU for rendering.
+    To do this, the CPU needs to stop what it’s doing and initiate a copy onto the
+    GPU for every frame. This requires synchronization between the CPU and GPU and
+    additional latency to initiate and complete a transfer over the PCI Express bus.
+    Since the call to `glDrawPixels()` expects a host pointer in the last argument,
+    this also means that after generating a frame of image data with a CUDA C kernel,
+    our [Chapter 5](ch05.html#ch05) ripple application needed to copy the frame from
+    the GPU to the CPU with a `cudaMemcpy()`.
+  id: totrans-92
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们在本章的第一个示例中提到过，你可能之前见过以缓冲区指针作为最后一个参数的`glDrawPixels()`调用。好吧，如果你以前没有见过，现在你应该见过了。这个调用出现在`CPUAnimBitmap`的`Draw()`例程中，它会将`bitmap->pixels`中的CPU缓冲区复制到GPU进行渲染。为了做到这一点，CPU需要停止当前操作，并为每一帧启动一个到GPU的复制过程。这需要CPU和GPU之间的同步，并且会增加延迟，因为必须在PCI
+    Express总线上发起并完成数据传输。由于`glDrawPixels()`调用期望最后一个参数是主机指针，这也意味着在使用CUDA C内核生成一帧图像数据之后，我们的[第5章](ch05.html#ch05)涟漪应用程序需要使用`cudaMemcpy()`将这一帧从GPU复制到CPU。
+- en: '![image](graphics/p0155-02.jpg)'
+  id: totrans-93
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0155-02.jpg)'
+- en: Taken together, these facts mean that our original GPU ripple application was
+    more than a little silly. We used CUDA C to compute image values for our rendering
+    in each frame, but after the computations were done, we copied the buffer to the
+    CPU, which then copied the buffer *back* to the GPU for display. This means that
+    we introduced unnecessary data transfers between the host and the device that
+    stood between us and maximum performance. Let’s revisit a compute-intensive animation
+    application that might see its performance improve by migrating it to use graphics
+    interoperation for its rendering.
+  id: totrans-94
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 综合来看，这些事实意味着我们原始的GPU涟漪应用程序有些荒谬。我们使用CUDA C在每一帧中计算图像值用于渲染，但计算完成后，我们将缓冲区复制到CPU，然后再将缓冲区*返回*到GPU进行显示。这意味着我们在主机和设备之间引入了不必要的数据传输，阻碍了我们实现最大性能的进程。让我们重新审视一个计算密集型的动画应用程序，看看将其迁移到使用图形互操作进行渲染后，性能是否有所提升。
+- en: If you recall the previous chapter’s heat simulation application, you will remember
+    that it also used `CPUAnimBitmap` in order to display the output of its simulation
+    computations. We will modify this application to use our newly implemented `GPUAnimBitmap`
+    structure and look at how the resulting performance changes. As with the ripple
+    example, our `GPUAnimBitmap` is almost a perfect drop-in replacement for `CPUAnimBitmap`,
+    with the exception of the `unsigned char` to `uchar4` change. So, the signature
+    of our animation routine changes in order to accommodate this shift in data types.
+  id: totrans-95
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你还记得上一章的热模拟应用程序，你会记得它也使用了`CPUAnimBitmap`来显示其模拟计算的输出。我们将修改这个应用程序，使用我们新实现的`GPUAnimBitmap`结构，并看看结果中的性能变化。与涟漪示例类似，我们的`GPUAnimBitmap`几乎是`CPUAnimBitmap`的完美替代，唯一的不同是`unsigned
+    char`变为`uchar4`。因此，我们的动画例程的函数签名也随之变化，以适应这一数据类型的变化。
+- en: '![image](graphics/p0156-01.jpg)'
+  id: totrans-96
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0156-01.jpg)'
+- en: '![image](graphics/p0156-02.jpg)'
+  id: totrans-97
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0156-02.jpg)'
+- en: Since the `float_to_color()` kernel is the only function that actually uses
+    the `outputBitmap`, it’s the only other function that needs modification as a
+    result of our shift to `uchar4`. This function was simply considered utility code
+    in the previous chapter, and we will continue to consider it utility code. However,
+    we have overloaded this function and included both `unsigned char` and `uchar4`
+    versions in `book.h`. You will notice that the differences between these functions
+    are identical to the differences between `kernel()` in the CPU-animated and GPU-animated
+    versions of GPU ripple. Most of the code for the `float_to_color()` kernels has
+    been omitted for clarity, but we encourage you to consult `book.h` if you’re dying
+    to see the details.
+  id: totrans-98
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 由于 `float_to_color()` 核心是唯一实际使用 `outputBitmap` 的函数，因此它是我们迁移到 `uchar4` 后唯一需要修改的函数。在上一章中，这个函数仅仅被认为是实用代码，我们依旧将其视为实用代码。不过，我们已经重载了这个函数，并在
+    `book.h` 中包含了 `unsigned char` 和 `uchar4` 版本。你会注意到，这些函数之间的差异与 GPU 涟漪动画的 CPU 动画版本和
+    GPU 动画版本中的 `kernel()` 函数差异相同。为了清晰起见，大部分 `float_to_color()` 核心的代码被省略了，但如果你迫切想了解细节，欢迎查阅
+    `book.h`。
+- en: '![image](graphics/p0157-01.jpg)'
+  id: totrans-99
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0157-01.jpg)'
+- en: Outside of these changes, the only major difference is in the change from `CPUAnimBitmap`
+    to `GPUAnimBitmap` to perform animation.
+  id: totrans-100
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 除了这些更改，唯一的主要区别是在从 `CPUAnimBitmap` 更改为 `GPUAnimBitmap` 以执行动画的过程。
+- en: '![image](graphics/p0158-01.jpg)'
+  id: totrans-101
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0158-01.jpg)'
+- en: '![image](graphics/p0158-02.jpg)'
+  id: totrans-102
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0158-02.jpg)'
+- en: '![image](graphics/p0159-01.jpg)'
+  id: totrans-103
+  prefs: []
+  type: TYPE_IMG
+  zh: '![image](graphics/p0159-01.jpg)'
+- en: Although it might be instructive to take a glance at the rest of this enhanced
+    heat simulation application, it is not sufficiently different from the previous
+    chapter’s version to warrant more description. The important component is answering
+    the question, how does performance change now that we’ve completely migrated the
+    application to the GPU? Without having to copy every frame back to the host for
+    display, the situation should be much happier than it was previously.
+  id: totrans-104
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 虽然看一下这个增强型热模拟应用程序的其余部分可能会有所启发，但它与上一章的版本并没有足够的不同，值得进一步描述。重要的部分是回答一个问题：既然我们已经完全将应用程序迁移到
+    GPU，性能变化如何？不再需要每帧都复制回主机进行显示，情况应该比以前更好。
+- en: So, exactly how much better is it to use the graphics interoperability to perform
+    the rendering? Previously, the heat transfer example consumed about 25.3ms per
+    frame on our GeForce GTX 285–based test machine. After converting the application
+    to use graphics interoperability, this drops by 15 percent to 21.6ms per frame.
+    The net result is that our rendering loop is 15 percent faster and no longer requires
+    intervention from the host every time we want to display a frame. That’s not bad
+    for a day’s work!
+  id: totrans-105
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 那么，使用图形互操作性进行渲染到底能提高多少性能呢？之前，我们在基于 GeForce GTX 285 的测试机上，热传递示例每帧大约需要 25.3ms。将应用程序转换为使用图形互操作性后，渲染时间下降了
+    15%，每帧变为 21.6ms。最终结果是，我们的渲染循环比以前快了 15%，并且在每次我们想要显示一帧时，不再需要主机进行干预。一天的工作下来，效果不错！
+- en: '**8.5 DirectX Interoperability**'
+  id: totrans-106
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**8.5 DirectX 互操作性**'
+- en: Although we’ve looked only at examples that use interoperation with the OpenGL
+    rendering system, DirectX interoperation is nearly identical. You will still use
+    a `cudaGraphicsResource` to refer to buffers that you share between DirectX and
+    CUDA, and you will still use calls to `cudaGraphicsMapResources()` and `cudaGraphicsResourceGetMappedPointer()`
+    to retrieve CUDA-friendly pointers to these shared resources.
+  id: totrans-107
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 虽然我们只看了与 OpenGL 渲染系统互操作的示例，但 DirectX 的互操作几乎是一样的。你仍然会使用 `cudaGraphicsResource`
+    来引用在 DirectX 和 CUDA 之间共享的缓冲区，仍然会使用 `cudaGraphicsMapResources()` 和 `cudaGraphicsResourceGetMappedPointer()`
+    来获取这些共享资源的 CUDA 友好型指针。
+- en: For the most part, the calls that differ between OpenGL and DirectX interoperability
+    have embarrassingly simple translations to DirectX. For example, rather than calling
+    `cudaGLSetGLDevice()`, we call `cudaD3D9SetDirect3DDevice()` to specify that a
+    CUDA device should be enabled for Direct3D 9.0 interoperability. Likewise, `cudaD3D10SetDirect3DDevice()`
+    enables a device for Direct3D 10 interoperation and `cudaD3D11SetDirect3DDevice()`
+    for Direct3D 11.
+  id: totrans-108
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 大部分 OpenGL 和 DirectX 互操作之间的不同调用，翻译到 DirectX 时都非常简单。例如，我们不再调用 `cudaGLSetGLDevice()`，而是调用
+    `cudaD3D9SetDirect3DDevice()` 来指定应启用 CUDA 设备进行 Direct3D 9.0 的互操作。同样，`cudaD3D10SetDirect3DDevice()`
+    启用 Direct3D 10 的互操作，而 `cudaD3D11SetDirect3DDevice()` 用于 Direct3D 11。
+- en: The details of DirectX interoperability probably will not surprise you if you’ve
+    worked through this chapter’s OpenGL examples. But if you want to use DirectX
+    interoperation and want a small project to get started, we suggest that you migrate
+    this chapter’s examples to use DirectX. To get started, we recommend consulting
+    the *NVIDIA CUDA Programming Guide* for a reference on the API and taking a look
+    at the GPU Computing SDK code samples on DirectX interoperability.
+  id: totrans-109
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 如果你已经完成了本章节的OpenGL示例，DirectX互操作性的细节可能不会让你感到惊讶。但如果你想使用DirectX互操作性并且需要一个小项目来开始，我们建议你将本章节的示例迁移到DirectX。开始时，我们推荐查阅*NVIDIA
+    CUDA编程指南*，了解API参考，并查看GPU计算SDK中的DirectX互操作性代码示例。
+- en: '**8.6 Chapter Review**'
+  id: totrans-110
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+  zh: '**8.6 章节回顾**'
+- en: Although much of this book has been devoted to using the GPU for parallel, general-purpose
+    computing, we can’t forget the GPU’s successful day job as a rendering engine.
+    Many applications require or would benefit from the use of standard computer graphics
+    rendering. Since the GPU is master of the rendering domain, all that stood between
+    us and the exploitation of these resources was a lack of understanding of the
+    mechanics in convincing the CUDA runtime and graphics drivers to cooperate. Now
+    that we have seen how this is done, we no longer need the host to intervene in
+    displaying the graphical results of our computations. This simultaneously accelerates
+    the application’s rendering loop and frees the host to perform other computations
+    in the meantime. Otherwise, if there are no other computations to be performed,
+    it leaves our system more responsive to other events or applications.
+  id: totrans-111
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 尽管本书的大部分内容都致力于将GPU用于并行通用计算，但我们不能忘记GPU作为渲染引擎的成功本职工作。许多应用程序需要或将受益于标准计算机图形渲染的使用。由于GPU是渲染领域的主宰，阻碍我们利用这些资源的唯一因素就是缺乏理解如何促使CUDA运行时和图形驱动程序合作。现在我们已经看到如何做到这一点，我们不再需要主机干预来显示计算结果的图形。这不仅加速了应用程序的渲染循环，还释放了主机以便在此期间执行其他计算。否则，如果没有其他计算需要执行，它还会让我们的系统对其他事件或应用程序更加响应。
+- en: There are many other ways to use graphics interoperability that we left unexplored.
+    We looked primarily at using a CUDA C kernel to write into a pixel buffer object
+    for display in a window. This image data can also be used as a texture that can
+    be applied to any surface in the scene. In addition to modifying pixel buffer
+    objects, you can also share vertex buffer objects between CUDA and the graphics
+    engine. Among other things, this allows you to write CUDA C kernels that perform
+    collision detection between objects or compute vertex displacement maps to be
+    used to render objects or surfaces that interact with the user or their surroundings.
+    If you’re interested in computer graphics, CUDA C’s graphics interoperability
+    API enables a slew of new possibilities for your applications!
+  id: totrans-112
+  prefs: []
+  type: TYPE_NORMAL
+  zh: 我们还有许多其他使用图形互操作性的方法没有探索。我们主要研究了使用CUDA C内核写入像素缓冲区对象并在窗口中显示的方式。这些图像数据也可以作为纹理应用到场景中的任何表面。除了修改像素缓冲区对象外，你还可以在CUDA和图形引擎之间共享顶点缓冲区对象。除此之外，这使得你可以编写执行物体之间碰撞检测或计算顶点位移图的CUDA
+    C内核，后者可以用来渲染与用户或其周围环境互动的物体或表面。如果你对计算机图形学感兴趣，CUDA C的图形互操作性API为你的应用程序提供了大量新的可能性！
