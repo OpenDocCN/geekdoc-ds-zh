@@ -1,0 +1,3005 @@
+- en: 'Example: putting it all together'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://enccs.github.io/gpu-programming/13-examples/](https://enccs.github.io/gpu-programming/13-examples/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*[GPU programming: why, when and how?](../)* **   Example: putting it all together'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Edit on GitHub](https://github.com/ENCCS/gpu-programming/blob/main/content/13-examples.rst)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do I compile and run code developed using different programming models and
+    frameworks?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What can I expect from the GPU-ported programs in terms of performance gains
+    / trends and how do I estimate this?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Objectives
+  prefs: []
+  type: TYPE_NORMAL
+- en: To show a self-contained example of parallel computation executed on CPU and
+    GPU using different programming models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To show differences and consequences of implementing the same algorithm in natural
+    “style” of different models/ frameworks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To discuss how to assess theoretical and practical performance scaling of GPU
+    codes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Instructor note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 35 min teaching
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 30 min exercises
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Problem: heat flow in two-dimensional area'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Heat flows in objects according to local temperature differences, as if seeking
+    local equilibrium. The following example defines a rectangular area with two always-warm
+    sides (temperature 70 and 85), two cold sides (temperature 20 and 5) and a cold
+    disk at the center. Because of heat diffusion, temperature of neighboring patches
+    of the area is bound to equalize, changing the overall distribution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/heat_montage.png](../Images/a35d1f1ff482677729c4a0e99db22510.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Over time, the temperature distribution progresses from the initial state toward
+    an end state where upper triangle is warm and lower is cold. The average temperature
+    tends to (70 + 85 + 20 + 5) / 4 = 45.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Technique: stencil computation'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Heat transfer in the system above is governed by the partial differential equation(s)
+    describing local variation of the temperature field in time and space. That is,
+    the rate of change of the temperature field \(u(x, y, t)\) over two spatial dimensions
+    \(x\) and \(y\) and time \(t\) (with rate coefficient \(\alpha\)) can be modelled
+    via the equation
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\frac{\partial u}{\partial t} = \alpha \left( \frac{\partial^2 u}{\partial
+    x^2} + \frac{\partial^2 u}{\partial y^2}\right)\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The standard way to numerically solve differential equations is to *discretize*
+    them, i. e. to consider only a set/ grid of specific area points at specific moments
+    in time. That way, partial derivatives \({\partial u}\) are converted into differences
+    between adjacent grid points \(u^{m}(i,j)\), with \(m, i, j\) denoting time and
+    spatial grid points, respectively. Temperature change in time at a certain point
+    can now be computed from the values of neighboring points at earlier time; the
+    same expression, called *stencil*, is applied to every point on the grid.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/stencil.svg](../Images/1ff8eef868cbbc0909c826b5871f271f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This simplified model uses an 8x8 grid of data in light blue in state \(m\),
+    each location of which has to be updated based on the indicated 5-point stencil
+    in yellow to move to the next time point \(m+1\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Question: stencil applications'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stencil computation is a common occurrence in solving numerical problems. Have
+    you already encountered it? Can you think of a problem that could be formulated
+    this way in your field / area of expertise?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: One obvious choice is *convolution* operation, used in image processing to apply
+    various filter kernels; in some contexts, “convolution” and “stencil” are used
+    almost interchangeably. Other related use is for averaging/ pooling adjacent values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical considerations
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**1\. How fast and/ or accurate can the solution be?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Spatial resolution of the temperature field is controlled by the number/ density
+    of the grid points. As the full grid update is required to proceed from one time
+    point to the next, stencil computation is the main target of parallelization (on
+    CPU or GPU).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, in many cases the chosen time step cannot be arbitrarily large, otherwise
+    the numerical differentiation will fail, and dense/ accurate grids imply small
+    time steps (see inset below), which makes efficient spatial update even more important.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Optional: stencil expression and time-step limit'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Differential equation shown above can be discretized using different schemes.
+    For this example, temperature values at each grid point \(u^{m}(i,j)\) are updated
+    from one time point (\(m\)) to the next (\(m+1\)), using the following expressions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[u^{m+1}(i,j) = u^m(i,j) + \Delta t \alpha \nabla^2 u^m(i,j) ,\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split}\nabla^2 u &= \frac{u(i-1,j)-2u(i,j)+u(i+1,j)}{(\Delta x)^2}
+    \\ &+ \frac{u(i,j-1)-2u(i,j)+u(i,j+1)}{(\Delta y)^2} ,\end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and \(\Delta x\), \(\Delta y\), \(\Delta t\) are step sizes in space and time,
+    respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Time-update schemes often have a limit on the maximum allowed time step \(\Delta
+    t\). For the current scheme, it is equal to
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\Delta t_{max} = \frac{(\Delta x)^2 (\Delta y)^2}{2 \alpha ((\Delta x)^2 +
+    (\Delta y)^2)}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2\. What to do with area boundaries?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naturally, stencil expression can’t be applied directly to the outermost grid
+    points that have no outer neighbors. This can be solved by either changing the
+    expression for those points or by adding an additional layer of grid that is used
+    in computing update, but not updated itself – points of fixed temperature for
+    the sides are being used in this example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3\. How could the algorithm be optimized further?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [an earlier episode](https://enccs.github.io/gpu-programming/7-non-portable-kernel-models/#memory-optimizations),
+    importance of efficient memory access was already stressed. In the following examples,
+    each grid point (and its neighbors) is treated mostly independently; however,
+    this also means that for 5-point stencil each value of the grid point may be read
+    up to 5 times from memory (even if it’s the fast GPU memory). By rearranging the
+    order of mathematical operations, it may be possible to reuse these values in
+    a more efficient way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another point to note is that even if the solution is propagated in small time
+    steps, not every step might actually be needed for output. Once some *local* region
+    of the field is updated, mathematically nothing prevents it from being updated
+    for the second time step – even if the rest of the field is still being recalculated
+    – as long as \(t = m-1\) values for the region boundary are there when needed.
+    (Of course, this is more complicated to implement and would only give benefits
+    in certain cases.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following table will aid you in navigating the rest of this section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Episode guide
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Sequential and OpenMP-threaded code](https://enccs.github.io/gpu-programming/13-examples/#sequential-and-thread-parallel-program-in-c)
+    in C++, including compilation/ running instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Naive GPU parallelization](https://enccs.github.io/gpu-programming/13-examples/#gpu-parallelization-first-steps),
+    including SYCL compilation instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[GPU code with device data management](https://enccs.github.io/gpu-programming/13-examples/#gpu-parallelization-data-movement)
+    (OpenMP, SYCL)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Python implementation](https://enccs.github.io/gpu-programming/13-examples/#python-jit-and-gpu-acceleration),
+    including running instructions on [Google Colab](https://colab.research.google.com/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Julia implementation](https://enccs.github.io/gpu-programming/13-examples/#julia-gpu-acceleration),
+    including running instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sequential and thread-parallel program in C++
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Trying out code examples
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Source files of the examples presented for the rest of this episode are available
+    in the [content/examples/stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/)
+    directory. To download them to your preferred directory on the cluster (f.e. `/scratch/project_<#>/<your_folder>/`),
+    you can use Git:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Warning
+  prefs: []
+  type: TYPE_NORMAL
+- en: Don’t forget to `git pull` for the latest updates if you already have the content
+    from the first day of the workshop!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we assume the grid point values to be truly independent *for a single time
+    step*, stencil application procedure may be straightforwardly written as a loop
+    over the grid points, as shown below in tab “Stencil update”. (General structure
+    of the program and the default parameter values for the problem model are also
+    provided for reference.) CPU-thread parallelism can then be enabled by a single
+    OpenMP `#pragma`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/base/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**core.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**main.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**heat.h**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Optional: compiling the executables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To compile executable files for the OpenMP-based variants, follow the instructions
+    below:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Afterwards login into a compute node and test the executables (or just `srun
+    <executable>` directly):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If everything works well, the output should look similar to this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'CPU parallelization: timings'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '(**NOTE**: for thread-parallel runs it is necessary to request multiple CPU
+    cores. In LUMI-G partitions, this can be done by asking for multiple GPUs; an
+    alternative is to use -C partitions.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For later comparison, some benchmarks of the OpenMP thread-parallel implementation
+    are provided below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of OpenMP-enabled executable, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | 1 CPU core | 32 CPU cores |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.402 | 0.064 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:5000 | 13.895 | 0.538 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:10000 | 27.753 | 1.071 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:4000 T:500 | 5.727 | 0.633 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:8000 T:500 | 24.130 | 16.616 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'A closer look reveals that the computation time scales very nicely with increasing
+    **time steps**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-scaling-step.png](../Images/810309a3883969c1640d34255f4ed61e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'However, for larger **grid sizes** the parallelization becomes inefficient
+    – as the individual chunks of the grid get too large to fit into CPU cache, threads
+    become bound by the speed of RAM reads/writes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-scaling-grid.png](../Images/d7b5dbdf6c5a48df4e9ebdf5ce5a9322.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Discussion: heat flow computation scaling'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How is heat flow computation **expected** to scale with respect to the number
+    of time steps?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Linearly
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quadratically
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exponentially
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is stencil application (grid update) **expected** to scale with respect
+    to the size of the grid side?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Linearly
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quadratically
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exponentially
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: (Optional) Do you expect GPU-accelerated computations to follow the above-mentioned
+    trends? Why/ why not?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The answer is a: since each time-step follows the previous one and involves
+    a similar number of operations, then the update time per step will be more or
+    less constant.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The answer is b: since stencil application is independent for every grid point,
+    the update time will be proportional to the number of points, i.e. side * side.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'GPU parallelization: first steps'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s apply several techniques presented in previous episodes to make stencil
+    update run on GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: OpenMP (or OpenACC) offloading requires to define a region to be executed in
+    parallel as well as data that shall be copied over/ used in GPU memory. Similarly,
+    SYCL programming model offers convenient ways to define execution kernels, as
+    well as context to run them in (called queue).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Changes of stencil update code for OpenMP and SYCL are shown in the tabs below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**base/core-off.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**sycl/core-naive.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Loading SYCL modules on LUMI
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As SYCL is placed on top of ROCm/HIP (or CUDA) software stack, running SYCL
+    executables may require respective modules to be loaded. On current nodes, it
+    can be done as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Optional: compiling the SYCL executables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As previously, you are welcome to generate your own executables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If everything works well, the output should look similar to this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: naive GPU ports'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Test your compiled executables `base/stencil`, `base/stencil_off` and `sycl/stencil_naive`.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`srun stencil_naive 2000 2000 5000`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do the results align to your expectations?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You might notice that the GPU-“ported” versions actually run slower than the
+    single-CPU-core version! In fact, the scaling behavior of all three variants is
+    similar and expected, which is a good sign; only the “computation unit cost” is
+    different. You can compare benchmark summaries in the tabs below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/cpu-seq-scaling.png](../Images/f914c858f1d0af184a01a3be041bc986.png)![../_images/omp-gpu-naive-scaling.png](../Images/60ce6615dd04e25662bd6cce1bee82bf.png)![../_images/omp-sycl-naive-scaling-new.png](../Images/6983096d4b59ed832c9bc3fae5a9e4e0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'GPU parallelization: data movement'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Why the porting approach above seems to be quite inefficient?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On each step, we:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: re-allocate GPU memory,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: copy the data from CPU to GPU,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: perform the computation,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: then copy the data back.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'But overhead can be reduced by taking care to minimize data transfers between
+    *host* and *device* memory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: allocate GPU memory once at the start of the program,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: only copy the data from GPU to CPU when we need it,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: swap the GPU buffers between timesteps, like we do with CPU buffers. (OpenMP
+    does this automatically.)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Changes of stencil update code are shown in tabs below (also check out the
+    respective main() functions for calls to persistent GPU buffer creation, access,
+    and deletion):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**base/core-data.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**sycl/core.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: updated GPU ports'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Test your compiled executables `base/stencil_data` and `sycl/stencil_data`.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`srun stencil 2000 2000 5000`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change this time around?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What largest grid and/or longest propagation time can you get in 10 s on your
+    machine?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using GPU offloading with mapped device data, it is possible to achieve performance
+    gains compared to thread-parallel version for larger grid sizes, due to the fact
+    that the latter version becomes essentially RAM-bound, but the former does not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-vs-gpu.png](../Images/cb5974969100b722e87051a97d144b8c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Below you can find the summary graphs for step- and grid- scaling of the stencil
+    update task. Because of the more explicit programming approach, SYCL GPU port
+    is much faster than OpenMP-offloaded version, comparable with thread-parallel
+    CPU version running on all cores of a single node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/summary-scaling-step-new.png](../Images/6704bb2fd89cb6e760535f15dfc6af72.png)![../_images/summary-scaling-grid-new.png](../Images/f60d760b3af83514c7a5865edfae846d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Python: JIT and GPU acceleration'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As mentioned [previously](https://enccs.github.io/gpu-programming/9-language-support/#numba),
+    Numba package allows developers to just-in-time (JIT) compile Python code to run
+    fast on CPUs, but can also be used for JIT compiling for (NVIDIA) GPUs. JIT seems
+    to work well on loop-based, computationally heavy functions, so trying it out
+    is a nice choice for initial source version:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/python-numba](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/python-numba/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**core.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**heat.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**core_cuda.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: The alternative approach would be to rewrite stencil update code in NumPy style,
+    exploiting loop vectorization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Trying out Python examples
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can run follow the links below for instructions from the [Setup](../0-setup/)
+    episode. You may choose to run the provided code examples either on
+  prefs: []
+  type: TYPE_NORMAL
+- en: on a [LUMI GPU node](../0-setup/#setup-python-lumi-gpu), or
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: your local machine, or [LUMI CPU node](../0-setup/#setup-python-lumi-cpu), or
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Google Colab](../0-setup/#setup-google-colab).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To run the example in a GPU node via the container,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: To run the example in a CPU node,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Short summary of a typical Colab run is provided below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of Numba JIT-enabled Python program, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | JIT (LUMI) | JIT (Colab) | Job size | no JIT (Colab) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.648 | 8.495 | S:200 T:50 | 5.318 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:200 | 0.787 | 3.524 | S:200 T:20 | 1.859 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:1000 T:500 | 0.547 | 2.230 | S:100 T:50 | 1.156 |'
+  prefs: []
+  type: TYPE_TB
+- en: Numba’s `@vectorize` and `@guvectorize` decorators offer an interface to create
+    CPU- (or GPU-) accelerated *Python* functions without explicit implementation
+    details. However, such functions become increasingly complicated to write (and
+    optimize by the compiler) with increasing complexity of the computations within.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Numba also offers direct CUDA-based kernel programming, which can be the best
+    choice for those already familiar with CUDA. Example for stencil update written
+    in Numba CUDA is shown in the above section, tab “Stencil update in GPU”. In this
+    case, data transfer functions `devdata = cuda.to_device(data)` and `devdata.copy_to_host(data)`
+    (see `main_cuda.py`) are already provided by Numba package.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Exercise: CUDA acceleration in Python'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using Google Colab (or your own machine), run provided Numba-CUDA Python program.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`args.rows, args.cols, args.nsteps = 2000, 2000, 5000` for notebooks,'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[`srun`] `python3 main.py 2000 2000 5000` for command line.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do you get better performance than from JIT-compiled CPU version? How far can
+    you push the problem size?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Are you able to monitor the GPU usage?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Some numbers from Colab:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of Numba CUDA Python program, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | JIT (LUMI) | JIT (Colab) | CUDA (Colab) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.648 | 8.495 | 1.079 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:2000 | 6.133 | 36.61 | 3.931 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:5000 T:500 | 9.478 | 57.19 | 6.448 |'
+  prefs: []
+  type: TYPE_TB
+- en: Julia GPU acceleration
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A Julia version of the stencil example above can be found below (a simplified
+    version of the HeatEquation module at [https://github.com/ENCCS/HeatEquation.jl](https://github.com/ENCCS/HeatEquation.jl)).
+    The source files are also available in the [content/examples/stencil/julia](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/julia)
+    directory of this repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To run the example on LUMI CPU partition, type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: To run on the GPU partition, use instead the `srun` command
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Optional dependency
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the `Plots.jl` dependency is commented out in `main.jl` and `Project.toml`.
+    This saves ~2 minute precompilation time when you first instantiate the Julia
+    environment. To generate plots, just uncomment the commented `Plots.jl` dependency
+    in `Project.toml`, instantiate again, and import and use `Plots` in `main.jl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: Julia port to GPUs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Carefully inspect all Julia source files and consider the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which functions should be ported to run on GPU?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Look at the `initialize!()` function and how it uses the `arraytype` argument.
+    This could be done more compactly and elegantly, but this solution solves scalar
+    indexing errors. What are scalar indexing errors?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Try to start sketching GPU-ported versions of the key functions.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When you have a version running on a GPU (your own or the solution provided
+    below), try benchmarking it by adding `@btime` in front of `simulate!()` in `main.jl`.
+    Benchmark also the CPU version, and compare.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hints
+  prefs: []
+  type: TYPE_NORMAL
+- en: create a new function `evolve_gpu!()` which contains the GPU kernelized version
+    of `evolve!()`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'in the loop over timesteps in `simulate!()`, you will need a conditional like
+    `if typeof(curr.data) <: ROCArray` to call your GPU-ported function'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: you cannot pass the struct `Field` to the kernel. You will instead need to directly
+    pass the array `Field.data`. This also necessitates passing in other variables
+    like `curr.dx^2`, etc.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: More hints
+  prefs: []
+  type: TYPE_NORMAL
+- en: since the data is two-dimensional, you’ll need `i = (blockIdx().x - 1) * blockDim().x
+    + threadIdx().x` and `j = (blockIdx().y - 1) * blockDim().y + threadIdx().y`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: to not overindex the 2D array, you can use a conditional like `if i > 1 && j
+    > 1 && i < nx+2 && j < ny+2`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: when calling the kernel, you can set the number of threads and blocks like `xthreads
+    = ythreads = 16` and `xblocks, yblocks = cld(curr.nx, xthreads), cld(curr.ny,
+    ythreads)`, and then call it with, e.g., `@roc threads=(xthreads, ythreads) blocks
+    = (xblocks, yblocks) evolve_rocm!(curr.data, prev.data, curr.dx^2, curr.dy^2,
+    nx, ny, a, dt)`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `evolve!()` and `simulate!()` functions need to be ported. The `main.jl`
+    file also needs to be updated to work with GPU arrays.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: “Scalar indexing” is where you iterate over a GPU array, which would be excruciatingly
+    slow and is indeed only allowed in interactive REPL sessions. Without the if-statements
+    in the `initialize!()` function, the `generate_field!()` method would be doing
+    disallowed scalar indexing if you were running on a GPU.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The GPU-ported version is found below. Try it out on both CPU and GPU and observe
+    the speedup. Play around with array size to see if the speedup is affected. You
+    can also play around with the `xthreads` and `ythreads` variables to see if it
+    changes anything.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This section leans heavily on source code and material created for several other
+    computing workshops by [ENCCS](https://enccs.se/) and [CSC](https://csc.fi/) and
+    adapted for the purposes of this lesson. If you want to know more about specific
+    programming models / framework, definitely check these out!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[OpenMP for GPU offloading](https://enccs.github.io/openmp-gpu/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Heterogeneous programming with SYCL](https://enccs.github.io/sycl-workshop/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Educational implementation of heat flow example (incl. MPI-aware CUDA)](https://github.com/cschpc/heat-equation/)
+    [Previous](../12-recommendations/ "Recommendations") [Next](../quick-reference/
+    "Quick Reference")'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: © Copyright 2023-2024, The contributors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Built with [Sphinx](https://www.sphinx-doc.org/) using a [theme](https://github.com/readthedocs/sphinx_rtd_theme)
+    provided by [Read the Docs](https://readthedocs.org). Questions
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do I compile and run code developed using different programming models and
+    frameworks?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What can I expect from the GPU-ported programs in terms of performance gains
+    / trends and how do I estimate this?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Objectives
+  prefs: []
+  type: TYPE_NORMAL
+- en: To show a self-contained example of parallel computation executed on CPU and
+    GPU using different programming models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To show differences and consequences of implementing the same algorithm in natural
+    “style” of different models/ frameworks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To discuss how to assess theoretical and practical performance scaling of GPU
+    codes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Instructor note
+  prefs: []
+  type: TYPE_NORMAL
+- en: 35 min teaching
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 30 min exercises
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Problem: heat flow in two-dimensional area'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Heat flows in objects according to local temperature differences, as if seeking
+    local equilibrium. The following example defines a rectangular area with two always-warm
+    sides (temperature 70 and 85), two cold sides (temperature 20 and 5) and a cold
+    disk at the center. Because of heat diffusion, temperature of neighboring patches
+    of the area is bound to equalize, changing the overall distribution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/heat_montage.png](../Images/a35d1f1ff482677729c4a0e99db22510.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Over time, the temperature distribution progresses from the initial state toward
+    an end state where upper triangle is warm and lower is cold. The average temperature
+    tends to (70 + 85 + 20 + 5) / 4 = 45.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Technique: stencil computation'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Heat transfer in the system above is governed by the partial differential equation(s)
+    describing local variation of the temperature field in time and space. That is,
+    the rate of change of the temperature field \(u(x, y, t)\) over two spatial dimensions
+    \(x\) and \(y\) and time \(t\) (with rate coefficient \(\alpha\)) can be modelled
+    via the equation
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\frac{\partial u}{\partial t} = \alpha \left( \frac{\partial^2 u}{\partial
+    x^2} + \frac{\partial^2 u}{\partial y^2}\right)\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The standard way to numerically solve differential equations is to *discretize*
+    them, i. e. to consider only a set/ grid of specific area points at specific moments
+    in time. That way, partial derivatives \({\partial u}\) are converted into differences
+    between adjacent grid points \(u^{m}(i,j)\), with \(m, i, j\) denoting time and
+    spatial grid points, respectively. Temperature change in time at a certain point
+    can now be computed from the values of neighboring points at earlier time; the
+    same expression, called *stencil*, is applied to every point on the grid.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/stencil.svg](../Images/1ff8eef868cbbc0909c826b5871f271f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This simplified model uses an 8x8 grid of data in light blue in state \(m\),
+    each location of which has to be updated based on the indicated 5-point stencil
+    in yellow to move to the next time point \(m+1\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Question: stencil applications'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stencil computation is a common occurrence in solving numerical problems. Have
+    you already encountered it? Can you think of a problem that could be formulated
+    this way in your field / area of expertise?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: One obvious choice is *convolution* operation, used in image processing to apply
+    various filter kernels; in some contexts, “convolution” and “stencil” are used
+    almost interchangeably. Other related use is for averaging/ pooling adjacent values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical considerations
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**1\. How fast and/ or accurate can the solution be?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Spatial resolution of the temperature field is controlled by the number/ density
+    of the grid points. As the full grid update is required to proceed from one time
+    point to the next, stencil computation is the main target of parallelization (on
+    CPU or GPU).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, in many cases the chosen time step cannot be arbitrarily large, otherwise
+    the numerical differentiation will fail, and dense/ accurate grids imply small
+    time steps (see inset below), which makes efficient spatial update even more important.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Optional: stencil expression and time-step limit'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Differential equation shown above can be discretized using different schemes.
+    For this example, temperature values at each grid point \(u^{m}(i,j)\) are updated
+    from one time point (\(m\)) to the next (\(m+1\)), using the following expressions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[u^{m+1}(i,j) = u^m(i,j) + \Delta t \alpha \nabla^2 u^m(i,j) ,\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split}\nabla^2 u &= \frac{u(i-1,j)-2u(i,j)+u(i+1,j)}{(\Delta x)^2}
+    \\ &+ \frac{u(i,j-1)-2u(i,j)+u(i,j+1)}{(\Delta y)^2} ,\end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and \(\Delta x\), \(\Delta y\), \(\Delta t\) are step sizes in space and time,
+    respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Time-update schemes often have a limit on the maximum allowed time step \(\Delta
+    t\). For the current scheme, it is equal to
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\Delta t_{max} = \frac{(\Delta x)^2 (\Delta y)^2}{2 \alpha ((\Delta x)^2 +
+    (\Delta y)^2)}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2\. What to do with area boundaries?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naturally, stencil expression can’t be applied directly to the outermost grid
+    points that have no outer neighbors. This can be solved by either changing the
+    expression for those points or by adding an additional layer of grid that is used
+    in computing update, but not updated itself – points of fixed temperature for
+    the sides are being used in this example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3\. How could the algorithm be optimized further?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [an earlier episode](https://enccs.github.io/gpu-programming/7-non-portable-kernel-models/#memory-optimizations),
+    importance of efficient memory access was already stressed. In the following examples,
+    each grid point (and its neighbors) is treated mostly independently; however,
+    this also means that for 5-point stencil each value of the grid point may be read
+    up to 5 times from memory (even if it’s the fast GPU memory). By rearranging the
+    order of mathematical operations, it may be possible to reuse these values in
+    a more efficient way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another point to note is that even if the solution is propagated in small time
+    steps, not every step might actually be needed for output. Once some *local* region
+    of the field is updated, mathematically nothing prevents it from being updated
+    for the second time step – even if the rest of the field is still being recalculated
+    – as long as \(t = m-1\) values for the region boundary are there when needed.
+    (Of course, this is more complicated to implement and would only give benefits
+    in certain cases.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following table will aid you in navigating the rest of this section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Episode guide
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Sequential and OpenMP-threaded code](https://enccs.github.io/gpu-programming/13-examples/#sequential-and-thread-parallel-program-in-c)
+    in C++, including compilation/ running instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Naive GPU parallelization](https://enccs.github.io/gpu-programming/13-examples/#gpu-parallelization-first-steps),
+    including SYCL compilation instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[GPU code with device data management](https://enccs.github.io/gpu-programming/13-examples/#gpu-parallelization-data-movement)
+    (OpenMP, SYCL)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Python implementation](https://enccs.github.io/gpu-programming/13-examples/#python-jit-and-gpu-acceleration),
+    including running instructions on [Google Colab](https://colab.research.google.com/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Julia implementation](https://enccs.github.io/gpu-programming/13-examples/#julia-gpu-acceleration),
+    including running instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sequential and thread-parallel program in C++
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Trying out code examples
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Source files of the examples presented for the rest of this episode are available
+    in the [content/examples/stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/)
+    directory. To download them to your preferred directory on the cluster (f.e. `/scratch/project_<#>/<your_folder>/`),
+    you can use Git:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: Warning
+  prefs: []
+  type: TYPE_NORMAL
+- en: Don’t forget to `git pull` for the latest updates if you already have the content
+    from the first day of the workshop!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we assume the grid point values to be truly independent *for a single time
+    step*, stencil application procedure may be straightforwardly written as a loop
+    over the grid points, as shown below in tab “Stencil update”. (General structure
+    of the program and the default parameter values for the problem model are also
+    provided for reference.) CPU-thread parallelism can then be enabled by a single
+    OpenMP `#pragma`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/base/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**core.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**main.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**heat.h**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Optional: compiling the executables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To compile executable files for the OpenMP-based variants, follow the instructions
+    below:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Afterwards login into a compute node and test the executables (or just `srun
+    <executable>` directly):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If everything works well, the output should look similar to this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'CPU parallelization: timings'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '(**NOTE**: for thread-parallel runs it is necessary to request multiple CPU
+    cores. In LUMI-G partitions, this can be done by asking for multiple GPUs; an
+    alternative is to use -C partitions.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For later comparison, some benchmarks of the OpenMP thread-parallel implementation
+    are provided below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of OpenMP-enabled executable, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | 1 CPU core | 32 CPU cores |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.402 | 0.064 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:5000 | 13.895 | 0.538 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:10000 | 27.753 | 1.071 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:4000 T:500 | 5.727 | 0.633 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:8000 T:500 | 24.130 | 16.616 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'A closer look reveals that the computation time scales very nicely with increasing
+    **time steps**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-scaling-step.png](../Images/810309a3883969c1640d34255f4ed61e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'However, for larger **grid sizes** the parallelization becomes inefficient
+    – as the individual chunks of the grid get too large to fit into CPU cache, threads
+    become bound by the speed of RAM reads/writes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-scaling-grid.png](../Images/d7b5dbdf6c5a48df4e9ebdf5ce5a9322.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Discussion: heat flow computation scaling'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How is heat flow computation **expected** to scale with respect to the number
+    of time steps?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Linearly
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quadratically
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exponentially
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is stencil application (grid update) **expected** to scale with respect
+    to the size of the grid side?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Linearly
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quadratically
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exponentially
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: (Optional) Do you expect GPU-accelerated computations to follow the above-mentioned
+    trends? Why/ why not?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The answer is a: since each time-step follows the previous one and involves
+    a similar number of operations, then the update time per step will be more or
+    less constant.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The answer is b: since stencil application is independent for every grid point,
+    the update time will be proportional to the number of points, i.e. side * side.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'GPU parallelization: first steps'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s apply several techniques presented in previous episodes to make stencil
+    update run on GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: OpenMP (or OpenACC) offloading requires to define a region to be executed in
+    parallel as well as data that shall be copied over/ used in GPU memory. Similarly,
+    SYCL programming model offers convenient ways to define execution kernels, as
+    well as context to run them in (called queue).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Changes of stencil update code for OpenMP and SYCL are shown in the tabs below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**base/core-off.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**sycl/core-naive.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: Loading SYCL modules on LUMI
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As SYCL is placed on top of ROCm/HIP (or CUDA) software stack, running SYCL
+    executables may require respective modules to be loaded. On current nodes, it
+    can be done as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Optional: compiling the SYCL executables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As previously, you are welcome to generate your own executables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If everything works well, the output should look similar to this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: naive GPU ports'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Test your compiled executables `base/stencil`, `base/stencil_off` and `sycl/stencil_naive`.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`srun stencil_naive 2000 2000 5000`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do the results align to your expectations?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You might notice that the GPU-“ported” versions actually run slower than the
+    single-CPU-core version! In fact, the scaling behavior of all three variants is
+    similar and expected, which is a good sign; only the “computation unit cost” is
+    different. You can compare benchmark summaries in the tabs below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/cpu-seq-scaling.png](../Images/f914c858f1d0af184a01a3be041bc986.png)![../_images/omp-gpu-naive-scaling.png](../Images/60ce6615dd04e25662bd6cce1bee82bf.png)![../_images/omp-sycl-naive-scaling-new.png](../Images/6983096d4b59ed832c9bc3fae5a9e4e0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'GPU parallelization: data movement'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Why the porting approach above seems to be quite inefficient?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On each step, we:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: re-allocate GPU memory,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: copy the data from CPU to GPU,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: perform the computation,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: then copy the data back.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'But overhead can be reduced by taking care to minimize data transfers between
+    *host* and *device* memory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: allocate GPU memory once at the start of the program,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: only copy the data from GPU to CPU when we need it,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: swap the GPU buffers between timesteps, like we do with CPU buffers. (OpenMP
+    does this automatically.)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Changes of stencil update code are shown in tabs below (also check out the
+    respective main() functions for calls to persistent GPU buffer creation, access,
+    and deletion):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**base/core-data.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**sycl/core.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: updated GPU ports'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Test your compiled executables `base/stencil_data` and `sycl/stencil_data`.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`srun stencil 2000 2000 5000`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change this time around?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What largest grid and/or longest propagation time can you get in 10 s on your
+    machine?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using GPU offloading with mapped device data, it is possible to achieve performance
+    gains compared to thread-parallel version for larger grid sizes, due to the fact
+    that the latter version becomes essentially RAM-bound, but the former does not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-vs-gpu.png](../Images/cb5974969100b722e87051a97d144b8c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Below you can find the summary graphs for step- and grid- scaling of the stencil
+    update task. Because of the more explicit programming approach, SYCL GPU port
+    is much faster than OpenMP-offloaded version, comparable with thread-parallel
+    CPU version running on all cores of a single node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/summary-scaling-step-new.png](../Images/6704bb2fd89cb6e760535f15dfc6af72.png)![../_images/summary-scaling-grid-new.png](../Images/f60d760b3af83514c7a5865edfae846d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Python: JIT and GPU acceleration'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As mentioned [previously](https://enccs.github.io/gpu-programming/9-language-support/#numba),
+    Numba package allows developers to just-in-time (JIT) compile Python code to run
+    fast on CPUs, but can also be used for JIT compiling for (NVIDIA) GPUs. JIT seems
+    to work well on loop-based, computationally heavy functions, so trying it out
+    is a nice choice for initial source version:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/python-numba](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/python-numba/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**core.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**heat.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**core_cuda.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: The alternative approach would be to rewrite stencil update code in NumPy style,
+    exploiting loop vectorization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Trying out Python examples
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can run follow the links below for instructions from the [Setup](../0-setup/)
+    episode. You may choose to run the provided code examples either on
+  prefs: []
+  type: TYPE_NORMAL
+- en: on a [LUMI GPU node](../0-setup/#setup-python-lumi-gpu), or
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: your local machine, or [LUMI CPU node](../0-setup/#setup-python-lumi-cpu), or
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Google Colab](../0-setup/#setup-google-colab).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To run the example in a GPU node via the container,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: To run the example in a CPU node,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Short summary of a typical Colab run is provided below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of Numba JIT-enabled Python program, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | JIT (LUMI) | JIT (Colab) | Job size | no JIT (Colab) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.648 | 8.495 | S:200 T:50 | 5.318 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:200 | 0.787 | 3.524 | S:200 T:20 | 1.859 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:1000 T:500 | 0.547 | 2.230 | S:100 T:50 | 1.156 |'
+  prefs: []
+  type: TYPE_TB
+- en: Numba’s `@vectorize` and `@guvectorize` decorators offer an interface to create
+    CPU- (or GPU-) accelerated *Python* functions without explicit implementation
+    details. However, such functions become increasingly complicated to write (and
+    optimize by the compiler) with increasing complexity of the computations within.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Numba also offers direct CUDA-based kernel programming, which can be the best
+    choice for those already familiar with CUDA. Example for stencil update written
+    in Numba CUDA is shown in the above section, tab “Stencil update in GPU”. In this
+    case, data transfer functions `devdata = cuda.to_device(data)` and `devdata.copy_to_host(data)`
+    (see `main_cuda.py`) are already provided by Numba package.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Exercise: CUDA acceleration in Python'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using Google Colab (or your own machine), run provided Numba-CUDA Python program.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`args.rows, args.cols, args.nsteps = 2000, 2000, 5000` for notebooks,'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[`srun`] `python3 main.py 2000 2000 5000` for command line.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do you get better performance than from JIT-compiled CPU version? How far can
+    you push the problem size?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Are you able to monitor the GPU usage?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Some numbers from Colab:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of Numba CUDA Python program, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | JIT (LUMI) | JIT (Colab) | CUDA (Colab) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.648 | 8.495 | 1.079 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:2000 | 6.133 | 36.61 | 3.931 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:5000 T:500 | 9.478 | 57.19 | 6.448 |'
+  prefs: []
+  type: TYPE_TB
+- en: Julia GPU acceleration
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A Julia version of the stencil example above can be found below (a simplified
+    version of the HeatEquation module at [https://github.com/ENCCS/HeatEquation.jl](https://github.com/ENCCS/HeatEquation.jl)).
+    The source files are also available in the [content/examples/stencil/julia](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/julia)
+    directory of this repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To run the example on LUMI CPU partition, type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: To run on the GPU partition, use instead the `srun` command
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: Optional dependency
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the `Plots.jl` dependency is commented out in `main.jl` and `Project.toml`.
+    This saves ~2 minute precompilation time when you first instantiate the Julia
+    environment. To generate plots, just uncomment the commented `Plots.jl` dependency
+    in `Project.toml`, instantiate again, and import and use `Plots` in `main.jl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: Julia port to GPUs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Carefully inspect all Julia source files and consider the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which functions should be ported to run on GPU?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Look at the `initialize!()` function and how it uses the `arraytype` argument.
+    This could be done more compactly and elegantly, but this solution solves scalar
+    indexing errors. What are scalar indexing errors?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Try to start sketching GPU-ported versions of the key functions.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When you have a version running on a GPU (your own or the solution provided
+    below), try benchmarking it by adding `@btime` in front of `simulate!()` in `main.jl`.
+    Benchmark also the CPU version, and compare.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hints
+  prefs: []
+  type: TYPE_NORMAL
+- en: create a new function `evolve_gpu!()` which contains the GPU kernelized version
+    of `evolve!()`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'in the loop over timesteps in `simulate!()`, you will need a conditional like
+    `if typeof(curr.data) <: ROCArray` to call your GPU-ported function'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: you cannot pass the struct `Field` to the kernel. You will instead need to directly
+    pass the array `Field.data`. This also necessitates passing in other variables
+    like `curr.dx^2`, etc.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: More hints
+  prefs: []
+  type: TYPE_NORMAL
+- en: since the data is two-dimensional, you’ll need `i = (blockIdx().x - 1) * blockDim().x
+    + threadIdx().x` and `j = (blockIdx().y - 1) * blockDim().y + threadIdx().y`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: to not overindex the 2D array, you can use a conditional like `if i > 1 && j
+    > 1 && i < nx+2 && j < ny+2`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: when calling the kernel, you can set the number of threads and blocks like `xthreads
+    = ythreads = 16` and `xblocks, yblocks = cld(curr.nx, xthreads), cld(curr.ny,
+    ythreads)`, and then call it with, e.g., `@roc threads=(xthreads, ythreads) blocks
+    = (xblocks, yblocks) evolve_rocm!(curr.data, prev.data, curr.dx^2, curr.dy^2,
+    nx, ny, a, dt)`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `evolve!()` and `simulate!()` functions need to be ported. The `main.jl`
+    file also needs to be updated to work with GPU arrays.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: “Scalar indexing” is where you iterate over a GPU array, which would be excruciatingly
+    slow and is indeed only allowed in interactive REPL sessions. Without the if-statements
+    in the `initialize!()` function, the `generate_field!()` method would be doing
+    disallowed scalar indexing if you were running on a GPU.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The GPU-ported version is found below. Try it out on both CPU and GPU and observe
+    the speedup. Play around with array size to see if the speedup is affected. You
+    can also play around with the `xthreads` and `ythreads` variables to see if it
+    changes anything.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This section leans heavily on source code and material created for several other
+    computing workshops by [ENCCS](https://enccs.se/) and [CSC](https://csc.fi/) and
+    adapted for the purposes of this lesson. If you want to know more about specific
+    programming models / framework, definitely check these out!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[OpenMP for GPU offloading](https://enccs.github.io/openmp-gpu/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Heterogeneous programming with SYCL](https://enccs.github.io/sycl-workshop/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Educational implementation of heat flow example (incl. MPI-aware CUDA)](https://github.com/cschpc/heat-equation/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Problem: heat flow in two-dimensional area'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Heat flows in objects according to local temperature differences, as if seeking
+    local equilibrium. The following example defines a rectangular area with two always-warm
+    sides (temperature 70 and 85), two cold sides (temperature 20 and 5) and a cold
+    disk at the center. Because of heat diffusion, temperature of neighboring patches
+    of the area is bound to equalize, changing the overall distribution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/heat_montage.png](../Images/a35d1f1ff482677729c4a0e99db22510.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Over time, the temperature distribution progresses from the initial state toward
+    an end state where upper triangle is warm and lower is cold. The average temperature
+    tends to (70 + 85 + 20 + 5) / 4 = 45.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Technique: stencil computation'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Heat transfer in the system above is governed by the partial differential equation(s)
+    describing local variation of the temperature field in time and space. That is,
+    the rate of change of the temperature field \(u(x, y, t)\) over two spatial dimensions
+    \(x\) and \(y\) and time \(t\) (with rate coefficient \(\alpha\)) can be modelled
+    via the equation
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\frac{\partial u}{\partial t} = \alpha \left( \frac{\partial^2 u}{\partial
+    x^2} + \frac{\partial^2 u}{\partial y^2}\right)\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The standard way to numerically solve differential equations is to *discretize*
+    them, i. e. to consider only a set/ grid of specific area points at specific moments
+    in time. That way, partial derivatives \({\partial u}\) are converted into differences
+    between adjacent grid points \(u^{m}(i,j)\), with \(m, i, j\) denoting time and
+    spatial grid points, respectively. Temperature change in time at a certain point
+    can now be computed from the values of neighboring points at earlier time; the
+    same expression, called *stencil*, is applied to every point on the grid.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/stencil.svg](../Images/1ff8eef868cbbc0909c826b5871f271f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This simplified model uses an 8x8 grid of data in light blue in state \(m\),
+    each location of which has to be updated based on the indicated 5-point stencil
+    in yellow to move to the next time point \(m+1\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Question: stencil applications'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stencil computation is a common occurrence in solving numerical problems. Have
+    you already encountered it? Can you think of a problem that could be formulated
+    this way in your field / area of expertise?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: One obvious choice is *convolution* operation, used in image processing to apply
+    various filter kernels; in some contexts, “convolution” and “stencil” are used
+    almost interchangeably. Other related use is for averaging/ pooling adjacent values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical considerations
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**1\. How fast and/ or accurate can the solution be?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Spatial resolution of the temperature field is controlled by the number/ density
+    of the grid points. As the full grid update is required to proceed from one time
+    point to the next, stencil computation is the main target of parallelization (on
+    CPU or GPU).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, in many cases the chosen time step cannot be arbitrarily large, otherwise
+    the numerical differentiation will fail, and dense/ accurate grids imply small
+    time steps (see inset below), which makes efficient spatial update even more important.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Optional: stencil expression and time-step limit'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Differential equation shown above can be discretized using different schemes.
+    For this example, temperature values at each grid point \(u^{m}(i,j)\) are updated
+    from one time point (\(m\)) to the next (\(m+1\)), using the following expressions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[u^{m+1}(i,j) = u^m(i,j) + \Delta t \alpha \nabla^2 u^m(i,j) ,\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split}\nabla^2 u &= \frac{u(i-1,j)-2u(i,j)+u(i+1,j)}{(\Delta x)^2}
+    \\ &+ \frac{u(i,j-1)-2u(i,j)+u(i,j+1)}{(\Delta y)^2} ,\end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and \(\Delta x\), \(\Delta y\), \(\Delta t\) are step sizes in space and time,
+    respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Time-update schemes often have a limit on the maximum allowed time step \(\Delta
+    t\). For the current scheme, it is equal to
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\Delta t_{max} = \frac{(\Delta x)^2 (\Delta y)^2}{2 \alpha ((\Delta x)^2 +
+    (\Delta y)^2)}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2\. What to do with area boundaries?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naturally, stencil expression can’t be applied directly to the outermost grid
+    points that have no outer neighbors. This can be solved by either changing the
+    expression for those points or by adding an additional layer of grid that is used
+    in computing update, but not updated itself – points of fixed temperature for
+    the sides are being used in this example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3\. How could the algorithm be optimized further?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [an earlier episode](https://enccs.github.io/gpu-programming/7-non-portable-kernel-models/#memory-optimizations),
+    importance of efficient memory access was already stressed. In the following examples,
+    each grid point (and its neighbors) is treated mostly independently; however,
+    this also means that for 5-point stencil each value of the grid point may be read
+    up to 5 times from memory (even if it’s the fast GPU memory). By rearranging the
+    order of mathematical operations, it may be possible to reuse these values in
+    a more efficient way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another point to note is that even if the solution is propagated in small time
+    steps, not every step might actually be needed for output. Once some *local* region
+    of the field is updated, mathematically nothing prevents it from being updated
+    for the second time step – even if the rest of the field is still being recalculated
+    – as long as \(t = m-1\) values for the region boundary are there when needed.
+    (Of course, this is more complicated to implement and would only give benefits
+    in certain cases.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following table will aid you in navigating the rest of this section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Episode guide
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Sequential and OpenMP-threaded code](https://enccs.github.io/gpu-programming/13-examples/#sequential-and-thread-parallel-program-in-c)
+    in C++, including compilation/ running instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Naive GPU parallelization](https://enccs.github.io/gpu-programming/13-examples/#gpu-parallelization-first-steps),
+    including SYCL compilation instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[GPU code with device data management](https://enccs.github.io/gpu-programming/13-examples/#gpu-parallelization-data-movement)
+    (OpenMP, SYCL)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Python implementation](https://enccs.github.io/gpu-programming/13-examples/#python-jit-and-gpu-acceleration),
+    including running instructions on [Google Colab](https://colab.research.google.com/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Julia implementation](https://enccs.github.io/gpu-programming/13-examples/#julia-gpu-acceleration),
+    including running instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical considerations
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**1\. How fast and/ or accurate can the solution be?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Spatial resolution of the temperature field is controlled by the number/ density
+    of the grid points. As the full grid update is required to proceed from one time
+    point to the next, stencil computation is the main target of parallelization (on
+    CPU or GPU).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, in many cases the chosen time step cannot be arbitrarily large, otherwise
+    the numerical differentiation will fail, and dense/ accurate grids imply small
+    time steps (see inset below), which makes efficient spatial update even more important.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Optional: stencil expression and time-step limit'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Differential equation shown above can be discretized using different schemes.
+    For this example, temperature values at each grid point \(u^{m}(i,j)\) are updated
+    from one time point (\(m\)) to the next (\(m+1\)), using the following expressions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[u^{m+1}(i,j) = u^m(i,j) + \Delta t \alpha \nabla^2 u^m(i,j) ,\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split}\nabla^2 u &= \frac{u(i-1,j)-2u(i,j)+u(i+1,j)}{(\Delta x)^2}
+    \\ &+ \frac{u(i,j-1)-2u(i,j)+u(i,j+1)}{(\Delta y)^2} ,\end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and \(\Delta x\), \(\Delta y\), \(\Delta t\) are step sizes in space and time,
+    respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Time-update schemes often have a limit on the maximum allowed time step \(\Delta
+    t\). For the current scheme, it is equal to
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\Delta t_{max} = \frac{(\Delta x)^2 (\Delta y)^2}{2 \alpha ((\Delta x)^2 +
+    (\Delta y)^2)}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2\. What to do with area boundaries?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naturally, stencil expression can’t be applied directly to the outermost grid
+    points that have no outer neighbors. This can be solved by either changing the
+    expression for those points or by adding an additional layer of grid that is used
+    in computing update, but not updated itself – points of fixed temperature for
+    the sides are being used in this example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3\. How could the algorithm be optimized further?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [an earlier episode](https://enccs.github.io/gpu-programming/7-non-portable-kernel-models/#memory-optimizations),
+    importance of efficient memory access was already stressed. In the following examples,
+    each grid point (and its neighbors) is treated mostly independently; however,
+    this also means that for 5-point stencil each value of the grid point may be read
+    up to 5 times from memory (even if it’s the fast GPU memory). By rearranging the
+    order of mathematical operations, it may be possible to reuse these values in
+    a more efficient way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another point to note is that even if the solution is propagated in small time
+    steps, not every step might actually be needed for output. Once some *local* region
+    of the field is updated, mathematically nothing prevents it from being updated
+    for the second time step – even if the rest of the field is still being recalculated
+    – as long as \(t = m-1\) values for the region boundary are there when needed.
+    (Of course, this is more complicated to implement and would only give benefits
+    in certain cases.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following table will aid you in navigating the rest of this section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Episode guide
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Sequential and OpenMP-threaded code](https://enccs.github.io/gpu-programming/13-examples/#sequential-and-thread-parallel-program-in-c)
+    in C++, including compilation/ running instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Naive GPU parallelization](https://enccs.github.io/gpu-programming/13-examples/#gpu-parallelization-first-steps),
+    including SYCL compilation instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[GPU code with device data management](https://enccs.github.io/gpu-programming/13-examples/#gpu-parallelization-data-movement)
+    (OpenMP, SYCL)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Python implementation](https://enccs.github.io/gpu-programming/13-examples/#python-jit-and-gpu-acceleration),
+    including running instructions on [Google Colab](https://colab.research.google.com/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Julia implementation](https://enccs.github.io/gpu-programming/13-examples/#julia-gpu-acceleration),
+    including running instructions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sequential and thread-parallel program in C++
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Trying out code examples
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Source files of the examples presented for the rest of this episode are available
+    in the [content/examples/stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/)
+    directory. To download them to your preferred directory on the cluster (f.e. `/scratch/project_<#>/<your_folder>/`),
+    you can use Git:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: Warning
+  prefs: []
+  type: TYPE_NORMAL
+- en: Don’t forget to `git pull` for the latest updates if you already have the content
+    from the first day of the workshop!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we assume the grid point values to be truly independent *for a single time
+    step*, stencil application procedure may be straightforwardly written as a loop
+    over the grid points, as shown below in tab “Stencil update”. (General structure
+    of the program and the default parameter values for the problem model are also
+    provided for reference.) CPU-thread parallelism can then be enabled by a single
+    OpenMP `#pragma`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/base/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**core.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**main.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**heat.h**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Optional: compiling the executables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To compile executable files for the OpenMP-based variants, follow the instructions
+    below:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Afterwards login into a compute node and test the executables (or just `srun
+    <executable>` directly):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If everything works well, the output should look similar to this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'CPU parallelization: timings'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '(**NOTE**: for thread-parallel runs it is necessary to request multiple CPU
+    cores. In LUMI-G partitions, this can be done by asking for multiple GPUs; an
+    alternative is to use -C partitions.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For later comparison, some benchmarks of the OpenMP thread-parallel implementation
+    are provided below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of OpenMP-enabled executable, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | 1 CPU core | 32 CPU cores |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.402 | 0.064 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:5000 | 13.895 | 0.538 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:10000 | 27.753 | 1.071 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:4000 T:500 | 5.727 | 0.633 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:8000 T:500 | 24.130 | 16.616 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'A closer look reveals that the computation time scales very nicely with increasing
+    **time steps**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-scaling-step.png](../Images/810309a3883969c1640d34255f4ed61e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'However, for larger **grid sizes** the parallelization becomes inefficient
+    – as the individual chunks of the grid get too large to fit into CPU cache, threads
+    become bound by the speed of RAM reads/writes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-scaling-grid.png](../Images/d7b5dbdf6c5a48df4e9ebdf5ce5a9322.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Discussion: heat flow computation scaling'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How is heat flow computation **expected** to scale with respect to the number
+    of time steps?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Linearly
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quadratically
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exponentially
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is stencil application (grid update) **expected** to scale with respect
+    to the size of the grid side?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Linearly
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quadratically
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exponentially
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: (Optional) Do you expect GPU-accelerated computations to follow the above-mentioned
+    trends? Why/ why not?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The answer is a: since each time-step follows the previous one and involves
+    a similar number of operations, then the update time per step will be more or
+    less constant.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The answer is b: since stencil application is independent for every grid point,
+    the update time will be proportional to the number of points, i.e. side * side.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'CPU parallelization: timings'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '(**NOTE**: for thread-parallel runs it is necessary to request multiple CPU
+    cores. In LUMI-G partitions, this can be done by asking for multiple GPUs; an
+    alternative is to use -C partitions.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For later comparison, some benchmarks of the OpenMP thread-parallel implementation
+    are provided below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of OpenMP-enabled executable, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | 1 CPU core | 32 CPU cores |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.402 | 0.064 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:5000 | 13.895 | 0.538 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:10000 | 27.753 | 1.071 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:4000 T:500 | 5.727 | 0.633 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:8000 T:500 | 24.130 | 16.616 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'A closer look reveals that the computation time scales very nicely with increasing
+    **time steps**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-scaling-step.png](../Images/810309a3883969c1640d34255f4ed61e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'However, for larger **grid sizes** the parallelization becomes inefficient
+    – as the individual chunks of the grid get too large to fit into CPU cache, threads
+    become bound by the speed of RAM reads/writes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-scaling-grid.png](../Images/d7b5dbdf6c5a48df4e9ebdf5ce5a9322.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Discussion: heat flow computation scaling'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How is heat flow computation **expected** to scale with respect to the number
+    of time steps?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Linearly
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quadratically
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exponentially
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is stencil application (grid update) **expected** to scale with respect
+    to the size of the grid side?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Linearly
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quadratically
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exponentially
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: (Optional) Do you expect GPU-accelerated computations to follow the above-mentioned
+    trends? Why/ why not?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The answer is a: since each time-step follows the previous one and involves
+    a similar number of operations, then the update time per step will be more or
+    less constant.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The answer is b: since stencil application is independent for every grid point,
+    the update time will be proportional to the number of points, i.e. side * side.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'GPU parallelization: first steps'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s apply several techniques presented in previous episodes to make stencil
+    update run on GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: OpenMP (or OpenACC) offloading requires to define a region to be executed in
+    parallel as well as data that shall be copied over/ used in GPU memory. Similarly,
+    SYCL programming model offers convenient ways to define execution kernels, as
+    well as context to run them in (called queue).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Changes of stencil update code for OpenMP and SYCL are shown in the tabs below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**base/core-off.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**sycl/core-naive.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: Loading SYCL modules on LUMI
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As SYCL is placed on top of ROCm/HIP (or CUDA) software stack, running SYCL
+    executables may require respective modules to be loaded. On current nodes, it
+    can be done as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Optional: compiling the SYCL executables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As previously, you are welcome to generate your own executables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If everything works well, the output should look similar to this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: naive GPU ports'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Test your compiled executables `base/stencil`, `base/stencil_off` and `sycl/stencil_naive`.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`srun stencil_naive 2000 2000 5000`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do the results align to your expectations?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You might notice that the GPU-“ported” versions actually run slower than the
+    single-CPU-core version! In fact, the scaling behavior of all three variants is
+    similar and expected, which is a good sign; only the “computation unit cost” is
+    different. You can compare benchmark summaries in the tabs below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/cpu-seq-scaling.png](../Images/f914c858f1d0af184a01a3be041bc986.png)![../_images/omp-gpu-naive-scaling.png](../Images/60ce6615dd04e25662bd6cce1bee82bf.png)![../_images/omp-sycl-naive-scaling-new.png](../Images/6983096d4b59ed832c9bc3fae5a9e4e0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'GPU parallelization: data movement'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Why the porting approach above seems to be quite inefficient?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On each step, we:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: re-allocate GPU memory,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: copy the data from CPU to GPU,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: perform the computation,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: then copy the data back.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'But overhead can be reduced by taking care to minimize data transfers between
+    *host* and *device* memory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: allocate GPU memory once at the start of the program,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: only copy the data from GPU to CPU when we need it,
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: swap the GPU buffers between timesteps, like we do with CPU buffers. (OpenMP
+    does this automatically.)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Changes of stencil update code are shown in tabs below (also check out the
+    respective main() functions for calls to persistent GPU buffer creation, access,
+    and deletion):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/base/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**base/core-data.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**sycl/core.cpp**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: updated GPU ports'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Test your compiled executables `base/stencil_data` and `sycl/stencil_data`.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`srun stencil 2000 2000 5000`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change this time around?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What largest grid and/or longest propagation time can you get in 10 s on your
+    machine?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using GPU offloading with mapped device data, it is possible to achieve performance
+    gains compared to thread-parallel version for larger grid sizes, due to the fact
+    that the latter version becomes essentially RAM-bound, but the former does not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/omp-cpu-vs-gpu.png](../Images/cb5974969100b722e87051a97d144b8c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Below you can find the summary graphs for step- and grid- scaling of the stencil
+    update task. Because of the more explicit programming approach, SYCL GPU port
+    is much faster than OpenMP-offloaded version, comparable with thread-parallel
+    CPU version running on all cores of a single node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![../_images/summary-scaling-step-new.png](../Images/6704bb2fd89cb6e760535f15dfc6af72.png)![../_images/summary-scaling-grid-new.png](../Images/f60d760b3af83514c7a5865edfae846d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Python: JIT and GPU acceleration'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As mentioned [previously](https://enccs.github.io/gpu-programming/9-language-support/#numba),
+    Numba package allows developers to just-in-time (JIT) compile Python code to run
+    fast on CPUs, but can also be used for JIT compiling for (NVIDIA) GPUs. JIT seems
+    to work well on loop-based, computationally heavy functions, so trying it out
+    is a nice choice for initial source version:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[stencil/python-numba](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/python-numba/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**core.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**heat.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**core_cuda.py**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: The alternative approach would be to rewrite stencil update code in NumPy style,
+    exploiting loop vectorization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Trying out Python examples
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can run follow the links below for instructions from the [Setup](../0-setup/)
+    episode. You may choose to run the provided code examples either on
+  prefs: []
+  type: TYPE_NORMAL
+- en: on a [LUMI GPU node](../0-setup/#setup-python-lumi-gpu), or
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: your local machine, or [LUMI CPU node](../0-setup/#setup-python-lumi-cpu), or
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Google Colab](../0-setup/#setup-google-colab).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To run the example in a GPU node via the container,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: To run the example in a CPU node,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Short summary of a typical Colab run is provided below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of Numba JIT-enabled Python program, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | JIT (LUMI) | JIT (Colab) | Job size | no JIT (Colab) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.648 | 8.495 | S:200 T:50 | 5.318 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:200 | 0.787 | 3.524 | S:200 T:20 | 1.859 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:1000 T:500 | 0.547 | 2.230 | S:100 T:50 | 1.156 |'
+  prefs: []
+  type: TYPE_TB
+- en: Numba’s `@vectorize` and `@guvectorize` decorators offer an interface to create
+    CPU- (or GPU-) accelerated *Python* functions without explicit implementation
+    details. However, such functions become increasingly complicated to write (and
+    optimize by the compiler) with increasing complexity of the computations within.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Numba also offers direct CUDA-based kernel programming, which can be the best
+    choice for those already familiar with CUDA. Example for stencil update written
+    in Numba CUDA is shown in the above section, tab “Stencil update in GPU”. In this
+    case, data transfer functions `devdata = cuda.to_device(data)` and `devdata.copy_to_host(data)`
+    (see `main_cuda.py`) are already provided by Numba package.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Exercise: CUDA acceleration in Python'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using Google Colab (or your own machine), run provided Numba-CUDA Python program.
+    Try changing problem size parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`args.rows, args.cols, args.nsteps = 2000, 2000, 5000` for notebooks,'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[`srun`] `python3 main.py 2000 2000 5000` for command line.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Things to look for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How computation times change?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do you get better performance than from JIT-compiled CPU version? How far can
+    you push the problem size?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Are you able to monitor the GPU usage?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Some numbers from Colab:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run times of Numba CUDA Python program, s
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Job size | JIT (LUMI) | JIT (Colab) | CUDA (Colab) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:500 | 1.648 | 8.495 | 1.079 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:2000 T:2000 | 6.133 | 36.61 | 3.931 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S:5000 T:500 | 9.478 | 57.19 | 6.448 |'
+  prefs: []
+  type: TYPE_TB
+- en: Julia GPU acceleration
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A Julia version of the stencil example above can be found below (a simplified
+    version of the HeatEquation module at [https://github.com/ENCCS/HeatEquation.jl](https://github.com/ENCCS/HeatEquation.jl)).
+    The source files are also available in the [content/examples/stencil/julia](https://github.com/ENCCS/gpu-programming/tree/main/content/examples/stencil/julia)
+    directory of this repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To run the example on LUMI CPU partition, type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: To run on the GPU partition, use instead the `srun` command
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: Optional dependency
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the `Plots.jl` dependency is commented out in `main.jl` and `Project.toml`.
+    This saves ~2 minute precompilation time when you first instantiate the Julia
+    environment. To generate plots, just uncomment the commented `Plots.jl` dependency
+    in `Project.toml`, instantiate again, and import and use `Plots` in `main.jl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Exercise: Julia port to GPUs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Carefully inspect all Julia source files and consider the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which functions should be ported to run on GPU?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Look at the `initialize!()` function and how it uses the `arraytype` argument.
+    This could be done more compactly and elegantly, but this solution solves scalar
+    indexing errors. What are scalar indexing errors?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Try to start sketching GPU-ported versions of the key functions.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When you have a version running on a GPU (your own or the solution provided
+    below), try benchmarking it by adding `@btime` in front of `simulate!()` in `main.jl`.
+    Benchmark also the CPU version, and compare.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hints
+  prefs: []
+  type: TYPE_NORMAL
+- en: create a new function `evolve_gpu!()` which contains the GPU kernelized version
+    of `evolve!()`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'in the loop over timesteps in `simulate!()`, you will need a conditional like
+    `if typeof(curr.data) <: ROCArray` to call your GPU-ported function'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: you cannot pass the struct `Field` to the kernel. You will instead need to directly
+    pass the array `Field.data`. This also necessitates passing in other variables
+    like `curr.dx^2`, etc.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: More hints
+  prefs: []
+  type: TYPE_NORMAL
+- en: since the data is two-dimensional, you’ll need `i = (blockIdx().x - 1) * blockDim().x
+    + threadIdx().x` and `j = (blockIdx().y - 1) * blockDim().y + threadIdx().y`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: to not overindex the 2D array, you can use a conditional like `if i > 1 && j
+    > 1 && i < nx+2 && j < ny+2`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: when calling the kernel, you can set the number of threads and blocks like `xthreads
+    = ythreads = 16` and `xblocks, yblocks = cld(curr.nx, xthreads), cld(curr.ny,
+    ythreads)`, and then call it with, e.g., `@roc threads=(xthreads, ythreads) blocks
+    = (xblocks, yblocks) evolve_rocm!(curr.data, prev.data, curr.dx^2, curr.dy^2,
+    nx, ny, a, dt)`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solution
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `evolve!()` and `simulate!()` functions need to be ported. The `main.jl`
+    file also needs to be updated to work with GPU arrays.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: “Scalar indexing” is where you iterate over a GPU array, which would be excruciatingly
+    slow and is indeed only allowed in interactive REPL sessions. Without the if-statements
+    in the `initialize!()` function, the `generate_field!()` method would be doing
+    disallowed scalar indexing if you were running on a GPU.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The GPU-ported version is found below. Try it out on both CPU and GPU and observe
+    the speedup. Play around with array size to see if the speedup is affected. You
+    can also play around with the `xthreads` and `ythreads` variables to see if it
+    changes anything.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: See also
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This section leans heavily on source code and material created for several other
+    computing workshops by [ENCCS](https://enccs.se/) and [CSC](https://csc.fi/) and
+    adapted for the purposes of this lesson. If you want to know more about specific
+    programming models / framework, definitely check these out!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[OpenMP for GPU offloading](https://enccs.github.io/openmp-gpu/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Heterogeneous programming with SYCL](https://enccs.github.io/sycl-workshop/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Educational implementation of heat flow example (incl. MPI-aware CUDA)](https://github.com/cschpc/heat-equation/)*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
