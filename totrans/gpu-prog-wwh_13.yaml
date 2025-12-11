@@ -1,56 +1,84 @@
 - en: Multiple GPU programming with MPI
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用 MPI 的多 GPU 编程
 - en: 原文：[https://enccs.github.io/gpu-programming/10-multiple_gpu/](https://enccs.github.io/gpu-programming/10-multiple_gpu/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://enccs.github.io/gpu-programming/10-multiple_gpu/](https://enccs.github.io/gpu-programming/10-multiple_gpu/)
 - en: '*[GPU programming: why, when and how?](../)* **   Multiple GPU programming
     with MPI'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: '*[GPU 编程：为什么、何时以及如何？](../)* **   使用 MPI 的多 GPU 编程'
 - en: '[Edit on GitHub](https://github.com/ENCCS/gpu-programming/blob/main/content/10-multiple_gpu.rst)'
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[在 GitHub 上编辑](https://github.com/ENCCS/gpu-programming/blob/main/content/10-multiple_gpu.rst)'
 - en: '* * *'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: Questions
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 问题
 - en: What approach should be adopted to extend the synchronous OpenACC and OpenMP
     offloading models to utilise multiple GPUs across multiple nodes?
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 应采用什么方法将同步 OpenACC 和 OpenMP 转发模型扩展到跨多个节点的多个 GPU？
 - en: Objectives
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 目标
 - en: To learn about combining MPI with either OpenACC or OpenMP offloading models.
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 了解如何将 MPI 与 OpenACC 或 OpenMP 转发模型相结合。
 - en: To learn about implementing GPU-awareness MPI approach.
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 了解如何实现具有 GPU 感知性的 MPI 方法。
 - en: Instructor note
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 教师备注
 - en: 30 min teaching
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 30 分钟教学
 - en: 30 min exercises
+  id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 30 分钟练习
 - en: Introduction
+  id: totrans-13
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 简介
 - en: Exploring multiple GPUs (Graphics Processing Units) across distributed nodes
     offers the potential to fully leveraging the capacity of modern HPC (High-Performance
     Computing) systems at a large scale. Here one of the approaches to accelerate
@@ -58,8 +86,11 @@
     with a GPU programming model such as OpenACC and OpenMP application programming
     interfaces (APIs). This combination is motivated by both the simplicity of these
     APIs, and the widespread use of MPI.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 探索跨分布式节点上的多个 GPU（图形处理单元），这有可能在大型规模上充分利用现代高性能计算（HPC）系统的能力。这里，加速分布式系统计算的一种方法是将消息传递接口（MPI）与
+    GPU 编程模型（如 OpenACC 和 OpenMP 应用程序编程接口（API））相结合。这种组合既受到这些 API 简单性的驱动，也受到 MPI 广泛使用的驱动。
 - en: 'In this guide we provide readers, who are familiar with MPI, with insights
     on implementing a hybrid model in which the MPI communication framework is combined
     with either OpenACC or OpenMP APIs. A special focus will be on performing point-to-point
@@ -71,39 +102,58 @@
     MPI, and has the advantage of reducing the computing time caused by transferring
     data via the host-memory during heterogeneous communications, thus rendering HPC
     applications efficient.'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本指南中，我们为熟悉 MPI 的读者提供了关于实现混合模型的见解，其中 MPI 通信框架与 OpenACC 或 OpenMP API 结合。特别关注从
+    OpenACC 和 OpenMP API 执行点对点操作（例如 MPI_Send 和 MPI_Recv）和集体操作（例如 MPI_Allreduce）。在此，我们讨论两种场景：（i）在
+    CPU 主机执行 MPI 操作后，将操作卸载到 GPU 设备的场景；（ii）在两个 GPU 之间执行 MPI 操作而不涉及 CPU 主机内存的场景。后者被称为
+    GPU 感知 MPI，其优点是减少由于通过主机内存进行异构通信而引起的数据传输时间，从而使得 HPC 应用程序更高效。
 - en: 'This guide is organized as follows: we first introduce how to assign each MPI
     rank to a GPU device within the same node. We consider a situation in which the
     host and the device have a distinct memory. This is followed by a presentation
     on the hybrid MPI-OpenACC/OpenMP offloading with and without the GPU-awareness
     MPI. Exercises to help understanding these concepts are provided at the end.'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 本指南组织如下：我们首先介绍如何将每个 MPI 进程分配到同一节点内的 GPU 设备。我们考虑了一种情况，即主机和设备具有不同的内存。随后将介绍带有和没有
+    GPU 感知 MPI 的混合 MPI-OpenACC/OpenMP 转发。最后，提供了一些练习题，以帮助理解这些概念。
 - en: Assigning MPI-ranks to GPU-devices
+  id: totrans-17
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 将 MPI 进程分配到 GPU 设备
 - en: Accelerating MPI applications to utilise multiple GPUs on distributed nodes
     requires as a first step assigning each MPI rank to a GPU device, such that two
     MPI ranks do not use the same GPU device. This is necessarily in order to prevent
     the application from a potential crash. This is because GPUs are designed to handle
     multiple threading tasks, but not multiple MPI ranks.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了在分布式节点上利用多个 GPU 加速 MPI 应用程序，首先需要将每个 MPI 进程分配到 GPU 设备，以确保两个 MPI 进程不使用相同的 GPU
+    设备。这是必要的，以防止应用程序发生潜在的崩溃。这是因为 GPU 设计用于处理多个线程任务，而不是多个 MPI 进程。
 - en: One of the way to ensure that two MPI ranks do not use the same GPU, is to determine
     which MPI processes run on the same node, such that each process can be assigned
     to a GPU device within the same node. This can be done, for instance, by splitting
     the world communicator into sub-groups of communicators (or sub-communicators)
     using the routine MPI_COMM_SPLIT_TYPE().
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 确保两个MPI进程不使用同一GPU的一种方法，是确定哪些MPI进程运行在同一个节点上，这样每个进程就可以被分配到同一节点内的一个GPU设备。这可以通过使用MPI_COMM_SPLIT_TYPE()例程将世界通信器拆分为子通信器组（或子通信器）来实现。例如，这样做。
 - en: '[PRE0]'
+  id: totrans-20
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: '[PRE1]'
+  id: totrans-21
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: Here, the size of each sub-communicator corresponds to the number of GPUs per
     node (which is also the number of tasks per node), and each sub-communicator contains
     a list of processes indicated by a rank. These processes have a shared-memory
@@ -115,49 +165,78 @@
     which directive-based model is implemented. The retrieved MPI ranks are then stored
     in the variable **myDevice**. The variable is passed to an OpenACC or OpenMP routine
     as indicated in the code below.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，每个子通信器的大小对应于每个节点上的GPU数量（这也就是每个节点的任务数量），每个子通信器包含一个由rank指定的进程列表。这些进程由MPI_COMM_TYPE_SHARED（见[MPI报告](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf)）定义的共享内存区域共享（更多详情）。调用MPI_COMM_SPLIT_TYPE()例程返回一个在上述代码中标有“host_comm”的子通信器，其中MPI-ranks从0到每个节点进程数-1进行排序。这些MPI
+    ranks随后被分配到同一节点内的不同GPU设备。这个过程根据实现的指令基于模型进行。检索到的MPI ranks随后存储在变量**myDevice**中。该变量如代码所示传递给OpenACC或OpenMP例程。
 - en: 'Example: `Assign device`'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`分配设备`
 - en: '[PRE2]'
+  id: totrans-24
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: '[PRE3]'
+  id: totrans-25
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: '[PRE4]'
+  id: totrans-26
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: Another useful function for retrieving the device number of a specific device,
     which is useful, e.g., to map data to a specific device is
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个用于检索特定设备编号的有用函数，例如，将数据映射到特定设备的有用函数是
 - en: '[PRE5]'
+  id: totrans-28
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: '[PRE6]'
+  id: totrans-29
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: The syntax of assigning MPI ranks to GPU devices is summarised below
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 将MPI ranks分配到GPU设备的语法总结如下
 - en: 'Example: `Set device`'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`设置设备`
 - en: '[PRE7]'
+  id: totrans-32
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: '[PRE8]'
+  id: totrans-33
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: '[PRE9]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: Hybrid MPI-OpenACC/OpenMP without GPU-awareness approach
+  id: totrans-35
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 无GPU感知的混合MPI-OpenACC/OpenMP方法
 - en: After covering how to assign each MPI-rank to a GPU device, we now address the
     concept of combining MPI with either OpenACC or OpenMP offloading. In this approach,
     calling an MPI routine from an OpenACC or OpenMP API requires updating the data
@@ -170,66 +249,99 @@
     data in the host can be done by specifying the OpenMP directives update device()
     from() and update device() to(), respectively, for copying the data from the device
     to the host and back to the device.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 在介绍了如何将每个MPI-rank分配到GPU设备之后，我们现在讨论将MPI与OpenACC或OpenMP卸载相结合的概念。在这种方法中，从OpenACC或OpenMP
+    API调用MPI例程需要在MPI调用前后更新CPU主机中的数据。在这种情况下，数据在每次MPI调用前后在主机和设备之间来回复制。在混合MPI-OpenACC模型中，该过程通过指定在MPI调用之前将数据从设备复制到主机的指令update
+    host()来定义；通过在MPI调用之后指定指令update device()来将数据复制回设备。在混合MPI-OpenMP中类似地，这里，可以通过指定OpenMP指令update
+    device() from()和update device() to()来更新主机中的数据，分别用于将数据从设备复制到主机和从主机复制回设备。
 - en: To illustrate the concept of the hybrid MPI-OpenACC/OpenMP, we show below an
     example of an implementation that involves the MPI functions MPI_Send() and MPI_Recv().
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明混合MPI-OpenACC/OpenMP的概念，我们下面展示了一个涉及MPI函数MPI_Send()和MPI_Recv()的实现示例。
 - en: 'Example: `Update host/device directives`'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`更新主机/设备指令`
 - en: '[PRE10]'
+  id: totrans-39
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: '[PRE11]'
+  id: totrans-40
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: '[PRE12]'
+  id: totrans-41
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: Here we present a code example that combines MPI with OpenACC/OpenMP API.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们提供了一个代码示例，它结合了MPI与OpenACC/OpenMP API。
 - en: 'Example: `Update host/device directives`'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`更新主机/设备指令`
 - en: '[PRE13]'
+  id: totrans-44
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: '[PRE14]'
+  id: totrans-45
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: '[PRE15]'
+  id: totrans-46
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: Despite the simplicity of implementing the hybrid MPI-OpenACC/OpenMP offloading,
     it suffers from a low performance caused by an explicit transfer of data between
     the host and the device before and after calling an MPI routine. This constitutes
     a bottleneck in GPU-programming. To improve the performance affected by the host
     staging during the data transfer, one can implement the GPU-awareness MPI approach
     as described in the following section.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管实现混合MPI-OpenACC/OpenMP卸载的过程很简单，但在调用MPI例程前后，主机和设备之间进行显式数据传输导致性能低下。这构成了GPU编程的瓶颈。为了提高数据传输过程中受主机阶段影响的性能，可以实施如以下章节所述的GPU感知MPI方法。
 - en: Hybrid MPI-OpenACC/OpenMP with GPU-awareness approach
+  id: totrans-48
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 混合MPI-OpenACC/OpenMP采用GPU感知方法
 - en: The concept of the GPU-aware MPI enables an MPI library to directly access the
     GPU-device memory without necessarily using the CPU-host memory as an intermediate
     buffer (see e.g. [OpenMPI documentation](https://docs.open-mpi.org/en/v5.0.1/tuning-apps/networking/cuda.html)).
     This offers the benefit of transferring data from one GPU to another GPU without
     the involvement of the CPU-host memory.
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU感知MPI的概念允许MPI库直接访问GPU设备内存，而不必一定使用CPU主机内存作为中间缓冲区（例如，参见[OpenMPI文档](https://docs.open-mpi.org/en/v5.0.1/tuning-apps/networking/cuda.html)）。这提供了从一台GPU传输数据到另一台GPU而不涉及CPU主机内存的好处。
 - en: To be specific, in the GPU-awareness approach, the device pointers point to
     the data allocated in the GPU memory space (data should be present in the GPU
     device). Here, the pointers are passed as arguments to an MPI routine that is
     supported by the GPU memory. As MPI routines can directly access GPU memory, it
     offers the possibility of communicating between pairs of GPUs without transferring
     data back to the host.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 具体来说，在GPU感知方法中，设备指针指向分配在GPU内存空间中的数据（数据应存在于GPU设备中）。在这里，指针作为参数传递给支持GPU内存的MPI例程。由于MPI例程可以直接访问GPU内存，它提供了在GPU之间进行通信的可能性，而不需要将数据传输回主机。
 - en: In the hybrid MPI-OpenACC model, the concept is defined by combining the directive
     host_data together with the clause use_device(list_array). This combination enables
     the access to the arrays listed in the clause use_device(list_array) from the
@@ -240,8 +352,11 @@
     characterized by the directives enter data and exit data. The unstructured data
     has the advantage of allowing to allocate and deallocate arrays within a data
     region.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 在混合MPI-OpenACC模型中，该概念通过结合指令host_data和use_device(list_array)子句来定义。这种组合使得可以从主机访问use_device(list_array)子句中列出的数组（参见[此处](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf)）。已存在于GPU设备内存中的数组列表直接传递给MPI例程，无需为复制数据而设置主机内存阶段。请注意，对于最初将数据复制到GPU，我们使用由enter
+    data和exit data指令定义的无结构数据块。无结构数据具有允许在数据区域内分配和释放数组的优点。
 - en: To illustrate the concept of the GPU-awareness MPI, we show below two examples
     that make use of point-to-point and collective operations from OpenACC and OpenMP
     APIs. In the first code example, the device pointer **f** is passed to the MPI
@@ -249,100 +364,155 @@
     is passed to the MPI function MPI_Allreduce. Here, the MPI operations MPI_Send
     and MPI_Recv as well as MPI_Allreduce are performed between a pair of GPUs without
     passing through the CPU-host memory.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明GPU感知MPI的概念，我们下面展示了两个使用OpenACC和OpenMP API中的点对点和集体操作的示例。在第一个代码示例中，设备指针**f**被传递给MPI函数MPI_Send()和MPI_Recv()；在第二个示例中，指针**SumToT**被传递给MPI函数MPI_Allreduce。在这里，MPI操作MPI_Send和MPI_Recv以及MPI_Allreduce是在一对GPU之间执行的，而不需要通过CPU主机内存。
 - en: 'Example: `GPU-awareness: MPI_Send & MPI_Recv`'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU感知：MPI_Send & MPI_Recv`
 - en: '[PRE16]'
+  id: totrans-54
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: '[PRE17]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: '[PRE18]'
+  id: totrans-56
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Example: `GPU-awareness: MPI_Allreduce`'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU感知：MPI_Allreduce`
 - en: '[PRE19]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: '[PRE20]'
+  id: totrans-59
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: '[PRE21]'
+  id: totrans-60
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: We provide below a code example that illustrates the implementation of the MPI
     functions MPI_Send(), MPI_Recv() and MPI_Allreduce() within an OpenACC/OpenMP
     API. This implementation is specifically designed to support GPU-aware MPI operations.
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们下面提供了一个代码示例，说明了在OpenACC/OpenMP API中实现MPI函数MPI_Send()、MPI_Recv()和MPI_Allreduce()的方法。这种实现专门设计来支持GPU感知MPI操作。
 - en: 'Example: `GPU-awareness approach`'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU感知方法`
 - en: '[PRE22]'
+  id: totrans-63
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: '[PRE23]'
+  id: totrans-64
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: '[PRE24]'
+  id: totrans-65
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: The GPU-aware MPI with OpenACC/OpenMP APIs has the capability of directly communicating
     between a pair of GPUs within a single node. However, performing the GPU-to-GPU
     communication across multiple nodes requires the the GPUDirect RDMA (Remote Direct
     Memory Access) technology. This technology can further improve performance by
     reducing latency.
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 带有OpenACC/OpenMP API的GPU感知MPI具有在单个节点内直接在两个GPU之间通信的能力。然而，在多个节点之间执行GPU到GPU的通信需要GPUDirect
+    RDMA（远程直接内存访问）技术。这项技术可以通过减少延迟来进一步提高性能。
 - en: Compilation process
+  id: totrans-67
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 编译过程
 - en: 'The compilation process of the hybrid MPI-OpenACC and MPI-OpenMP offloading
     is described below. This description is given for a Cray compiler of the wrapper
     ftn. On LUMI-G, the following modules may be necessary before compiling (see the
     [LUMI documentation](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/)
     for further details about the available programming environments):'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面描述了混合MPI-OpenACC和MPI-OpenMP卸载的编译过程。这个描述是为包装器ftn的Cray编译器提供的。在LUMI-G上，在编译之前可能需要以下模块（有关可用编程环境的更多详细信息，请参阅[LUMI文档](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/)）：
 - en: '[PRE25]'
+  id: totrans-69
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Example: `Compilation process`'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`编译过程`
 - en: '[PRE26]'
+  id: totrans-71
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: '[PRE27]'
+  id: totrans-72
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: '[PRE28]'
+  id: totrans-73
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: Here, the flags hacc and homp enable the OpenACC and OpenMP directives in the
     hybrid MPI-OpenACC and MPI-OpenMP applications, respectively.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，标志hacc和homp分别启用混合MPI-OpenACC和MPI-OpenMP应用程序中的OpenACC和OpenMP指令。
 - en: '**Enabling GPU-aware support**'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: '**启用GPU感知支持**'
 - en: To enable the GPU-aware support in MPICH library, one needs to set the following
     environment variable before running the application.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 要在MPICH库中启用GPU感知支持，在运行应用程序之前需要设置以下环境变量。
 - en: '[PRE29]'
+  id: totrans-77
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: Conclusion
+  id: totrans-78
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 结论
 - en: In conclusion, we have presented an overview of a GPU-hybrid programming by
     integrating GPU-directive models, specifically OpenACC and OpenMP APIs, with the
     MPI library. The approach adopted here allows us to utilise multiple GPU-devices
@@ -351,165 +521,252 @@
     a direct interaction between an MPI library and a GPU-device memory. In other
     words, it permits performing MPI operations between a pair of GPUs, thus reducing
     the computing time caused by the data locality.
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 总结来说，我们通过整合GPU指令模型，特别是OpenACC和OpenMP API与MPI库，展示了GPU-混合编程的概述。这里采用的方法不仅允许我们在单个节点内利用多个GPU设备，而且还能扩展到分布式节点。特别是，我们解决了GPU感知的MPI方法，它具有允许MPI库与GPU设备内存直接交互的优势。换句话说，它允许在两个GPU之间执行MPI操作，从而减少由数据局部性引起的计算时间。
 - en: Exercises
+  id: totrans-80
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 练习
 - en: We consider an MPI fortran code that solves a 2D-Laplace equation, and which
     is partially accelerated. The focus of the exercises is to complete the acceleration
     using either OpenACC or OpenMP API by following these steps.
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们考虑了一个解决二维拉普拉斯方程的MPI Fortran代码，并且部分加速。练习的重点是使用OpenACC或OpenMP API，按照以下步骤完成加速。
 - en: Access exercise material
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 访问练习材料
 - en: 'Code examples for the exercises below can be accessed in the content/examples/exercise_multipleGPU
     subdirectory of this repository. To access them, you need to clone the repository:'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下练习的代码示例可以在本存储库的content/examples/exercise_multipleGPU子目录中访问。要访问它们，您需要克隆存储库：
 - en: '[PRE30]'
+  id: totrans-84
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: 'Exercise I: Set a GPU device'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习I：设置GPU设备
 - en: Implement OpenACC/OpenMP functions that enable assigning each MPI rank to a
     GPU device.
+  id: totrans-86
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 实现OpenACC/OpenMP函数，使每个MPI排名分配到GPU设备。
 - en: 1.1 Compile and run the code on multiple GPUs.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 1.1 在多个GPU上编译和运行代码。
 - en: 'Exercise II: Apply traditional MPI-OpenACC/OpenMP'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习II：应用传统的MPI-OpenACC/OpenMP
 - en: 2.1 Incorporate the OpenACC directives *update host()* and *update device()*
     before and after calling an MPI function, respectively.
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.1 在分别调用MPI函数前后，插入OpenACC指令`update host()`和`update device()`。
 - en: Note
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The OpenACC directive *update host()* is used to transfer data from GPU to CPU
     within a data region; while the directive *update device()* is used to transfer
     the data from CPU to GPU.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC指令`update host()`用于在数据区域内将数据从GPU传输到CPU；而指令`update device()`用于将数据从CPU传输到GPU。
 - en: 2.2 Incorporate the OpenMP directives *update device() from()* and *update device()
     to()* before and after calling an MPI function, respectively.
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.2 在分别调用MPI函数前后，插入OpenMP指令`update device() from()`和`update device() to()`。
 - en: Note
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The OpenMP directive *update device() from()* is used to transfer data from
     GPU to CPU within a data region; while the directive *update device() to()* is
     used to transfer the data from CPU to GPU.
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenMP 指令 *update device() from()* 用于在数据区域内将数据从 GPU 转移到 CPU；而指令 *update device()
+    to()* 用于将数据从 CPU 转移到 GPU。
 - en: 2.3 Compile and run the code on multiple GPUs.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.3 在多个 GPU 上编译和运行代码。
 - en: 'Exercise III: Implement GPU-aware support'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习 III：实现 GPU 感知支持
 - en: 3.1 Incorporate the OpenACC directive *host_data use_device()* to pass a device
     pointer to an MPI function.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.1 将 OpenACC 指令 *host_data use_device()* 集成到代码中，以将设备指针传递给 MPI 函数。
 - en: 3.2 Incorporate the OpenMP directive *data use_device_ptr()* to pass a device
     pointer to an MPI function.
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.2 将 OpenMP 指令 *data use_device_ptr()* 集成到代码中，以将设备指针传递给 MPI 函数。
 - en: 3.3 Compile and run the code on multiple GPUs.
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.3 在多个 GPU 上编译和运行代码。
 - en: 'Exercise IV: Evaluate the performance'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习 IV：评估性能
 - en: Evaluate the execution time of the accelerated codes in the exercises **II**
     and **III**, and compare it with that of a pure MPI implementation.
+  id: totrans-101
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 评估练习 II 和 III 中加速代码的执行时间，并将其与纯 MPI 实现进行比较。
 - en: See also
+  id: totrans-102
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 参考内容
 - en: '[GPU-aware MPI](https://documentation.sigma2.no/code_development/guides/gpuaware_mpi.html).'
+  id: totrans-103
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[GPU 感知 MPI](https://documentation.sigma2.no/code_development/guides/gpuaware_mpi.html).'
 - en: '[MPI documentation](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf).'
+  id: totrans-104
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[MPI 文档](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf).'
 - en: '[OpenACC specification](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf).'
+  id: totrans-105
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC 规范](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf).'
 - en: '[OpenMP specification](https://www.openmp.org/wp-content/uploads/OpenMP-API-Specification-5-2.pdf).'
+  id: totrans-106
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenMP 规范](https://www.openmp.org/wp-content/uploads/OpenMP-API-Specification-5-2.pdf).'
 - en: '[LUMI documentation](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/).'
+  id: totrans-107
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[LUMI 文档](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/).'
 - en: '[OpenACC vs OpenMP offloading](https://documentation.sigma2.no/code_development/guides/converting_acc2omp/openacc2openmp.html).'
+  id: totrans-108
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC 与 OpenMP 转移](https://documentation.sigma2.no/code_development/guides/converting_acc2omp/openacc2openmp.html).'
 - en: '[OpenACC course](https://github.com/HichamAgueny/GPU-course). [Previous](../9-language-support/
     "High-level language support") [Next](../11-gpu-porting/ "Preparing code for GPU
     porting")'
+  id: totrans-109
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC 课程](https://github.com/HichamAgueny/GPU-course). [上一节](../9-language-support/
+    "高级语言支持") [下一节](../11-gpu-porting/ "为 GPU 迁移准备代码")'
 - en: '* * *'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: © Copyright 2023-2024, The contributors.
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: © 版权所有 2023-2024，贡献者。
 - en: Built with [Sphinx](https://www.sphinx-doc.org/) using a [theme](https://github.com/readthedocs/sphinx_rtd_theme)
     provided by [Read the Docs](https://readthedocs.org). Questions
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用 [Sphinx](https://www.sphinx-doc.org/) 和由 [Read the Docs](https://readthedocs.org)
+    提供的 [主题](https://github.com/readthedocs/sphinx_rtd_theme) 构建。问题
 - en: What approach should be adopted to extend the synchronous OpenACC and OpenMP
     offloading models to utilise multiple GPUs across multiple nodes?
+  id: totrans-113
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 应采用什么方法将同步的 OpenACC 和 OpenMP 转移模型扩展到多个节点上的多个 GPU 以利用其能力？
 - en: Objectives
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 目标
 - en: To learn about combining MPI with either OpenACC or OpenMP offloading models.
+  id: totrans-115
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 了解如何将 MPI 与 OpenACC 或 OpenMP 转移模型相结合。
 - en: To learn about implementing GPU-awareness MPI approach.
+  id: totrans-116
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 了解实现 GPU 感知 MPI 方法。
 - en: Instructor note
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 教师备注
 - en: 30 min teaching
+  id: totrans-118
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 30 分钟教学
 - en: 30 min exercises
+  id: totrans-119
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 30 分钟练习
 - en: Introduction
+  id: totrans-120
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 简介
 - en: Exploring multiple GPUs (Graphics Processing Units) across distributed nodes
     offers the potential to fully leveraging the capacity of modern HPC (High-Performance
     Computing) systems at a large scale. Here one of the approaches to accelerate
@@ -517,8 +774,11 @@
     with a GPU programming model such as OpenACC and OpenMP application programming
     interfaces (APIs). This combination is motivated by both the simplicity of these
     APIs, and the widespread use of MPI.
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 探索分布式节点上的多个 GPU（图形处理单元）提供了充分利用大规模现代高性能计算系统（HPC）能力的潜力。这里加速分布式系统计算的一种方法是将 MPI（消息传递接口）与
+    GPU 编程模型（如 OpenACC 和 OpenMP 应用程序编程接口）相结合。这种组合既受到这些 API 简单性的驱动，也受到 MPI 广泛使用的推动。
 - en: 'In this guide we provide readers, who are familiar with MPI, with insights
     on implementing a hybrid model in which the MPI communication framework is combined
     with either OpenACC or OpenMP APIs. A special focus will be on performing point-to-point
@@ -530,39 +790,59 @@
     MPI, and has the advantage of reducing the computing time caused by transferring
     data via the host-memory during heterogeneous communications, thus rendering HPC
     applications efficient.'
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本指南中，我们为熟悉 MPI 的读者提供了关于实现混合模型的见解，其中 MPI 通信框架与 OpenACC 或 OpenMP API 之一相结合。特别关注从
+    OpenACC 和 OpenMP API 执行点对点操作（例如 MPI_Send 和 MPI_Recv）和集体操作（例如 MPI_Allreduce）。我们讨论了两种场景：（i）在
+    CPU 主机执行 MPI 操作后，将数据卸载到 GPU 设备的场景；（ii）在涉及 CPU 主机内存的情况下，在两个 GPU 之间执行 MPI 操作的场景。后者被称为
+    GPU 感知 MPI，其优点是减少由于在异构通信期间通过主机内存传输数据而造成的计算时间，从而使 HPC 应用程序更高效。
 - en: 'This guide is organized as follows: we first introduce how to assign each MPI
     rank to a GPU device within the same node. We consider a situation in which the
     host and the device have a distinct memory. This is followed by a presentation
     on the hybrid MPI-OpenACC/OpenMP offloading with and without the GPU-awareness
     MPI. Exercises to help understanding these concepts are provided at the end.'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 本指南组织如下：我们首先介绍如何在同一节点内将每个 MPI 进程分配到 GPU 设备。我们考虑了一种情况，其中主机和设备具有不同的内存。随后，我们将介绍带有和没有
+    GPU 感知 MPI 的混合 MPI-OpenACC/OpenMP 转发。最后，提供了一些练习，以帮助理解这些概念。
 - en: Assigning MPI-ranks to GPU-devices
+  id: totrans-124
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 将 MPI 进程分配到 GPU 设备
 - en: Accelerating MPI applications to utilise multiple GPUs on distributed nodes
     requires as a first step assigning each MPI rank to a GPU device, such that two
     MPI ranks do not use the same GPU device. This is necessarily in order to prevent
     the application from a potential crash. This is because GPUs are designed to handle
     multiple threading tasks, but not multiple MPI ranks.
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 加速 MPI 应用以利用分布式节点上的多个 GPU，首先需要将每个 MPI 进程分配到特定的 GPU 设备上，确保两个 MPI 进程不会使用相同的 GPU
+    设备。这是为了防止应用程序发生潜在的崩溃。这是因为 GPU 设计用于处理多个线程任务，而不是多个 MPI 进程。
 - en: One of the way to ensure that two MPI ranks do not use the same GPU, is to determine
     which MPI processes run on the same node, such that each process can be assigned
     to a GPU device within the same node. This can be done, for instance, by splitting
     the world communicator into sub-groups of communicators (or sub-communicators)
     using the routine MPI_COMM_SPLIT_TYPE().
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
+  zh: 确保两个 MPI 进程不使用同一 GPU 的方法之一是确定哪些 MPI 进程运行在同一个节点上，这样每个进程都可以分配到同一节点内的 GPU 设备。例如，可以通过使用
+    MPI_COMM_SPLIT_TYPE() 例程将全局通信器拆分为子通信器组（或子通信器）来实现这一点。
 - en: '[PRE31]'
+  id: totrans-127
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: '[PRE32]'
+  id: totrans-128
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: Here, the size of each sub-communicator corresponds to the number of GPUs per
     node (which is also the number of tasks per node), and each sub-communicator contains
     a list of processes indicated by a rank. These processes have a shared-memory
@@ -574,49 +854,81 @@
     which directive-based model is implemented. The retrieved MPI ranks are then stored
     in the variable **myDevice**. The variable is passed to an OpenACC or OpenMP routine
     as indicated in the code below.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，每个子通信器的大小对应于每个节点上的 GPU 数量（这同时也是每个节点上的任务数量），每个子通信器包含一个由排名指示的进程列表。这些进程由 MPI_COMM_TYPE_SHARED
+    参数定义的共享内存区域共享（有关更多详细信息，请参阅 [MPI 报告](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf)）。调用
+    MPI_COMM_SPLIT_TYPE() 例程返回一个在代码中标记为 *“host_comm”* 的子通信器，其中 MPI 进程的排名从 0 到每个节点进程数减
+    1。这些 MPI 进程随后被分配到同一节点内的不同 GPU 设备。此过程根据实现的指令模型进行。检索到的 MPI 进程存储在变量 **myDevice**
+    中。该变量根据代码下面的指示传递给 OpenACC 或 OpenMP 例程。
 - en: 'Example: `Assign device`'
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`分配设备`
 - en: '[PRE33]'
+  id: totrans-131
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: '[PRE34]'
+  id: totrans-132
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: '[PRE35]'
+  id: totrans-133
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: Another useful function for retrieving the device number of a specific device,
     which is useful, e.g., to map data to a specific device is
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个用于检索特定设备设备号的实用函数，这在例如将数据映射到特定设备时很有用
 - en: '[PRE36]'
+  id: totrans-135
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: '[PRE37]'
+  id: totrans-136
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: The syntax of assigning MPI ranks to GPU devices is summarised below
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 分配 MPI 排名到 GPU 设备的语法总结如下
 - en: 'Example: `Set device`'
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`设置设备`
 - en: '[PRE38]'
+  id: totrans-139
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: '[PRE39]'
+  id: totrans-140
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: '[PRE40]'
+  id: totrans-141
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: Hybrid MPI-OpenACC/OpenMP without GPU-awareness approach
+  id: totrans-142
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 混合 MPI-OpenACC/OpenMP 无 GPU 感知方法
 - en: After covering how to assign each MPI-rank to a GPU device, we now address the
     concept of combining MPI with either OpenACC or OpenMP offloading. In this approach,
     calling an MPI routine from an OpenACC or OpenMP API requires updating the data
@@ -629,66 +941,103 @@
     data in the host can be done by specifying the OpenMP directives update device()
     from() and update device() to(), respectively, for copying the data from the device
     to the host and back to the device.
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: 在介绍了如何将每个 MPI 排名分配给 GPU 设备之后，我们现在讨论将 MPI 与 OpenACC 或 OpenMP 转发相结合的概念。在这种方法中，从
+    OpenACC 或 OpenMP API 调用 MPI 例程需要在 MPI 调用前后更新 CPU 主机中的数据。在这种情况下，数据在每次 MPI 调用前后在主机和设备之间来回复制。在混合
+    MPI-OpenACC 模型中，过程是通过指定在 MPI 调用前复制数据到主机的指令 update host()；以及通过在 MPI 调用后指定的指令 update
+    device() 来定义的，用于将数据复制回设备。在混合 MPI-OpenMP 中类似。在这里，可以通过指定 OpenMP 指令 update device()
+    from() 和 update device() to() 分别来更新主机中的数据，用于将数据从设备复制到主机，然后再从主机复制回设备。
 - en: To illustrate the concept of the hybrid MPI-OpenACC/OpenMP, we show below an
     example of an implementation that involves the MPI functions MPI_Send() and MPI_Recv().
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明混合 MPI-OpenACC/OpenMP 的概念，我们下面展示了一个涉及 MPI 函数 MPI_Send() 和 MPI_Recv() 的实现示例。
 - en: 'Example: `Update host/device directives`'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`更新主机/设备指令`
 - en: '[PRE41]'
+  id: totrans-146
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: '[PRE42]'
+  id: totrans-147
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: '[PRE43]'
+  id: totrans-148
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: Here we present a code example that combines MPI with OpenACC/OpenMP API.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们提供了一个结合 MPI 与 OpenACC/OpenMP API 的代码示例。
 - en: 'Example: `Update host/device directives`'
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`更新主机/设备指令`
 - en: '[PRE44]'
+  id: totrans-151
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: '[PRE45]'
+  id: totrans-152
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: '[PRE46]'
+  id: totrans-153
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: Despite the simplicity of implementing the hybrid MPI-OpenACC/OpenMP offloading,
     it suffers from a low performance caused by an explicit transfer of data between
     the host and the device before and after calling an MPI routine. This constitutes
     a bottleneck in GPU-programming. To improve the performance affected by the host
     staging during the data transfer, one can implement the GPU-awareness MPI approach
     as described in the following section.
+  id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管实现混合 MPI-OpenACC/OpenMP 转发的过程很简单，但它由于在调用 MPI 例程前后显式地在主机和设备之间传输数据而导致性能低下。这构成了
+    GPU 编程的瓶颈。为了提高数据传输过程中主机阶段影响到的性能，可以实施如以下章节所述的 GPU 感知 MPI 方法。
 - en: Hybrid MPI-OpenACC/OpenMP with GPU-awareness approach
+  id: totrans-155
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 混合 MPI-OpenACC/OpenMP 和 GPU 感知方法
 - en: The concept of the GPU-aware MPI enables an MPI library to directly access the
     GPU-device memory without necessarily using the CPU-host memory as an intermediate
     buffer (see e.g. [OpenMPI documentation](https://docs.open-mpi.org/en/v5.0.1/tuning-apps/networking/cuda.html)).
     This offers the benefit of transferring data from one GPU to another GPU without
     the involvement of the CPU-host memory.
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 感知 MPI 的概念使得 MPI 库能够直接访问 GPU 设备内存，而不必使用 CPU 主机内存作为中间缓冲区（例如，参见 [OpenMPI 文档](https://docs.open-mpi.org/en/v5.0.1/tuning-apps/networking/cuda.html)）。这提供了从一台
+    GPU 转移数据到另一台 GPU 而不涉及 CPU 主机内存的好处。
 - en: To be specific, in the GPU-awareness approach, the device pointers point to
     the data allocated in the GPU memory space (data should be present in the GPU
     device). Here, the pointers are passed as arguments to an MPI routine that is
     supported by the GPU memory. As MPI routines can directly access GPU memory, it
     offers the possibility of communicating between pairs of GPUs without transferring
     data back to the host.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 具体来说，在 GPU 感知方法中，设备指针指向分配在 GPU 内存空间中的数据（数据应存在于 GPU 设备中）。在这里，指针作为参数传递给一个由 GPU
+    内存支持的 MPI 例程。由于 MPI 例程可以直接访问 GPU 内存，它提供了在不需要将数据传输回主机的情况下，在 GPU 对之间进行通信的可能性。
 - en: In the hybrid MPI-OpenACC model, the concept is defined by combining the directive
     host_data together with the clause use_device(list_array). This combination enables
     the access to the arrays listed in the clause use_device(list_array) from the
@@ -699,8 +1048,11 @@
     characterized by the directives enter data and exit data. The unstructured data
     has the advantage of allowing to allocate and deallocate arrays within a data
     region.
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 在混合MPI-OpenACC模型中，该概念是通过将指令host_data与use_device(list_array)子句结合起来定义的。这种组合使得可以从主机访问use_device(list_array)子句中列出的数组（有关如何从主机访问数组的详细信息，请参阅[这里](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf)）。已经存在于GPU设备内存中的数组列表直接传递给一个MPI例程，无需在主机内存中进行数据复制的中转。请注意，对于最初将数据复制到GPU，我们使用由enter
+    data和exit data指令定义的无结构数据块。无结构数据具有允许在数据区域内分配和释放数组的优势。
 - en: To illustrate the concept of the GPU-awareness MPI, we show below two examples
     that make use of point-to-point and collective operations from OpenACC and OpenMP
     APIs. In the first code example, the device pointer **f** is passed to the MPI
@@ -708,100 +1060,155 @@
     is passed to the MPI function MPI_Allreduce. Here, the MPI operations MPI_Send
     and MPI_Recv as well as MPI_Allreduce are performed between a pair of GPUs without
     passing through the CPU-host memory.
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明GPU感知MPI的概念，我们下面展示了两个示例，它们使用了OpenACC和OpenMP API中的点对点和集体操作。在第一个代码示例中，设备指针**f**被传递给MPI函数MPI_Send()和MPI_Recv()；在第二个示例中，指针**SumToT**被传递给MPI函数MPI_Allreduce。在这里，MPI操作MPI_Send和MPI_Recv以及MPI_Allreduce是在一对GPU之间执行，而不需要通过CPU主机内存。
 - en: 'Example: `GPU-awareness: MPI_Send & MPI_Recv`'
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU感知：MPI_Send & MPI_Recv`
 - en: '[PRE47]'
+  id: totrans-161
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: '[PRE48]'
+  id: totrans-162
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: '[PRE49]'
+  id: totrans-163
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'Example: `GPU-awareness: MPI_Allreduce`'
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU感知：MPI_Allreduce`
 - en: '[PRE50]'
+  id: totrans-165
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: '[PRE51]'
+  id: totrans-166
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: '[PRE52]'
+  id: totrans-167
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: We provide below a code example that illustrates the implementation of the MPI
     functions MPI_Send(), MPI_Recv() and MPI_Allreduce() within an OpenACC/OpenMP
     API. This implementation is specifically designed to support GPU-aware MPI operations.
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们提供了一个代码示例，说明了在OpenACC/OpenMP API内实现MPI函数MPI_Send()、MPI_Recv()和MPI_Allreduce()的实现。这个实现专门设计来支持GPU感知MPI操作。
 - en: 'Example: `GPU-awareness approach`'
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU感知方法`
 - en: '[PRE53]'
+  id: totrans-170
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: '[PRE54]'
+  id: totrans-171
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: '[PRE55]'
+  id: totrans-172
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: The GPU-aware MPI with OpenACC/OpenMP APIs has the capability of directly communicating
     between a pair of GPUs within a single node. However, performing the GPU-to-GPU
     communication across multiple nodes requires the the GPUDirect RDMA (Remote Direct
     Memory Access) technology. This technology can further improve performance by
     reducing latency.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 带有OpenACC/OpenMP API的GPU感知MPI具有在单个节点内直接在GPU对之间进行通信的能力。然而，在多个节点之间执行GPU到GPU的通信需要GPUDirect
+    RDMA（远程直接内存访问）技术。这项技术可以通过减少延迟来进一步提高性能。
 - en: Compilation process
+  id: totrans-174
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 编译过程
 - en: 'The compilation process of the hybrid MPI-OpenACC and MPI-OpenMP offloading
     is described below. This description is given for a Cray compiler of the wrapper
     ftn. On LUMI-G, the following modules may be necessary before compiling (see the
     [LUMI documentation](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/)
     for further details about the available programming environments):'
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面描述了混合MPI-OpenACC和MPI-OpenMP卸载的编译过程。这个描述是为包装器ftn的Cray编译器提供的。在LUMI-G上，在编译之前可能需要以下模块（有关可用编程环境的更多详细信息，请参阅[LUMI文档](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/)）：
 - en: '[PRE56]'
+  id: totrans-176
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: 'Example: `Compilation process`'
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`编译过程`
 - en: '[PRE57]'
+  id: totrans-178
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: '[PRE58]'
+  id: totrans-179
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: '[PRE59]'
+  id: totrans-180
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: Here, the flags hacc and homp enable the OpenACC and OpenMP directives in the
     hybrid MPI-OpenACC and MPI-OpenMP applications, respectively.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，标志hacc和homp分别启用混合MPI-OpenACC和MPI-OpenMP应用程序中的OpenACC和OpenMP指令。
 - en: '**Enabling GPU-aware support**'
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: '**启用GPU感知支持**'
 - en: To enable the GPU-aware support in MPICH library, one needs to set the following
     environment variable before running the application.
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 要在MPICH库中启用GPU感知支持，需要在运行应用程序之前设置以下环境变量。
 - en: '[PRE60]'
+  id: totrans-184
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: Conclusion
+  id: totrans-185
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 结论
 - en: In conclusion, we have presented an overview of a GPU-hybrid programming by
     integrating GPU-directive models, specifically OpenACC and OpenMP APIs, with the
     MPI library. The approach adopted here allows us to utilise multiple GPU-devices
@@ -810,126 +1217,194 @@
     a direct interaction between an MPI library and a GPU-device memory. In other
     words, it permits performing MPI operations between a pair of GPUs, thus reducing
     the computing time caused by the data locality.
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 总之，我们通过整合 GPU 指令模型，特别是 OpenACC 和 OpenMP API 与 MPI 库，概述了 GPU-混合编程。这里采用的方法不仅允许我们在单个节点内利用多个
+    GPU 设备，而且扩展到分布式节点。特别是，我们讨论了 GPU-aware MPI 方法，它具有允许 MPI 库与 GPU 设备内存直接交互的优势。换句话说，它允许在成对
+    GPU 之间执行 MPI 操作，从而减少由数据局部性引起的计算时间。
 - en: Exercises
+  id: totrans-187
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 练习
 - en: We consider an MPI fortran code that solves a 2D-Laplace equation, and which
     is partially accelerated. The focus of the exercises is to complete the acceleration
     using either OpenACC or OpenMP API by following these steps.
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们考虑一个解决二维拉普拉斯方程的 MPI fortran 代码，该代码部分加速。练习的重点是使用 OpenACC 或 OpenMP API 通过以下步骤完成加速。
 - en: Access exercise material
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 访问练习材料
 - en: 'Code examples for the exercises below can be accessed in the content/examples/exercise_multipleGPU
     subdirectory of this repository. To access them, you need to clone the repository:'
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的练习代码示例可以在本存储库的 content/examples/exercise_multipleGPU 子目录中访问。要访问它们，您需要克隆存储库：
 - en: '[PRE61]'
+  id: totrans-191
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: 'Exercise I: Set a GPU device'
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习 I：设置 GPU 设备
 - en: Implement OpenACC/OpenMP functions that enable assigning each MPI rank to a
     GPU device.
+  id: totrans-193
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 实现启用将每个 MPI 进程分配到 GPU 设备的 OpenACC/OpenMP 函数。
 - en: 1.1 Compile and run the code on multiple GPUs.
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 1.1 在多个 GPU 上编译和运行代码。
 - en: 'Exercise II: Apply traditional MPI-OpenACC/OpenMP'
+  id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习 II：应用传统的 MPI-OpenACC/OpenMP
 - en: 2.1 Incorporate the OpenACC directives *update host()* and *update device()*
     before and after calling an MPI function, respectively.
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.1 在调用 MPI 函数前后分别包含 OpenACC 指令 *update host()* 和 *update device()*。
 - en: Note
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The OpenACC directive *update host()* is used to transfer data from GPU to CPU
     within a data region; while the directive *update device()* is used to transfer
     the data from CPU to GPU.
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC 指令 *update host()* 用于在数据区域内将数据从 GPU 传输到 CPU；而指令 *update device()* 用于将数据从
+    CPU 传输到 GPU。
 - en: 2.2 Incorporate the OpenMP directives *update device() from()* and *update device()
     to()* before and after calling an MPI function, respectively.
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.2 在调用 MPI 函数前后分别包含 OpenMP 指令 *update device() from()* 和 *update device() to()*。
 - en: Note
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The OpenMP directive *update device() from()* is used to transfer data from
     GPU to CPU within a data region; while the directive *update device() to()* is
     used to transfer the data from CPU to GPU.
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenMP 指令 *update device() from()* 用于在数据区域内将数据从 GPU 传输到 CPU；而指令 *update device()
+    to()* 用于将数据从 CPU 传输到 GPU。
 - en: 2.3 Compile and run the code on multiple GPUs.
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.3 在多个 GPU 上编译和运行代码。
 - en: 'Exercise III: Implement GPU-aware support'
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习 III：实现 GPU-aware 支持
 - en: 3.1 Incorporate the OpenACC directive *host_data use_device()* to pass a device
     pointer to an MPI function.
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.1 在调用 MPI 函数时包含 OpenACC 指令 *host_data use_device()* 以传递设备指针。
 - en: 3.2 Incorporate the OpenMP directive *data use_device_ptr()* to pass a device
     pointer to an MPI function.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.2 在调用 MPI 函数时包含 OpenMP 指令 *data use_device_ptr()* 以传递设备指针。
 - en: 3.3 Compile and run the code on multiple GPUs.
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.3 在多个 GPU 上编译和运行代码。
 - en: 'Exercise IV: Evaluate the performance'
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习 IV：评估性能
 - en: Evaluate the execution time of the accelerated codes in the exercises **II**
     and **III**, and compare it with that of a pure MPI implementation.
+  id: totrans-208
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 评估练习 II 和 III 中加速代码的执行时间，并将其与纯 MPI 实现进行比较。
 - en: See also
+  id: totrans-209
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 参见
 - en: '[GPU-aware MPI](https://documentation.sigma2.no/code_development/guides/gpuaware_mpi.html).'
+  id: totrans-210
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[GPU-aware MPI](https://documentation.sigma2.no/code_development/guides/gpuaware_mpi.html).'
 - en: '[MPI documentation](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf).'
+  id: totrans-211
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[MPI 文档](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf).'
 - en: '[OpenACC specification](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf).'
+  id: totrans-212
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC 规范](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf).'
 - en: '[OpenMP specification](https://www.openmp.org/wp-content/uploads/OpenMP-API-Specification-5-2.pdf).'
+  id: totrans-213
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenMP 规范](https://www.openmp.org/wp-content/uploads/OpenMP-API-Specification-5-2.pdf).'
 - en: '[LUMI documentation](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/).'
+  id: totrans-214
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[LUMI 文档](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/).'
 - en: '[OpenACC vs OpenMP offloading](https://documentation.sigma2.no/code_development/guides/converting_acc2omp/openacc2openmp.html).'
+  id: totrans-215
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC与OpenMP卸载比较](https://documentation.sigma2.no/code_development/guides/converting_acc2omp/openacc2openmp.html)。'
 - en: '[OpenACC course](https://github.com/HichamAgueny/GPU-course).'
+  id: totrans-216
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC课程](https://github.com/HichamAgueny/GPU-course)。'
 - en: Introduction
+  id: totrans-217
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 简介
 - en: Exploring multiple GPUs (Graphics Processing Units) across distributed nodes
     offers the potential to fully leveraging the capacity of modern HPC (High-Performance
     Computing) systems at a large scale. Here one of the approaches to accelerate
@@ -937,8 +1412,10 @@
     with a GPU programming model such as OpenACC and OpenMP application programming
     interfaces (APIs). This combination is motivated by both the simplicity of these
     APIs, and the widespread use of MPI.
+  id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 在分布式节点上探索多个GPU（图形处理单元）具有充分利用大规模现代高性能计算（HPC）系统能力的潜力。这里，加速分布式系统计算的一种方法是将MPI（消息传递接口）与OpenACC和OpenMP应用程序编程接口（API）等GPU编程模型相结合。这种组合既受到这些API简单性的驱动，也受到MPI广泛使用的推动。
 - en: 'In this guide we provide readers, who are familiar with MPI, with insights
     on implementing a hybrid model in which the MPI communication framework is combined
     with either OpenACC or OpenMP APIs. A special focus will be on performing point-to-point
@@ -950,39 +1427,54 @@
     MPI, and has the advantage of reducing the computing time caused by transferring
     data via the host-memory during heterogeneous communications, thus rendering HPC
     applications efficient.'
+  id: totrans-219
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本指南中，我们为熟悉MPI的读者提供了关于实现混合模型（其中MPI通信框架与OpenACC或OpenMP API相结合）的见解。特别关注从OpenACC和OpenMP
+    API执行点对点操作（例如MPI_Send和MPI_Recv）和集体操作（例如MPI_Allreduce）。在此，我们讨论了两种场景：（i）在CPU主机上执行MPI操作后，将卸载到GPU设备；（ii）在两个GPU之间执行MPI操作，而不涉及CPU主机内存。后一种场景被称为GPU感知MPI，其优点是减少由于通过主机内存进行异构通信而引起的数据传输时间，从而使得HPC应用程序更高效。
 - en: 'This guide is organized as follows: we first introduce how to assign each MPI
     rank to a GPU device within the same node. We consider a situation in which the
     host and the device have a distinct memory. This is followed by a presentation
     on the hybrid MPI-OpenACC/OpenMP offloading with and without the GPU-awareness
     MPI. Exercises to help understanding these concepts are provided at the end.'
+  id: totrans-220
   prefs: []
   type: TYPE_NORMAL
+  zh: 本指南的组织结构如下：我们首先介绍如何将每个MPI进程分配到同一节点内的GPU设备。我们考虑了一种情况，即主机和设备具有不同的内存。随后，我们将介绍带有和不带有GPU感知MPI的混合MPI-OpenACC/OpenMP卸载。最后，提供了一些练习，以帮助理解这些概念。
 - en: Assigning MPI-ranks to GPU-devices
+  id: totrans-221
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 将MPI-ranks分配到GPU-devices
 - en: Accelerating MPI applications to utilise multiple GPUs on distributed nodes
     requires as a first step assigning each MPI rank to a GPU device, such that two
     MPI ranks do not use the same GPU device. This is necessarily in order to prevent
     the application from a potential crash. This is because GPUs are designed to handle
     multiple threading tasks, but not multiple MPI ranks.
+  id: totrans-222
   prefs: []
   type: TYPE_NORMAL
+  zh: 将MPI应用程序加速以利用分布式节点上的多个GPU，首先需要将每个MPI进程分配到GPU设备，以确保两个MPI进程不使用同一GPU设备。这是防止应用程序发生潜在崩溃的必要步骤。这是因为GPU被设计来处理多个线程任务，而不是多个MPI进程。
 - en: One of the way to ensure that two MPI ranks do not use the same GPU, is to determine
     which MPI processes run on the same node, such that each process can be assigned
     to a GPU device within the same node. This can be done, for instance, by splitting
     the world communicator into sub-groups of communicators (or sub-communicators)
     using the routine MPI_COMM_SPLIT_TYPE().
+  id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: 确保两个MPI进程不使用同一GPU的一种方法，是确定哪些MPI进程运行在同一个节点上，这样每个进程都可以被分配到同一节点内的一个GPU设备。这可以通过使用MPI_COMM_SPLIT_TYPE()例程将世界通信器拆分为通信子组（或子通信器）来实现。
 - en: '[PRE62]'
+  id: totrans-224
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: '[PRE63]'
+  id: totrans-225
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: Here, the size of each sub-communicator corresponds to the number of GPUs per
     node (which is also the number of tasks per node), and each sub-communicator contains
     a list of processes indicated by a rank. These processes have a shared-memory
@@ -994,49 +1486,81 @@
     which directive-based model is implemented. The retrieved MPI ranks are then stored
     in the variable **myDevice**. The variable is passed to an OpenACC or OpenMP routine
     as indicated in the code below.
+  id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，每个子通信器的尺寸对应于每个节点上的 GPU 数量（这也就是每个节点上的任务数量），每个子通信器包含一个由排名指示的进程列表。这些进程由 MPI_COMM_TYPE_SHARED
+    参数定义的共享内存区域共享（有关更多详细信息，请参阅 [MPI 报告](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf)）。调用
+    MPI_COMM_SPLIT_TYPE() 例程返回一个在代码中标记为 *“host_comm”* 的子通信器，其中 MPI-ranks 从 0 排序到每个节点上的进程数减
+    1。这些 MPI 排名随后被分配到同一节点内的不同 GPU 设备。该过程根据所实现的指令基于模型进行。检索到的 MPI 排名随后存储在变量 **myDevice**
+    中。该变量按照代码下面的指示传递给 OpenACC 或 OpenMP 例程。
 - en: 'Example: `Assign device`'
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`分配设备`
 - en: '[PRE64]'
+  id: totrans-228
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: '[PRE65]'
+  id: totrans-229
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: '[PRE66]'
+  id: totrans-230
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: Another useful function for retrieving the device number of a specific device,
     which is useful, e.g., to map data to a specific device is
+  id: totrans-231
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个用于检索特定设备编号的有用函数，例如，将数据映射到特定设备的有用函数是
 - en: '[PRE67]'
+  id: totrans-232
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: '[PRE68]'
+  id: totrans-233
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: The syntax of assigning MPI ranks to GPU devices is summarised below
+  id: totrans-234
   prefs: []
   type: TYPE_NORMAL
+  zh: 将 MPI 排名分配给 GPU 设备的语法总结如下
 - en: 'Example: `Set device`'
+  id: totrans-235
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`设置设备`
 - en: '[PRE69]'
+  id: totrans-236
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE69]'
 - en: '[PRE70]'
+  id: totrans-237
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE70]'
 - en: '[PRE71]'
+  id: totrans-238
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE71]'
 - en: Hybrid MPI-OpenACC/OpenMP without GPU-awareness approach
+  id: totrans-239
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 混合 MPI-OpenACC/OpenMP 无 GPU 感知方法
 - en: After covering how to assign each MPI-rank to a GPU device, we now address the
     concept of combining MPI with either OpenACC or OpenMP offloading. In this approach,
     calling an MPI routine from an OpenACC or OpenMP API requires updating the data
@@ -1049,66 +1573,104 @@
     data in the host can be done by specifying the OpenMP directives update device()
     from() and update device() to(), respectively, for copying the data from the device
     to the host and back to the device.
+  id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 在介绍如何将每个 MPI 排名分配给 GPU 设备之后，我们现在讨论将 MPI 与 OpenACC 或 OpenMP 脱载相结合的概念。在这种方法中，从
+    OpenACC 或 OpenMP API 调用 MPI 例程需要在 MPI 调用前后更新 CPU 主机中的数据。在这种情况下，数据在每次 MPI 调用前后在主机和设备之间来回复制。在混合
+    MPI-OpenACC 模型中，该过程通过指定在 MPI 调用之前将数据从设备复制到主机的指令 update host() 来定义；通过在 MPI 调用之后指定的指令
+    update device() 来将数据复制回设备。在混合 MPI-OpenMP 中类似地，这里可以通过指定 OpenMP 指令 update device()
+    from() 和 update device() to() 来更新主机中的数据，分别用于将数据从设备复制到主机和从主机复制回设备。
 - en: To illustrate the concept of the hybrid MPI-OpenACC/OpenMP, we show below an
     example of an implementation that involves the MPI functions MPI_Send() and MPI_Recv().
+  id: totrans-241
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明混合 MPI-OpenACC/OpenMP 的概念，我们下面展示了一个涉及 MPI 函数 MPI_Send() 和 MPI_Recv() 的实现示例。
 - en: 'Example: `Update host/device directives`'
+  id: totrans-242
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`更新主机/设备指令`
 - en: '[PRE72]'
+  id: totrans-243
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE72]'
 - en: '[PRE73]'
+  id: totrans-244
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE73]'
 - en: '[PRE74]'
+  id: totrans-245
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE74]'
 - en: Here we present a code example that combines MPI with OpenACC/OpenMP API.
+  id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们提供了一个结合 MPI 与 OpenACC/OpenMP API 的代码示例。
 - en: 'Example: `Update host/device directives`'
+  id: totrans-247
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`更新主机/设备指令`
 - en: '[PRE75]'
+  id: totrans-248
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE75]'
 - en: '[PRE76]'
+  id: totrans-249
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE76]'
 - en: '[PRE77]'
+  id: totrans-250
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE77]'
 - en: Despite the simplicity of implementing the hybrid MPI-OpenACC/OpenMP offloading,
     it suffers from a low performance caused by an explicit transfer of data between
     the host and the device before and after calling an MPI routine. This constitutes
     a bottleneck in GPU-programming. To improve the performance affected by the host
     staging during the data transfer, one can implement the GPU-awareness MPI approach
     as described in the following section.
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管混合 MPI-OpenACC/OpenMP 脱载的实现很简单，但它由于在调用 MPI 例程前后显式地在主机和设备之间传输数据而遭受低性能。这构成了
+    GPU 编程的瓶颈。为了提高数据传输期间主机阶段影响到的性能，可以实施如以下章节所述的 GPU 感知 MPI 方法。
 - en: Hybrid MPI-OpenACC/OpenMP with GPU-awareness approach
+  id: totrans-252
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 混合 MPI-OpenACC/OpenMP 带GPU感知方法
 - en: The concept of the GPU-aware MPI enables an MPI library to directly access the
     GPU-device memory without necessarily using the CPU-host memory as an intermediate
     buffer (see e.g. [OpenMPI documentation](https://docs.open-mpi.org/en/v5.0.1/tuning-apps/networking/cuda.html)).
     This offers the benefit of transferring data from one GPU to another GPU without
     the involvement of the CPU-host memory.
+  id: totrans-253
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU 意识 MPI 的概念使得 MPI 库能够直接访问 GPU 设备内存，而无需必要地使用 CPU-主机内存作为中间缓冲区（例如，参见[OpenMPI
+    文档](https://docs.open-mpi.org/en/v5.0.1/tuning-apps/networking/cuda.html)）。这提供了从一台
+    GPU 向另一台 GPU 转移数据而不涉及 CPU-主机内存的好处。
 - en: To be specific, in the GPU-awareness approach, the device pointers point to
     the data allocated in the GPU memory space (data should be present in the GPU
     device). Here, the pointers are passed as arguments to an MPI routine that is
     supported by the GPU memory. As MPI routines can directly access GPU memory, it
     offers the possibility of communicating between pairs of GPUs without transferring
     data back to the host.
+  id: totrans-254
   prefs: []
   type: TYPE_NORMAL
+  zh: 具体来说，在具有 GPU 意识的方法中，设备指针指向分配在 GPU 内存空间中的数据（数据应存在于 GPU 设备中）。在这里，指针作为参数传递给一个由
+    GPU 内存支持的 MPI 例程。由于 MPI 例程可以直接访问 GPU 内存，它提供了在成对 GPU 之间进行通信的可能性，而无需将数据传回主机。
 - en: In the hybrid MPI-OpenACC model, the concept is defined by combining the directive
     host_data together with the clause use_device(list_array). This combination enables
     the access to the arrays listed in the clause use_device(list_array) from the
@@ -1119,8 +1681,13 @@
     characterized by the directives enter data and exit data. The unstructured data
     has the advantage of allowing to allocate and deallocate arrays within a data
     region.
+  id: totrans-255
   prefs: []
   type: TYPE_NORMAL
+  zh: 在混合 MPI-OpenACC 模型中，该概念是通过结合指令 host_data 和子句 use_device(list_array) 来定义的。这种组合使得可以从主机访问子句
+    use_device(list_array) 中列出的数组（参见[这里](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf)）。已经存在于
+    GPU 设备内存中的数组列表可以直接传递给一个 MPI 例程，而不需要为复制数据而设置一个中间的主机内存。请注意，对于最初将数据复制到 GPU，我们使用由指令
+    enter data 和 exit data 定义的未结构化数据块。未结构化数据具有允许在数据区域内分配和释放数组的优势。
 - en: To illustrate the concept of the GPU-awareness MPI, we show below two examples
     that make use of point-to-point and collective operations from OpenACC and OpenMP
     APIs. In the first code example, the device pointer **f** is passed to the MPI
@@ -1128,100 +1695,158 @@
     is passed to the MPI function MPI_Allreduce. Here, the MPI operations MPI_Send
     and MPI_Recv as well as MPI_Allreduce are performed between a pair of GPUs without
     passing through the CPU-host memory.
+  id: totrans-256
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明 GPU 意识 MPI 的概念，我们下面展示了两个示例，它们利用了 OpenACC 和 OpenMP API 中的点对点和集体操作。在第一个代码示例中，设备指针
+    **f** 被传递给 MPI 函数 MPI_Send() 和 MPI_Recv()；在第二个示例中，指针 **SumToT** 被传递给 MPI 函数 MPI_Allreduce。在这里，MPI
+    操作 MPI_Send 和 MPI_Recv 以及 MPI_Allreduce 是在成对 GPU 之间执行的，而不需要通过 CPU-主机内存。
 - en: 'Example: `GPU-awareness: MPI_Send & MPI_Recv`'
+  id: totrans-257
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU 意识：MPI_Send & MPI_Recv`
 - en: '[PRE78]'
+  id: totrans-258
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE78]'
 - en: '[PRE79]'
+  id: totrans-259
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE79]'
 - en: '[PRE80]'
+  id: totrans-260
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE80]'
 - en: 'Example: `GPU-awareness: MPI_Allreduce`'
+  id: totrans-261
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU 意识：MPI_Allreduce`
 - en: '[PRE81]'
+  id: totrans-262
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE81]'
 - en: '[PRE82]'
+  id: totrans-263
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE82]'
 - en: '[PRE83]'
+  id: totrans-264
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE83]'
 - en: We provide below a code example that illustrates the implementation of the MPI
     functions MPI_Send(), MPI_Recv() and MPI_Allreduce() within an OpenACC/OpenMP
     API. This implementation is specifically designed to support GPU-aware MPI operations.
+  id: totrans-265
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们下面提供了一个代码示例，展示了如何在 OpenACC/OpenMP API 中实现 MPI 函数 MPI_Send()、MPI_Recv() 和 MPI_Allreduce()。这个实现专门设计用来支持具有
+    GPU 意识的 MPI 操作。
 - en: 'Example: `GPU-awareness approach`'
+  id: totrans-266
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`GPU 意识方法`
 - en: '[PRE84]'
+  id: totrans-267
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE84]'
 - en: '[PRE85]'
+  id: totrans-268
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE85]'
 - en: '[PRE86]'
+  id: totrans-269
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE86]'
 - en: The GPU-aware MPI with OpenACC/OpenMP APIs has the capability of directly communicating
     between a pair of GPUs within a single node. However, performing the GPU-to-GPU
     communication across multiple nodes requires the the GPUDirect RDMA (Remote Direct
     Memory Access) technology. This technology can further improve performance by
     reducing latency.
+  id: totrans-270
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用 OpenACC/OpenMP API 的 GPU 意识 MPI 具有在单个节点内成对 GPU 之间直接通信的能力。然而，在多个节点之间执行 GPU
+    到 GPU 的通信需要 GPUDirect RDMA（远程直接内存访问）技术。这项技术可以通过减少延迟来进一步提高性能。
 - en: Compilation process
+  id: totrans-271
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 编译过程
 - en: 'The compilation process of the hybrid MPI-OpenACC and MPI-OpenMP offloading
     is described below. This description is given for a Cray compiler of the wrapper
     ftn. On LUMI-G, the following modules may be necessary before compiling (see the
     [LUMI documentation](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/)
     for further details about the available programming environments):'
+  id: totrans-272
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面描述了混合MPI-OpenACC和MPI-OpenMP卸载的编译过程。此描述适用于包装器ftn的Cray编译器。在LUMI-G上，在编译之前可能需要以下模块（有关可用编程环境的详细信息，请参阅[LUMI文档](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/)）：
 - en: '[PRE87]'
+  id: totrans-273
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE87]'
 - en: 'Example: `Compilation process`'
+  id: totrans-274
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`编译过程`
 - en: '[PRE88]'
+  id: totrans-275
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE88]'
 - en: '[PRE89]'
+  id: totrans-276
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE89]'
 - en: '[PRE90]'
+  id: totrans-277
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE90]'
 - en: Here, the flags hacc and homp enable the OpenACC and OpenMP directives in the
     hybrid MPI-OpenACC and MPI-OpenMP applications, respectively.
+  id: totrans-278
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，标志hacc和homp分别启用混合MPI-OpenACC和MPI-OpenMP应用程序中的OpenACC和OpenMP指令。
 - en: '**Enabling GPU-aware support**'
+  id: totrans-279
   prefs: []
   type: TYPE_NORMAL
+  zh: '**启用GPU感知支持**'
 - en: To enable the GPU-aware support in MPICH library, one needs to set the following
     environment variable before running the application.
+  id: totrans-280
   prefs: []
   type: TYPE_NORMAL
+  zh: 要在MPICH库中启用GPU感知支持，需要在运行应用程序之前设置以下环境变量。
 - en: '[PRE91]'
+  id: totrans-281
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE91]'
 - en: Conclusion
+  id: totrans-282
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 结论
 - en: In conclusion, we have presented an overview of a GPU-hybrid programming by
     integrating GPU-directive models, specifically OpenACC and OpenMP APIs, with the
     MPI library. The approach adopted here allows us to utilise multiple GPU-devices
@@ -1230,119 +1855,182 @@
     a direct interaction between an MPI library and a GPU-device memory. In other
     words, it permits performing MPI operations between a pair of GPUs, thus reducing
     the computing time caused by the data locality.
+  id: totrans-283
   prefs: []
   type: TYPE_NORMAL
+  zh: 总之，我们通过整合GPU指令模型，特别是OpenACC和OpenMP API，与MPI库相结合，概述了GPU混合编程。这里采用的方法不仅允许我们在单个节点内利用多个GPU设备，而且扩展到分布式节点。特别是，我们解决了GPU感知MPI方法，该方法具有允许MPI库与GPU设备内存直接交互的优势。换句话说，它允许在GPU对之间执行MPI操作，从而减少由数据局部性引起的计算时间。
 - en: Exercises
+  id: totrans-284
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 练习
 - en: We consider an MPI fortran code that solves a 2D-Laplace equation, and which
     is partially accelerated. The focus of the exercises is to complete the acceleration
     using either OpenACC or OpenMP API by following these steps.
+  id: totrans-285
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们考虑一个解决二维拉普拉斯方程的MPI Fortran代码，该代码部分加速。练习的重点是使用OpenACC或OpenMP API通过以下步骤完成加速。
 - en: Access exercise material
+  id: totrans-286
   prefs: []
   type: TYPE_NORMAL
+  zh: 访问练习材料
 - en: 'Code examples for the exercises below can be accessed in the content/examples/exercise_multipleGPU
     subdirectory of this repository. To access them, you need to clone the repository:'
+  id: totrans-287
   prefs: []
   type: TYPE_NORMAL
+  zh: 下面的练习代码示例可以在本存储库的content/examples/exercise_multipleGPU子目录中找到。要访问它们，您需要克隆存储库：
 - en: '[PRE92]'
+  id: totrans-288
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE92]'
 - en: 'Exercise I: Set a GPU device'
+  id: totrans-289
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习I：设置GPU设备
 - en: Implement OpenACC/OpenMP functions that enable assigning each MPI rank to a
     GPU device.
+  id: totrans-290
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 实现OpenACC/OpenMP函数，使每个MPI进程能够分配到一个GPU设备。
 - en: 1.1 Compile and run the code on multiple GPUs.
+  id: totrans-291
   prefs: []
   type: TYPE_NORMAL
+  zh: 1.1 在多个GPU上编译和运行代码。
 - en: 'Exercise II: Apply traditional MPI-OpenACC/OpenMP'
+  id: totrans-292
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习II：应用传统的MPI-OpenACC/OpenMP
 - en: 2.1 Incorporate the OpenACC directives *update host()* and *update device()*
     before and after calling an MPI function, respectively.
+  id: totrans-293
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.1 在调用MPI函数前后分别包含OpenACC指令**update host()**和**update device()**。
 - en: Note
+  id: totrans-294
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The OpenACC directive *update host()* is used to transfer data from GPU to CPU
     within a data region; while the directive *update device()* is used to transfer
     the data from CPU to GPU.
+  id: totrans-295
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC指令**update host()**用于在数据区域内将数据从GPU传输到CPU；而指令**update device()**用于将数据从CPU传输到GPU。
 - en: 2.2 Incorporate the OpenMP directives *update device() from()* and *update device()
     to()* before and after calling an MPI function, respectively.
+  id: totrans-296
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.2 在调用MPI函数前后分别包含OpenMP指令**update device() from()**和**update device() to()**。
 - en: Note
+  id: totrans-297
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The OpenMP directive *update device() from()* is used to transfer data from
     GPU to CPU within a data region; while the directive *update device() to()* is
     used to transfer the data from CPU to GPU.
+  id: totrans-298
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenMP指令**update device() from()**用于在数据区域内将数据从GPU传输到CPU；而指令**update device()
+    to()**用于将数据从CPU传输到GPU。
 - en: 2.3 Compile and run the code on multiple GPUs.
+  id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: 2.3 在多个GPU上编译和运行代码。
 - en: 'Exercise III: Implement GPU-aware support'
+  id: totrans-300
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习III：实现GPU感知支持
 - en: 3.1 Incorporate the OpenACC directive *host_data use_device()* to pass a device
     pointer to an MPI function.
+  id: totrans-301
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.1 在调用MPI函数时包含OpenACC指令**host_data use_device()**，以传递设备指针到MPI函数。
 - en: 3.2 Incorporate the OpenMP directive *data use_device_ptr()* to pass a device
     pointer to an MPI function.
+  id: totrans-302
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.2 在调用MPI函数时包含OpenMP指令**data use_device_ptr()**，以传递设备指针到MPI函数。
 - en: 3.3 Compile and run the code on multiple GPUs.
+  id: totrans-303
   prefs: []
   type: TYPE_NORMAL
+  zh: 3.3 在多个 GPU 上编译和运行代码。
 - en: 'Exercise IV: Evaluate the performance'
+  id: totrans-304
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习 IV：评估性能
 - en: Evaluate the execution time of the accelerated codes in the exercises **II**
     and **III**, and compare it with that of a pure MPI implementation.
+  id: totrans-305
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 评估练习 II 和 III 中加速代码的执行时间，并将其与纯 MPI 实现进行比较。
 - en: See also
+  id: totrans-306
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 参见
 - en: '[GPU-aware MPI](https://documentation.sigma2.no/code_development/guides/gpuaware_mpi.html).'
+  id: totrans-307
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[GPU 感知 MPI](https://documentation.sigma2.no/code_development/guides/gpuaware_mpi.html).'
 - en: '[MPI documentation](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf).'
+  id: totrans-308
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[MPI 文档](https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf).'
 - en: '[OpenACC specification](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf).'
+  id: totrans-309
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC 规范](https://www.openacc.org/sites/default/files/inline-images/Specification/OpenACC-3.2-final.pdf).'
 - en: '[OpenMP specification](https://www.openmp.org/wp-content/uploads/OpenMP-API-Specification-5-2.pdf).'
+  id: totrans-310
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenMP 规范](https://www.openmp.org/wp-content/uploads/OpenMP-API-Specification-5-2.pdf).'
 - en: '[LUMI documentation](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/).'
+  id: totrans-311
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[LUMI 文档](https://docs.lumi-supercomputer.eu/development/compiling/prgenv/).'
 - en: '[OpenACC vs OpenMP offloading](https://documentation.sigma2.no/code_development/guides/converting_acc2omp/openacc2openmp.html).'
+  id: totrans-312
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC 与 OpenMP 转移](https://documentation.sigma2.no/code_development/guides/converting_acc2omp/openacc2openmp.html).'
 - en: '[OpenACC course](https://github.com/HichamAgueny/GPU-course).*'
+  id: totrans-313
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[OpenACC 课程](https://github.com/HichamAgueny/GPU-course)*'

@@ -1,2722 +1,4124 @@
 - en: Directive-based models
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 基于指令的模型
 - en: 原文：[https://enccs.github.io/gpu-programming/6-directive-based-models/](https://enccs.github.io/gpu-programming/6-directive-based-models/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://enccs.github.io/gpu-programming/6-directive-based-models/](https://enccs.github.io/gpu-programming/6-directive-based-models/)
 - en: '*[GPU programming: why, when and how?](../)* **   Directive-based models'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: '*[GPU编程：为什么、何时以及如何？](../)* **   基于指令的模型'
 - en: '[Edit on GitHub](https://github.com/ENCCS/gpu-programming/blob/main/content/6-directive-based-models.rst)'
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[在GitHub上编辑](https://github.com/ENCCS/gpu-programming/blob/main/content/6-directive-based-models.rst)'
 - en: '* * *'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: Questions
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 问题
 - en: What is OpenACC and OpenMP offloading
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: OpenACC和OpenMP卸载是什么
 - en: How to write GPU code using directives
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何使用指令编写GPU代码
 - en: Objectives
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 目标
 - en: Understand the process of offloading
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解卸载过程
 - en: Understand the differences between OpenACC and OpenMP offloading
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解OpenACC和OpenMP卸载之间的区别
 - en: Understand the various levels of parallelism on a GPU
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解GPU上的各种并行级别
 - en: Understand what is data movement
+  id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解数据移动是什么
 - en: Instructor note
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 教师备注
 - en: 40 min teaching
+  id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 40分钟教学
 - en: 40 min exercises
+  id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 40分钟练习
 - en: The most common directive-based models for GPU parallel programming are OpenMP
     offloading and OpenACC. The parallelization is done by introducing directives
     in places which are targeted for parallelization.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU并行编程中最常见的基于指令的模型是OpenMP卸载和OpenACC。并行化是通过在目标并行化的地方引入指令来完成的。
 - en: '**OpenACC** is known to be more **descriptive**, which means the programmer
     uses directives to tell the compiler how/where to parallelize the code and to
     move the data.'
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**OpenACC** 被认为是更**描述性**的，这意味着程序员使用指令来告诉编译器如何/在哪里并行化代码以及如何移动数据。'
 - en: '**OpenMP offloading**, on the other hand, is known to be more **prescriptive**,
     where the programmer uses directives to tell the compiler more explicitly how/where
     to parallelize the code, instead of letting the compiler decide.'
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 另一方面，**OpenMP卸载**被认为是更**规定性**的，其中程序员使用指令更明确地告诉编译器如何/在哪里并行化代码，而不是让编译器决定。
 - en: In OpenMP/OpenACC the compiler directives are specified by using **#pragma**
     in C/C++ or as special comments identified by unique sentinels in Fortran. Compilers
     can ignore the directives if the support for OpenMP/OpenACC is not enabled.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 在OpenMP/OpenACC中，编译器指令是通过在C/C++中使用**#pragma**或作为Fortran中由独特哨兵标识的特殊注释来指定的。如果未启用OpenMP/OpenACC的支持，编译器可以忽略这些指令。
 - en: 'The compiler directives are used for various purposes: for thread creation,
     workload distribution (work sharing), data-environment management, serializing
     sections of code or for synchronization of work among the threads.'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器指令用于各种目的：用于线程创建、工作负载分配（工作共享）、数据环境管理、序列化代码部分或用于线程间的工作同步。
 - en: Execution model
+  id: totrans-21
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 执行模型
 - en: OpenMP and OpenACC use the fork-join model of parallel execution. The program
     begins as a single thread of execution, the **master** thread. Everything is executed
     sequentially until the first parallel region construct is encountered.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenMP和OpenACC使用并行执行的fork-join模型。程序开始时是一个执行线程，即**主**线程。所有操作都是顺序执行的，直到遇到第一个并行区域构造。
 - en: '![../_images/threads.png](../Images/a943f27c94a700c9a167e37f1d504a7d.png)'
+  id: totrans-23
   prefs: []
   type: TYPE_IMG
+  zh: '![../_images/threads.png](../Images/a943f27c94a700c9a167e37f1d504a7d.png)'
 - en: When a parallel region is encountered, the master thread creates a group of
     threads, becomes the master of this group of threads, and is assigned the thread
     index 0 within the group. There is an implicit barrier at the end of the parallel
     regions.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 当遇到并行区域时，主线程创建一组线程，成为这组线程的主线程，并在组内被分配线程索引0。在并行区域末尾有一个隐式屏障。
 - en: Offloading Directives
+  id: totrans-25
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 卸载指令
 - en: OpenACC
+  id: totrans-26
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenACC
 - en: In OpenACC, one of the most commonly used directives is `kernels`, which defines
     a region to be transferred into a series of kernels to be executed in sequence
     on a GPU. Work sharing is defined automatically for the separate kernels, but
     tuning prospects are limited.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在OpenACC中，最常用的指令之一是 `kernels`，它定义了一个要转移到一系列按顺序在GPU上执行的内核中的区域。为单独的内核自动定义了工作共享，但调优前景有限。
 - en: 'Example: `kernels`'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`kernels`
 - en: '[PRE0]'
+  id: totrans-29
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: '[PRE1]'
+  id: totrans-30
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'The other approach of OpenACC to define parallel regions is to use the `parallel`
     directive. Contrary to the `kernels` directive, the `parallel` directive is more
     explicit and requires more analysis by the programmer. Work sharing has to be
     defined manually using the `loop` directive, and refined tuning is possible to
     achieve. The above example can be re-written as the following:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC 定义并行区域的另一种方法是使用 `parallel` 指令。与 `kernels` 指令相反，`parallel` 指令更为明确，需要程序员进行更多分析。工作共享必须通过
+    `loop` 指令手动定义，并且可以进行精细调整以达到优化效果。上述示例可以重写为以下内容：
 - en: 'Example: `parallel loop`'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`parallel loop`
 - en: '[PRE2]'
+  id: totrans-33
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: '[PRE3]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Sometimes we can obtain a little more performance by guiding the compiler to
     make specific choices. OpenACC has four levels of parallelism for offloading execution:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时我们可以通过引导编译器做出特定选择来获得更好的性能。OpenACC 为卸载执行提供了四个并行级别：
 - en: '**gang** coarse grain: the iterations are distributed among the gangs'
+  id: totrans-36
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**gang** 粒度粗：迭代在各个 gang 中分配'
 - en: ''
+  id: totrans-37
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-38
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**worker** fine grain: worker’s threads are activated within gangs and iterations
     are shared among the threads'
+  id: totrans-39
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**worker** 粒度细：worker 的线程在 gang 内被激活，迭代在线程之间共享'
 - en: ''
+  id: totrans-40
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-41
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**vector** each worker activates its threads working in SIMT fashion and the
     work is shared among the threads'
+  id: totrans-42
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**vector** 每个worker激活其以SIMT方式工作的线程，工作在线程之间共享'
 - en: ''
+  id: totrans-43
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-44
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**seq** the iterations are executed sequentially'
+  id: totrans-45
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**seq** 迭代是顺序执行的'
 - en: Note
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: By default, `gang`, `worker` and `vector` parallelism are automatically decided
     and applied by the compiler.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 默认情况下，`gang`、`worker` 和 `vector` 并行性由编译器自动决定并应用。
 - en: The programmer could add clauses like `num_gangs`, `num_workers` and `vector_length`
     within the parallel region to specify the number of gangs, workers and vector
     length.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员可以在并行区域内添加 `num_gangs`、`num_workers` 和 `vector_length` 等子句，以指定 gang、worker
+    和向量长度。
 - en: The optimal numbers are highly dependent on the GPU architecture and the compiler
     implementation though.
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 最佳数值高度依赖于 GPU 架构和编译器实现。
 - en: There is no thread synchronization at `gang` level, which means there is a risk
     of race condition.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 `gang` 级别没有线程同步，这意味着存在竞态条件的风险。
 - en: OpenMP Offloading
+  id: totrans-51
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenMP 卸载
 - en: With OpenMP, the `target` directive is used for device offloading.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用 OpenMP 时，`target` 指令用于设备卸载。
 - en: 'Example: `target` construct'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`target` 构造
 - en: '[PRE4]'
+  id: totrans-54
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: '[PRE5]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Compared to the OpenACC’s `kernels` directive, the `target` directive will
     not parallelise the underlying loop at all. To achieve proper parallelisation,
     one needs to be more prescriptive and specify what one wants. OpenMP offloading
     offers multiple levels of parallelism as well:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 OpenACC 的 `kernels` 指令相比，`target` 指令根本不会并行化底层循环。为了实现适当的并行化，需要更加具体地指定所需的内容。OpenMP
+    卸载也提供了多个并行级别：
 - en: '**teams** coarse grain: creates a league of teams and one master thread in
     each team, but no worksharing among the teams'
+  id: totrans-57
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**teams** 粒度粗：创建一个团队联盟，每个团队中有一个主线程，但团队之间没有工作共享'
 - en: ''
+  id: totrans-58
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-59
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**distribute** distributes the iterations across the master threads in the
     teams, but no worksharing among the threads within one team'
+  id: totrans-60
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**distribute** 将迭代分配到团队中的主线程，但团队内的线程之间没有工作共享'
 - en: ''
+  id: totrans-61
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-62
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**parallel do/for** fine grain: threads are activated within one team and worksharing
     among them'
+  id: totrans-63
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**并行 do/for** 粒度细：线程在一个团队内被激活，并在它们之间进行工作共享'
 - en: ''
+  id: totrans-64
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-65
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**SIMD** like the `vector` directive in OpenACC'
+  id: totrans-66
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**SIMD** 类似于 OpenACC 中的 `vector` 指令'
 - en: Note
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The programmer can add clauses like `num_teams` and `thread_limit` to specify
     the number of teams and threads within a team.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员可以添加 `num_teams` 和 `thread_limit` 等子句来指定团队数量和团队内的线程数。
 - en: Threads in a team can synchronize but no synchronization among the teams.
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 团队内的线程可以同步，但团队之间没有同步。
 - en: Since OpenMP 5.0, there is a new `loop` directive available, which has a functionality
     similar to the corresponding one in OpenACC.
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 自 OpenMP 5.0 以来，有一个新的 `loop` 指令可用，其功能类似于 OpenACC 中的对应指令。
 - en: Keypoints
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 关键点
 - en: Mapping between OpenACC/OpenMP directives and GPU (**HPE implementation**)
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC/OpenMP 指令与 GPU（**HPE 实现**）之间的映射
 - en: '| Nvidia | AMD | Fortran OpenACC/OpenMP | C/C++ OpenMP |'
+  id: totrans-73
   prefs: []
   type: TYPE_TB
+  zh: '| Nvidia | AMD | Fortran OpenACC/OpenMP | C/C++ OpenMP |'
 - en: '| --- | --- | --- | --- |'
+  id: totrans-74
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- | --- |'
 - en: '| Threadblock | Work group | gang/teams | teams |'
+  id: totrans-75
   prefs: []
   type: TYPE_TB
+  zh: '| Threadblock | Work group | gang/teams | teams |'
 - en: '| Warp | Wavefront | worker/simd | parallel for simd |'
+  id: totrans-76
   prefs: []
   type: TYPE_TB
+  zh: '| Warp | Wavefront | worker/simd | parallel for simd |'
 - en: '| Thread | Work item | vector/simd | parallel for simd |'
+  id: totrans-77
   prefs: []
   type: TYPE_TB
+  zh: '| Thread | Work item | vector/simd | parallel for simd |'
 - en: Each compiler supports different levels of parallelism.
+  id: totrans-78
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 每个编译器支持不同级别的并行性。
 - en: The size of gang/team/worker/vector_length can be chosen arbitrarily by the
     user but there are limits defined by the implementation.
+  id: totrans-79
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: gang/团队/工作者/向量长度的大小可以由用户任意选择，但实现中定义了限制。
 - en: The maximum thread/grid/block size can be found via `rocminfo`/`nvaccelinfo`.
+  id: totrans-80
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 最大线程/网格/块大小可以通过`rocminfo`/`nvaccelinfo`找到。
 - en: 'Exercise: Change the levels of parallelism'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：改变并行级别
 - en: In this exercise we would like to change the levels of parallelism using clauses.
     First compile and run one of the examples to find out the default number of blocks
     and threads set by the compiler at runtime. To make a change, try adding clauses
     like `num_gangs`, `num_workers`, `vector_length` for OpenACC and `num_teams`,
     `thread_limit` for OpenMP offloading.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个练习中，我们希望通过使用子句来改变并行级别。首先编译并运行示例之一，以找出编译器在运行时设置的默认块和线程数。要做出改变，尝试添加`num_gangs`、`num_workers`、`vector_length`（对于OpenACC）和`num_teams`、`thread_limit`（对于OpenMP卸载）等子句。
 - en: Remember to set the environment by executing `export CRAY_ACC_DEBUG=2` at runtime.
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: 记得在运行时执行`export CRAY_ACC_DEBUG=2`来设置环境。
 - en: 'How to compile and run the code interactively:'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 如何交互式地编译和运行代码：
 - en: '[PRE6]'
+  id: totrans-85
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: '[PRE7]'
+  id: totrans-86
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Example of a trivially parallelizable vector addition problem:'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是一个可以轻易并行化的向量加法问题的示例：
 - en: '[PRE8]'
+  id: totrans-88
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: '[PRE9]'
+  id: totrans-89
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: '[PRE10]'
+  id: totrans-90
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: '[PRE11]'
+  id: totrans-91
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: Data Movement
+  id: totrans-92
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 数据移动
 - en: 'Due to distinct memory spaces on host and device, transferring data becomes
     inevitable. New directives are needed to specify how variables are transferred
     from the host to the device data environment. Commonly transferred items consist
     of arrays (array sections), scalars, pointers, and structure elements. Various
     data clauses used for data movement are summarised in the following table:'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于主机和设备上的内存空间不同，数据传输变得不可避免。需要新的指令来指定变量如何从主机传输到设备数据环境。常见传输项包括数组（数组部分）、标量、指针和结构元素。用于数据移动的各种数据子句总结在下表中：
 - en: '| `OpenMP` | `OpenACC` |  |'
+  id: totrans-94
   prefs: []
   type: TYPE_TB
+  zh: '| `OpenMP` | `OpenACC` |  |'
 - en: '| `map(to:list)` | `copyin(list)` | On entering the region, variables in the
     list are initialized on the device using the original values from the host |'
+  id: totrans-95
   prefs: []
   type: TYPE_TB
+  zh: '| `map(to:list)` | `copyin(list)` | 进入区域时，列表中的变量使用主机中的原始值在设备上进行初始化 |'
 - en: '| `map(from:list)` | `copyout(list)` | At the end of the target region, the
     values from variables in the list are copied into the original variables on the
     host. On entering the region, the initial value of the variables on the device
     is not initialized |'
+  id: totrans-96
   prefs: []
   type: TYPE_TB
+  zh: '| `map(from:list)` | `copyout(list)` | 在目标区域的末尾，列表中变量的值被复制到主机上的原始变量中。进入区域时，设备上变量的初始值未初始化'
 - en: '| `map(tofrom:list)` | `copy(list)` | The effect of both a map-to and a map-from
     |'
+  id: totrans-97
   prefs: []
   type: TYPE_TB
+  zh: '| `map(tofrom:list)` | `copy(list)` | map-to 和 map-from 的效果'
 - en: '| `map(alloc:list)` | `create(list)` | On entering the region, data is allocated
     and uninitialized on the device |'
+  id: totrans-98
   prefs: []
   type: TYPE_TB
+  zh: '| `map(alloc:list)` | `create(list)` | 进入区域时，数据在设备上分配并初始化'
 - en: '| `map(delete:list)` | `delete(list)` | Delete data on the device |'
+  id: totrans-99
   prefs: []
   type: TYPE_TB
+  zh: '| `map(delete:list)` | `delete(list)` | 在设备上删除数据'
 - en: Note
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'When mapping data arrays or pointers, be careful about the array section notation:'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 当映射数据数组或指针时，请注意数组部分表示法：
 - en: 'In C/C++: array[lower-bound:length]. The notation :N is equivalent to 0:N.'
+  id: totrans-102
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在C/C++中：`array[下界:length]`。表示法：N 等同于 0:N。
 - en: In Fortran:array[lower-bound:upper-bound]. The notation :N is equivalent to
     1:N.
+  id: totrans-103
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在Fortran中：`array[下界:上界]`。表示法：N 等同于 1:N。
 - en: Data region
+  id: totrans-104
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 数据区域
 - en: 'The specific data clause combined with the data directive constitutes the start
     of a data region. How the directives create storage, transfer data, and remove
     storage on the device are classified as two categories: structured data region
     and unstructured data region.'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 特定的数据子句与数据指令结合构成了数据区域的开始。指令如何创建存储、传输数据和在设备上删除存储被归类为两类：结构化数据区域和非结构化数据区域。
 - en: Structured Data Region
+  id: totrans-106
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: A structured data region is convenient for providing persistent data on the
     device which could be used for subsequent GPU directives.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域便于在设备上提供持久数据，这些数据可用于后续的GPU指令。
 - en: Syntax for structured data region
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域的语法
 - en: '[PRE12]'
+  id: totrans-109
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: '[PRE13]'
+  id: totrans-110
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: '[PRE14]'
+  id: totrans-111
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: '[PRE15]'
+  id: totrans-112
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: Unstructured Data Region
+  id: totrans-113
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 非结构化数据区域
 - en: However it is inconvenient in real applications to use a structured data region.
     An unstructured data region gives more freedom in creating and deleting data on
     the device at any appropriate point.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在实际应用中使用结构化数据区域并不方便。非结构化数据区域在设备上创建和删除数据时提供了更多的自由度。
 - en: Syntax for unstructured data region
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 非结构化数据区域的语法
 - en: '[PRE16]'
+  id: totrans-116
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: '[PRE17]'
+  id: totrans-117
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: '[PRE18]'
+  id: totrans-118
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: '[PRE19]'
+  id: totrans-119
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: '[PRE20]'
+  id: totrans-120
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: '[PRE21]'
+  id: totrans-121
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: '[PRE22]'
+  id: totrans-122
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: '[PRE23]'
+  id: totrans-123
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: Keypoints
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: Structured Data Region
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: Start and end points within a single subroutine
+  id: totrans-126
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 单个子程序内的起始和结束点
 - en: Memory exists within the data region
+  id: totrans-127
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在于数据区域中
 - en: Unstructured Data Region
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 非结构化数据区域
 - en: Multiple start and end points across different subroutines
+  id: totrans-129
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在不同的子程序中存在多个起始和结束点
 - en: Memory exists until explicitly deallocated
+  id: totrans-130
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在直到显式释放
 - en: Update
+  id: totrans-131
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 更新
 - en: Sometimes, variables need to be synchronized between the host and the device
     memory, e.g. in order to write out variables on the host for debugging or visualization,
     and it is often used in conjunction with unstructured data regions. To control
     the data transfer direction, a motion-clause must be present.
+  id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时，需要在主机和设备内存之间同步变量，例如，为了在主机上写入变量进行调试或可视化，这通常与无结构化数据区域一起使用。为了控制数据传输方向，必须存在motion-clause。
 - en: Syntax for update directive
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 更新指令的语法
 - en: '[PRE24]'
+  id: totrans-134
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: '[PRE25]'
+  id: totrans-135
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: '[PRE26]'
+  id: totrans-136
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: '[PRE27]'
+  id: totrans-137
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: '[PRE28]'
+  id: totrans-138
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: '[PRE29]'
+  id: totrans-139
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: '[PRE30]'
+  id: totrans-140
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE30]'
 - en: '[PRE31]'
+  id: totrans-141
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE31]'
 - en: Note
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: '`update` directive can only be used in host code since data movement must be
     initiated from the host, i.e. it may not appear inside of a compute region.'
+  id: totrans-143
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`update`指令只能用于主机代码，因为数据移动必须从主机启动，即它可能不会出现在计算区域内。'
 - en: in OpenACC, motion-clause “host” has been deprecated and renamed “self”
+  id: totrans-144
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在OpenACC中，motion-clause “host” 已被弃用并重命名为 “self”
 - en: 'Exercise: `update`'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：`update`
 - en: Try to figure out the variable values on host and device at each check point.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 尝试在每个检查点找出主机和设备上的变量值。
 - en: '[PRE32]'
+  id: totrans-147
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE32]'
 - en: '[PRE33]'
+  id: totrans-148
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE33]'
 - en: Solution
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '| check point | x on host | x on device |'
+  id: totrans-150
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点 | 主机上的x | 设备上的x |'
 - en: '| --- | --- | --- |'
+  id: totrans-151
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- |'
 - en: '| check point1 | 0 | 0 |'
+  id: totrans-152
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点1 | 0 | 0 |'
 - en: '| check point2 | 10 | 0 |'
+  id: totrans-153
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点2 | 10 | 0 |'
 - en: '| check point3 | 10 | 10 |'
+  id: totrans-154
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点3 | 10 | 10 |'
 - en: 'Exercise: Adding data mapping clauses'
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：添加数据映射子句
 - en: Add proper data mapping clauses explicitly to the directives
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
+  zh: 明确地将适当的数据映射子句添加到指令中
 - en: '[PRE34]'
+  id: totrans-157
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE34]'
 - en: '[PRE35]'
+  id: totrans-158
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE35]'
 - en: '[PRE36]'
+  id: totrans-159
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE36]'
 - en: '[PRE37]'
+  id: totrans-160
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE37]'
 - en: Solution
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '[PRE38]'
+  id: totrans-162
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE38]'
 - en: '[PRE39]'
+  id: totrans-163
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE39]'
 - en: '[PRE40]'
+  id: totrans-164
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE40]'
 - en: '[PRE41]'
+  id: totrans-165
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE41]'
 - en: Optimize Data Transfers
+  id: totrans-166
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 优化数据传输
 - en: Explicitly transfer the data as much as possible.
+  id: totrans-167
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 尽可能明确地传输数据。
 - en: Reduce the amount of data mapping between host and device, get rid of unnecessary
     data transfers.
+  id: totrans-168
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 减少主机和设备之间的数据映射量，消除不必要的传输。
 - en: Try to keep the data environment residing on the device as long as possible.
+  id: totrans-169
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 尽可能长时间地将数据环境保留在设备上。
 - en: Pros of directive-based frameworks
+  id: totrans-170
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 指令式框架的优点
 - en: Incremental programming
+  id: totrans-171
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 增量编程
 - en: Porting of existing software requires less work
+  id: totrans-172
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 现有软件的移植需要较少的工作
 - en: Same code can be compiled to CPU and GPU versions easily using compiler flag
+  id: totrans-173
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 同样的代码可以很容易地使用编译器标志编译成CPU和GPU版本
 - en: Low learning curve, do not need to know low-level hardware details
+  id: totrans-174
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 学习曲线低，不需要了解底层硬件细节
 - en: Good portability
+  id: totrans-175
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 良好的可移植性
 - en: See also
+  id: totrans-176
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 参见
 - en: '[ENCCS lesson on OpenACC](https://enccs.github.io/openacc/)'
+  id: totrans-177
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[ENCCS关于OpenACC的课程](https://enccs.github.io/openacc/)'
 - en: '[ENCCS lesson on OpenMP for GPU offloading](https://enccs.github.io/openmp-gpu/)'
+  id: totrans-178
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[ENCCS关于GPU卸载的OpenMP课程](https://enccs.github.io/openmp-gpu/)'
 - en: Keypoints
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: OpenACC and OpenMP-offloading enables you to annotate your code with special
     directives to identify areas to be executed in parallel on a GPU.
+  id: totrans-180
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: OpenACC和OpenMP-offloading允许您使用特殊指令注释您的代码，以标识要在GPU上并行执行的区域。
 - en: Both allow to fine-tune the distribution of the work to match architecture characteristics.
+  id: totrans-181
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 两者都允许微调工作分布以匹配架构特性。
 - en: Both allow to control the flow of data to/from the GPU.
+  id: totrans-182
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 两者都允许控制数据流向/从GPU的流动。
 - en: The directive-based approaches save time compared to lower-level approaches,
     but you need to be mindful of data movement in particular to obtain good performance.
     [Previous](../5-intro-to-gpu-prog-models/ "Introduction to GPU programming models")
     [Next](../7-non-portable-kernel-models/ "Non-portable kernel-based models")
+  id: totrans-183
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 与底层方法相比，基于指令的方法可以节省时间，但为了获得良好的性能，您需要特别注意数据移动。[上一节](../5-intro-to-gpu-prog-models/
+    "GPU编程模型简介") [下一节](../7-non-portable-kernel-models/ "非可移植内核模型")
 - en: '* * *'
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: '***'
 - en: © Copyright 2023-2024, The contributors.
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
+  zh: © 版权所有 2023-2024，贡献者。
 - en: Built with [Sphinx](https://www.sphinx-doc.org/) using a [theme](https://github.com/readthedocs/sphinx_rtd_theme)
     provided by [Read the Docs](https://readthedocs.org). Questions
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用由[Read the Docs](https://readthedocs.org)提供的[主题](https://github.com/readthedocs/sphinx_rtd_theme)构建的[Sphinx](https://www.sphinx-doc.org/)。问题
 - en: What is OpenACC and OpenMP offloading
+  id: totrans-187
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 什么是OpenACC和OpenMP卸载
 - en: How to write GPU code using directives
+  id: totrans-188
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何使用指令编写GPU代码
 - en: Objectives
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 目标
 - en: Understand the process of offloading
+  id: totrans-190
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解卸载的过程
 - en: Understand the differences between OpenACC and OpenMP offloading
+  id: totrans-191
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解OpenACC和OpenMP卸载之间的区别
 - en: Understand the various levels of parallelism on a GPU
+  id: totrans-192
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解GPU上的各种并行级别
 - en: Understand what is data movement
+  id: totrans-193
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 理解数据移动是什么
 - en: Instructor note
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 教练备注
 - en: 40 min teaching
+  id: totrans-195
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 40分钟教学
 - en: 40 min exercises
+  id: totrans-196
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 40分钟练习
 - en: The most common directive-based models for GPU parallel programming are OpenMP
     offloading and OpenACC. The parallelization is done by introducing directives
     in places which are targeted for parallelization.
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
+  zh: 最常见的基于指令的GPU并行编程模型是OpenMP卸载和OpenACC。并行化是通过在针对并行化的位置引入指令来完成的。
 - en: '**OpenACC** is known to be more **descriptive**, which means the programmer
     uses directives to tell the compiler how/where to parallelize the code and to
     move the data.'
+  id: totrans-198
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**OpenACC** 被认为是更加**描述性**的，这意味着程序员使用指令告诉编译器如何/在哪里并行化代码以及如何移动数据。'
 - en: '**OpenMP offloading**, on the other hand, is known to be more **prescriptive**,
     where the programmer uses directives to tell the compiler more explicitly how/where
     to parallelize the code, instead of letting the compiler decide.'
+  id: totrans-199
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**OpenMP卸载**，另一方面，被认为是更加**规定性**的，这意味着程序员使用指令更明确地告诉编译器如何/在哪里并行化代码，而不是让编译器决定。'
 - en: In OpenMP/OpenACC the compiler directives are specified by using **#pragma**
     in C/C++ or as special comments identified by unique sentinels in Fortran. Compilers
     can ignore the directives if the support for OpenMP/OpenACC is not enabled.
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 在OpenMP/OpenACC中，编译器指令通过在C/C++中使用**#pragma**或在Fortran中使用具有独特哨兵的特殊注释来指定。如果未启用OpenMP/OpenACC的支持，编译器可以忽略这些指令。
 - en: 'The compiler directives are used for various purposes: for thread creation,
     workload distribution (work sharing), data-environment management, serializing
     sections of code or for synchronization of work among the threads.'
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器指令用于各种目的：用于线程创建、工作负载分配（工作共享）、数据环境管理、序列化代码部分或线程间的工作同步。
 - en: Execution model
+  id: totrans-202
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 执行模型
 - en: OpenMP and OpenACC use the fork-join model of parallel execution. The program
     begins as a single thread of execution, the **master** thread. Everything is executed
     sequentially until the first parallel region construct is encountered.
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenMP和OpenACC使用并行执行的fork-join模型。程序开始时是一个单独的执行线程，即**主**线程。所有操作都是顺序执行的，直到遇到第一个并行区域构造。
 - en: '![../_images/threads.png](../Images/a943f27c94a700c9a167e37f1d504a7d.png)'
+  id: totrans-204
   prefs: []
   type: TYPE_IMG
+  zh: '![../_images/threads.png](../Images/a943f27c94a700c9a167e37f1d504a7d.png)'
 - en: When a parallel region is encountered, the master thread creates a group of
     threads, becomes the master of this group of threads, and is assigned the thread
     index 0 within the group. There is an implicit barrier at the end of the parallel
     regions.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
+  zh: 当遇到并行区域时，主线程创建一组线程，成为这组线程的主线程，并在组内被分配线程索引0。在并行区域结束时有一个隐式的屏障。
 - en: Offloading Directives
+  id: totrans-206
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 卸载指令
 - en: OpenACC
+  id: totrans-207
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenACC
 - en: In OpenACC, one of the most commonly used directives is `kernels`, which defines
     a region to be transferred into a series of kernels to be executed in sequence
     on a GPU. Work sharing is defined automatically for the separate kernels, but
     tuning prospects are limited.
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: 在OpenACC中，最常用的指令之一是`kernels`，它定义了一个要传输到GPU上按顺序执行的多个内核的区域。对于单独的内核，工作共享是自动定义的，但调整前景有限。
 - en: 'Example: `kernels`'
+  id: totrans-209
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`kernels`
 - en: '[PRE42]'
+  id: totrans-210
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE42]'
 - en: '[PRE43]'
+  id: totrans-211
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE43]'
 - en: 'The other approach of OpenACC to define parallel regions is to use the `parallel`
     directive. Contrary to the `kernels` directive, the `parallel` directive is more
     explicit and requires more analysis by the programmer. Work sharing has to be
     defined manually using the `loop` directive, and refined tuning is possible to
     achieve. The above example can be re-written as the following:'
+  id: totrans-212
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC定义并行区域的另一种方法是使用`parallel`指令。与`kernels`指令相反，`parallel`指令更加明确，需要程序员进行更多的分析。工作共享必须使用`loop`指令手动定义，并且可以进行精细调整以达到更好的效果。上述示例可以重写为以下内容：
 - en: 'Example: `parallel loop`'
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`parallel loop`
 - en: '[PRE44]'
+  id: totrans-214
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE44]'
 - en: '[PRE45]'
+  id: totrans-215
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE45]'
 - en: 'Sometimes we can obtain a little more performance by guiding the compiler to
     make specific choices. OpenACC has four levels of parallelism for offloading execution:'
+  id: totrans-216
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时我们可以通过引导编译器做出特定的选择来获得更好的性能。OpenACC有四个级别的卸载执行并行性：
 - en: '**gang** coarse grain: the iterations are distributed among the gangs'
+  id: totrans-217
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**gang** 粗粒度：迭代被分配到各个gang中'
 - en: ''
+  id: totrans-218
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-219
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**worker** fine grain: worker’s threads are activated within gangs and iterations
     are shared among the threads'
+  id: totrans-220
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**worker** 细粒度：工作者线程在gang内被激活，迭代在线程之间共享'
 - en: ''
+  id: totrans-221
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-222
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**vector** each worker activates its threads working in SIMT fashion and the
     work is shared among the threads'
+  id: totrans-223
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**vector** 每个工作者激活其以SIMT方式工作的线程，并将工作在线程之间共享'
 - en: ''
+  id: totrans-224
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-225
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**seq** the iterations are executed sequentially'
+  id: totrans-226
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**seq** 迭代是顺序执行的'
 - en: Note
+  id: totrans-227
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: By default, `gang`, `worker` and `vector` parallelism are automatically decided
     and applied by the compiler.
+  id: totrans-228
   prefs: []
   type: TYPE_NORMAL
+  zh: 默认情况下，`gang`、`worker`和`vector`并行性将由编译器自动决定并应用。
 - en: The programmer could add clauses like `num_gangs`, `num_workers` and `vector_length`
     within the parallel region to specify the number of gangs, workers and vector
     length.
+  id: totrans-229
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员可以在并行区域内添加如`num_gangs`、`num_workers`和`vector_length`等子句来指定团队数量、工作者数量和向量长度。
 - en: The optimal numbers are highly dependent on the GPU architecture and the compiler
     implementation though.
+  id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 最佳数值高度依赖于GPU架构和编译器实现。
 - en: There is no thread synchronization at `gang` level, which means there is a risk
     of race condition.
+  id: totrans-231
   prefs: []
   type: TYPE_NORMAL
+  zh: 在`gang`级别没有线程同步，这意味着存在竞态条件风险。
 - en: OpenMP Offloading
+  id: totrans-232
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenMP Offloading
 - en: With OpenMP, the `target` directive is used for device offloading.
+  id: totrans-233
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用OpenMP时，`target`指令用于设备卸载。
 - en: 'Example: `target` construct'
+  id: totrans-234
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`target`构造
 - en: '[PRE46]'
+  id: totrans-235
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE46]'
 - en: '[PRE47]'
+  id: totrans-236
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE47]'
 - en: 'Compared to the OpenACC’s `kernels` directive, the `target` directive will
     not parallelise the underlying loop at all. To achieve proper parallelisation,
     one needs to be more prescriptive and specify what one wants. OpenMP offloading
     offers multiple levels of parallelism as well:'
+  id: totrans-237
   prefs: []
   type: TYPE_NORMAL
+  zh: 与OpenACC的`kernels`指令相比，`target`指令根本不会并行化底层循环。为了实现适当的并行化，需要更加具体地指定所需的内容。OpenMP
+    offloading也提供了多个并行级别：
 - en: '**teams** coarse grain: creates a league of teams and one master thread in
     each team, but no worksharing among the teams'
+  id: totrans-238
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**teams** 粗粒度：创建一个团队联盟和每个团队中的一个主线程，但团队之间没有工作共享'
 - en: ''
+  id: totrans-239
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-240
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**distribute** distributes the iterations across the master threads in the
     teams, but no worksharing among the threads within one team'
+  id: totrans-241
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**distribute** 将迭代分配到团队中的主线程，但团队内的线程之间没有工作共享'
 - en: ''
+  id: totrans-242
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-243
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**parallel do/for** fine grain: threads are activated within one team and worksharing
     among them'
+  id: totrans-244
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**parallel do/for** 精粒度：线程在一个团队内被激活并在它们之间共享工作'
 - en: ''
+  id: totrans-245
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-246
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**SIMD** like the `vector` directive in OpenACC'
+  id: totrans-247
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**SIMD** 类似于OpenACC中的`vector`指令'
 - en: Note
+  id: totrans-248
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The programmer can add clauses like `num_teams` and `thread_limit` to specify
     the number of teams and threads within a team.
+  id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员可以添加如`num_teams`和`thread_limit`等子句来指定团队数量和团队内的线程数量。
 - en: Threads in a team can synchronize but no synchronization among the teams.
+  id: totrans-250
   prefs: []
   type: TYPE_NORMAL
+  zh: 团队内的线程可以同步，但团队之间没有同步。
 - en: Since OpenMP 5.0, there is a new `loop` directive available, which has a functionality
     similar to the corresponding one in OpenACC.
+  id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: 自OpenMP 5.0以来，有一个新的`loop`指令可用，其功能与OpenACC中的对应指令类似。
 - en: Keypoints
+  id: totrans-252
   prefs: []
   type: TYPE_NORMAL
+  zh: 关键点
 - en: Mapping between OpenACC/OpenMP directives and GPU (**HPE implementation**)
+  id: totrans-253
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC/OpenMP指令与GPU（**HPE实现**）之间的映射
 - en: '| Nvidia | AMD | Fortran OpenACC/OpenMP | C/C++ OpenMP |'
+  id: totrans-254
   prefs: []
   type: TYPE_TB
+  zh: '| 英伟达 | AMD | Fortran OpenACC/OpenMP | C/C++ OpenMP |'
 - en: '| --- | --- | --- | --- |'
+  id: totrans-255
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- | --- |'
 - en: '| Threadblock | Work group | gang/teams | teams |'
+  id: totrans-256
   prefs: []
   type: TYPE_TB
+  zh: '| 线程块 | 工作组 | gang/teams | teams |'
 - en: '| Warp | Wavefront | worker/simd | parallel for simd |'
+  id: totrans-257
   prefs: []
   type: TYPE_TB
+  zh: '| 线程束 | 波前 | 工作者/simd | parallel for simd |'
 - en: '| Thread | Work item | vector/simd | parallel for simd |'
+  id: totrans-258
   prefs: []
   type: TYPE_TB
+  zh: '| 线程 | 工作项 | 向量/simd | parallel for simd |'
 - en: Each compiler supports different levels of parallelism.
+  id: totrans-259
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 每个编译器支持不同级别的并行性。
 - en: The size of gang/team/worker/vector_length can be chosen arbitrarily by the
     user but there are limits defined by the implementation.
+  id: totrans-260
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: gang/team/worker/vector_length的大小可以由用户任意选择，但实现中定义了限制。
 - en: The maximum thread/grid/block size can be found via `rocminfo`/`nvaccelinfo`.
+  id: totrans-261
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 最大线程/网格/块大小可以通过`rocminfo`/`nvaccelinfo`找到。
 - en: 'Exercise: Change the levels of parallelism'
+  id: totrans-262
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：改变并行级别
 - en: In this exercise we would like to change the levels of parallelism using clauses.
     First compile and run one of the examples to find out the default number of blocks
     and threads set by the compiler at runtime. To make a change, try adding clauses
     like `num_gangs`, `num_workers`, `vector_length` for OpenACC and `num_teams`,
     `thread_limit` for OpenMP offloading.
+  id: totrans-263
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个练习中，我们希望通过子句来改变并行级别。首先编译并运行示例之一，以找出编译器在运行时设置的默认块和线程数量。要做出改变，尝试为OpenACC添加`num_gangs`、`num_workers`、`vector_length`，为OpenMP卸载添加`num_teams`、`thread_limit`。
 - en: Remember to set the environment by executing `export CRAY_ACC_DEBUG=2` at runtime.
+  id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: 记得在运行时执行`export CRAY_ACC_DEBUG=2`来设置环境。
 - en: 'How to compile and run the code interactively:'
+  id: totrans-265
   prefs: []
   type: TYPE_NORMAL
+  zh: 如何交互式编译和运行代码：
 - en: '[PRE48]'
+  id: totrans-266
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE48]'
 - en: '[PRE49]'
+  id: totrans-267
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE49]'
 - en: 'Example of a trivially parallelizable vector addition problem:'
+  id: totrans-268
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个可以轻易并行化的向量加法问题示例：
 - en: '[PRE50]'
+  id: totrans-269
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE50]'
 - en: '[PRE51]'
+  id: totrans-270
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE51]'
 - en: '[PRE52]'
+  id: totrans-271
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE52]'
 - en: '[PRE53]'
+  id: totrans-272
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE53]'
 - en: Data Movement
+  id: totrans-273
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 数据移动
 - en: 'Due to distinct memory spaces on host and device, transferring data becomes
     inevitable. New directives are needed to specify how variables are transferred
     from the host to the device data environment. Commonly transferred items consist
     of arrays (array sections), scalars, pointers, and structure elements. Various
     data clauses used for data movement are summarised in the following table:'
+  id: totrans-274
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于主机和设备上的内存空间不同，数据传输变得不可避免。需要新的指令来指定变量如何从主机传输到设备数据环境。常见传输项包括数组（数组部分）、标量、指针和结构体元素。用于数据移动的各种数据子句总结在下表中：
 - en: '| `OpenMP` | `OpenACC` |  |'
+  id: totrans-275
   prefs: []
   type: TYPE_TB
+  zh: '| `OpenMP` | `OpenACC` |  |'
 - en: '| `map(to:list)` | `copyin(list)` | On entering the region, variables in the
     list are initialized on the device using the original values from the host |'
+  id: totrans-276
   prefs: []
   type: TYPE_TB
+  zh: '| `map(to:list)` | `copyin(list)` | 进入区域时，列表中的变量使用主机中的原始值在设备上进行初始化'
 - en: '| `map(from:list)` | `copyout(list)` | At the end of the target region, the
     values from variables in the list are copied into the original variables on the
     host. On entering the region, the initial value of the variables on the device
     is not initialized |'
+  id: totrans-277
   prefs: []
   type: TYPE_TB
+  zh: '| `map(from:list)` | `copyout(list)` | 在目标区域结束时，列表中的变量的值被复制到主机上的原始变量中。进入区域时，设备上变量的初始值未初始化'
 - en: '| `map(tofrom:list)` | `copy(list)` | The effect of both a map-to and a map-from
     |'
+  id: totrans-278
   prefs: []
   type: TYPE_TB
+  zh: '| `map(tofrom:list)` | `copy(list)` | map-to 和 map-from 的效果'
 - en: '| `map(alloc:list)` | `create(list)` | On entering the region, data is allocated
     and uninitialized on the device |'
+  id: totrans-279
   prefs: []
   type: TYPE_TB
+  zh: '| `map(alloc:list)` | `create(list)` | 进入区域时，数据在设备上分配并初始化为未初始化状态'
 - en: '| `map(delete:list)` | `delete(list)` | Delete data on the device |'
+  id: totrans-280
   prefs: []
   type: TYPE_TB
+  zh: '| `map(delete:list)` | `delete(list)` | 删除设备上的数据'
 - en: Note
+  id: totrans-281
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'When mapping data arrays or pointers, be careful about the array section notation:'
+  id: totrans-282
   prefs: []
   type: TYPE_NORMAL
+  zh: 在映射数据数组或指针时，请注意数组部分表示法：
 - en: 'In C/C++: array[lower-bound:length]. The notation :N is equivalent to 0:N.'
+  id: totrans-283
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在C/C++中：`array[lower-bound:length]`。表示法:N 等同于 0:N。
 - en: In Fortran:array[lower-bound:upper-bound]. The notation :N is equivalent to
     1:N.
+  id: totrans-284
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在Fortran中：`array[lower-bound:upper-bound]`。表示法:N 等同于 1:N。
 - en: Data region
+  id: totrans-285
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 数据区域
 - en: 'The specific data clause combined with the data directive constitutes the start
     of a data region. How the directives create storage, transfer data, and remove
     storage on the device are classified as two categories: structured data region
     and unstructured data region.'
+  id: totrans-286
   prefs: []
   type: TYPE_NORMAL
+  zh: 特定的数据子句与数据指令结合构成数据区域的开始。指令如何创建存储、传输数据和在设备上删除存储分为两类：结构化数据区域和非结构化数据区域。
 - en: Structured Data Region
+  id: totrans-287
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: A structured data region is convenient for providing persistent data on the
     device which could be used for subsequent GPU directives.
+  id: totrans-288
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域便于在设备上提供持久数据，这些数据可用于后续的GPU指令。
 - en: Syntax for structured data region
+  id: totrans-289
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域语法
 - en: '[PRE54]'
+  id: totrans-290
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE54]'
 - en: '[PRE55]'
+  id: totrans-291
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE55]'
 - en: '[PRE56]'
+  id: totrans-292
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE56]'
 - en: '[PRE57]'
+  id: totrans-293
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE57]'
 - en: Unstructured Data Region
+  id: totrans-294
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 非结构化数据区域
 - en: However it is inconvenient in real applications to use a structured data region.
     An unstructured data region gives more freedom in creating and deleting data on
     the device at any appropriate point.
+  id: totrans-295
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在实际应用中使用结构化数据区域并不方便。非结构化数据区域在设备上创建和删除数据时提供了更多的自由度。
 - en: Syntax for unstructured data region
+  id: totrans-296
   prefs: []
   type: TYPE_NORMAL
+  zh: 非结构化数据区域语法
 - en: '[PRE58]'
+  id: totrans-297
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE58]'
 - en: '[PRE59]'
+  id: totrans-298
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE59]'
 - en: '[PRE60]'
+  id: totrans-299
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE60]'
 - en: '[PRE61]'
+  id: totrans-300
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE61]'
 - en: '[PRE62]'
+  id: totrans-301
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE62]'
 - en: '[PRE63]'
+  id: totrans-302
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE63]'
 - en: '[PRE64]'
+  id: totrans-303
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE64]'
 - en: '[PRE65]'
+  id: totrans-304
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE65]'
 - en: Keypoints
+  id: totrans-305
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: Structured Data Region
+  id: totrans-306
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: Start and end points within a single subroutine
+  id: totrans-307
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 单个子程序内的起始和结束点
 - en: Memory exists within the data region
+  id: totrans-308
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 数据区域内的内存存在
 - en: Unstructured Data Region
+  id: totrans-309
   prefs: []
   type: TYPE_NORMAL
+  zh: 非结构化数据区域
 - en: Multiple start and end points across different subroutines
+  id: totrans-310
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 不同子程序之间的多个起始和结束点
 - en: Memory exists until explicitly deallocated
+  id: totrans-311
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在直到显式释放
 - en: Update
+  id: totrans-312
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 更新
 - en: Sometimes, variables need to be synchronized between the host and the device
     memory, e.g. in order to write out variables on the host for debugging or visualization,
     and it is often used in conjunction with unstructured data regions. To control
     the data transfer direction, a motion-clause must be present.
+  id: totrans-313
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时，变量需要在主机和设备内存之间进行同步，例如为了在主机上写入变量进行调试或可视化，这通常与非结构化数据区域一起使用。为了控制数据传输方向，必须存在一个运动子句。
 - en: Syntax for update directive
+  id: totrans-314
   prefs: []
   type: TYPE_NORMAL
+  zh: 更新指令语法
 - en: '[PRE66]'
+  id: totrans-315
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE66]'
 - en: '[PRE67]'
+  id: totrans-316
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE67]'
 - en: '[PRE68]'
+  id: totrans-317
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE68]'
 - en: '[PRE69]'
+  id: totrans-318
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE69]'
 - en: '[PRE70]'
+  id: totrans-319
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE70]'
 - en: '[PRE71]'
+  id: totrans-320
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE71]'
 - en: '[PRE72]'
+  id: totrans-321
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE72]'
 - en: '[PRE73]'
+  id: totrans-322
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE73]'
 - en: Note
+  id: totrans-323
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: '`update` directive can only be used in host code since data movement must be
     initiated from the host, i.e. it may not appear inside of a compute region.'
+  id: totrans-324
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`update` 指令只能在主机代码中使用，因为数据移动必须从主机启动，即它可能不会出现在计算区域内。'
 - en: in OpenACC, motion-clause “host” has been deprecated and renamed “self”
+  id: totrans-325
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在OpenACC中，运动子句“host”已被弃用并重命名为“self”
 - en: 'Exercise: `update`'
+  id: totrans-326
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：`update`
 - en: Try to figure out the variable values on host and device at each check point.
+  id: totrans-327
   prefs: []
   type: TYPE_NORMAL
+  zh: 尝试在每个检查点确定主机和设备上的变量值。
 - en: '[PRE74]'
+  id: totrans-328
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE74]'
 - en: '[PRE75]'
+  id: totrans-329
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE75]'
 - en: Solution
+  id: totrans-330
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '| check point | x on host | x on device |'
+  id: totrans-331
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点 | 主机上的 x | 设备上的 x |'
 - en: '| --- | --- | --- |'
+  id: totrans-332
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- |'
 - en: '| check point1 | 0 | 0 |'
+  id: totrans-333
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点1 | 0 | 0 |'
 - en: '| check point2 | 10 | 0 |'
+  id: totrans-334
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点2 | 10 | 0 |'
 - en: '| check point3 | 10 | 10 |'
+  id: totrans-335
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点3 | 10 | 10 |'
 - en: 'Exercise: Adding data mapping clauses'
+  id: totrans-336
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：添加数据映射子句
 - en: Add proper data mapping clauses explicitly to the directives
+  id: totrans-337
   prefs: []
   type: TYPE_NORMAL
+  zh: 明确地将适当的数据映射子句添加到指令中
 - en: '[PRE76]'
+  id: totrans-338
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE76]'
 - en: '[PRE77]'
+  id: totrans-339
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE77]'
 - en: '[PRE78]'
+  id: totrans-340
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE78]'
 - en: '[PRE79]'
+  id: totrans-341
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE79]'
 - en: Solution
+  id: totrans-342
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '[PRE80]'
+  id: totrans-343
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE80]'
 - en: '[PRE81]'
+  id: totrans-344
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE81]'
 - en: '[PRE82]'
+  id: totrans-345
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE82]'
 - en: '[PRE83]'
+  id: totrans-346
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE83]'
 - en: Optimize Data Transfers
+  id: totrans-347
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 优化数据传输
 - en: Explicitly transfer the data as much as possible.
+  id: totrans-348
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 尽可能明确地传输数据。
 - en: Reduce the amount of data mapping between host and device, get rid of unnecessary
     data transfers.
+  id: totrans-349
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 减少主机和设备之间数据映射的数量，消除不必要的传输。
 - en: Try to keep the data environment residing on the device as long as possible.
+  id: totrans-350
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 尽可能长时间地将数据环境保留在设备上。
 - en: Pros of directive-based frameworks
+  id: totrans-351
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 基于指令框架的优点
 - en: Incremental programming
+  id: totrans-352
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 增量编程
 - en: Porting of existing software requires less work
+  id: totrans-353
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 现有软件的移植工作量较小
 - en: Same code can be compiled to CPU and GPU versions easily using compiler flag
+  id: totrans-354
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用编译器标志可以轻松地将相同代码编译成 CPU 和 GPU 版本。
 - en: Low learning curve, do not need to know low-level hardware details
+  id: totrans-355
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 学习曲线低，不需要了解底层硬件细节
 - en: Good portability
+  id: totrans-356
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 良好的可移植性
 - en: See also
+  id: totrans-357
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 参见
 - en: '[ENCCS lesson on OpenACC](https://enccs.github.io/openacc/)'
+  id: totrans-358
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[ENCCS 关于 OpenACC 的课程](https://enccs.github.io/openacc/)'
 - en: '[ENCCS lesson on OpenMP for GPU offloading](https://enccs.github.io/openmp-gpu/)'
+  id: totrans-359
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[ENCCS 关于 GPU 卸载的 OpenMP 课程](https://enccs.github.io/openmp-gpu/)'
 - en: Keypoints
+  id: totrans-360
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: OpenACC and OpenMP-offloading enables you to annotate your code with special
     directives to identify areas to be executed in parallel on a GPU.
+  id: totrans-361
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: OpenACC 和 OpenMP-offloading 允许您使用特殊指令注释您的代码，以标识要在 GPU 上并行执行的区域。
 - en: Both allow to fine-tune the distribution of the work to match architecture characteristics.
+  id: totrans-362
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 两者都允许精细调整工作负载的分布以匹配架构特性。
 - en: Both allow to control the flow of data to/from the GPU.
+  id: totrans-363
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 两者都允许控制数据从/到 GPU 的流动。
 - en: The directive-based approaches save time compared to lower-level approaches,
     but you need to be mindful of data movement in particular to obtain good performance.
+  id: totrans-364
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 与底层方法相比，基于指令的方法可以节省时间，但您需要特别注意数据移动以获得良好的性能。
 - en: Execution model
+  id: totrans-365
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 执行模型
 - en: OpenMP and OpenACC use the fork-join model of parallel execution. The program
     begins as a single thread of execution, the **master** thread. Everything is executed
     sequentially until the first parallel region construct is encountered.
+  id: totrans-366
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenMP 和 OpenACC 使用并行执行的 fork-join 模型。程序以单个执行线程开始，即 **主** 线程。所有操作都按顺序执行，直到遇到第一个并行区域构造。
 - en: '![../_images/threads.png](../Images/a943f27c94a700c9a167e37f1d504a7d.png)'
+  id: totrans-367
   prefs: []
   type: TYPE_IMG
+  zh: '![../_images/threads.png](../Images/a943f27c94a700c9a167e37f1d504a7d.png)'
 - en: When a parallel region is encountered, the master thread creates a group of
     threads, becomes the master of this group of threads, and is assigned the thread
     index 0 within the group. There is an implicit barrier at the end of the parallel
     regions.
+  id: totrans-368
   prefs: []
   type: TYPE_NORMAL
+  zh: 当遇到并行区域时，主线程创建一组线程，成为该组线程的主线程，并在组内分配线程索引 0。并行区域结束时有一个隐式的屏障。
 - en: Offloading Directives
+  id: totrans-369
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 卸载指令
 - en: OpenACC
+  id: totrans-370
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenACC
 - en: In OpenACC, one of the most commonly used directives is `kernels`, which defines
     a region to be transferred into a series of kernels to be executed in sequence
     on a GPU. Work sharing is defined automatically for the separate kernels, but
     tuning prospects are limited.
+  id: totrans-371
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 OpenACC 中，最常用的指令之一是 `kernels`，它定义了一个要传输到一系列按顺序在 GPU 上执行的内核的区域。为单独的内核自动定义了工作共享，但调优前景有限。
 - en: 'Example: `kernels`'
+  id: totrans-372
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`kernels`
 - en: '[PRE84]'
+  id: totrans-373
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE84]'
 - en: '[PRE85]'
+  id: totrans-374
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE85]'
 - en: 'The other approach of OpenACC to define parallel regions is to use the `parallel`
     directive. Contrary to the `kernels` directive, the `parallel` directive is more
     explicit and requires more analysis by the programmer. Work sharing has to be
     defined manually using the `loop` directive, and refined tuning is possible to
     achieve. The above example can be re-written as the following:'
+  id: totrans-375
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC 定义并行区域的另一种方法是使用 `parallel` 指令。与 `kernels` 指令相反，`parallel` 指令更为明确，需要程序员进行更多分析。必须使用
+    `loop` 指令手动定义工作共享，并且可以进行精细调优。上述示例可以重写为以下内容：
 - en: 'Example: `parallel loop`'
+  id: totrans-376
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`parallel loop`
 - en: '[PRE86]'
+  id: totrans-377
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE86]'
 - en: '[PRE87]'
+  id: totrans-378
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE87]'
 - en: 'Sometimes we can obtain a little more performance by guiding the compiler to
     make specific choices. OpenACC has four levels of parallelism for offloading execution:'
+  id: totrans-379
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时我们可以通过引导编译器做出特定选择来获得更好的性能。OpenACC 为卸载执行提供了四个级别的并行性：
 - en: '**gang** coarse grain: the iterations are distributed among the gangs'
+  id: totrans-380
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**gang** 粗粒度：迭代在 gang 中分配'
 - en: ''
+  id: totrans-381
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-382
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**worker** fine grain: worker’s threads are activated within gangs and iterations
     are shared among the threads'
+  id: totrans-383
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**worker** 细粒度：工作线程在组内激活，迭代在线程间共享'
 - en: ''
+  id: totrans-384
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-385
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**vector** each worker activates its threads working in SIMT fashion and the
     work is shared among the threads'
+  id: totrans-386
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**vector** 每个工作线程以 SIMT 方式激活其线程，工作在线程间共享'
 - en: ''
+  id: totrans-387
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-388
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**seq** the iterations are executed sequentially'
+  id: totrans-389
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**seq** 迭代按顺序执行'
 - en: Note
+  id: totrans-390
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: By default, `gang`, `worker` and `vector` parallelism are automatically decided
     and applied by the compiler.
+  id: totrans-391
   prefs: []
   type: TYPE_NORMAL
+  zh: 默认情况下，`gang`、`worker` 和 `vector` 并行性由编译器自动决定并应用。
 - en: The programmer could add clauses like `num_gangs`, `num_workers` and `vector_length`
     within the parallel region to specify the number of gangs, workers and vector
     length.
+  id: totrans-392
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员可以在并行区域内添加 `num_gangs`、`num_workers` 和 `vector_length` 等子句来指定组、工作线程和向量长度。
 - en: The optimal numbers are highly dependent on the GPU architecture and the compiler
     implementation though.
+  id: totrans-393
   prefs: []
   type: TYPE_NORMAL
+  zh: 最佳数值高度依赖于 GPU 架构和编译器实现。
 - en: There is no thread synchronization at `gang` level, which means there is a risk
     of race condition.
+  id: totrans-394
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 `gang` 级别没有线程同步，这意味着存在竞态条件风险。
 - en: OpenMP Offloading
+  id: totrans-395
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenMP 卸载
 - en: With OpenMP, the `target` directive is used for device offloading.
+  id: totrans-396
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用 OpenMP 时，`target` 指令用于设备卸载。
 - en: 'Example: `target` construct'
+  id: totrans-397
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`target` 构造
 - en: '[PRE88]'
+  id: totrans-398
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE88]'
 - en: '[PRE89]'
+  id: totrans-399
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE89]'
 - en: 'Compared to the OpenACC’s `kernels` directive, the `target` directive will
     not parallelise the underlying loop at all. To achieve proper parallelisation,
     one needs to be more prescriptive and specify what one wants. OpenMP offloading
     offers multiple levels of parallelism as well:'
+  id: totrans-400
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 OpenACC 的 `kernels` 指令相比，`target` 指令根本不会并行化底层循环。为了实现适当的并行化，需要更加具体地指定想要的内容。OpenMP
+    卸载也提供了多个并行级别：
 - en: '**teams** coarse grain: creates a league of teams and one master thread in
     each team, but no worksharing among the teams'
+  id: totrans-401
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**teams** 粗粒度：创建一个团队联盟，每个团队中有一个主线程，但团队之间没有工作共享'
 - en: ''
+  id: totrans-402
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-403
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**distribute** distributes the iterations across the master threads in the
     teams, but no worksharing among the threads within one team'
+  id: totrans-404
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**distribute** 在团队中的主线程间分配迭代，但团队内的线程之间没有工作共享'
 - en: ''
+  id: totrans-405
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-406
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**parallel do/for** fine grain: threads are activated within one team and worksharing
     among them'
+  id: totrans-407
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**parallel do/for** 细粒度：线程在一个团队内激活，并在它们之间共享工作'
 - en: ''
+  id: totrans-408
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-409
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**SIMD** like the `vector` directive in OpenACC'
+  id: totrans-410
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**SIMD** 类似于 OpenACC 中的 `vector` 指令'
 - en: Note
+  id: totrans-411
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The programmer can add clauses like `num_teams` and `thread_limit` to specify
     the number of teams and threads within a team.
+  id: totrans-412
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员可以添加 `num_teams` 和 `thread_limit` 等子句来指定团队和团队内的线程数。
 - en: Threads in a team can synchronize but no synchronization among the teams.
+  id: totrans-413
   prefs: []
   type: TYPE_NORMAL
+  zh: 团队内的线程可以同步，但团队之间没有同步。
 - en: Since OpenMP 5.0, there is a new `loop` directive available, which has a functionality
     similar to the corresponding one in OpenACC.
+  id: totrans-414
   prefs: []
   type: TYPE_NORMAL
+  zh: 自 OpenMP 5.0 以来，有一个新的 `loop` 指令可用，其功能与 OpenACC 中相应的指令类似。
 - en: Keypoints
+  id: totrans-415
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: Mapping between OpenACC/OpenMP directives and GPU (**HPE implementation**)
+  id: totrans-416
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC/OpenMP 指令与 GPU（**HPE 实现**）之间的映射
 - en: '| Nvidia | AMD | Fortran OpenACC/OpenMP | C/C++ OpenMP |'
+  id: totrans-417
   prefs: []
   type: TYPE_TB
+  zh: '| Nvidia | AMD | Fortran OpenACC/OpenMP | C/C++ OpenMP |'
 - en: '| --- | --- | --- | --- |'
+  id: totrans-418
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- | --- |'
 - en: '| Threadblock | Work group | gang/teams | teams |'
+  id: totrans-419
   prefs: []
   type: TYPE_TB
+  zh: '| Threadblock | Work group | gang/teams | teams |'
 - en: '| Warp | Wavefront | worker/simd | parallel for simd |'
+  id: totrans-420
   prefs: []
   type: TYPE_TB
+  zh: '| Warp | Wavefront | worker/simd | parallel for simd |'
 - en: '| Thread | Work item | vector/simd | parallel for simd |'
+  id: totrans-421
   prefs: []
   type: TYPE_TB
+  zh: '| 线程 | 工作项 | vector/simd | parallel for simd |'
 - en: Each compiler supports different levels of parallelism.
+  id: totrans-422
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 每个编译器支持不同级别的并行性。
 - en: The size of gang/team/worker/vector_length can be chosen arbitrarily by the
     user but there are limits defined by the implementation.
+  id: totrans-423
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: gang/team/worker/vector_length 的大小可以由用户任意选择，但实现中定义了限制。
 - en: The maximum thread/grid/block size can be found via `rocminfo`/`nvaccelinfo`.
+  id: totrans-424
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 最大线程/网格/块大小可以通过 `rocminfo`/`nvaccelinfo` 查找。
 - en: 'Exercise: Change the levels of parallelism'
+  id: totrans-425
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：改变并行级别
 - en: In this exercise we would like to change the levels of parallelism using clauses.
     First compile and run one of the examples to find out the default number of blocks
     and threads set by the compiler at runtime. To make a change, try adding clauses
     like `num_gangs`, `num_workers`, `vector_length` for OpenACC and `num_teams`,
     `thread_limit` for OpenMP offloading.
+  id: totrans-426
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个练习中，我们希望通过使用子句来改变并行级别。首先编译并运行示例之一，以找出编译器在运行时设置的默认块和线程数。要做出更改，尝试添加 `num_gangs`、`num_workers`、`vector_length`
+    等子句用于 OpenACC，以及 `num_teams`、`thread_limit` 用于 OpenMP 卸载。
 - en: Remember to set the environment by executing `export CRAY_ACC_DEBUG=2` at runtime.
+  id: totrans-427
   prefs: []
   type: TYPE_NORMAL
+  zh: 记得在运行时执行 `export CRAY_ACC_DEBUG=2` 来设置环境。
 - en: 'How to compile and run the code interactively:'
+  id: totrans-428
   prefs: []
   type: TYPE_NORMAL
+  zh: 如何交互式地编译和运行代码：
 - en: '[PRE90]'
+  id: totrans-429
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE90]'
 - en: '[PRE91]'
+  id: totrans-430
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE91]'
 - en: 'Example of a trivially parallelizable vector addition problem:'
+  id: totrans-431
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是一个可以轻易并行化的向量加法问题的示例：
 - en: '[PRE92]'
+  id: totrans-432
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE92]'
 - en: '[PRE93]'
+  id: totrans-433
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE93]'
 - en: '[PRE94]'
+  id: totrans-434
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE94]'
 - en: '[PRE95]'
+  id: totrans-435
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE95]'
 - en: OpenACC
+  id: totrans-436
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenACC
 - en: In OpenACC, one of the most commonly used directives is `kernels`, which defines
     a region to be transferred into a series of kernels to be executed in sequence
     on a GPU. Work sharing is defined automatically for the separate kernels, but
     tuning prospects are limited.
+  id: totrans-437
   prefs: []
   type: TYPE_NORMAL
+  zh: 在OpenACC中，最常用的指令之一是`kernels`，它定义了一个要转移到一系列在GPU上顺序执行的核的区域。对于单独的核，工作共享是自动定义的，但调整前景有限。
 - en: 'Example: `kernels`'
+  id: totrans-438
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`kernels`
 - en: '[PRE96]'
+  id: totrans-439
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE96]'
 - en: '[PRE97]'
+  id: totrans-440
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE97]'
 - en: 'The other approach of OpenACC to define parallel regions is to use the `parallel`
     directive. Contrary to the `kernels` directive, the `parallel` directive is more
     explicit and requires more analysis by the programmer. Work sharing has to be
     defined manually using the `loop` directive, and refined tuning is possible to
     achieve. The above example can be re-written as the following:'
+  id: totrans-441
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC定义并行区域的另一种方法是使用`parallel`指令。与`kernels`指令相反，`parallel`指令更为明确，需要程序员进行更多分析。工作共享必须使用`loop`指令手动定义，并且可以进行精细调整。上述示例可以重写为以下内容：
 - en: 'Example: `parallel loop`'
+  id: totrans-442
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`parallel loop`
 - en: '[PRE98]'
+  id: totrans-443
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE98]'
 - en: '[PRE99]'
+  id: totrans-444
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE99]'
 - en: 'Sometimes we can obtain a little more performance by guiding the compiler to
     make specific choices. OpenACC has four levels of parallelism for offloading execution:'
+  id: totrans-445
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时我们可以通过引导编译器做出特定的选择来获得更好的性能。OpenACC为卸载执行提供了四个并行级别：
 - en: '**gang** coarse grain: the iterations are distributed among the gangs'
+  id: totrans-446
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**gang** 粗粒度：迭代在gang之间分配'
 - en: ''
+  id: totrans-447
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-448
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**worker** fine grain: worker’s threads are activated within gangs and iterations
     are shared among the threads'
+  id: totrans-449
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**worker** 细粒度：在gang内激活worker的线程，迭代在线程之间共享'
 - en: ''
+  id: totrans-450
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-451
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**vector** each worker activates its threads working in SIMT fashion and the
     work is shared among the threads'
+  id: totrans-452
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**vector** 每个worker激活其以SIMT方式工作的线程，并将工作在线程之间共享'
 - en: ''
+  id: totrans-453
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-454
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**seq** the iterations are executed sequentially'
+  id: totrans-455
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**seq** 迭代是顺序执行的'
 - en: Note
+  id: totrans-456
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: By default, `gang`, `worker` and `vector` parallelism are automatically decided
     and applied by the compiler.
+  id: totrans-457
   prefs: []
   type: TYPE_NORMAL
+  zh: 默认情况下，`gang`、`worker`和`vector`并行性将由编译器自动决定并应用。
 - en: The programmer could add clauses like `num_gangs`, `num_workers` and `vector_length`
     within the parallel region to specify the number of gangs, workers and vector
     length.
+  id: totrans-458
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员可以在并行区域内添加如`num_gangs`、`num_workers`和`vector_length`之类的子句，以指定gang的数量、worker的数量和向量长度。
 - en: The optimal numbers are highly dependent on the GPU architecture and the compiler
     implementation though.
+  id: totrans-459
   prefs: []
   type: TYPE_NORMAL
+  zh: 最佳数值高度依赖于GPU架构和编译器实现。
 - en: There is no thread synchronization at `gang` level, which means there is a risk
     of race condition.
+  id: totrans-460
   prefs: []
   type: TYPE_NORMAL
+  zh: 在`gang`级别没有线程同步，这意味着存在竞态条件的风险。
 - en: OpenMP Offloading
+  id: totrans-461
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: OpenMP卸载
 - en: With OpenMP, the `target` directive is used for device offloading.
+  id: totrans-462
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用OpenMP时，使用`target`指令进行设备卸载。
 - en: 'Example: `target` construct'
+  id: totrans-463
   prefs: []
   type: TYPE_NORMAL
+  zh: 示例：`target`结构
 - en: '[PRE100]'
+  id: totrans-464
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE100]'
 - en: '[PRE101]'
+  id: totrans-465
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE101]'
 - en: 'Compared to the OpenACC’s `kernels` directive, the `target` directive will
     not parallelise the underlying loop at all. To achieve proper parallelisation,
     one needs to be more prescriptive and specify what one wants. OpenMP offloading
     offers multiple levels of parallelism as well:'
+  id: totrans-466
   prefs: []
   type: TYPE_NORMAL
+  zh: 与OpenACC的`kernels`指令相比，`target`指令根本不会并行化底层循环。为了实现适当的并行化，需要更加具体地指定所需的内容。OpenMP卸载提供了多个并行级别：
 - en: '**teams** coarse grain: creates a league of teams and one master thread in
     each team, but no worksharing among the teams'
+  id: totrans-467
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**teams** 粗粒度：创建一个团队联盟，每个团队中有一个主线程，但团队之间没有工作共享'
 - en: ''
+  id: totrans-468
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-469
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**distribute** distributes the iterations across the master threads in the
     teams, but no worksharing among the threads within one team'
+  id: totrans-470
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**distribute** 将迭代分配到团队中的主线程，但团队内的线程之间没有工作共享'
 - en: ''
+  id: totrans-471
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-472
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**parallel do/for** fine grain: threads are activated within one team and worksharing
     among them'
+  id: totrans-473
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**parallel do/for** 细粒度：在一个团队内激活线程，并在它们之间进行工作共享'
 - en: ''
+  id: totrans-474
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: ''
+  id: totrans-475
   prefs:
   - PREF_BQ
   - PREF_IND
   type: TYPE_NORMAL
 - en: '**SIMD** like the `vector` directive in OpenACC'
+  id: totrans-476
   prefs:
   - PREF_BQ
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**SIMD** 类似于OpenACC中的`vector`指令'
 - en: Note
+  id: totrans-477
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: The programmer can add clauses like `num_teams` and `thread_limit` to specify
     the number of teams and threads within a team.
+  id: totrans-478
   prefs: []
   type: TYPE_NORMAL
+  zh: 程序员可以添加如`num_teams`和`thread_limit`之类的子句，以指定团队的数量和团队内的线程数量。
 - en: Threads in a team can synchronize but no synchronization among the teams.
+  id: totrans-479
   prefs: []
   type: TYPE_NORMAL
+  zh: 团队内的线程可以同步，但团队之间没有同步。
 - en: Since OpenMP 5.0, there is a new `loop` directive available, which has a functionality
     similar to the corresponding one in OpenACC.
+  id: totrans-480
   prefs: []
   type: TYPE_NORMAL
+  zh: 自OpenMP 5.0以来，有一个新的`loop`指令可用，其功能与OpenACC中的对应指令类似。
 - en: Keypoints
+  id: totrans-481
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: Mapping between OpenACC/OpenMP directives and GPU (**HPE implementation**)
+  id: totrans-482
   prefs: []
   type: TYPE_NORMAL
+  zh: OpenACC/OpenMP指令与GPU（**HPE实现**）之间的映射
 - en: '| Nvidia | AMD | Fortran OpenACC/OpenMP | C/C++ OpenMP |'
+  id: totrans-483
   prefs: []
   type: TYPE_TB
+  zh: '| 英伟达 | AMD | Fortran OpenACC/OpenMP | C/C++ OpenMP |'
 - en: '| --- | --- | --- | --- |'
+  id: totrans-484
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- | --- |'
 - en: '| Threadblock | Work group | gang/teams | teams |'
+  id: totrans-485
   prefs: []
   type: TYPE_TB
+  zh: '| 线程块 | 工作组 | gang/teams | teams |'
 - en: '| Warp | Wavefront | worker/simd | parallel for simd |'
+  id: totrans-486
   prefs: []
   type: TYPE_TB
+  zh: '| Warp | Wavefront | worker/simd | parallel for simd |'
 - en: '| Thread | Work item | vector/simd | parallel for simd |'
+  id: totrans-487
   prefs: []
   type: TYPE_TB
+  zh: '| 线程 | 工作项 | vector/simd | parallel for simd |'
 - en: Each compiler supports different levels of parallelism.
+  id: totrans-488
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 每个编译器支持不同级别的并行性。
 - en: The size of gang/team/worker/vector_length can be chosen arbitrarily by the
     user but there are limits defined by the implementation.
+  id: totrans-489
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: gang/team/worker/vector_length的大小可以由用户任意选择，但实现中定义了限制。
 - en: The maximum thread/grid/block size can be found via `rocminfo`/`nvaccelinfo`.
+  id: totrans-490
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 最大线程/网格/块大小可以通过 `rocminfo`/`nvaccelinfo` 查找。
 - en: 'Exercise: Change the levels of parallelism'
+  id: totrans-491
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：更改并行级别
 - en: In this exercise we would like to change the levels of parallelism using clauses.
     First compile and run one of the examples to find out the default number of blocks
     and threads set by the compiler at runtime. To make a change, try adding clauses
     like `num_gangs`, `num_workers`, `vector_length` for OpenACC and `num_teams`,
     `thread_limit` for OpenMP offloading.
+  id: totrans-492
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个练习中，我们希望通过子句更改并行级别。首先编译并运行其中一个示例，以找出编译器在运行时设置的默认块和线程数。要进行更改，尝试添加 `num_gangs`、`num_workers`、`vector_length`（对于OpenACC）和
+    `num_teams`、`thread_limit`（对于OpenMP卸载）等子句。
 - en: Remember to set the environment by executing `export CRAY_ACC_DEBUG=2` at runtime.
+  id: totrans-493
   prefs: []
   type: TYPE_NORMAL
+  zh: 记得在运行时执行 `export CRAY_ACC_DEBUG=2` 来设置环境。
 - en: 'How to compile and run the code interactively:'
+  id: totrans-494
   prefs: []
   type: TYPE_NORMAL
+  zh: 如何交互式地编译和运行代码：
 - en: '[PRE102]'
+  id: totrans-495
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE102]'
 - en: '[PRE103]'
+  id: totrans-496
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE103]'
 - en: 'Example of a trivially parallelizable vector addition problem:'
+  id: totrans-497
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个简单可并行化的向量加法问题示例：
 - en: '[PRE104]'
+  id: totrans-498
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE104]'
 - en: '[PRE105]'
+  id: totrans-499
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE105]'
 - en: '[PRE106]'
+  id: totrans-500
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE106]'
 - en: '[PRE107]'
+  id: totrans-501
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE107]'
 - en: Data Movement
+  id: totrans-502
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 数据移动
 - en: 'Due to distinct memory spaces on host and device, transferring data becomes
     inevitable. New directives are needed to specify how variables are transferred
     from the host to the device data environment. Commonly transferred items consist
     of arrays (array sections), scalars, pointers, and structure elements. Various
     data clauses used for data movement are summarised in the following table:'
+  id: totrans-503
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于主机和设备上的内存空间不同，数据传输变得不可避免。需要新的指令来指定变量如何从主机传输到设备数据环境。通常传输的项目包括数组（数组部分）、标量、指针和结构元素。用于数据移动的各种数据子句总结在下表中：
 - en: '| `OpenMP` | `OpenACC` |  |'
+  id: totrans-504
   prefs: []
   type: TYPE_TB
+  zh: '| `OpenMP` | `OpenACC` |  |'
 - en: '| `map(to:list)` | `copyin(list)` | On entering the region, variables in the
     list are initialized on the device using the original values from the host |'
+  id: totrans-505
   prefs: []
   type: TYPE_TB
+  zh: '| `map(to:list)` | `copyin(list)` | 进入区域时，使用主机上的原始值在设备上初始化列表中的变量 |'
 - en: '| `map(from:list)` | `copyout(list)` | At the end of the target region, the
     values from variables in the list are copied into the original variables on the
     host. On entering the region, the initial value of the variables on the device
     is not initialized |'
+  id: totrans-506
   prefs: []
   type: TYPE_TB
+  zh: '| `map(from:list)` | `copyout(list)` | 在目标区域结束时，列表中变量的值被复制到主机上的原始变量。进入区域时，设备上变量的初始值未初始化
+    |'
 - en: '| `map(tofrom:list)` | `copy(list)` | The effect of both a map-to and a map-from
     |'
+  id: totrans-507
   prefs: []
   type: TYPE_TB
+  zh: '| `map(tofrom:list)` | `copy(list)` | 两者都映射到和映射从的效果 |'
 - en: '| `map(alloc:list)` | `create(list)` | On entering the region, data is allocated
     and uninitialized on the device |'
+  id: totrans-508
   prefs: []
   type: TYPE_TB
+  zh: '| `map(alloc:list)` | `create(list)` | 进入区域时，在设备上分配数据并初始化为未初始化状态 |'
 - en: '| `map(delete:list)` | `delete(list)` | Delete data on the device |'
+  id: totrans-509
   prefs: []
   type: TYPE_TB
+  zh: '| `map(delete:list)` | `delete(list)` | 删除设备上的数据 |'
 - en: Note
+  id: totrans-510
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: 'When mapping data arrays or pointers, be careful about the array section notation:'
+  id: totrans-511
   prefs: []
   type: TYPE_NORMAL
+  zh: 当映射数据数组或指针时，请注意数组部分表示法：
 - en: 'In C/C++: array[lower-bound:length]. The notation :N is equivalent to 0:N.'
+  id: totrans-512
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在C/C++中：array[下界:length]。表示法 :N 等价于 0:N。
 - en: In Fortran:array[lower-bound:upper-bound]. The notation :N is equivalent to
     1:N.
+  id: totrans-513
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在Fortran中：array[下界:上界]。表示法 :N 等价于 1:N。
 - en: Data region
+  id: totrans-514
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 数据区域
 - en: 'The specific data clause combined with the data directive constitutes the start
     of a data region. How the directives create storage, transfer data, and remove
     storage on the device are classified as two categories: structured data region
     and unstructured data region.'
+  id: totrans-515
   prefs: []
   type: TYPE_NORMAL
+  zh: 特定的数据子句与数据指令结合构成数据区域的开始。指令如何创建存储、传输数据和在设备上删除存储被分类为两类：结构化数据区域和非结构化数据区域。
 - en: Structured Data Region
+  id: totrans-516
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: A structured data region is convenient for providing persistent data on the
     device which could be used for subsequent GPU directives.
+  id: totrans-517
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域方便在设备上提供持久数据，这些数据可用于后续的GPU指令。
 - en: Syntax for structured data region
+  id: totrans-518
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域的语法
 - en: '[PRE108]'
+  id: totrans-519
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE108]'
 - en: '[PRE109]'
+  id: totrans-520
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE109]'
 - en: '[PRE110]'
+  id: totrans-521
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE110]'
 - en: '[PRE111]'
+  id: totrans-522
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE111]'
 - en: Unstructured Data Region
+  id: totrans-523
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 非结构化数据区域
 - en: However it is inconvenient in real applications to use a structured data region.
     An unstructured data region gives more freedom in creating and deleting data on
     the device at any appropriate point.
+  id: totrans-524
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在实际应用中使用结构化数据区域并不方便。非结构化数据区域在设备上创建和删除数据时提供了更多的自由度，可以在任何适当的点上操作。
 - en: Syntax for unstructured data region
+  id: totrans-525
   prefs: []
   type: TYPE_NORMAL
+  zh: 非结构化数据区域的语法
 - en: '[PRE112]'
+  id: totrans-526
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE112]'
 - en: '[PRE113]'
+  id: totrans-527
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE113]'
 - en: '[PRE114]'
+  id: totrans-528
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE114]'
 - en: '[PRE115]'
+  id: totrans-529
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE115]'
 - en: '[PRE116]'
+  id: totrans-530
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE116]'
 - en: '[PRE117]'
+  id: totrans-531
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE117]'
 - en: '[PRE118]'
+  id: totrans-532
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE118]'
 - en: '[PRE119]'
+  id: totrans-533
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE119]'
 - en: Keypoints
+  id: totrans-534
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: Structured Data Region
+  id: totrans-535
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: Start and end points within a single subroutine
+  id: totrans-536
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 单个子程序内的起始和结束点
 - en: Memory exists within the data region
+  id: totrans-537
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在于数据区域内
 - en: Unstructured Data Region
+  id: totrans-538
   prefs: []
   type: TYPE_NORMAL
+  zh: 非结构化数据区域
 - en: Multiple start and end points across different subroutines
+  id: totrans-539
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 不同子程序之间的多个起始和结束点
 - en: Memory exists until explicitly deallocated
+  id: totrans-540
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在直到显式释放
 - en: Update
+  id: totrans-541
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 更新
 - en: Sometimes, variables need to be synchronized between the host and the device
     memory, e.g. in order to write out variables on the host for debugging or visualization,
     and it is often used in conjunction with unstructured data regions. To control
     the data transfer direction, a motion-clause must be present.
+  id: totrans-542
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时，需要在主机和设备内存之间同步变量，例如为了在主机上写入变量进行调试或可视化，这通常与非结构化数据区域一起使用。为了控制数据传输方向，必须存在一个运动子句。
 - en: Syntax for update directive
+  id: totrans-543
   prefs: []
   type: TYPE_NORMAL
+  zh: 更新指令的语法
 - en: '[PRE120]'
+  id: totrans-544
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE120]'
 - en: '[PRE121]'
+  id: totrans-545
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE121]'
 - en: '[PRE122]'
+  id: totrans-546
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE122]'
 - en: '[PRE123]'
+  id: totrans-547
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE123]'
 - en: '[PRE124]'
+  id: totrans-548
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE124]'
 - en: '[PRE125]'
+  id: totrans-549
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE125]'
 - en: '[PRE126]'
+  id: totrans-550
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE126]'
 - en: '[PRE127]'
+  id: totrans-551
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE127]'
 - en: Note
+  id: totrans-552
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: '`update` directive can only be used in host code since data movement must be
     initiated from the host, i.e. it may not appear inside of a compute region.'
+  id: totrans-553
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`update` 指令只能在主机代码中使用，因为数据移动必须从主机启动，即它可能不会出现在计算区域内。'
 - en: in OpenACC, motion-clause “host” has been deprecated and renamed “self”
+  id: totrans-554
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在 OpenACC 中，运动子句“host”已被弃用并重命名为“self”
 - en: 'Exercise: `update`'
+  id: totrans-555
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：`update`
 - en: Try to figure out the variable values on host and device at each check point.
+  id: totrans-556
   prefs: []
   type: TYPE_NORMAL
+  zh: 尝试在每个检查点确定主机和设备上的变量值。
 - en: '[PRE128]'
+  id: totrans-557
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE128]'
 - en: '[PRE129]'
+  id: totrans-558
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE129]'
 - en: Solution
+  id: totrans-559
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '| check point | x on host | x on device |'
+  id: totrans-560
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点 | 主机上的 x | 设备上的 x |'
 - en: '| --- | --- | --- |'
+  id: totrans-561
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- |'
 - en: '| check point1 | 0 | 0 |'
+  id: totrans-562
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点1 | 0 | 0 |'
 - en: '| check point2 | 10 | 0 |'
+  id: totrans-563
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点2 | 10 | 0 |'
 - en: '| check point3 | 10 | 10 |'
+  id: totrans-564
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点3 | 10 | 10 |'
 - en: 'Exercise: Adding data mapping clauses'
+  id: totrans-565
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：添加数据映射子句
 - en: Add proper data mapping clauses explicitly to the directives
+  id: totrans-566
   prefs: []
   type: TYPE_NORMAL
+  zh: 明确地将适当的数据映射子句添加到指令中
 - en: '[PRE130]'
+  id: totrans-567
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE130]'
 - en: '[PRE131]'
+  id: totrans-568
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE131]'
 - en: '[PRE132]'
+  id: totrans-569
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE132]'
 - en: '[PRE133]'
+  id: totrans-570
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE133]'
 - en: Solution
+  id: totrans-571
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '[PRE134]'
+  id: totrans-572
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE134]'
 - en: '[PRE135]'
+  id: totrans-573
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE135]'
 - en: '[PRE136]'
+  id: totrans-574
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE136]'
 - en: '[PRE137]'
+  id: totrans-575
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE137]'
 - en: Optimize Data Transfers
+  id: totrans-576
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 优化数据传输
 - en: Explicitly transfer the data as much as possible.
+  id: totrans-577
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 尽可能显式地传输数据。
 - en: Reduce the amount of data mapping between host and device, get rid of unnecessary
     data transfers.
+  id: totrans-578
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 减少主机和设备之间数据映射的数量，去除不必要的传输。
 - en: Try to keep the data environment residing on the device as long as possible.
+  id: totrans-579
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 尝试尽可能长时间地保持设备上的数据环境。
 - en: Data region
+  id: totrans-580
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 数据区域
 - en: 'The specific data clause combined with the data directive constitutes the start
     of a data region. How the directives create storage, transfer data, and remove
     storage on the device are classified as two categories: structured data region
     and unstructured data region.'
+  id: totrans-581
   prefs: []
   type: TYPE_NORMAL
+  zh: 特定的数据子句与数据指令结合构成了数据区域的开始。指令如何在设备上创建存储、传输数据和删除存储被分为两类：结构化数据区域和非结构化数据区域。
 - en: Structured Data Region
+  id: totrans-582
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: A structured data region is convenient for providing persistent data on the
     device which could be used for subsequent GPU directives.
+  id: totrans-583
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域便于在设备上提供持久数据，这些数据可用于后续的 GPU 指令。
 - en: Syntax for structured data region
+  id: totrans-584
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域的语法
 - en: '[PRE138]'
+  id: totrans-585
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE138]'
 - en: '[PRE139]'
+  id: totrans-586
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE139]'
 - en: '[PRE140]'
+  id: totrans-587
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE140]'
 - en: '[PRE141]'
+  id: totrans-588
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE141]'
 - en: Unstructured Data Region
+  id: totrans-589
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 非结构化数据区域
 - en: However it is inconvenient in real applications to use a structured data region.
     An unstructured data region gives more freedom in creating and deleting data on
     the device at any appropriate point.
+  id: totrans-590
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在实际应用中使用结构化数据区域并不方便。非结构化数据区域在设备上创建和删除数据时提供了更多的自由度，可以在任何适当的点上操作。
 - en: Syntax for unstructured data region
+  id: totrans-591
   prefs: []
   type: TYPE_NORMAL
+  zh: 非结构化数据区域的语法
 - en: '[PRE142]'
+  id: totrans-592
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE142]'
 - en: '[PRE143]'
+  id: totrans-593
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE143]'
 - en: '[PRE144]'
+  id: totrans-594
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE144]'
 - en: '[PRE145]'
+  id: totrans-595
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE145]'
 - en: '[PRE146]'
+  id: totrans-596
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE146]'
 - en: '[PRE147]'
+  id: totrans-597
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE147]'
 - en: '[PRE148]'
+  id: totrans-598
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE148]'
 - en: '[PRE149]'
+  id: totrans-599
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE149]'
 - en: Keypoints
+  id: totrans-600
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: Structured Data Region
+  id: totrans-601
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: Start and end points within a single subroutine
+  id: totrans-602
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 单个子程序内的起始和结束点
 - en: Memory exists within the data region
+  id: totrans-603
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在于数据区域内
 - en: Unstructured Data Region
+  id: totrans-604
   prefs: []
   type: TYPE_NORMAL
+  zh: 非结构化数据区域
 - en: Multiple start and end points across different subroutines
+  id: totrans-605
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 不同子程序之间的多个起始和结束点
 - en: Memory exists until explicitly deallocated
+  id: totrans-606
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在直到显式释放
 - en: Update
+  id: totrans-607
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 更新
 - en: Sometimes, variables need to be synchronized between the host and the device
     memory, e.g. in order to write out variables on the host for debugging or visualization,
     and it is often used in conjunction with unstructured data regions. To control
     the data transfer direction, a motion-clause must be present.
+  id: totrans-608
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时，需要在主机和设备内存之间同步变量，例如为了在主机上写入变量进行调试或可视化，这通常与非结构化数据区域一起使用。为了控制数据传输方向，必须存在一个运动子句。
 - en: Syntax for update directive
+  id: totrans-609
   prefs: []
   type: TYPE_NORMAL
+  zh: 更新指令的语法
 - en: '[PRE150]'
+  id: totrans-610
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE150]'
 - en: '[PRE151]'
+  id: totrans-611
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE151]'
 - en: '[PRE152]'
+  id: totrans-612
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE152]'
 - en: '[PRE153]'
+  id: totrans-613
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE153]'
 - en: '[PRE154]'
+  id: totrans-614
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE154]'
 - en: '[PRE155]'
+  id: totrans-615
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE155]'
 - en: '[PRE156]'
+  id: totrans-616
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE156]'
 - en: '[PRE157]'
+  id: totrans-617
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE157]'
 - en: Note
+  id: totrans-618
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: '`update` directive can only be used in host code since data movement must be
     initiated from the host, i.e. it may not appear inside of a compute region.'
+  id: totrans-619
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`update`指令只能在主机代码中使用，因为数据移动必须从主机启动，即它可能不会出现在计算区域内。'
 - en: in OpenACC, motion-clause “host” has been deprecated and renamed “self”
+  id: totrans-620
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在OpenACC中，运动子句“host”已被弃用并重命名为“self”
 - en: 'Exercise: `update`'
+  id: totrans-621
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：`update`
 - en: Try to figure out the variable values on host and device at each check point.
+  id: totrans-622
   prefs: []
   type: TYPE_NORMAL
+  zh: 尝试在每个检查点找出主机和设备上的变量值。
 - en: '[PRE158]'
+  id: totrans-623
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE158]'
 - en: '[PRE159]'
+  id: totrans-624
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE159]'
 - en: Solution
+  id: totrans-625
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '| check point | x on host | x on device |'
+  id: totrans-626
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点 | 主机上的x | 设备上的x |'
 - en: '| --- | --- | --- |'
+  id: totrans-627
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- |'
 - en: '| check point1 | 0 | 0 |'
+  id: totrans-628
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点1 | 0 | 0 |'
 - en: '| check point2 | 10 | 0 |'
+  id: totrans-629
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点2 | 10 | 0 |'
 - en: '| check point3 | 10 | 10 |'
+  id: totrans-630
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点3 | 10 | 10 |'
 - en: 'Exercise: Adding data mapping clauses'
+  id: totrans-631
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：添加数据映射子句
 - en: Add proper data mapping clauses explicitly to the directives
+  id: totrans-632
   prefs: []
   type: TYPE_NORMAL
+  zh: 明确地将适当的数据映射子句添加到指令中
 - en: '[PRE160]'
+  id: totrans-633
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE160]'
 - en: '[PRE161]'
+  id: totrans-634
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE161]'
 - en: '[PRE162]'
+  id: totrans-635
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE162]'
 - en: '[PRE163]'
+  id: totrans-636
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE163]'
 - en: Solution
+  id: totrans-637
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '[PRE164]'
+  id: totrans-638
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE164]'
 - en: '[PRE165]'
+  id: totrans-639
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE165]'
 - en: '[PRE166]'
+  id: totrans-640
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE166]'
 - en: '[PRE167]'
+  id: totrans-641
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE167]'
 - en: Structured Data Region
+  id: totrans-642
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: A structured data region is convenient for providing persistent data on the
     device which could be used for subsequent GPU directives.
+  id: totrans-643
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域便于在设备上提供持久数据，这些数据可用于后续的GPU指令。
 - en: Syntax for structured data region
+  id: totrans-644
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域的语法
 - en: '[PRE168]'
+  id: totrans-645
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE168]'
 - en: '[PRE169]'
+  id: totrans-646
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE169]'
 - en: '[PRE170]'
+  id: totrans-647
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE170]'
 - en: '[PRE171]'
+  id: totrans-648
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE171]'
 - en: Unstructured Data Region
+  id: totrans-649
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 无结构化数据区域
 - en: However it is inconvenient in real applications to use a structured data region.
     An unstructured data region gives more freedom in creating and deleting data on
     the device at any appropriate point.
+  id: totrans-650
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，在实际应用中使用结构化数据区域并不方便。无结构化数据区域在设备上创建和删除数据方面提供了更多的自由度。
 - en: Syntax for unstructured data region
+  id: totrans-651
   prefs: []
   type: TYPE_NORMAL
+  zh: 无结构化数据区域的语法
 - en: '[PRE172]'
+  id: totrans-652
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE172]'
 - en: '[PRE173]'
+  id: totrans-653
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE173]'
 - en: '[PRE174]'
+  id: totrans-654
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE174]'
 - en: '[PRE175]'
+  id: totrans-655
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE175]'
 - en: '[PRE176]'
+  id: totrans-656
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE176]'
 - en: '[PRE177]'
+  id: totrans-657
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE177]'
 - en: '[PRE178]'
+  id: totrans-658
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE178]'
 - en: '[PRE179]'
+  id: totrans-659
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE179]'
 - en: Keypoints
+  id: totrans-660
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: Structured Data Region
+  id: totrans-661
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构化数据区域
 - en: Start and end points within a single subroutine
+  id: totrans-662
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 单个子程序内的起始点和结束点
 - en: Memory exists within the data region
+  id: totrans-663
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在于数据区域内
 - en: Unstructured Data Region
+  id: totrans-664
   prefs: []
   type: TYPE_NORMAL
+  zh: 无结构化数据区域
 - en: Multiple start and end points across different subroutines
+  id: totrans-665
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 不同子程序中的多个起始点和结束点
 - en: Memory exists until explicitly deallocated
+  id: totrans-666
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 内存存在直到显式释放
 - en: Update
+  id: totrans-667
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: 更新
 - en: Sometimes, variables need to be synchronized between the host and the device
     memory, e.g. in order to write out variables on the host for debugging or visualization,
     and it is often used in conjunction with unstructured data regions. To control
     the data transfer direction, a motion-clause must be present.
+  id: totrans-668
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时，需要在主机和设备内存之间同步变量，例如，为了在主机上写入变量进行调试或可视化，这通常与无结构化数据区域一起使用。为了控制数据传输方向，必须存在一个运动子句。
 - en: Syntax for update directive
+  id: totrans-669
   prefs: []
   type: TYPE_NORMAL
+  zh: 更新指令的语法
 - en: '[PRE180]'
+  id: totrans-670
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE180]'
 - en: '[PRE181]'
+  id: totrans-671
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE181]'
 - en: '[PRE182]'
+  id: totrans-672
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE182]'
 - en: '[PRE183]'
+  id: totrans-673
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE183]'
 - en: '[PRE184]'
+  id: totrans-674
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE184]'
 - en: '[PRE185]'
+  id: totrans-675
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE185]'
 - en: '[PRE186]'
+  id: totrans-676
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE186]'
 - en: '[PRE187]'
+  id: totrans-677
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE187]'
 - en: Note
+  id: totrans-678
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意
 - en: '`update` directive can only be used in host code since data movement must be
     initiated from the host, i.e. it may not appear inside of a compute region.'
+  id: totrans-679
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`update`指令只能在主机代码中使用，因为数据移动必须从主机启动，即它可能不会出现在计算区域内。'
 - en: in OpenACC, motion-clause “host” has been deprecated and renamed “self”
+  id: totrans-680
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在OpenACC中，运动子句“host”已被弃用并重命名为“self”
 - en: 'Exercise: `update`'
+  id: totrans-681
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：`update`
 - en: Try to figure out the variable values on host and device at each check point.
+  id: totrans-682
   prefs: []
   type: TYPE_NORMAL
+  zh: 尝试在每个检查点找出主机和设备上的变量值。
 - en: '[PRE188]'
+  id: totrans-683
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE188]'
 - en: '[PRE189]'
+  id: totrans-684
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE189]'
 - en: Solution
+  id: totrans-685
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '| check point | x on host | x on device |'
+  id: totrans-686
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点 | 主机上的x | 设备上的x |'
 - en: '| --- | --- | --- |'
+  id: totrans-687
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- |'
 - en: '| check point1 | 0 | 0 |'
+  id: totrans-688
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点1 | 0 | 0 |'
 - en: '| check point2 | 10 | 0 |'
+  id: totrans-689
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点2 | 10 | 0 |'
 - en: '| check point3 | 10 | 10 |'
+  id: totrans-690
   prefs: []
   type: TYPE_TB
+  zh: '| 检查点3 | 10 | 10 |'
 - en: 'Exercise: Adding data mapping clauses'
+  id: totrans-691
   prefs: []
   type: TYPE_NORMAL
+  zh: 练习：添加数据映射子句
 - en: Add proper data mapping clauses explicitly to the directives
+  id: totrans-692
   prefs: []
   type: TYPE_NORMAL
+  zh: 明确地将适当的数据映射子句添加到指令中
 - en: '[PRE190]'
+  id: totrans-693
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE190]'
 - en: '[PRE191]'
+  id: totrans-694
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE191]'
 - en: '[PRE192]'
+  id: totrans-695
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE192]'
 - en: '[PRE193]'
+  id: totrans-696
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE193]'
 - en: Solution
+  id: totrans-697
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案
 - en: '[PRE194]'
+  id: totrans-698
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE194]'
 - en: '[PRE195]'
+  id: totrans-699
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE195]'
 - en: '[PRE196]'
+  id: totrans-700
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE196]'
 - en: '[PRE197]'
+  id: totrans-701
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE197]'
 - en: Optimize Data Transfers
+  id: totrans-702
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 优化数据传输
 - en: Explicitly transfer the data as much as possible.
+  id: totrans-703
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 尽可能明确地传输数据。
 - en: Reduce the amount of data mapping between host and device, get rid of unnecessary
     data transfers.
+  id: totrans-704
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 减少主机和设备之间数据映射的数量，消除不必要的传输。
 - en: Try to keep the data environment residing on the device as long as possible.
+  id: totrans-705
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 尽可能长时间地将数据环境保留在设备上。
 - en: Pros of directive-based frameworks
+  id: totrans-706
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 基于指令框架的优点
 - en: Incremental programming
+  id: totrans-707
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 增量编程
 - en: Porting of existing software requires less work
+  id: totrans-708
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 现有软件的移植工作量较小
 - en: Same code can be compiled to CPU and GPU versions easily using compiler flag
+  id: totrans-709
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 同一段代码可以轻松地使用编译器标志编译成CPU和GPU版本。
 - en: Low learning curve, do not need to know low-level hardware details
+  id: totrans-710
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 学习曲线低，不需要了解底层硬件细节
 - en: Good portability
+  id: totrans-711
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 良好的可移植性
 - en: See also
+  id: totrans-712
   prefs:
   - PREF_H2
   type: TYPE_NORMAL
+  zh: 参见
 - en: '[ENCCS lesson on OpenACC](https://enccs.github.io/openacc/)'
+  id: totrans-713
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[ENCCS关于OpenACC的课程](https://enccs.github.io/openacc/)'
 - en: '[ENCCS lesson on OpenMP for GPU offloading](https://enccs.github.io/openmp-gpu/)'
+  id: totrans-714
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[ENCCS关于GPU卸载的OpenMP课程](https://enccs.github.io/openmp-gpu/)'
 - en: Keypoints
+  id: totrans-715
   prefs: []
   type: TYPE_NORMAL
+  zh: 重点
 - en: OpenACC and OpenMP-offloading enables you to annotate your code with special
     directives to identify areas to be executed in parallel on a GPU.
+  id: totrans-716
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: OpenACC和OpenMP-offloading允许您使用特殊指令注释您的代码，以标识在GPU上并行执行的区域。
 - en: Both allow to fine-tune the distribution of the work to match architecture characteristics.
+  id: totrans-717
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 两者都允许根据架构特性调整工作分布。
 - en: Both allow to control the flow of data to/from the GPU.
+  id: totrans-718
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 两者都允许控制数据流向/从GPU的流动。
 - en: The directive-based approaches save time compared to lower-level approaches,
     but you need to be mindful of data movement in particular to obtain good performance.*
+  id: totrans-719
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 与底层方法相比，基于指令的方法可以节省时间，但特别需要注意数据移动，以获得良好的性能*。
