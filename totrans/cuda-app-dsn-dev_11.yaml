@@ -404,6 +404,19 @@
   id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: '*InfiniBand* (IB) 是 HPC 中常用的高速、低延迟通信链路。它被设计成可扩展的，并被用于世界上许多最大的超级计算机中。大多数小型计算集群也出于价格和性能原因使用
+    InfiniBand。Mellanox 是知名的 InfiniBand 产品供应商。NVIDIA 列出了 Linux 内核、NVIDIA Linux CUDA
+    驱动程序和 Mellanox InfiniBand 驱动程序中的以下更改：■ Linux 内核修改：■ 支持不同驱动程序之间共享固定页面。■ Linux 内核内存管理器
+    (MM) 允许 NVIDIA 和 Mellanox 驱动程序共享主机内存，并为后者提供对由 NVIDIA CUDA 库分配的缓冲区的直接访问，从而提供零拷贝数据并提高性能。■
+    NVIDIA 驱动程序：■ 由 CUDA 库分配的缓冲区由 NVIDIA 驱动程序管理。■ 我们已添加修改以标记这些页面以供共享，这样内核 MM 就允许 Mellanox
+    InfiniBand 驱动程序访问它们，并使用它们进行传输，而无需复制或重新固定它们。■ Mellanox OFED[¹](#fn9000) 驱动程序：¹OpenFabrics
+    企业发行版。■ 我们已修改 Mellanox InfiniBand 驱动程序以查询内存，并能够使用新的 Linux 内核 MM API 与 NVIDIA Tesla
+    驱动程序共享内存。■ 此外，Mellanox 驱动程序注册了特殊的回调函数，以允许其他共享内存的驱动程序在运行时通知共享缓冲区状态中进行的任何更改，以便 Mellanox
+    驱动程序相应地使用内存并避免对任何共享固定缓冲区的无效访问。结果是发送和接收缓冲区之间的直接数据传输路径，这提供了 30% 的 MPI 性能提升。[图 10.2](#f0015)
+    显示，内存的注册区域可以直接传输到设备驱动程序中的缓冲区。发送主机上的 NIC 和设备驱动程序都知道这个缓冲区，这使得 NIC 可以在网络互连上发送数据，而无需主机处理器的干预。同样，接收主机上的设备驱动程序和
+    NIC 都知道一个公共接收缓冲区。当 GPU 驱动程序被通知数据已完整到达时，它被传输到接收 GPU（[图 10.2](#f0015) 中的 GPU[R]）。CUDA
+    开发者在这个模型中分配内存有两种方式：■ 使用 cudaHostRegister()。■ 使用 4.0 驱动程序，只需设置环境变量 CUDA_NIC_INTEROP=1。这将告诉驱动程序使用与
+    IB 驱动程序兼容的 cudaMallocHost() 的替代路径。无需使用 cudaHostRegister()。'
 - en: Bandwidth
   id: totrans-39
   prefs:
@@ -721,6 +734,16 @@
   id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[第二章](B9780123884268000021.xhtml#B978-0-12-388426-8.00002-1)中介绍的一般映射已在TACC
+    Longhorn超级计算机的MPI分布式环境中用于扩展至500个GPU。相同的映射也用于在CM-200连接机([Farber, 1992](B978012388426800015X.xhtml#ref44))和TACC
+    Ranger超级计算机([Farber & Trease, 2008](B978012388426800015X.xhtml#ref47))上扩展至超过60,000个处理核心。在这些运行过程中，rank
+    0进程被指定为传统的主从配置中的主进程。然后，主进程执行以下操作：■ 按照之前描述的方式启动数据加载。即使使用数百GB的数据，使用现代并行分布式文件系统进行数据加载也只需几秒钟。■
+    执行其他初始化操作。■ 运行优化过程并指导从进程。■ 为了充分利用可用资源，主节点还与从进程一起评估目标函数。■ 大多数生产运行使用了Powell方法的变体，如*数值算法*([Press,
+    Teukolsky, & Vetterling, 2007a](B978012388426800015X.xhtml#ref106))或*共轭梯度法*（也在*数值算法*中描述）。■
+    在每次评估目标函数时：■ 使用**MPI_Bcast()**将参数广播到所有从进程。■ 每个从进程（包括主进程）计算目标函数的偏和。这不需要任何通信，并且可以优化为在设备上以全速运行，如[第二章](B9780123884268000021.xhtml#B978-0-12-388426-8.00002-1)和[第三章](B9780123884268000033.xhtml#B978-0-12-388426-8.00003-3)中讨论的那样。■
+    对目标函数进行自己的局部计算。■ 调用**MPI_Reduce()**以检索所有部分结果的总量。■ 通常，**MPI_Reduce()**操作高度优化，并按O(log2(**ntasks**))的比例扩展，其中**ntasks**是**MPI_Comm_size()**报告的数量。■
+    将目标函数的结果提供给优化方法，这会导致：■ 对目标函数的另一次评估。■ 优化过程的完成。从进程（那些rank大于0的进程）：■ 按照之前描述的方式启动数据加载。■
+    保持在一个无限循环中，直到主进程通知它退出应用程序。在循环内部，每个从进程：■ 从主节点读取参数。■ 计算目标函数的偏和。■ 当需要时，将部分结果发送到主节点。
 - en: Check Scalability
   id: totrans-73
   prefs:
@@ -804,6 +827,10 @@
   id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 云计算是一种将计算以基于Web的服务形式移至网络的基础设施范式。这个想法本身很简单：机构与互联网供应商签订合同以获取计算资源，而不是通过购买和维护计算集群和超级计算机硬件来提供这些资源。正如任何计算平台所预期的那样——特别是用于高性能和科学计算的——平台内的性能限制定义了哪些计算问题可以良好运行。与MPI框架不同，云计算要求应用程序能够容忍点对点通信中的故障和高延迟。尽管如此，MPI是一个如此普遍的API，大多数云计算服务都提供并支持它。请注意，带宽和延迟问题可能导致在云计算基础设施上运行MPI时性能不佳。MPI使用固定数量的进程参与分布式应用程序。这个数字在应用程序启动时定义——通常使用**mpiexec**。在MPI中，通信器中任何进程的失败都会影响通信器中的所有进程，即使它们与失败的进程没有直接通信。这个因素导致了MPI应用程序中容错能力的缺乏。“*MapReduce*”是一个用于分布式计算的容错框架，它已经变得非常流行并且被广泛使用（[Dean
+    & Ghemawat, 2010](B978012388426800015X.xhtml#ref27)）。换句话说，客户端的失败对服务器没有显著影响。相反，服务器可以继续为其他客户端提供服务。使MapReduce结构稳健的是，所有通信都发生在双方环境中，一方（例如，进程）可以轻松地识别另一方已失败，并决定停止与其通信。此外，每一方都可以轻松地跟踪另一方持有的状态，这有助于故障转移。云计算的一个挑战是，许多服务提供商使用运行在繁忙内部网络上的虚拟机。因此，通信时间可能会增加。特别是，时间
+    *T[reduce]* 非常依赖于延迟，如[方程式10.2](#fm0015)所示。对于紧密耦合的应用程序（例如，进程之间频繁通信的应用程序），强烈建议使用专用集群。特别是，减少操作将由组中最慢的进程速率限制。话虽如此，像“在GPU集群上运行的多GPU
+    MapReduce”([Stuart & Owens, 2011](B978012388426800015X.xhtml#ref127))这样的论文表明，MapReduce是一个活跃的研究领域。
 - en: A Code Example
   id: totrans-77
   prefs:
@@ -1032,6 +1059,37 @@
   id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 目标函数([示例 10.13](#tb0070))属于从属进程，当 MPI 排名大于 0 时。在这种情况下，从属状态机：1. 在固定内存中为参数分配空间。2.
+    等待从主进程广播操作码。a. 主进程告诉从属进程所有工作已完成，使用零操作码，并应返回。b. 否则，从属进程将进入下一步。3. 从属进程等待主机广播参数。4.
+    在主进程广播参数后，从属进程在其数据上运行目标函数，并阻塞等待主进程请求结果。5. 在主进程请求汇总结果后，从属进程返回等待步骤 2 中的操作码。这个过程会一直持续到主进程发送
+    0 操作码。目标函数([示例 10.13](#tb0070))属于主进程，当排名为 0 时。在这种情况下，主进程：1. 向所有从属进程广播非零操作码，让它们知道有工作要做。2.
+    向所有从属进程广播参数。3. 在其数据上运行目标函数。4. 执行汇总操作，将来自从属进程的局部值相加。5. 返回以继续运行优化方法。`Real objFunc(Real
+    *p)` `{` `int rank,op;` `Real sum=0.;` `MPI_Comm_rank(MPI_COMM_WORLD,&rank);`
+    `cudaSetDevice(rank%nGPUperNode);` `if(nExamples == 0) {` `cerr << "data not set
+    " << endl; exit(1);` `}` `CalcError getError(thrust::raw_pointer_cast(&d_data[0]),`
+    `thrust::raw_pointer_cast(&d_param[0]),` `nInput, exLen);` `if(rank > 0) { //
+    从属目标函数` `Real *param;` `cudaHostAlloc(&param, sizeof(Real)*nParam,cudaHostAllocPortable);`
+    `for(;;) { // 循环直到主进程表示已完成。` `MPI_Bcast(&op, 1, MPI_INT, 0, MPI_COMM_WORLD);`
+    `if(op==0) {` `cudaFreeHost(param);` `return(0);` `}` `if(sizeof(Real) == sizeof(float))`
+    `MPI_Bcast(&param[0], nParam, MPI_FLOAT, 0, MPI_COMM_WORLD);` `else` `MPI_Bcast(&param[0],
+    nParam, MPI_DOUBLE, 0, MPI_COMM_WORLD);` `thrust::copy(param, param+nParam, d_param.begin());`
+    `Real mySum = thrust::transform_reduce(` `thrust::counting_iterator<unsigned int>(0),`
+    `thrust::counting_iterator<unsigned int> (nExamples),` `getError,` `(Real) 0.,`
+    `thrust::plus<Real>());` `if(sizeof(Real) == sizeof(float))` `MPI_Reduce(&mySum,
+    &sum, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);` `else` `MPI_Reduce(&mySum, &sum,
+    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);` `}` `} else { // 主进程` `double startTime=omp_get_wtime();`
+    `op=1;` `MPI_Bcast(&op, 1, MPI_INT, 0, MPI_COMM_WORLD);` `if(sizeof(Real) == sizeof(float))`
+    `MPI_Bcast(&p[0], nParam, MPI_FLOAT, 0, MPI_COMM_WORLD);` `else` `MPI_Bcast(&p[0],
+    nParam, MPI_DOUBLE, 0, MPI_COMM_WORLD);` `thrust::copy(p, p+nParam, d_param.begin());`
+    `Real mySum = thrust::transform_reduce(` `thrust::counting_iterator<unsigned int>(0),`
+    `thrust::counting_iterator<unsigned int>(nExamples),` `getError,` `(Real) 0.,`
+    `thrust::plus<Real>());` `if(sizeof(Real) == sizeof(float))` `MPI_Reduce(&mySum,
+    &sum, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);` `else` `MPI_Reduce(&mySum, &sum,
+    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);` `objFuncCallTime += (omp_get_wtime()
+    - startTime);` `objFuncCallCount++;` `}` `return(sum);` `}` 应用程序在主进程返回优化方法后完成。在
+    **testTrain()** 的最后一条语句中，向所有从属进程广播零操作码，告诉它们退出。然后主进程返回到 **main()** 以正常关闭 MPI。[表
+    10.3](#t0020) 显示，在两个 GPU 上运行 *nlpcaNM.cu* 的 MPI 版本提供了近两倍的性能提升。由于两个 GPU 都在同一个系统中，没有使用网络。本章的示例代码在德克萨斯高级计算中心（TACC）的
+    Longhorn 超级计算机集群上运行时，几乎实现了线性可扩展性，扩展到 500 个 GPU。感谢 TACC 提供访问这台机器的机会。[⁸](#fn9015)⁷在维基百科上报告了更当前和更广泛的结果。[http://gpucomputing.net/CUDAapplicationdesignanddevelopment](http://gpucomputing.net/CUDAapplicationdesignanddevelopment)。
 - en: '**Table 10.3** Table of Results[⁷](#fn9010)'
   id: totrans-87
   prefs: []
