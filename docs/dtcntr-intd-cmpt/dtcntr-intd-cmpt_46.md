@@ -1,4 +1,4 @@
-# VI 数据结构与分析🔗
+# VI 数据结构与分析
 
 > 原文：[`dcic-world.org/2025-08-27/booklet_data-with-analysis.html`](https://dcic-world.org/2025-08-27/booklet_data-with-analysis.html)
 

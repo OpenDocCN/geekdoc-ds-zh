@@ -1,4 +1,4 @@
-# 12.3 内存中的数组和列表🔗
+# 12.3 内存中的数组和列表
 
 > 原文：[`dcic-world.org/2025-08-27/unified-lists-memory.html`](https://dcic-world.org/2025-08-27/unified-lists-memory.html)
 

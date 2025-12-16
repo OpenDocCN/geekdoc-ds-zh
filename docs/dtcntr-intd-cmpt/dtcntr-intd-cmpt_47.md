@@ -1,4 +1,4 @@
-# 16 有向无环图🔗
+# 16 有向无环图
 
 > 原文：[`dcic-world.org/2025-08-27/part_dags.html`](https://dcic-world.org/2025-08-27/part_dags.html)
 

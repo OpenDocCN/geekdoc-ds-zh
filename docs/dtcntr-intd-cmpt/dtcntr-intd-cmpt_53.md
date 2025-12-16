@@ -1,4 +1,4 @@
-# 17.3 带有权重边的图🔗
+# 17.3 带有权重边的图
 
 > 原文：[`dcic-world.org/2025-08-27/weighted-graphs.html`](https://dcic-world.org/2025-08-27/weighted-graphs.html)
 

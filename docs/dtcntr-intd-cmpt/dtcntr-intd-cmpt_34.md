@@ -1,4 +1,4 @@
-# IV 使用状态进行编程🔗
+# IV 使用状态进行编程
 
 > 原文：[`dcic-world.org/2025-08-27/booklet_programming-with-state.html`](https://dcic-world.org/2025-08-27/booklet_programming-with-state.html)
 

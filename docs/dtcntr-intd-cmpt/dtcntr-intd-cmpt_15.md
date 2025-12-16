@@ -1,4 +1,4 @@
-# 6 结构化数据🔗
+# 6 结构化数据
 
 > 原文：[`dcic-world.org/2025-08-27/part_structured-data.html`](https://dcic-world.org/2025-08-27/part_structured-data.html)
 

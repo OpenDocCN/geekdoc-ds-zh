@@ -1,4 +1,4 @@
-# 13 使用状态进行更多编程：Python🔗
+# 13 使用状态进行更多编程：Python
 
 > 原文：[`dcic-world.org/2025-08-27/part_python-state.html`](https://dcic-world.org/2025-08-27/part_python-state.html)
 

@@ -1,4 +1,4 @@
-# 32 词汇表🔗
+# 32 词汇表
 
 > 原文：[`dcic-world.org/2025-08-27/glossary.html`](https://dcic-world.org/2025-08-27/glossary.html)
 

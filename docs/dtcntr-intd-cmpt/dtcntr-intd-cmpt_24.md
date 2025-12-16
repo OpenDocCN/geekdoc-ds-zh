@@ -1,4 +1,4 @@
-# III 从 Pyret 到 Python🔗
+# III 从 Pyret 到 Python
 
 > 原文：[`dcic-world.org/2025-08-27/booklet_pyret-to-python.html`](https://dcic-world.org/2025-08-27/booklet_pyret-to-python.html)
 

@@ -1,4 +1,4 @@
-# IX 附录🔗
+# IX 附录
 
 > 原文：[`dcic-world.org/2025-08-27/booklet_appendices.html`](https://dcic-world.org/2025-08-27/booklet_appendices.html)
 

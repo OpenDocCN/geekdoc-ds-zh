@@ -1,4 +1,4 @@
-# 10 使用 Pandas 在 Python 中创建表格🔗
+# 10 使用 Pandas 在 Python 中创建表格
 
 > 原文：[`dcic-world.org/2025-08-27/part_python-tables.html`](https://dcic-world.org/2025-08-27/part_python-tables.html)
 

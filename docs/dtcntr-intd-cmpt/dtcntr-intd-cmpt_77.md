@@ -1,4 +1,4 @@
-# 30 比较本书与 HtDP🔗
+# 30 比较本书与 HtDP
 
 > 原文：[`dcic-world.org/2025-08-27/htdp-vs-dcic.html`](https://dcic-world.org/2025-08-27/htdp-vs-dcic.html)
 

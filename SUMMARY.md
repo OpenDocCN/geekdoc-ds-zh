@@ -6,6 +6,7 @@
 +   [DataQuest 博客中文翻译](docs/dataquest-blog/README.md)
 +   [Domino 博客中文翻译](docs/domino-blog/README.md)
 +   [数据科学和人工智能技术笔记](docs/ds-ai-tech-notes/README.md)
++   [数据中心化的计算导论](docs/dtcntr-intd-cmpt/README.md)
 +   [FirstRound 博客中文翻译](docs/firstround-blog/README.md)
 +   [通用图形处理器架构](docs/gpgp-arch/README.md)
 +   [GPU 编程：何时、为何以及如何？](docs/gpu-prog-wwh/README.md)

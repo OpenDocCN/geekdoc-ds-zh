@@ -1,4 +1,4 @@
-# 29 Pyret vs. Python🔗
+# 29 Pyret vs. Python
 
 > 原文：[`dcic-world.org/2025-08-27/pyret-vs-python.html`](https://dcic-world.org/2025-08-27/pyret-vs-python.html)
 

@@ -1,4 +1,4 @@
-# V 算法分析🔗
+# V 算法分析
 
 > 原文：[`dcic-world.org/2025-08-27/booklet_algo-analysis.html`](https://dcic-world.org/2025-08-27/booklet_algo-analysis.html)
 

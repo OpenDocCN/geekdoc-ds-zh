@@ -1,4 +1,4 @@
-# 12 使用状态编程（在 Pyret 和 Python 中）🔗
+# 12 使用状态编程（在 Pyret 和 Python 中）
 
 > 原文：[`dcic-world.org/2025-08-27/part_state.html`](https://dcic-world.org/2025-08-27/part_state.html)
 

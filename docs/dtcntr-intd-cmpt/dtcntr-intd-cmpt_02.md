@@ -1,4 +1,4 @@
-# II 编程入门🔗
+# II 编程入门
 
 > 原文：[`dcic-world.org/2025-08-27/booklet_intro-to-programming.html`](https://dcic-world.org/2025-08-27/booklet_intro-to-programming.html)
 

@@ -1,4 +1,4 @@
-# 5 列表🔗
+# 5 列表
 
 > 原文：[`dcic-world.org/2025-08-27/part_lists.html`](https://dcic-world.org/2025-08-27/part_lists.html)
 

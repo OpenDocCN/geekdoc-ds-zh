@@ -1,4 +1,4 @@
-# 11 Python 中的文件输入和输出🔗
+# 11 Python 中的文件输入和输出
 
 > 原文：[`dcic-world.org/2025-08-27/part_python-fileio.html`](https://dcic-world.org/2025-08-27/part_python-fileio.html)
 

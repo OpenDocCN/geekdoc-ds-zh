@@ -1,4 +1,4 @@
-# 4   表格数据🔗
+# 4   表格数据
 
 > [`dcic-world.org/2025-08-27/part_tabular-data.html`](https://dcic-world.org/2025-08-27/part_tabular-data.html)
 

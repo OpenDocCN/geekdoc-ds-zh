@@ -1,4 +1,4 @@
-# 3 基本数据🔗
+# 3 基本数据
 
 > [`dcic-world.org/2025-08-27/part_foundations.html`](https://dcic-world.org/2025-08-27/part_foundations.html)
 

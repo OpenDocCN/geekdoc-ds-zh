@@ -1,4 +1,4 @@
-# 3.3 从重复表达式到函数🔗
+# 3.3 从重复表达式到函数
 
 > 原文：[`dcic-world.org/2025-08-27/From_Repeated_Expressions_to_Functions.html`](https://dcic-world.org/2025-08-27/From_Repeated_Expressions_to_Functions.html)
 
@@ -13,7 +13,7 @@
 | |   3.3.5 函数练习：钢笔成本 |
 | |   3.3.6 回顾：定义函数 |
 
-#### 3.3.1 示例：相似的旗帜🔗 "链接到这里")
+#### 3.3.1 示例：相似的旗帜 "链接到这里")
 
 考虑以下两个表达式来绘制亚美尼亚和奥地利（分别）的旗帜。这两个国家拥有相同的旗帜，只是颜色不同。`frame`操作符在图像周围绘制一个小黑框。
 
@@ -46,7 +46,7 @@ three-stripe-flag("red", "white", "red")
 
 在这个程序中，我们只提供`three-stripe-flag`，它带有自定义图像创建到特定标志的信息。操作本身将负责创建和对齐矩形。我们希望最终得到的亚美尼亚和奥地利国旗与我们的原始程序得到的结果相同。Pyret 中不存在这样的操作符：它仅限于我们创建国旗图像的应用。因此，为了让这个程序工作，我们需要能够在 Pyret 中添加自己的操作符（即函数）。
 
-#### 3.3.2 定义函数🔗 "链接到这里")
+#### 3.3.2 定义函数 "链接到这里")
 
 在编程中，函数接受一个或多个（配置）参数，并使用它们来产生结果。
 
@@ -118,7 +118,7 @@ austria = three-stripe-flag("red", "white", "red")
 
 （旁注：Pyret 只允许目录中每个名称一个值。如果你的文件已经对 `armenia` 或 `austria` 有定义，Pyret 在这一点上会给你一个错误。你可以使用不同的名称（如 `austria2`）或使用 `#` 注释掉原始定义。）
 
-##### 3.3.2.1 函数评估🔗 "链接到此处")
+##### 3.3.2.1 函数评估 "链接到此处")
 
 到目前为止，我们已经学习了 Pyret 处理你的程序的三条规则：
 
@@ -162,7 +162,7 @@ frame(
 
 注意，第二个表达式（替换后的值）与我们最初用于亚美尼亚国旗的表达式相同。替换恢复了该表达式，同时仍然允许程序员用 `three-stripe-flag` 的简写形式来编写。
 
-##### 3.3.2.2 类型注解🔗 "链接到此处")
+##### 3.3.2.2 类型注解 "链接到此处")
 
 如果我们犯了一个错误，并尝试如下调用该函数：
 
@@ -221,7 +221,7 @@ end
 
 我们将把类型视为扮演两个角色：为 Pyret 提供信息，使其能够更准确地聚焦错误信息，并指导程序的人类读者正确使用用户定义的函数。
 
-##### 3.3.2.3 文档🔗 "链接到此处")
+##### 3.3.2.3 文档 "链接到此处")
 
 想象一下，几个月后你打开了本章的程序文件。你会记得 `three-stripe-flag` 执行的计算是什么吗？名字确实很有暗示性，但它遗漏了条纹是垂直堆叠（而不是水平堆叠）以及条纹高度相等等细节。函数名称并不是为了携带这么多信息而设计的。
 
@@ -241,7 +241,7 @@ end
 
 虽然从 Pyret 的角度来看，文档字符串也是可选的，但当你编写函数时，你应该始终提供一个。对于任何必须阅读你的程序的人来说，它们都非常有帮助，无论是同事、评分者……还是几周后的你自己。
 
-#### 3.3.3 函数练习：月球重量🔗 "链接到此处")
+#### 3.3.3 函数练习：月球重量 "链接到此处")
 
 假设我们负责为月球探险队配备宇航员装备。我们必须确定每位宇航员在月球表面的体重。在月球上，物体的重量只有地球上重量的六分之一。以下是几位宇航员的体重表达式（以磅为单位）：
 
@@ -290,7 +290,7 @@ end
     end
     ```
 
-#### 3.3.4 使用示例记录函数🔗 "链接到此处")
+#### 3.3.4 使用示例记录函数 "链接到此处")
 
 在上述每个函数中，我们首先从一些我们想要计算的示例开始，从那里推广到通用公式，将其转化为函数，然后使用该函数代替原始表达式。
 
@@ -335,7 +335,7 @@ end
 
 对于我们的目的，我们编写示例作为确保我们理解问题的过程的一部分。在开始编写代码解决问题之前确保你理解问题总是一个好主意。示例是一个很好的中间点：你可以先在具体值上草拟相关的计算，然后考虑将其转换为函数。如果你无法编写示例，那么你可能也无法编写函数。示例将编程过程分解成更小、更易管理的步骤。
 
-#### 3.3.5 函数练习：钢笔的成本🔗 "链接到此处")
+#### 3.3.5 函数练习：钢笔的成本 "链接到此处")
 
 让我们再创建一个函数，这次是一个更复杂的例子。想象一下，你正在尝试计算带有标语（或信息）的笔订单的总成本。每支笔的成本是 25 美分，加上每条信息中每个字符额外的 2 美分（我们将单词之间的空格也计为字符）。
 
@@ -444,7 +444,7 @@ We’ll keep returning to this idea of writing good examples. Don’t worry if y
 > > 
 > > Does doing this seem like a good idea? Why or why not?
 
-#### 3.3.6 Recap: Defining Functions🔗 "Link to here")
+#### 3.3.6 Recap: Defining Functions "Link to here")
 
 This chapter has introduced the idea of a function. Functions play a key role in programming: they let us configure computations with different concrete values at different times. The first time we compute the cost of pens, we might be asking about `10` pens that say `"Welcome"`. The next time, we might be asking about `100` pens that say `"Go Bears!"`. The core computation is the same in both cases, so we want to write it out once, configuring it with different concrete values each time we use it.
 
@@ -466,7 +466,7 @@ We’ve covered several specific ideas about functions:
 
 There’s much more to learn about functions, including different reasons for creating them. We’ll get to those in due course.
 
-#### 3.3.1 Example: Similar Flags🔗 "Link to here")
+#### 3.3.1 Example: Similar Flags "Link to here")
 
 Consider the following two expressions to draw the flags of Armenia and Austria (respectively). These two countries have the same flag, just with different colors. The `frame` operator draws a small black frame around the image.
 
@@ -514,7 +514,7 @@ three-stripe-flag("red", "white", "red")
 
 In this program, we provide `three-stripe-flag` only with the information that customizes the image creation to a specific flag. The operation itself would take care of creating and aligning the rectangles. We want to end up with the same images for the Armenian and Austrian flags as we would have gotten with our original program. Such an operator doesn’t exist in Pyret: it is specific only to our application of creating flag images. To make this program work, then, we need the ability to add our own operators (henceforth called functions) to Pyret.
 
-#### 3.3.2 Defining Functions🔗 "Link to here")
+#### 3.3.2 Defining Functions "Link to here")
 
 In programming, a function takes one or more (configuration) parameters and uses them to produce a result.
 
@@ -619,7 +619,7 @@ austria = three-stripe-flag("red", "white", "red")
 
 (Side note: Pyret only allows one value per name in the directory. If your file already had definitions for the names `armenia` or `austria`, Pyret will give you an error at this point. You can use a different name (like `austria2`) or comment out the original definition using `#`.)
 
-##### 3.3.2.1 How Functions Evaluate🔗 "Link to here")
+##### 3.3.2.1 How Functions Evaluate "Link to here")
 
 So far, we have learned three rules for how Pyret processes your program:
 
@@ -675,7 +675,7 @@ then evaluates the expression, producing the flag image.
 
 Note that the second expression (with the substituted values) is the same expression we started from for the Armenian flag. Substitution restores that expression, while still allowing the programmer to write the shorthand in terms of `three-stripe-flag`.
 
-##### 3.3.2.2 Type Annotations🔗 "Link to here")
+##### 3.3.2.2 Type Annotations "Link to here")
 
 What if we made a mistake, and tried to call the function as follows:
 
@@ -759,7 +759,7 @@ Note that all of these type annotations are optional. Pyret will run your progra
 
 We will think of types as playing two roles: giving Pyret information that it can use to focus error messages more accurately, and guiding human readers of programs as to the proper use of user-defined functions.
 
-##### 3.3.2.3 Documentation🔗 "Link to here")
+##### 3.3.2.3 Documentation "Link to here")
 
 Imagine that you opened your program file from this chapter a couple of months from now. Would you remember what computation `three-stripe-flag` does? The name is certainly suggestive, but it misses details such as that the stripes are stacked vertically (rather than horizontally) and that the stripes are equal height. Function names aren’t designed to carry this much information.
 
@@ -789,7 +789,7 @@ end
 
 While docstrings are also optional from Pyret’s perspective, you should always provide one when you write a function. They are extremely helpful to anyone who has to read your program, whether that is a co-worker, grader…or yourself, a couple of weeks from now.
 
-##### 3.3.2.1 How Functions Evaluate🔗 "Link to here")
+##### 3.3.2.1 How Functions Evaluate "Link to here")
 
 So far, we have learned three rules for how Pyret processes your program:
 
@@ -845,7 +845,7 @@ then evaluates the expression, producing the flag image.
 
 Note that the second expression (with the substituted values) is the same expression we started from for the Armenian flag. Substitution restores that expression, while still allowing the programmer to write the shorthand in terms of `three-stripe-flag`.
 
-##### 3.3.2.2 Type Annotations🔗 "Link to here")
+##### 3.3.2.2 Type Annotations "Link to here")
 
 What if we made a mistake, and tried to call the function as follows:
 
@@ -929,7 +929,7 @@ Note that all of these type annotations are optional. Pyret will run your progra
 
 We will think of types as playing two roles: giving Pyret information that it can use to focus error messages more accurately, and guiding human readers of programs as to the proper use of user-defined functions.
 
-##### 3.3.2.3 Documentation🔗 "Link to here")
+##### 3.3.2.3 Documentation "Link to here")
 
 Imagine that you opened your program file from this chapter a couple of months from now. Would you remember what computation `three-stripe-flag` does? The name is certainly suggestive, but it misses details such as that the stripes are stacked vertically (rather than horizontally) and that the stripes are equal height. Function names aren’t designed to carry this much information.
 
@@ -959,7 +959,7 @@ end
 
 While docstrings are also optional from Pyret’s perspective, you should always provide one when you write a function. They are extremely helpful to anyone who has to read your program, whether that is a co-worker, grader…or yourself, a couple of weeks from now.
 
-#### 3.3.3 Functions Practice: Moon Weight🔗 "Link to here")
+#### 3.3.3 Functions Practice: Moon Weight "Link to here")
 
 Suppose we’re responsible for outfitting a team of astronauts for lunar exploration. We have to determine how much each of them will weigh on the Moon’s surface. On the Moon, objects weigh only one-sixth their weight on earth. Here are the expressions for several astronauts (whose weights are expressed in pounds):
 
@@ -1023,7 +1023,7 @@ Let’s remind ourselves of the steps for creating a function:
 
     ```py
 
-#### 3.3.4 Documenting Functions with Examples🔗 "Link to here")
+#### 3.3.4 Documenting Functions with Examples "Link to here")
 
 In each of the functions above, we’ve started with some examples of what we wanted to compute, generalized from there to a generic formula, turned this into a function, and then used the function in place of the original expressions.
 
@@ -1081,7 +1081,7 @@ Of course, it’s pretty unlikely you will make a mistake with a function this s
 
 For our purposes, we are writing examples as part of the process of making sure we understand the problem. It’s always a good idea to make sure you understand the question before you start writing code to solve a problem. Examples are a nice intermediate point: you can sketch out the relevant computation on concrete values first, then worry about turning it into a function. If you can’t write the examples, chances are you won’t be able to write the function either. Examples break down the programming process into smaller, manageable steps.
 
-#### 3.3.5 Functions Practice: Cost of pens🔗 "Link to here")
+#### 3.3.5 Functions Practice: Cost of pens "Link to here")
 
 Let’s create one more function, this time for a more complicated example. Imagine that you are trying to compute the total cost of an order of pens with slogans (or messages) printed on them. Each pen costs 25 cents plus an additional 2 cents per character in the message (we’ll count spaces between words as characters).
 
@@ -1182,7 +1182,7 @@ pen-cost(0, "bears") is 0
 > > 
 > > 做这件事看起来是个好主意吗？为什么是或不是？
 
-#### 3.3.6 回顾：定义函数🔗 "链接到这里")
+#### 3.3.6 回顾：定义函数 "链接到这里")
 
 本章介绍了函数的概念。函数在编程中扮演着关键角色：它们让我们能够在不同时间使用不同的具体值来配置计算。第一次计算笔的成本时，我们可能是在询问关于`10`支写着“欢迎”的笔。下一次，我们可能是在询问关于`100`支写着“加油熊！”的笔。这两种情况的核心计算是相同的，因此我们希望只写一次，每次使用时都配置不同的具体值。
 

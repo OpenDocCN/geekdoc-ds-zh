@@ -1,4 +1,4 @@
-# 9 From Pyret to Python🔗
+# 9 From Pyret to Python
 
 > 原文：[`dcic-world.org/2025-08-27/part_pyret-to-python.html`](https://dcic-world.org/2025-08-27/part_pyret-to-python.html)
 

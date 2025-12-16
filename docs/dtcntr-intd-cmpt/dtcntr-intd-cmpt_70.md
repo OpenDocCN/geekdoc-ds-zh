@@ -1,4 +1,4 @@
-# 25 分解数字🔗
+# 25 分解数字
 
 > 原文：[`dcic-world.org/2025-08-27/factoring-numbers.html`](https://dcic-world.org/2025-08-27/factoring-numbers.html)
 

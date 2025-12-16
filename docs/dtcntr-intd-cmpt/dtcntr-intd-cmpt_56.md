@@ -1,4 +1,4 @@
-# 18   集合的几种变体🔗
+# 18   集合的几种变体
 
 > 原文：[`dcic-world.org/2025-08-27/part_sets.html`](https://dcic-world.org/2025-08-27/part_sets.html)
 

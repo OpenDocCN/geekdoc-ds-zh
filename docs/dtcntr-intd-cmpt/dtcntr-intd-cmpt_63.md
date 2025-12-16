@@ -1,4 +1,4 @@
-# VII 高级主题🔗
+# VII 高级主题
 
 > [`dcic-world.org/2025-08-27/booklet_advanced.html`](https://dcic-world.org/2025-08-27/booklet_advanced.html)
 

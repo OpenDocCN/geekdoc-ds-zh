@@ -1,4 +1,4 @@
-# 7 树🔗
+# 7 树
 
 > 原文：[`dcic-world.org/2025-08-27/part_trees.html`](https://dcic-world.org/2025-08-27/part_trees.html)
 

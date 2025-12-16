@@ -1,4 +1,4 @@
-# 8 基础：奖励材料🔗
+# 8 基础：奖励材料
 
 > 原文：[`dcic-world.org/2025-08-27/part_bonus-foundations.html`](https://dcic-world.org/2025-08-27/part_bonus-foundations.html)
 
