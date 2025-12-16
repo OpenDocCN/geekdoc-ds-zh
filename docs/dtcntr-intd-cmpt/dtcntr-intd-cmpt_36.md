@@ -19,7 +19,7 @@
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 @dataclass
@@ -28,7 +28,7 @@ class Account:
     balance: float
 ```
 
-|
+
 
 ```py
 data Account:
@@ -37,26 +37,26 @@ data Account:
 end
 ```
 
-|
+
 
 现在让我们创建一个账户：
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1 = Account(8404, 500)
 ```
 
-|
+
 
 ```py
 acct1 = account(8404, 500)
 ```
 
-|
+
 
 现在假设我们得知该账户刚刚赚了另外 200 元。我们可以始终按照以下方式反映结果账户：
 
@@ -68,7 +68,7 @@ acct1 = account(8404, 500)
 Account(acct1.id, acct1.balance + 200)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -78,7 +78,7 @@ Account(acct1.id, acct1.balance + 200)
 account(acct1.id, acct1.balance + 200)
 ```
 
-|
+
 
 然而，这创建了一个新的账户；如果我们查看 `acct1` 的当前 `balance`，通过编写 `acct1.balance`，它仍然是 `500`。如果这是我们自己的账户，我们会非常难过！
 
@@ -89,7 +89,7 @@ account(acct1.id, acct1.balance + 200)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 @dataclass
@@ -98,7 +98,7 @@ class Account:
     balance: float
 ```
 
-|
+
 
 ```py
 data Account:
@@ -107,7 +107,7 @@ data Account:
 end
 ```
 
-|
+
 
 这个 Pyret 定义说明 `id` 不能被更改，而 `balance` 可以。这确保了没有程序员会意外地更改银行账户号码。在 Python 中，每个程序员都必须确保他们不会意外地更改它。（如果我们想在 Pyret 中使 `id` 可变，我们也会在其前面添加一个 `ref`。）
 
@@ -116,19 +116,19 @@ end
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1 = Account(8404, 500)
 ```
 
-|
+
 
 ```py
 acct1 = account(8404, 500)
 ```
 
-|
+
 
 当我们在 Pyret 中查看账户时，我们会看到一些特别的东西：
 
@@ -141,38 +141,38 @@ acct1 = account(8404, 500)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1.id
 ```
 
-|
+
 
 ```py
 acct1.id
 ```
 
-|
+
 
 然而，在 Pyret 中访问可变字段的方式不同：
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1.balance
 ```
 
-|
+
 
 ```py
 acct1!balance
 ```
 
-|
+
 
 `!` 存在是为了提醒你得到的是 `balance` 的当前值，它可能稍后会不同。Python 没有提供类似的语法警告，但再次提醒，每个字段始终是可变的。
 
@@ -203,14 +203,14 @@ acct1!balance
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 def test_balance():
     assert acct1.balance == 500
 ```
 
-|
+
 
 ```py
 check:
@@ -218,7 +218,7 @@ check:
 end
 ```
 
-|
+
 
 在我们执行更新之前，这会通过，但在更新执行之后会失败。在 Python 中，测试是在我们调用测试函数时运行的，我们通常在加载完整文件后这样做（通过在提示符中运行它们或在我们的测试中放入一个单独的文件）。
 
@@ -264,7 +264,7 @@ def deposit(ac: Account, amt: float):
     ac.balance = ac.balance + amt
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -277,7 +277,7 @@ fun deposit(ac :: Account, amt :: Number):
 end
 ```
 
-|
+
 
 我们该如何测试这个？
 
@@ -296,7 +296,7 @@ end
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 def test_deposit():
@@ -310,7 +310,7 @@ def test_deposit():
     assert a1.balance == 250
 ```
 
-|
+
 
 ```py
 check:
@@ -325,7 +325,7 @@ check:
 end
 ```
 
-|
+
 
 在这种情况下，我们不需要执行清理步骤，因为我们只为测试函数创建了数据。但如果我们，例如，在一个值很重要的数据集上运行了测试，我们就需要恢复这些更改。
 
@@ -367,7 +367,7 @@ end
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 @dataclass
@@ -376,7 +376,7 @@ class Customer:
     acct: Account
 ```
 
-|
+
 
 ```py
 data Customer:
@@ -385,14 +385,14 @@ data Customer:
 end
 ```
 
-|
+
 
 具体来说，假设我们有两个账户（`acct1` 和 `acct2`），其中 `acct1` 由 Elena 和 Jorge 共同拥有：
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1 = Account(8404, 500)
@@ -401,7 +401,7 @@ elena = Customer("Elena", acct1)
 jorge = Customer("Jorge", acct1)
 ```
 
-|
+
 
 ```py
 acct1 = account(8404, 500)
@@ -410,28 +410,28 @@ elena = cust("Elena", acct1)
 jorge = cust("Jorge", acct1)
 ```
 
-|
+
 
 现在假设 Elena 获得了额外的 `150`。我们想要更新账户以反映这一点。我们该如何做？首先，我们必须访问账户本身：`elena.acct`（在两种语言中）。然后，我们会使用上述语法来更新它：
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 a = elena.acct
 a.balance = a.balance + 150
 ```
 
-|
+
 
 ```py
 a = elena.acct
 a!{balance: a!balance + 150}
 ```
 
-|
+
 
 果然，Elena 的账户现在将具有 `850` 的值（原始的 `500`，奖金 `200`，现在额外的 `150`）：
 
@@ -443,7 +443,7 @@ a!{balance: a!balance + 150}
 assert elena.acct.balance == 850
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -455,7 +455,7 @@ check:
 end
 ```
 
-|
+
 
 注意，在 Pyret 中，我们使用 `.` 来获取账户，但使用 `!` 来获取余额：这是一个提醒，Elena 的账户永远不会改变（按照我们定义的数据结构），但账户的余额可能会改变，实际上确实如此。在 Python 和 Pyret 的设计之间，存在着便利性和精确性之间的权衡。
 
@@ -469,7 +469,7 @@ end
 assert jorge.acct.balance == 850
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -481,26 +481,26 @@ check:
 end
 ```
 
-|
+
 
 或者更简单地说：这个程序的价值是什么？
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 jorge.acct.balance
 ```
 
-|
+
 
 ```py
 jorge.acct!balance
 ```
 
-|
+
 
 这里有两个非常合理的答案：
 
@@ -633,7 +633,7 @@ jorge = Customer("Jorge", acct1)
 elena.acct.balance = elena.acct.balance + 150
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -643,7 +643,7 @@ elena.acct.balance = elena.acct.balance + 150
 elena.acct!{balance: elena.acct!balance + 150}
 ```
 
-|
+
 
 > 现在行动！
 > 
@@ -796,19 +796,19 @@ acct1 = Account(8404, 500)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 ```py
 elena = customer("Elena", acct1)
 ```
 
-|
+
 
 发生了什么？和之前一样，我们在目录中查找名称`acct1`所引用的内容，并用结果替换`Customer`数据中的名称。现在，`acct1`评估为地址，1001。因此，堆中的`Customer`值包含一个地址：
 
@@ -837,19 +837,19 @@ elena = customer("Elena", acct1)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 jorge = Customer("Jorge", acct1)
 ```
 
-|
+
 
 ```py
 jorge = customer("Jorge", acct1)
 ```
 
-|
+
 
 目录和堆看起来像这样：
 
@@ -1032,7 +1032,7 @@ office2 = Office(prof, 310 + x)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 @dataclass
@@ -1041,7 +1041,7 @@ class Account:
     balance: float
 ```
 
-|
+
 
 ```py
 data Account:
@@ -1050,26 +1050,26 @@ data Account:
 end
 ```
 
-|
+
 
 让我们现在创建一个账户：
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1 = Account(8404, 500)
 ```
 
-|
+
 
 ```py
 acct1 = account(8404, 500)
 ```
 
-|
+
 
 现在假设我们得知账户刚刚又赚了 200 元。我们可以始终按照以下方式反映结果账户：
 
@@ -1081,7 +1081,7 @@ acct1 = account(8404, 500)
 Account(acct1.id, acct1.balance + 200)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -1091,7 +1091,7 @@ Account(acct1.id, acct1.balance + 200)
 account(acct1.id, acct1.balance + 200)
 ```
 
-|
+
 
 然而，这会创建一个新的账户；如果我们查看 `acct1` 的当前 `balance`，通过写入 `acct1.balance`，它仍然是 `500`。如果这是我们自己的账户，我们将会非常沮丧！
 
@@ -1102,7 +1102,7 @@ account(acct1.id, acct1.balance + 200)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 @dataclass
@@ -1111,7 +1111,7 @@ class Account:
     balance: float
 ```
 
-|
+
 
 ```py
 data Account:
@@ -1120,7 +1120,7 @@ data Account:
 end
 ```
 
-|
+
 
 这个 Pyret 定义说明 `id` 不能被更改，而 `balance` 可以。这确保了没有程序员会意外更改银行账户号码。在 Python 中，每个程序员都必须确保他们不会意外更改它。（如果我们想在 Pyret 中使 `id` 可变，我们也会在其前面添加一个 `ref`。）
 
@@ -1129,19 +1129,19 @@ end
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1 = Account(8404, 500)
 ```
 
-|
+
 
 ```py
 acct1 = account(8404, 500)
 ```
 
-|
+
 
 当我们在 Pyret 中查看账户时，我们会看到一些特别之处：
 
@@ -1154,38 +1154,38 @@ acct1 = account(8404, 500)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1.id
 ```
 
-|
+
 
 ```py
 acct1.id
 ```
 
-|
+
 
 然而，在 Pyret 中访问可变字段的方式不同：
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1.balance
 ```
 
-|
+
 
 ```py
 acct1!balance
 ```
 
-|
+
 
 `!` 的存在是为了提醒你得到的是 `balance` 的当前值，并且它可能稍后会不同。Python 不提供类似的语法警告，但再次提醒，每个字段始终是可变的。
 
@@ -1216,14 +1216,14 @@ acct1!balance
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 def test_balance():
     assert acct1.balance == 500
 ```
 
-|
+
 
 ```py
 check:
@@ -1231,7 +1231,7 @@ check:
 end
 ```
 
-|
+
 
 这在我们执行更新之前会通过，但在执行更新之后会失败。在 Python 中，测试是在我们调用测试函数时运行的，我们通常在加载完整文件后这样做（通过在提示符中运行它们或在我们的测试中放入一个单独的文件）。
 
@@ -1277,7 +1277,7 @@ def deposit(ac: Account, amt: float):
     ac.balance = ac.balance + amt
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -1290,7 +1290,7 @@ fun deposit(ac :: Account, amt :: Number):
 end
 ```
 
-|
+
 
 我们如何测试这个？
 
@@ -1309,7 +1309,7 @@ end
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 def test_deposit():
@@ -1323,7 +1323,7 @@ def test_deposit():
     assert a1.balance == 250
 ```
 
-|
+
 
 ```py
 check:
@@ -1338,7 +1338,7 @@ check:
 end
 ```
 
-|
+
 
 在这种情况下，我们不需要执行拆卸步骤，因为我们只为测试函数创建了数据。但如果，例如，我们在一个值很重要的数据集上运行了测试，我们就需要恢复这些更改。
 
@@ -1380,7 +1380,7 @@ end
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 @dataclass
@@ -1389,7 +1389,7 @@ class Customer:
     acct: Account
 ```
 
-|
+
 
 ```py
 data Customer:
@@ -1398,14 +1398,14 @@ data Customer:
 end
 ```
 
-|
+
 
 具体来说，假设我们有两个账户（`acct1`和`acct2`），其中`acct1`由 Elena 和 Jorge 共同拥有：
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1 = Account(8404, 500)
@@ -1414,7 +1414,7 @@ elena = Customer("Elena", acct1)
 jorge = Customer("Jorge", acct1)
 ```
 
-|
+
 
 ```py
 acct1 = account(8404, 500)
@@ -1423,28 +1423,28 @@ elena = cust("Elena", acct1)
 jorge = cust("Jorge", acct1)
 ```
 
-|
+
 
 现在假设 Elena 额外赚取了`150`。我们想要更新账户以反映这一点。我们该如何做？首先，我们必须访问账户本身：`elena.acct`（在两种语言中）。然后我们会使用上面的语法来更新它：
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 a = elena.acct
 a.balance = a.balance + 150
 ```
 
-|
+
 
 ```py
 a = elena.acct
 a!{balance: a!balance + 150}
 ```
 
-|
+
 
 果然，Elena 的账户现在将具有`850`的值（原始的`500`，奖金`200`，现在额外的`150`）：
 
@@ -1456,7 +1456,7 @@ a!{balance: a!balance + 150}
 assert elena.acct.balance == 850
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -1468,7 +1468,7 @@ check:
 end
 ```
 
-|
+
 
 注意，在 Pyret 中，我们使用`.`来获取账户，但使用`!`来获取余额：这是一个提醒，Elena 的账户永远不会改变（按照我们定义的数据结构），但账户的余额可能会改变，事实上确实如此。在 Python 和 Pyret 的设计之间，存在着便利性和精确性之间的权衡。
 
@@ -1482,7 +1482,7 @@ end
 assert jorge.acct.balance == 850
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -1494,26 +1494,26 @@ check:
 end
 ```
 
-|
+
 
 或者更简单地说：这个程序的价值是什么？
 
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 jorge.acct.balance
 ```
 
-|
+
 
 ```py
 jorge.acct!balance
 ```
 
-|
+
 
 这里有两个非常合理的答案：
 
@@ -1646,7 +1646,7 @@ jorge = Customer("Jorge", acct1)
 elena.acct.balance = elena.acct.balance + 150
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -1656,7 +1656,7 @@ elena.acct.balance = elena.acct.balance + 150
 elena.acct!{balance: elena.acct!balance + 150}
 ```
 
-|
+
 
 > 现在让我们看看！
 > 
@@ -1809,19 +1809,19 @@ acct1 = Account(8404, 500)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 ```py
 elena = customer("Elena", acct1)
 ```
 
-|
+
 
 发生了什么？和之前一样，我们在目录中查找`acct1`这个名字所指向的内容，并用结果替换`Customer`数据中的名字。现在，`acct1`评估为一个地址，1001。因此，堆中的`Customer`值包含一个地址：
 
@@ -1850,19 +1850,19 @@ elena = customer("Elena", acct1)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 jorge = Customer("Jorge", acct1)
 ```
 
-|
+
 
 ```py
 jorge = customer("Jorge", acct1)
 ```
 
-|
+
 
 目录和堆看起来是这样的：
 
@@ -2093,19 +2093,19 @@ acct1 = Account(8404, 500)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 ```py
 elena = customer("Elena", acct1)
 ```
 
-|
+
 
 发生了什么？和之前一样，我们在目录中查找名称 `acct1` 所指的内容，并用结果替换 `Customer` 数据中的名称。现在，`acct1` 计算结果为一个地址，1001\. 因此，堆中的 `Customer` 值包含一个地址：
 
@@ -2134,19 +2134,19 @@ elena = customer("Elena", acct1)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 jorge = Customer("Jorge", acct1)
 ```
 
-|
+
 
 ```py
 jorge = customer("Jorge", acct1)
 ```
 
-|
+
 
 目录和堆看起来是这样的：
 

@@ -16,7 +16,7 @@
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 @dataclass
@@ -31,7 +31,7 @@ class Customer:
     acct: Account 
 ```
 
-|
+
 
 ```py
 data Account:
@@ -46,7 +46,7 @@ data Customer:
 end
 ```
 
-|
+
 
 如果你仔细观察，你会看到`Account`指向`Customer`（具体来说，是一个客户列表），而`Customer`反过来又指向`Account`。这可能会变得很有趣。
 
@@ -60,7 +60,7 @@ end
 elena = Customer("Elena", Account(8404, 500))
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -70,7 +70,7 @@ elena = Customer("Elena", Account(8404, 500))
 elena = cust("Elena", account(8404, 500))
 ```
 
-|
+
 
 我们现在该如何做？每个`Account`都需要一个其`Customer`的列表。我们需要编写
 
@@ -82,7 +82,7 @@ elena = cust("Elena", account(8404, 500))
 elena = Customer("Elena", Account(8404, 500, [_____]))
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -92,7 +92,7 @@ elena = Customer("Elena", Account(8404, 500, [_____]))
 elena = cust("Elena", account(8404, 500, [list: _____]))
 ```
 
-|
+
 
 但`_____`中应该填什么？它需要指向我们目前正在创建的客户账户。
 
@@ -107,7 +107,7 @@ acct1 = Account(8404, 500, [_____])
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -118,7 +118,7 @@ acct1 = account(8404, 500, [list: _____])
 elena = cust("Elena", acct1)
 ```
 
-|
+
 
 这并没有解决我们的基本问题——我们仍然需要填写`_____`——但至少我们现在有了可以指代实体的名称。我们希望能够写出
 
@@ -131,7 +131,7 @@ acct1 = Account(8404, 500, [elena])
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -142,7 +142,7 @@ acct1 = account(8404, 500, [list: elena])
 elena = cust("Elena", acct1)
 ```
 
-|
+
 
 但当我们尝试运行这段代码时，Python 和 Pyret 都会给出错误。这是因为它们试图评估第一行的右侧来创建一个账户，其堆地址将被绑定到目录中的`acct1`。为了做到这一点，它们必须评估那个账户创建表达式。在这样做的时候，它们查找名称`elena`。然而，`elena`尚未在目录中绑定。因此，它们产生了错误。
 
@@ -162,7 +162,7 @@ elena = cust("Elena", acct1)
 acct1 = Account(8404, 500, [])
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -172,7 +172,7 @@ acct1 = Account(8404, 500, [])
 acct1 = account(8404, 500, empty)
 ```
 
-|
+
 
 注意，在这个时候，这实际上是准确的！这个账户没有所有者。
 
@@ -186,7 +186,7 @@ acct1 = account(8404, 500, empty)
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -196,7 +196,7 @@ elena = Customer("Elena", acct1)
 elena = cust("Elena", acct1)
 ```
 
-|
+
 
 在这一点上，我们的内存看起来像这样：为了简单起见，我们将显示账户内的所有者列表，而不是将其放在自己的内存位置中。
 
@@ -225,19 +225,19 @@ elena = cust("Elena", acct1)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1.owners = [elena]
 ```
 
-|
+
 
 ```py
 acct1!{owners: [list: elena]}
 ```
 
-|
+
 
 我们现在可以合法地这样做，因为`elena`在字典中是有绑定的。此外，它绑定到有用的东西：Elena 的客户信息。因此，现在值被正确设置：Elena 的客户信息指向账户，账户指向 Elena 的客户信息：
 
@@ -273,7 +273,7 @@ acct1!{owners: [list: elena]}
 jorge = Customer("Jorge", acct1)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -283,7 +283,7 @@ jorge = Customer("Jorge", acct1)
 jorge = cust("Jorge", acct1)
 ```
 
-|
+
 
 再次强调，`acct1`中的信息不准确，因为它没有反映新的所有者。我们可以以类似的方式修改它：
 
@@ -295,7 +295,7 @@ jorge = cust("Jorge", acct1)
 acct1.owners = acct1.owners + [jorge]
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -305,7 +305,7 @@ acct1.owners = acct1.owners + [jorge]
 acct1!{owners: acct1!owners + [list: jorge]}
 ```
 
-|
+
 
 因此，现在我们的内存看起来会是这样：
 
@@ -359,7 +359,7 @@ acct1!{owners: acct1!owners + [list: jorge]}
 assert(acct1 = Account(8404, 500, [Customer("Elena", Account(8404, 500, …)]))
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -419,7 +419,7 @@ acct1
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 @dataclass
@@ -434,7 +434,7 @@ class Customer:
     acct: Account 
 ```
 
-|
+
 
 ```py
 data Account:
@@ -449,7 +449,7 @@ data Customer:
 end
 ```
 
-|
+
 
 如果你仔细观察，你会发现`Account`引用了`Customer`（特别是它们的列表）并且反过来`Customer`也引用了`Account`。这可能会变得很有趣。
 
@@ -463,7 +463,7 @@ end
 elena = Customer("Elena", Account(8404, 500))
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -473,7 +473,7 @@ elena = Customer("Elena", Account(8404, 500))
 elena = cust("Elena", account(8404, 500))
 ```
 
-|
+
 
 现在我们该如何做？每个`Account`都需要一个其`Customer`s 的列表。我们需要编写
 
@@ -485,7 +485,7 @@ elena = cust("Elena", account(8404, 500))
 elena = Customer("Elena", Account(8404, 500, [_____]))
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -495,7 +495,7 @@ elena = Customer("Elena", Account(8404, 500, [_____]))
 elena = cust("Elena", account(8404, 500, [list: _____]))
 ```
 
-|
+
 
 但`_____`里应该填什么？它需要指代我们目前正在创建的特定客户账户。
 
@@ -510,7 +510,7 @@ acct1 = Account(8404, 500, [_____])
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -521,7 +521,7 @@ acct1 = account(8404, 500, [list: _____])
 elena = cust("Elena", acct1)
 ```
 
-|
+
 
 这并没有解决我们的基本问题——我们仍然需要填写`_____`——但至少我们现在有了可以指代实体的名称。我们希望能够写出
 
@@ -534,7 +534,7 @@ acct1 = Account(8404, 500, [elena])
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -545,7 +545,7 @@ acct1 = account(8404, 500, [list: elena])
 elena = cust("Elena", acct1)
 ```
 
-|
+
 
 但当我们尝试运行这个程序时，Python 和 Pyret 都会给我们一个错误。这是因为它们试图评估第一行的右侧来创建一个账户，其堆地址将被绑定到`acct1`。为了做到这一点，它们必须评估那个账户创建表达式。在这样做的时候，它们查找名称`elena`。然而，`elena`尚未在目录中绑定。因此，它们产生了一个错误。
 
@@ -565,7 +565,7 @@ elena = cust("Elena", acct1)
 acct1 = Account(8404, 500, [])
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -575,7 +575,7 @@ acct1 = Account(8404, 500, [])
 acct1 = account(8404, 500, empty)
 ```
 
-|
+
 
 注意，在这个阶段，这实际上是准确的！这个账户没有所有者。
 
@@ -589,7 +589,7 @@ acct1 = account(8404, 500, empty)
 elena = Customer("Elena", acct1)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -599,7 +599,7 @@ elena = Customer("Elena", acct1)
 elena = cust("Elena", acct1)
 ```
 
-|
+
 
 在这一点上，我们的内存看起来像这样：为了简单起见，我们将显示账户内的所有者列表，而不是将其放在自己的内存位置中。
 
@@ -628,19 +628,19 @@ elena = cust("Elena", acct1)
 | Python | Pyret |
 | --- | --- |
 
-|
+
 
 ```py
 acct1.owners = [elena]
 ```
 
-|
+
 
 ```py
 acct1!{owners: [list: elena]}
 ```
 
-|
+
 
 我们现在可以合法地这样做，因为`elena`在字典中是有绑定的。此外，它绑定到有用的东西：伊莲娜的客户信息。因此，现在值被正确设置：伊莲娜的客户信息指向账户，账户指向伊莲娜的客户信息：
 
@@ -676,7 +676,7 @@ acct1!{owners: [list: elena]}
 jorge = Customer("Jorge", acct1)
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -686,7 +686,7 @@ jorge = Customer("Jorge", acct1)
 jorge = cust("Jorge", acct1)
 ```
 
-|
+
 
 再次，`acct1`中的信息不准确，因为它没有反映新的所有者。我们可以以类似的方式修改它：
 
@@ -698,7 +698,7 @@ jorge = cust("Jorge", acct1)
 acct1.owners = acct1.owners + [jorge]
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -708,7 +708,7 @@ acct1.owners = acct1.owners + [jorge]
 acct1!{owners: acct1!owners + [list: jorge]}
 ```
 
-|
+
 
 因此，现在我们的内存看起来像这样：
 
@@ -762,7 +762,7 @@ acct1!{owners: acct1!owners + [list: jorge]}
 assert(acct1 = Account(8404, 500, [Customer("Elena", Account(8404, 500, …)]))
 ```
 
-|
+
 
 | Pyret |  |
 | --- | --- |
@@ -775,7 +775,7 @@ check:
 end
 ```
 
-|
+
 
 然而，由于循环性，我们无法完成数据的编写。我们不能只是用`...`来留下部分未指定。
 
