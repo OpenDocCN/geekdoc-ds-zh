@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>24 Staging🔗</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>24 Staging🔗</h1>
+<blockquote>原文：<a href="https://dcic-world.org/2025-08-27/staging.html">https://dcic-world.org/2025-08-27/staging.html</a></blockquote><table cellspacing="0" cellpadding="0"><tr><td><p><span class="hspace">    </span><a href="#%28part._.Problem_.Definition%29" class="toclink" data-pltdoc="x">24.1<span class="hspace"> </span>Problem Definition</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Initial_.Solution%29" class="toclink" data-pltdoc="x">24.2<span class="hspace"> </span>Initial Solution</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Refactoring%29" class="toclink" data-pltdoc="x">24.3<span class="hspace"> </span>Refactoring</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Separating_.Parameters%29" class="toclink" data-pltdoc="x">24.4<span class="hspace"> </span>Separating Parameters</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Context%29" class="toclink" data-pltdoc="x">24.5<span class="hspace"> </span>Context</a></p></td></tr></table><section class="SsectionLevel3" id="section 24.1"><h3 class="heading">24.1<span class="stt"> </span><a name="(part._.Problem_.Definition)"/>Problem Definition<span class="button-group"><a href="#(part._.Problem_.Definition)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p/><div class="SIntrapara">Earlier, we saw a detailed development of binary trees representing ancestry
+[<a href="trees.html#%28part._ancestor-tree%29" data-pltdoc="x">Creating a Datatype for Ancestor Trees</a>]. In what follows we don’t need a lot of detail, so
+we will give ourselves a simplified version of essentially the same data definition:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data ABT:
+  | unknown
+  | person(name :: String, bm :: ABT, bf :: ABT)
+end</code></pre></div></div></div><div class="SIntrapara">We can then write functions over such as this:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun abt-size(p :: ABT):
+  doc: "Compute the number of known people in the ancestor tree"
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt; 1 + abt-size(p1) + abt-size(p2)
+  end
+end</code></pre></div></div></div><p>Now let’s think about a slightly different function:
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>, which tells us how many people in a family have
+a particular name. Not only can more than one person have the same
+name, in some cultures it’s not uncommon to use the <span class="emph">same</span> name
+across generations, either in successive generations or skipping one.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What is the contract for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>? The contract for this function
+will be crucial, so make sure you do this step!</p></blockquote></blockquote><p/><div class="SIntrapara">Here is one meaningful contract:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: ABT, String -&gt; Number</code></pre></div></div></div><div class="SIntrapara">It takes a tree in which to search, a name to search for, and returns a count.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Define <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>.</p></blockquote></blockquote></section><section class="SsectionLevel3" id="section 24.2"><h3 class="heading">24.2<span class="stt"> </span><a name="(part._.Initial_.Solution)"/>Initial Solution<span class="button-group"><a href="#(part._.Initial_.Solution)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p/><div class="SIntrapara">Presumably you ended up with something like this:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(p, looking-for):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      if n == looking-for:
+        1 + how-many-named(p1, looking-for) + how-many-named(p2, looking-for)
+      else:
+        how-many-named(p1, looking-for) + how-many-named(p2, looking-for)
+      end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Let’s say you have defined this person:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">p =
+  person("A",
+    person("B",
+      person("A", unknown, unknown),
+      person("C",
+        person("A", unknown, unknown),
+        person("B", unknown, unknown))),
+    person("C", unknown, unknown))</code></pre></div></div></div><div class="SIntrapara">With that, we can write a test like
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  how-many-named(p, "A") is 3
+end</code></pre></div></div></div></section><section class="SsectionLevel3" id="section 24.3"><h3 class="heading">24.3<span class="stt"> </span><a name="(part._.Refactoring)"/>Refactoring<span class="button-group"><a href="#(part._.Refactoring)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>Now let’s apply some transformations, sometimes called <span style="font-style: italic">code refactorings</span>,
+to this function.</p><p>First, notice the repeated expression. What the whole conditional is
+essentially saying is that we want to know how much this person is contributing
+to the overall count; the rest of the count stays the same regardless.</p><p/><div class="SIntrapara">One way to make this more explicit is to (perhaps surprisingly)
+rewrite the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">else</code></span> to make explicit that a person with a
+different name contributes <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> to the count:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(p, looking-for):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      if n == looking-for:
+        1 + how-many-named(p1, looking-for) + how-many-named(p2, looking-for)
+      else:
+        0 + how-many-named(p1, looking-for) + how-many-named(p2, looking-for)
+      end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">The reason for this somewhat odd rewrite is that it makes clear what
+is common and what is different. What is common is looking in the two
+parents. What changes is how much this person contributes, and only
+that depends on the conditional. We can therefore express this
+more concisely (and, if we know how to read such code,
+more meaningfully) as the following instead:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(p, looking-for):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      (if n == looking-for: 1 else: 0 end)
+      +
+      how-many-named(p1, looking-for) +
+      how-many-named(p2, looking-for)
+  end
+end</code></pre></div></div></div><div class="SIntrapara">If you have prior programming experience, this may look a bit odd to you, but
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">if</code></span> is in fact an <span class="emph">expression</span>, which has a value; in this case the value
+is either <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> or <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">1</code></span>. This value can then be used in an addition.</div><p>Now let’s look at this code even more closely. Notice something interesting. We
+keep passing two parameters to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>; however, only one of
+those parameters (<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">p</code></span>) is actually <span class="emph">changing</span>. The name we are
+looking for does not change, as we would expect: we are looking for the same
+name in the entire tree. How can we reflect this in the code?</p><p/><div class="SIntrapara">First, we’ll do something that looks a little useless, but it’s also an
+innocent change, so it shouldn’t irk us too much: we’ll change the order of the
+arguments. That is, our contract changes from
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: ABT, String -&gt; Number</code></pre></div></div></div><div class="SIntrapara">to
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: String, ABT -&gt; Number</code></pre></div></div></div><div class="SIntrapara">so the function correspondingly changes to
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for, p):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      (if n == looking-for: 1 else: 0 end)
+      +
+      how-many-named(p1, looking-for) +
+      how-many-named(p2, looking-for)
+  end
+end</code></pre></div></div></div><p>What we have now done is put the “constant” argument first, and the
+“varying” argument second.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Try this and make sure it works!</p></blockquote></blockquote><p/><div class="SIntrapara">It doesn’t! We have to change more than
+just the function header: we have to also change how it’s called. Keep
+in mind it’s called twice within the function body itself, and also
+from the examples. Therefore, the function as a whole reads:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for, p):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      (if n == looking-for: 1 else: 0 end)
+      +
+      how-many-named(looking-for, p1) +
+      how-many-named(looking-for, p2)
+  end
+end</code></pre></div></div></div><div class="SIntrapara">and the example reads <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named("A", p)</code></span>
+instead.</div></section><section class="SsectionLevel3" id="section 24.4"><h3 class="heading">24.4<span class="stt"> </span><a name="(part._.Separating_.Parameters)"/>Separating Parameters<span class="button-group"><a href="#(part._.Separating_.Parameters)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>This sets us up for the next stage. The parameters of functions are meant to
+indicate what might vary in a function. Because the name we’re looking for is a
+constant once we initially have it, we’d like the <span class="emph">actual</span> search function to
+take only one argument: where in the tree we’re searching.</p><p/><div class="SIntrapara">That is, we want the search function’s
+contract to be <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">(ABT -&gt; Number)</code></span>. To achieve that, we need another
+function that will take the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">String</code></span> part.
+Thus, the contract has to become
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: String -&gt; (ABT -&gt; Number)</code></pre></div></div></div><div class="SIntrapara">where <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span> consumes a name and returns a function that will
+consume the actual tree to check.</div><p/><div class="SIntrapara">This suggests the following function body:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for):
+  lam(p :: ABT) -&gt; Number:
+    cases (ABT) p:
+      | unknown =&gt; 0
+      | person(n, p1, p2) =&gt;
+        (if n == looking-for: 1 else: 0 end)
+        +
+        how-many-named(looking-for, p1) +
+        how-many-named(looking-for, p2)
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">However, this function body is not okay: the Pyret type-checker will give us
+type errors. That’s because <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span> takes one parameter, not two,
+as in the two recursive calls.</div><p/><div class="SIntrapara">How do we fix this? Remember, the whole point of this change is we don’t want
+to change the name, only the tree. That means we want to recur on the inner
+function. We currently can’t do this because it doesn’t have a name! So we have
+to give it a name and recur on it:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for):
+  fun search-in(p :: ABT) -&gt; Number:
+    cases (ABT) p:
+      | unknown =&gt; 0
+      | person(n, p1, p2) =&gt;
+        (if n == looking-for: 1 else: 0 end)
+        +
+        search-in(p1) +
+        search-in(p2)
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">This now lets us recur on just the part that should vary, leaving the name
+we’re looking for unchanged (and hence, fixed for the duration of the
+search).</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Try the above and make sure it works.</p></blockquote></blockquote><p>It still doesn’t: the above body has a syntax error! This is because <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>
+does not actually return any kind of value.</p><p/><div class="SIntrapara">What should it return? Once we provide the function with a name, we should get
+back a function that searches <span class="emph">for that name</span> in a tree. But we already
+have exactly such a function: <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">search-in</code></span>. Therefore,
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span> should return just … <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">search-in</code></span>.
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for):
+  fun search-in(p :: ABT) -&gt; Number:
+    cases (ABT) p:
+      | unknown =&gt; 0
+      | person(n, p1, p2) =&gt;
+        (if n == looking-for: 1 else: 0 end)
+        +
+        search-in(p1) +
+        search-in(p2)
+    end
+  end
+
+  search-in
+end</code></pre></div></div></div><p/><div class="SIntrapara">This still won’t work, because we haven’t changed the example. Let’s
+update that: how do we use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>? We have to call it
+with a name (like <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">"A"</code></span>); this returns a <span class="emph">function</span>—<wbr/>the
+one bound to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">search-in</code></span>—<wbr/>which expects a ancestor tree. Doing
+so should return a count. Thus, the example should be rewritten as
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-As = how-many-named("A")
+how-many-As(p) is 3</code></pre></div></div></div><div class="SIntrapara">This is an instructive way to write the example. We can, however, also
+write it more concisely. Notice that <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named("A")</code></span>
+returns a function, and the way we apply a function to arguments is
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">(…)</code></span>. Thus, we can also write this as:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named("A")(p) is 3</code></pre></div></div></div></section><section class="SsectionLevel3" id="section 24.5"><h3 class="heading">24.5<span class="stt"> </span><a name="(part._.Context)"/>Context<span class="button-group"><a href="#(part._.Context)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>The transformation we just applied is generally called <span style="font-style: italic">currying</span>, in honor
+of Haskell Curry, who was one of the early people to describe it, though it was
+earlier discovered by Moses Schönfinkel and even earlier by Gottlob Frege. The
+particular use of currying here, where we move more “static” arguments
+earlier and more “dynamic” ones later, and split on the static-dynamic
+divide, is called <span style="font-style: italic">staging</span>. It’s a very useful programming technique, and
+furthermore, one that enables some compilers to produce more time-efficient
+programs.</p><p/><div class="SIntrapara">Even more subtly but importantly, the staged computation tells a different
+story than the unstaged one, and we can read this off just from the contract:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: String, ABT -&gt; Number
+how-many-named :: String -&gt; (ABT -&gt; Number)</code></pre></div></div></div><div class="SIntrapara">The first one says the string could co-vary with the person. The second one
+rules out that interpretation.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Is the former useful? When might we have the name also changing?</p></blockquote></blockquote><p>Imagine a slightly different problem: we want to know how often a child has the
+same name as a parent. Then, as we traverse the tree, as the name of the person
+(potentially) keeps changing, the name we’re looking for in the parent also
+changes.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Write this function.</p></blockquote></blockquote><p>In contrast, the staged type rules out that interpretation and that
+behavior. In that way, it sends a signal to the reader about how the
+computation might behave just from the type. In the same way, the unstaged type
+can be read as giving the reader a hint that the behavior could depend on both
+parameters changing, therefore accommodating a much broader range of behaviors
+(e.g., checking for parent-child or grandparent-child name reuse).</p><p>There’s another very nice example of staging here:
+<a href="func-as-data.html#%28part._fd-calculus%29" data-pltdoc="x">A Little Calculus</a>.</p><p>Finally, it’s worth knowing that some languages, like Haskell and
+OCaml, do this transformation automatically. In fact, they don’t even
+have multiple-parameter functions: what look like multiple arguments
+are actually a sequence of staged functions. This can, in extremis,
+lead to a very elegant and powerful programming style. Pyret chose to
+not do this because, while this is a powerful tool in the hands of
+advanced programmers, for less experienced programmers, finding out
+about a mismatch in the number of parameters and arguments is very
+useful.</p></section>&#13;
+<h3 class="heading">24.1<span class="stt"> </span><a name="(part._.Problem_.Definition)"/>Problem Definition<span class="button-group"><a href="#(part._.Problem_.Definition)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p/><div class="SIntrapara">Earlier, we saw a detailed development of binary trees representing ancestry
+[<a href="trees.html#%28part._ancestor-tree%29" data-pltdoc="x">Creating a Datatype for Ancestor Trees</a>]. In what follows we don’t need a lot of detail, so
+we will give ourselves a simplified version of essentially the same data definition:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data ABT:
+  | unknown
+  | person(name :: String, bm :: ABT, bf :: ABT)
+end</code></pre></div></div></div><div class="SIntrapara">We can then write functions over such as this:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun abt-size(p :: ABT):
+  doc: "Compute the number of known people in the ancestor tree"
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt; 1 + abt-size(p1) + abt-size(p2)
+  end
+end</code></pre></div></div></div><p>Now let’s think about a slightly different function:
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>, which tells us how many people in a family have
+a particular name. Not only can more than one person have the same
+name, in some cultures it’s not uncommon to use the <span class="emph">same</span> name
+across generations, either in successive generations or skipping one.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What is the contract for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>? The contract for this function
+will be crucial, so make sure you do this step!</p></blockquote></blockquote><p/><div class="SIntrapara">Here is one meaningful contract:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: ABT, String -&gt; Number</code></pre></div></div></div><div class="SIntrapara">It takes a tree in which to search, a name to search for, and returns a count.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Define <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>.</p></blockquote></blockquote>&#13;
+<h3 class="heading">24.2<span class="stt"> </span><a name="(part._.Initial_.Solution)"/>Initial Solution<span class="button-group"><a href="#(part._.Initial_.Solution)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p/><div class="SIntrapara">Presumably you ended up with something like this:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(p, looking-for):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      if n == looking-for:
+        1 + how-many-named(p1, looking-for) + how-many-named(p2, looking-for)
+      else:
+        how-many-named(p1, looking-for) + how-many-named(p2, looking-for)
+      end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Let’s say you have defined this person:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">p =
+  person("A",
+    person("B",
+      person("A", unknown, unknown),
+      person("C",
+        person("A", unknown, unknown),
+        person("B", unknown, unknown))),
+    person("C", unknown, unknown))</code></pre></div></div></div><div class="SIntrapara">With that, we can write a test like
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  how-many-named(p, "A") is 3
+end</code></pre></div></div></div>&#13;
+<h3 class="heading">24.3<span class="stt"> </span><a name="(part._.Refactoring)"/>Refactoring<span class="button-group"><a href="#(part._.Refactoring)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>Now let’s apply some transformations, sometimes called <span style="font-style: italic">code refactorings</span>,
+to this function.</p><p>First, notice the repeated expression. What the whole conditional is
+essentially saying is that we want to know how much this person is contributing
+to the overall count; the rest of the count stays the same regardless.</p><p/><div class="SIntrapara">One way to make this more explicit is to (perhaps surprisingly)
+rewrite the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">else</code></span> to make explicit that a person with a
+different name contributes <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> to the count:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(p, looking-for):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      if n == looking-for:
+        1 + how-many-named(p1, looking-for) + how-many-named(p2, looking-for)
+      else:
+        0 + how-many-named(p1, looking-for) + how-many-named(p2, looking-for)
+      end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">The reason for this somewhat odd rewrite is that it makes clear what
+is common and what is different. What is common is looking in the two
+parents. What changes is how much this person contributes, and only
+that depends on the conditional. We can therefore express this
+more concisely (and, if we know how to read such code,
+more meaningfully) as the following instead:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(p, looking-for):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      (if n == looking-for: 1 else: 0 end)
+      +
+      how-many-named(p1, looking-for) +
+      how-many-named(p2, looking-for)
+  end
+end</code></pre></div></div></div><div class="SIntrapara">If you have prior programming experience, this may look a bit odd to you, but
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">if</code></span> is in fact an <span class="emph">expression</span>, which has a value; in this case the value
+is either <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> or <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">1</code></span>. This value can then be used in an addition.</div><p>Now let’s look at this code even more closely. Notice something interesting. We
+keep passing two parameters to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>; however, only one of
+those parameters (<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">p</code></span>) is actually <span class="emph">changing</span>. The name we are
+looking for does not change, as we would expect: we are looking for the same
+name in the entire tree. How can we reflect this in the code?</p><p/><div class="SIntrapara">First, we’ll do something that looks a little useless, but it’s also an
+innocent change, so it shouldn’t irk us too much: we’ll change the order of the
+arguments. That is, our contract changes from
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: ABT, String -&gt; Number</code></pre></div></div></div><div class="SIntrapara">to
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: String, ABT -&gt; Number</code></pre></div></div></div><div class="SIntrapara">so the function correspondingly changes to
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for, p):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      (if n == looking-for: 1 else: 0 end)
+      +
+      how-many-named(p1, looking-for) +
+      how-many-named(p2, looking-for)
+  end
+end</code></pre></div></div></div><p>What we have now done is put the “constant” argument first, and the
+“varying” argument second.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Try this and make sure it works!</p></blockquote></blockquote><p/><div class="SIntrapara">It doesn’t! We have to change more than
+just the function header: we have to also change how it’s called. Keep
+in mind it’s called twice within the function body itself, and also
+from the examples. Therefore, the function as a whole reads:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for, p):
+  cases (ABT) p:
+    | unknown =&gt; 0
+    | person(n, p1, p2) =&gt;
+      (if n == looking-for: 1 else: 0 end)
+      +
+      how-many-named(looking-for, p1) +
+      how-many-named(looking-for, p2)
+  end
+end</code></pre></div></div></div><div class="SIntrapara">and the example reads <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named("A", p)</code></span>
+instead.</div>&#13;
+<h3 class="heading">24.4<span class="stt"> </span><a name="(part._.Separating_.Parameters)"/>Separating Parameters<span class="button-group"><a href="#(part._.Separating_.Parameters)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>This sets us up for the next stage. The parameters of functions are meant to
+indicate what might vary in a function. Because the name we’re looking for is a
+constant once we initially have it, we’d like the <span class="emph">actual</span> search function to
+take only one argument: where in the tree we’re searching.</p><p/><div class="SIntrapara">That is, we want the search function’s
+contract to be <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">(ABT -&gt; Number)</code></span>. To achieve that, we need another
+function that will take the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">String</code></span> part.
+Thus, the contract has to become
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: String -&gt; (ABT -&gt; Number)</code></pre></div></div></div><div class="SIntrapara">where <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span> consumes a name and returns a function that will
+consume the actual tree to check.</div><p/><div class="SIntrapara">This suggests the following function body:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for):
+  lam(p :: ABT) -&gt; Number:
+    cases (ABT) p:
+      | unknown =&gt; 0
+      | person(n, p1, p2) =&gt;
+        (if n == looking-for: 1 else: 0 end)
+        +
+        how-many-named(looking-for, p1) +
+        how-many-named(looking-for, p2)
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">However, this function body is not okay: the Pyret type-checker will give us
+type errors. That’s because <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span> takes one parameter, not two,
+as in the two recursive calls.</div><p/><div class="SIntrapara">How do we fix this? Remember, the whole point of this change is we don’t want
+to change the name, only the tree. That means we want to recur on the inner
+function. We currently can’t do this because it doesn’t have a name! So we have
+to give it a name and recur on it:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for):
+  fun search-in(p :: ABT) -&gt; Number:
+    cases (ABT) p:
+      | unknown =&gt; 0
+      | person(n, p1, p2) =&gt;
+        (if n == looking-for: 1 else: 0 end)
+        +
+        search-in(p1) +
+        search-in(p2)
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">This now lets us recur on just the part that should vary, leaving the name
+we’re looking for unchanged (and hence, fixed for the duration of the
+search).</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Try the above and make sure it works.</p></blockquote></blockquote><p>It still doesn’t: the above body has a syntax error! This is because <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>
+does not actually return any kind of value.</p><p/><div class="SIntrapara">What should it return? Once we provide the function with a name, we should get
+back a function that searches <span class="emph">for that name</span> in a tree. But we already
+have exactly such a function: <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">search-in</code></span>. Therefore,
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span> should return just … <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">search-in</code></span>.
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun how-many-named(looking-for):
+  fun search-in(p :: ABT) -&gt; Number:
+    cases (ABT) p:
+      | unknown =&gt; 0
+      | person(n, p1, p2) =&gt;
+        (if n == looking-for: 1 else: 0 end)
+        +
+        search-in(p1) +
+        search-in(p2)
+    end
+  end
+
+  search-in
+end</code></pre></div></div></div><p/><div class="SIntrapara">This still won’t work, because we haven’t changed the example. Let’s
+update that: how do we use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named</code></span>? We have to call it
+with a name (like <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">"A"</code></span>); this returns a <span class="emph">function</span>—<wbr/>the
+one bound to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">search-in</code></span>—<wbr/>which expects a ancestor tree. Doing
+so should return a count. Thus, the example should be rewritten as
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-As = how-many-named("A")
+how-many-As(p) is 3</code></pre></div></div></div><div class="SIntrapara">This is an instructive way to write the example. We can, however, also
+write it more concisely. Notice that <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named("A")</code></span>
+returns a function, and the way we apply a function to arguments is
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">(…)</code></span>. Thus, we can also write this as:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named("A")(p) is 3</code></pre></div></div></div>&#13;
+<h3 class="heading">24.5<span class="stt"> </span><a name="(part._.Context)"/>Context<span class="button-group"><a href="#(part._.Context)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>The transformation we just applied is generally called <span style="font-style: italic">currying</span>, in honor
+of Haskell Curry, who was one of the early people to describe it, though it was
+earlier discovered by Moses Schönfinkel and even earlier by Gottlob Frege. The
+particular use of currying here, where we move more “static” arguments
+earlier and more “dynamic” ones later, and split on the static-dynamic
+divide, is called <span style="font-style: italic">staging</span>. It’s a very useful programming technique, and
+furthermore, one that enables some compilers to produce more time-efficient
+programs.</p><p/><div class="SIntrapara">Even more subtly but importantly, the staged computation tells a different
+story than the unstaged one, and we can read this off just from the contract:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">how-many-named :: String, ABT -&gt; Number
+how-many-named :: String -&gt; (ABT -&gt; Number)</code></pre></div></div></div><div class="SIntrapara">The first one says the string could co-vary with the person. The second one
+rules out that interpretation.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Is the former useful? When might we have the name also changing?</p></blockquote></blockquote><p>Imagine a slightly different problem: we want to know how often a child has the
+same name as a parent. Then, as we traverse the tree, as the name of the person
+(potentially) keeps changing, the name we’re looking for in the parent also
+changes.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Write this function.</p></blockquote></blockquote><p>In contrast, the staged type rules out that interpretation and that
+behavior. In that way, it sends a signal to the reader about how the
+computation might behave just from the type. In the same way, the unstaged type
+can be read as giving the reader a hint that the behavior could depend on both
+parameters changing, therefore accommodating a much broader range of behaviors
+(e.g., checking for parent-child or grandparent-child name reuse).</p><p>There’s another very nice example of staging here:
+<a href="func-as-data.html#%28part._fd-calculus%29" data-pltdoc="x">A Little Calculus</a>.</p><p>Finally, it’s worth knowing that some languages, like Haskell and
+OCaml, do this transformation automatically. In fact, they don’t even
+have multiple-parameter functions: what look like multiple arguments
+are actually a sequence of staged functions. This can, in extremis,
+lead to a very elegant and powerful programming style. Pyret chose to
+not do this because, while this is a powerful tool in the hands of
+advanced programmers, for less experienced programmers, finding out
+about a mismatch in the number of parameters and arguments is very
+useful.</p>    
+</body>
+</html>

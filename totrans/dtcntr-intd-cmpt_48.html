@@ -1,0 +1,660 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>16.1 Sharing and Equality🔗</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>16.1 Sharing and Equality🔗</h1>
+<blockquote>原文：<a href="https://dcic-world.org/2025-08-27/Sharing_and_Equality.html">https://dcic-world.org/2025-08-27/Sharing_and_Equality.html</a></blockquote><table cellspacing="0" cellpadding="0"><tr><td><p><span class="hspace">    </span><a href="#%28part._identical-eq%29" class="toclink" data-pltdoc="x">16.1.1<span class="hspace"> </span>Re-Examining Equality</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.The_.Cost_of_.Evaluating_.References%29" class="toclink" data-pltdoc="x">16.1.2<span class="hspace"> </span>The Cost of Evaluating References</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._equal-always%29" class="toclink" data-pltdoc="x">16.1.3<span class="hspace"> </span>Notations for Equality</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.On_the_.Internet__.Nobody_.Knows_.You_re_a_.D.A.G%29" class="toclink" data-pltdoc="x">16.1.4<span class="hspace"> </span>On the Internet, Nobody Knows You’re a DAG</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.It_s_.Always_.Been_a_.D.A.G%29" class="toclink" data-pltdoc="x">16.1.5<span class="hspace"> </span>It’s Always Been a DAG</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._acyc-to-cyc%29" class="toclink" data-pltdoc="x">16.1.6<span class="hspace"> </span>From Acyclicity to Cycles</a></p></td></tr></table><section class="SsectionLevel4" id="section 16.1.1"><h4 class="heading">16.1.1<span class="stt"> </span><a name="(part._identical-eq)"/>Re-Examining Equality<span class="button-group"><a href="#(part._identical-eq)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Consider the following data definition and example values:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data BT:
+  | leaf
+  | node(v, l :: BT, r :: BT)
+end
+
+a-tree =
+  node(5,
+    node(4, leaf, leaf),
+    node(4, leaf, leaf))
+
+b-tree =
+  block:
+    four-node = node(4, leaf, leaf)
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></div><div class="SIntrapara">In particular, it might seem that the way we’ve written <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span>
+is morally equivalent to how we’ve written <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span>, but we’ve
+created a helpful binding to avoid code duplication.</div><p/><div class="SIntrapara">Because both <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> are bound to trees with
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">5</code></span> at the root and a left and right child each containing
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span>, we can indeed reasonably consider these trees
+equivalent. Sure enough:
+</div><div class="SIntrapara"><a name="(elem._equal-tests)"/>&lt;<span style="font-style: italic">equal-tests</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  a-tree   is b-tree
+  a-tree.l is a-tree.l
+  a-tree.l is a-tree.r
+  b-tree.l is b-tree.r
+end</code></pre></div></div></div><p>However, there is another sense in which these trees are <span class="emph">not</span>
+equivalent. concretely, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> constructs a distinct node for
+each child, while <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> uses the <span class="emph">same</span> node for both
+children.  Surely this difference should show up <span class="emph">somehow</span>, but we
+have not yet seen a way to write a program that will tell these
+apart.</p><p/><div class="SIntrapara">By default, the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span> operator uses the same equality test as
+Pyret’s <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span>. There are, however, other equality tests in
+Pyret. In particular, the way we can tell apart these data is by using
+Pyret’s <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> function, which implements
+<span style="font-style: italic">reference</span> equality.  This checks not only whether two
+values are <span class="emph">structurally</span> equivalent but whether they are
+the result of the very same act of value construction.
+With this, we can now write additional tests:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  identical(a-tree, b-tree)     is false
+  identical(a-tree.l, a-tree.l) is true
+  identical(a-tree.l, a-tree.r) is false
+  identical(b-tree.l, b-tree.r) is true
+end</code></pre></div></div></div><p>Let’s step back for a moment and consider the behavior that gives us this
+result.  We can visualize the different values by putting each distinct value
+in a separate <span class="emph">location</span> alongside the running program.  We can draw the
+first step as creating a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node</code></span> with value <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span>:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree =
+  node(5,
+    <span class="heapref sink">1001</span>,
+    node(4, leaf, leaf))
+
+b-tree =
+  block:
+    four-node = node(4, leaf, leaf)
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>The next step creates <span class="emph">another</span> node with value <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span>, distinct from the
+first:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree =
+  node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)
+
+b-tree =
+  block:
+    four-node = node(4, leaf, leaf)
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>Then the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node</code></span> for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> is created:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree = <span class="heapref sink">1003</span>
+
+b-tree =
+  block:
+    four-node = node(4, leaf, leaf)
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>When evaluating the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">block</code></span> for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span>, first a single node is
+created for the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span> binding:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree = <span class="heapref sink">1003</span>
+
+b-tree =
+  block:
+    four-node = <span class="heapref sink">1004</span>
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>These location values can be substituted just like any other, so they get
+substituted for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span> to continue evaluation of the
+block.<span class="refelem"><span class="refcolumn"><span class="refcontent">We skipped substituting <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> for the moment, that
+will come up later.</span></span></span></p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree = <span class="heapref sink">1003</span>
+
+b-tree =
+  block:
+    node(5, <span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>Finally, the node for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> is created:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree = <span class="heapref sink">1003</span>
+
+b-tree = <span class="heapref sink">1005</span></code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1005</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>This visualization can help us explain the test we wrote using <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span>.
+Let’s consider the test with the appropriate location references substituted
+for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span>:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  identical(<span class="heapref sink">1003</span>, <span class="heapref sink">1005</span>)
+    is false
+  identical(<span class="heapref sink">1003</span>.l, <span class="heapref sink">1003</span>.l)
+    is true
+  identical(<span class="heapref sink">1003</span>.l, <span class="heapref sink">1003</span>.r)
+    is false
+  identical(<span class="heapref sink">1005</span>.l, <span class="heapref sink">1005</span>.r)
+    is true
+end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1005</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  identical(<span class="heapref sink">1003</span>, <span class="heapref sink">1005</span>)
+    is false
+  identical(<span class="heapref sink">1001</span>, <span class="heapref sink">1001</span>)
+    is true
+  identical(<span class="heapref sink">1001</span>, <span class="heapref sink">1004</span>)
+    is false
+  identical(<span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)
+    is true
+end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1005</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p/><div class="SIntrapara">There is actually another way to write these tests in Pyret: the
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span> operator can also be parameterized by a different equality
+predicate than the default <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span>. Thus, the above block can
+equivalently be written as:<span class="refelem"><span class="refcolumn"><span class="refcontent">We can use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-not</code></span>
+to check for expected failure of equality.</span></span></span>
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  a-tree   is-not%(identical) b-tree
+  a-tree.l is%(identical)     a-tree.l
+  a-tree.l is-not%(identical) a-tree.r
+  b-tree.l is%(identical)     b-tree.r
+end</code></pre></div></div></div><div class="SIntrapara">We will use this style of equality testing from now on.</div><p/><div class="SIntrapara">Observe how these are the same values that were compared earlier
+(<a href="#%28elem._equal-tests%29" data-pltdoc="x">&lt;<span style="font-style: italic">equal-tests</span>&gt;</a>), but the results are now different: some
+values that were true earlier are now false. In particular,
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  a-tree   is                 b-tree
+  a-tree   is-not%(identical) b-tree
+  a-tree.l is                 a-tree.r
+  a-tree.l is-not%(identical) a-tree.r
+end</code></pre></div></div></div><div class="SIntrapara">Later we will return both to
+what <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> really means
+[<a href="unified-equality.html" data-pltdoc="x">Understanding Equality</a>]
+(Pyret has a full range of equality operations suitable for different situations).</div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>There are <span class="emph">many</span> more equality tests we can and should perform
+even with the basic data above to make sure we really understand
+equality and, relatedly, storage of data in memory. What other
+tests should we conduct? Predict what results they should produce
+before running them!</p></blockquote></blockquote></section><section class="SsectionLevel4" id="section 16.1.2"><h4 class="heading">16.1.2<span class="stt"> </span><a name="(part._.The_.Cost_of_.Evaluating_.References)"/>The Cost of Evaluating References<span class="button-group"><a href="#(part._.The_.Cost_of_.Evaluating_.References)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>From a complexity viewpoint, it’s important for us to understand how
+these references work. As we have hinted, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span> is computed
+only once, and each use of it refers to the same value: if, instead,
+it was evaluated each time we referred to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span>, there
+would be no real difference between <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span>,
+and the above tests would not distinguish between them.</p><p/><div class="SIntrapara">This is especially relevant when understanding the cost of function
+evaluation. We’ll construct two simple examples that illustrate
+this. We’ll begin with a contrived data structure:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L = range(0, 100)</code></pre></div></div></div><p/><div class="SIntrapara">Suppose we now define
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L1 = link(1, L)
+L2 = link(-1, L)</code></pre></div></div></div><div class="SIntrapara">Constructing a list clearly takes time at least proportional to the
+length; therefore, we expect the time to compute <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span> to be
+considerably more than that for a single <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">link</code></span>
+operation. Therefore, the question is how long it takes to compute
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L1</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L2</code></span> after <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span> has been computed: constant
+time, or time proportional to the length of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span>?</div><p/><div class="SIntrapara">The answer, for Pyret, and for most other contemporary languages
+(including Java, C#, OCaml, Racket, etc.), is that these additional
+computations take <span class="emph">constant</span> time. That is, the value bound to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span> is computed once and bound to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span>; subsequent
+expressions <span class="emph">refer</span> to this value (hence “<span class="emph">refer</span>ence”)
+rather than reconstructing it, as reference equality shows:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  L1.rest is%(identical) L
+  L2.rest is%(identical) L
+  L1.rest is%(identical) L2.rest
+end</code></pre></div></div></div><p/><div class="SIntrapara">Similarly, we can define a function, pass <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span> to it, and see
+whether the resulting argument is <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> to the original:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun check-for-no-copy(another-l):
+  identical(another-l, L)
+end
+
+check:
+  check-for-no-copy(L) is true
+end</code></pre></div></div></div><div class="SIntrapara">or, equivalently,
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  L satisfies check-for-no-copy
+end</code></pre></div></div></div><div class="SIntrapara">Therefore, neither built-in operations (like <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">.rest</code></span>) nor
+user-defined ones (like <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check-for-no-copy</code></span>) make copies of their
+arguments.<span class="refelem"><span class="refcolumn"><span class="refcontent">Strictly speaking, of course, we cannot
+conclude that no copy was made. Pyret could have made a copy,
+discarded it, and still passed a reference to the original. Given how
+perverse this would be, we can assume—<wbr/>and take the language’s
+creators’ word for it—<wbr/>that this doesn’t actually happen. By creating
+extremely large lists, we can also use timing information to observe
+that the time of constructing the list grows proportional to the
+length of the list while the time of passing it as a parameter remains
+constant.</span></span></span> The important thing to observe here is that, instead of
+simply relying on authority, we have used operations <span class="emph">in the
+language itself</span> to understand how the language behaves.</div></section><section class="SsectionLevel4" id="section 16.1.3"><h4 class="heading">16.1.3<span class="stt"> </span><a name="(part._equal-always)"/>Notations for Equality<span class="button-group"><a href="#(part._equal-always)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Until now we have used <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span> for equality. Now we have learned that it’s
+only one of multiple equality operators, and that there is another one called
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span>. However, these two have somewhat subtly different syntactic
+properties. <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> is a <span class="emph">name</span> for a function, which can
+therefore be used to refer to it like any other function (e.g., when we need to
+mention it in a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-not</code></span> clause). In contrast, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span> is a <span class="emph">binary
+operator</span>, which can only be used in the middle of expressions.</p><p/><div class="SIntrapara">This should naturally make us wonder about the other two possibilities: a
+binary expression version of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> and a function name equivalent of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span>. They do, in fact, exist! The operation performed by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span> is
+called <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">equal-always</code></span>. Therefore, we can write the first block of tests
+equivalently, but more explicitly, as
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  a-tree   is%(equal-always) b-tree
+  a-tree.l is%(equal-always) a-tree.l
+  a-tree.l is%(equal-always) a-tree.r
+  b-tree.l is%(equal-always) b-tree.r
+end</code></pre></div></div></div><div class="SIntrapara">Conversely, the binary operator notation for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> is <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">&lt;=&gt;</code></span>.
+Thus, we can equivalently write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check-for-no-copy</code></span> as
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun check-for-no-copy(another-l):
+  another-l &lt;=&gt; L
+end</code></pre></div></div></div></section><section class="SsectionLevel4" id="section 16.1.4"><h4 class="heading">16.1.4<span class="stt"> </span><a name="(part._.On_the_.Internet__.Nobody_.Knows_.You_re_a_.D.A.G)"/>On the Internet, Nobody Knows You’re a DAG<span class="button-group"><a href="#(part._.On_the_.Internet__.Nobody_.Knows_.You_re_a_.D.A.G)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Despite the name we’ve given it, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> is not actually a
+<span class="emph">tree</span>. In a tree, by definition, there are no shared nodes,
+whereas in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> the node named by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span> is shared
+by two parts of the tree. Despite this, traversing <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> will
+still terminate, because there are no <span class="emph">cyclic</span> references in it:
+if you start from any node and visit its “children”, you cannot end
+up back at that node.  There is a special name for a value with such a
+shape: <span class="emph">directed acyclic graph</span> (<span class="Smaller">DAG</span>).</p><p>Many important data structures are actually a <span class="Smaller">DAG</span> underneath. For
+instance, consider Web sites. It is common to think of a site as a
+tree of pages: the top-level refers to several sections, each of which
+refers to sub-sections, and so on. However, sometimes an entry needs
+to be cataloged under multiple sections. For instance, an academic
+department might organize pages by people, teaching, and research. In
+the first of these pages it lists the people who work there; in the
+second, the list of courses; and in the third, the list of research
+groups. In turn, the courses might have references to the people
+teaching them, and the research groups are populated by these same
+people. Since we want only one page per person (for both maintenance
+and search indexing purposes), all these personnel links refer back to
+the same page for people.</p><p/><div class="SIntrapara">Let’s construct a simple form of this. First a datatype to represent a
+site’s content:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data Content:
+  | page(s :: String)
+  | section(title :: String, sub :: List&lt;Content&gt;)
+end</code></pre></div></div></div><div class="SIntrapara">Let’s now define a few people:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">people-pages :: Content =
+  section("People",
+    [list: page("Church"),
+      page("Dijkstra"),
+      page("Hopper") ])</code></pre></div></div></div><div class="SIntrapara">and a way to extract a particular person’s page:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun get-person(n): get(people-pages.sub, n) end</code></pre></div></div></div><div class="SIntrapara">Now we can define theory and systems sections:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">theory-pages :: Content =
+  section("Theory",
+    [list: get-person(0), get-person(1)])
+systems-pages :: Content =
+  section("Systems",
+    [list: get-person(1), get-person(2)])</code></pre></div></div></div><div class="SIntrapara">which are integrated into a site as a whole:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">site :: Content =
+  section("Computing Sciences",
+    [list: theory-pages, systems-pages])</code></pre></div></div></div><div class="SIntrapara">Now we can confirm that each of these luminaries needs to keep only
+one Web page current; for instance:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  theory  = get(site.sub, 0)
+  systems = get(site.sub, 1)
+  theory-dijkstra  = get(theory.sub, 1)
+  systems-dijkstra = get(systems.sub, 0)
+  theory-dijkstra is             systems-dijkstra
+  theory-dijkstra is%(identical) systems-dijkstra
+end</code></pre></div></div></div></section><section class="SsectionLevel4" id="section 16.1.5"><h4 class="heading">16.1.5<span class="stt"> </span><a name="(part._.It_s_.Always_.Been_a_.D.A.G)"/>It’s Always Been a DAG<span class="button-group"><a href="#(part._.It_s_.Always_.Been_a_.D.A.G)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>What we may not realize is that we’ve actually been creating a <span class="Smaller">DAG</span> for longer
+than we think. To see this, consider <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span>, which very clearly seems to
+be a tree. But look more closely not at the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node</code></span>s but rather at the
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>(s). How many actual <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>s do we create?</p><p/><div class="SIntrapara">One hint is that we don’t seem to call a function when creating a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>:
+the data definition does not list any fields, and when constructing a
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">BT</code></span> value, we simply write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>, not (say)
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf()</code></span>. Still, it would be nice to know what is happening behind the
+scenes. To check, we can simply ask Pyret:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  leaf is%(identical) leaf
+end</code></pre></div></div></div><div class="SIntrapara"><span class="refelem"><span class="refcolumn"><span class="refcontent">It’s important that we not write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf &lt;=&gt; leaf</code></span> here, because
+that is just an expression whose result is ignored. We have to write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span>
+to register this as a <span class="emph">test</span> whose result is checked and reported.</span></span></span>
+and this check <span class="emph">passes</span>. That is, when we write a variant without any
+fields, Pyret automatically creates a <span style="font-style: italic">singleton</span>: it makes just one
+instance and uses that instance everywhere. This leads to a more efficient
+memory representation, because there is no reason to have lots of distinct
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>s each taking up their own memory. However, a subtle consequence of
+that is that we have been creating a <span class="Smaller">DAG</span> all along.</div><p/><div class="SIntrapara">If we really wanted each <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span> to be distinct, it’s easy: we can write
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data BTDistinct:
+  | leaf()
+  | node(v, l :: BTDistinct, r :: BTDistinct)
+end</code></pre></div></div></div><div class="SIntrapara">Then we would need to use the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span> <span class="emph">function</span> everywhere:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">c-tree :: BTDistinct =
+  node(5,
+    node(4, leaf(), leaf()),
+    node(4, leaf(), leaf()))</code></pre></div></div></div><div class="SIntrapara">And sure enough:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  leaf() is-not%(identical) leaf()
+end</code></pre></div></div></div></section><section class="SsectionLevel4" id="section 16.1.6"><h4 class="heading">16.1.6<span class="stt"> </span><a name="(part._acyc-to-cyc)"/>From Acyclicity to Cycles<span class="button-group"><a href="#(part._acyc-to-cyc)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Here’s another example that arises on the Web. Suppose we are
+constructing a table of output in a Web page. We would like the rows
+of the table to alternate between white and grey. If the table had
+only two rows, we could map the row-generating function over a list of
+these two colors. Since we do not know how many rows it will have,
+however, we would like the list to be as long as necessary. In effect,
+we would like to write:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors = link("white", link("grey", web-colors))</code></pre></div></div></div><div class="SIntrapara">to obtain an indefinitely long list, so that we could eventually write
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">map2(color-table-row, table-row-content, web-colors)</code></pre></div></div></div><div class="SIntrapara">which applies a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">color-table-row</code></span> function to two arguments: the
+current row from <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">table-row-content</code></span>, and the current color from
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors</code></span>, proceeding in lockstep over the two lists.</div><p>Unfortunately, there are many things wrong with this attempted
+definition.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Do you see what they are?</p></blockquote></blockquote><p/><div class="SIntrapara">Here are some problems in turn:
+</div><div class="SIntrapara"><ul><li><p>This will not even parse. The identifier <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors</code></span> is
+not bound on the right of the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">=</code></span>.</p></li><li><p/><div class="SIntrapara">Earlier, we saw a solution to such a problem: use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec</code></span>
+[<a href="func-as-data.html#%28part._streams-from-funs%29" data-pltdoc="x">Streams From Functions</a>]. What happens if we write
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec web-colors = link("white", link("grey", web-colors))</code></pre></div></div></div><div class="SIntrapara">instead?
+</div><div class="SIntrapara"><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Why does <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec</code></span> work in the definition of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">ones</code></span> but not above?</p></blockquote></blockquote></div></li><li><p>Assuming we have fixed the above problem, one of two things will
+happen. It depends on what the initial value of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors</code></span>
+is. Because it is a dummy value, we do not get an arbitrarily long
+list of colors but rather a list of two colors followed by the dummy
+value. Indeed, this program will not even type-check.</p><p/><div class="SIntrapara">Suppose, however, that <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors</code></span> were written instead as a
+function definition to delay its creation:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun web-colors(): link("white", link("grey", web-colors())) end</code></pre></div></div></div><div class="SIntrapara">On its own this just defines a function. If, however, we use
+it—<wbr/><span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors()</code></span>—<wbr/>it goes into an infinite loop constructing
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">link</code></span>s.</div></li><li><p>Even if all that were to work, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">map2</code></span> would either (a) not
+terminate because its second argument is indefinitely long, or (b)
+report an error because the two arguments aren’t the same length.</p></li></ul></div><div class="SIntrapara">All these problems are symptoms of a bigger issue. What we are trying
+to do here is not merely create a shared datum (like a <span class="Smaller">DAG</span>) but
+something much richer: a <span style="font-style: italic">cyclic</span> datum, i.e., one that refers
+back to itself:</div><blockquote class="SCentered"><p><img style="vertical-align: -1px; margin: -3px -3px -3px -3px;" src="../Images/e8661971bf1b4ec52d4a6cfb124b63a2.png" alt="image" width="108" height="108" data-original-src="https://dcic-world.org/2025-08-27/pict_4.png"/></p></blockquote><p>When you get to cycles, even defining the datum becomes difficult
+because its definition depends on itself so it (seemingly) needs to
+already be defined in the process of being defined. We will return to
+cyclic data later in <a href="unified-cyclic-data.html" data-pltdoc="x">Cyclic Data</a>, and to this
+specific example in <a href="rec-from-mut.html" data-pltdoc="x">Recursion and Cycles from Mutation</a>.</p></section>&#13;
+<h4 class="heading">16.1.1<span class="stt"> </span><a name="(part._identical-eq)"/>Re-Examining Equality<span class="button-group"><a href="#(part._identical-eq)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Consider the following data definition and example values:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data BT:
+  | leaf
+  | node(v, l :: BT, r :: BT)
+end
+
+a-tree =
+  node(5,
+    node(4, leaf, leaf),
+    node(4, leaf, leaf))
+
+b-tree =
+  block:
+    four-node = node(4, leaf, leaf)
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></div><div class="SIntrapara">In particular, it might seem that the way we’ve written <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span>
+is morally equivalent to how we’ve written <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span>, but we’ve
+created a helpful binding to avoid code duplication.</div><p/><div class="SIntrapara">Because both <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> are bound to trees with
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">5</code></span> at the root and a left and right child each containing
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span>, we can indeed reasonably consider these trees
+equivalent. Sure enough:
+</div><div class="SIntrapara"><a name="(elem._equal-tests)"/>&lt;<span style="font-style: italic">equal-tests</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  a-tree   is b-tree
+  a-tree.l is a-tree.l
+  a-tree.l is a-tree.r
+  b-tree.l is b-tree.r
+end</code></pre></div></div></div><p>However, there is another sense in which these trees are <span class="emph">not</span>
+equivalent. concretely, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> constructs a distinct node for
+each child, while <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> uses the <span class="emph">same</span> node for both
+children.  Surely this difference should show up <span class="emph">somehow</span>, but we
+have not yet seen a way to write a program that will tell these
+apart.</p><p/><div class="SIntrapara">By default, the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span> operator uses the same equality test as
+Pyret’s <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span>. There are, however, other equality tests in
+Pyret. In particular, the way we can tell apart these data is by using
+Pyret’s <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> function, which implements
+<span style="font-style: italic">reference</span> equality.  This checks not only whether two
+values are <span class="emph">structurally</span> equivalent but whether they are
+the result of the very same act of value construction.
+With this, we can now write additional tests:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  identical(a-tree, b-tree)     is false
+  identical(a-tree.l, a-tree.l) is true
+  identical(a-tree.l, a-tree.r) is false
+  identical(b-tree.l, b-tree.r) is true
+end</code></pre></div></div></div><p>Let’s step back for a moment and consider the behavior that gives us this
+result.  We can visualize the different values by putting each distinct value
+in a separate <span class="emph">location</span> alongside the running program.  We can draw the
+first step as creating a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node</code></span> with value <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span>:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree =
+  node(5,
+    <span class="heapref sink">1001</span>,
+    node(4, leaf, leaf))
+
+b-tree =
+  block:
+    four-node = node(4, leaf, leaf)
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>The next step creates <span class="emph">another</span> node with value <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span>, distinct from the
+first:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree =
+  node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)
+
+b-tree =
+  block:
+    four-node = node(4, leaf, leaf)
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>Then the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node</code></span> for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> is created:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree = <span class="heapref sink">1003</span>
+
+b-tree =
+  block:
+    four-node = node(4, leaf, leaf)
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>When evaluating the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">block</code></span> for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span>, first a single node is
+created for the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span> binding:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree = <span class="heapref sink">1003</span>
+
+b-tree =
+  block:
+    four-node = <span class="heapref sink">1004</span>
+    node(5,
+      four-node,
+      four-node)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>These location values can be substituted just like any other, so they get
+substituted for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span> to continue evaluation of the
+block.<span class="refelem"><span class="refcolumn"><span class="refcontent">We skipped substituting <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> for the moment, that
+will come up later.</span></span></span></p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree = <span class="heapref sink">1003</span>
+
+b-tree =
+  block:
+    node(5, <span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)
+  end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>Finally, the node for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> is created:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree = <span class="heapref sink">1003</span>
+
+b-tree = <span class="heapref sink">1005</span></code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1005</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p>This visualization can help us explain the test we wrote using <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span>.
+Let’s consider the test with the appropriate location references substituted
+for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span>:</p><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  identical(<span class="heapref sink">1003</span>, <span class="heapref sink">1005</span>)
+    is false
+  identical(<span class="heapref sink">1003</span>.l, <span class="heapref sink">1003</span>.l)
+    is true
+  identical(<span class="heapref sink">1003</span>.l, <span class="heapref sink">1003</span>.r)
+    is false
+  identical(<span class="heapref sink">1005</span>.l, <span class="heapref sink">1005</span>.r)
+    is true
+end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1005</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><div class="HeapExpr"><div class="ExprPart"><pre class="HeapCode"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  identical(<span class="heapref sink">1003</span>, <span class="heapref sink">1005</span>)
+    is false
+  identical(<span class="heapref sink">1001</span>, <span class="heapref sink">1001</span>)
+    is true
+  identical(<span class="heapref sink">1001</span>, <span class="heapref sink">1004</span>)
+    is false
+  identical(<span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)
+    is true
+end</code></pre></div></div></pre></div><div class="HeapPart"><p>Heap</p><ul><li><p/><div class="SIntrapara"><span class="heapref source">1001</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1002</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1003</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1001</span>, <span class="heapref sink">1002</span>)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1004</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(4, leaf, leaf)</code></pre></div></div></div></li><li><p/><div class="SIntrapara"><span class="heapref source">1005</span>:<span class="hspace"> </span></div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node(5, <span class="heapref sink">1004</span>, <span class="heapref sink">1004</span>)</code></pre></div></div></div></li></ul></div><div class="clear"/></div><p/><div class="SIntrapara">There is actually another way to write these tests in Pyret: the
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span> operator can also be parameterized by a different equality
+predicate than the default <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span>. Thus, the above block can
+equivalently be written as:<span class="refelem"><span class="refcolumn"><span class="refcontent">We can use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-not</code></span>
+to check for expected failure of equality.</span></span></span>
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  a-tree   is-not%(identical) b-tree
+  a-tree.l is%(identical)     a-tree.l
+  a-tree.l is-not%(identical) a-tree.r
+  b-tree.l is%(identical)     b-tree.r
+end</code></pre></div></div></div><div class="SIntrapara">We will use this style of equality testing from now on.</div><p/><div class="SIntrapara">Observe how these are the same values that were compared earlier
+(<a href="#%28elem._equal-tests%29" data-pltdoc="x">&lt;<span style="font-style: italic">equal-tests</span>&gt;</a>), but the results are now different: some
+values that were true earlier are now false. In particular,
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  a-tree   is                 b-tree
+  a-tree   is-not%(identical) b-tree
+  a-tree.l is                 a-tree.r
+  a-tree.l is-not%(identical) a-tree.r
+end</code></pre></div></div></div><div class="SIntrapara">Later we will return both to
+what <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> really means
+[<a href="unified-equality.html" data-pltdoc="x">Understanding Equality</a>]
+(Pyret has a full range of equality operations suitable for different situations).</div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>There are <span class="emph">many</span> more equality tests we can and should perform
+even with the basic data above to make sure we really understand
+equality and, relatedly, storage of data in memory. What other
+tests should we conduct? Predict what results they should produce
+before running them!</p></blockquote></blockquote>&#13;
+<h4 class="heading">16.1.2<span class="stt"> </span><a name="(part._.The_.Cost_of_.Evaluating_.References)"/>The Cost of Evaluating References<span class="button-group"><a href="#(part._.The_.Cost_of_.Evaluating_.References)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>From a complexity viewpoint, it’s important for us to understand how
+these references work. As we have hinted, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span> is computed
+only once, and each use of it refers to the same value: if, instead,
+it was evaluated each time we referred to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span>, there
+would be no real difference between <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span>,
+and the above tests would not distinguish between them.</p><p/><div class="SIntrapara">This is especially relevant when understanding the cost of function
+evaluation. We’ll construct two simple examples that illustrate
+this. We’ll begin with a contrived data structure:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L = range(0, 100)</code></pre></div></div></div><p/><div class="SIntrapara">Suppose we now define
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L1 = link(1, L)
+L2 = link(-1, L)</code></pre></div></div></div><div class="SIntrapara">Constructing a list clearly takes time at least proportional to the
+length; therefore, we expect the time to compute <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span> to be
+considerably more than that for a single <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">link</code></span>
+operation. Therefore, the question is how long it takes to compute
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L1</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L2</code></span> after <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span> has been computed: constant
+time, or time proportional to the length of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span>?</div><p/><div class="SIntrapara">The answer, for Pyret, and for most other contemporary languages
+(including Java, C#, OCaml, Racket, etc.), is that these additional
+computations take <span class="emph">constant</span> time. That is, the value bound to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span> is computed once and bound to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span>; subsequent
+expressions <span class="emph">refer</span> to this value (hence “<span class="emph">refer</span>ence”)
+rather than reconstructing it, as reference equality shows:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  L1.rest is%(identical) L
+  L2.rest is%(identical) L
+  L1.rest is%(identical) L2.rest
+end</code></pre></div></div></div><p/><div class="SIntrapara">Similarly, we can define a function, pass <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">L</code></span> to it, and see
+whether the resulting argument is <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> to the original:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun check-for-no-copy(another-l):
+  identical(another-l, L)
+end
+
+check:
+  check-for-no-copy(L) is true
+end</code></pre></div></div></div><div class="SIntrapara">or, equivalently,
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  L satisfies check-for-no-copy
+end</code></pre></div></div></div><div class="SIntrapara">Therefore, neither built-in operations (like <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">.rest</code></span>) nor
+user-defined ones (like <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check-for-no-copy</code></span>) make copies of their
+arguments.<span class="refelem"><span class="refcolumn"><span class="refcontent">Strictly speaking, of course, we cannot
+conclude that no copy was made. Pyret could have made a copy,
+discarded it, and still passed a reference to the original. Given how
+perverse this would be, we can assume—<wbr/>and take the language’s
+creators’ word for it—<wbr/>that this doesn’t actually happen. By creating
+extremely large lists, we can also use timing information to observe
+that the time of constructing the list grows proportional to the
+length of the list while the time of passing it as a parameter remains
+constant.</span></span></span> The important thing to observe here is that, instead of
+simply relying on authority, we have used operations <span class="emph">in the
+language itself</span> to understand how the language behaves.</div>&#13;
+<h4 class="heading">16.1.3<span class="stt"> </span><a name="(part._equal-always)"/>Notations for Equality<span class="button-group"><a href="#(part._equal-always)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Until now we have used <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span> for equality. Now we have learned that it’s
+only one of multiple equality operators, and that there is another one called
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span>. However, these two have somewhat subtly different syntactic
+properties. <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> is a <span class="emph">name</span> for a function, which can
+therefore be used to refer to it like any other function (e.g., when we need to
+mention it in a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-not</code></span> clause). In contrast, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span> is a <span class="emph">binary
+operator</span>, which can only be used in the middle of expressions.</p><p/><div class="SIntrapara">This should naturally make us wonder about the other two possibilities: a
+binary expression version of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> and a function name equivalent of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span>. They do, in fact, exist! The operation performed by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">==</code></span> is
+called <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">equal-always</code></span>. Therefore, we can write the first block of tests
+equivalently, but more explicitly, as
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  a-tree   is%(equal-always) b-tree
+  a-tree.l is%(equal-always) a-tree.l
+  a-tree.l is%(equal-always) a-tree.r
+  b-tree.l is%(equal-always) b-tree.r
+end</code></pre></div></div></div><div class="SIntrapara">Conversely, the binary operator notation for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">identical</code></span> is <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">&lt;=&gt;</code></span>.
+Thus, we can equivalently write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check-for-no-copy</code></span> as
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun check-for-no-copy(another-l):
+  another-l &lt;=&gt; L
+end</code></pre></div></div></div>&#13;
+<h4 class="heading">16.1.4<span class="stt"> </span><a name="(part._.On_the_.Internet__.Nobody_.Knows_.You_re_a_.D.A.G)"/>On the Internet, Nobody Knows You’re a DAG<span class="button-group"><a href="#(part._.On_the_.Internet__.Nobody_.Knows_.You_re_a_.D.A.G)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Despite the name we’ve given it, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> is not actually a
+<span class="emph">tree</span>. In a tree, by definition, there are no shared nodes,
+whereas in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> the node named by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">four-node</code></span> is shared
+by two parts of the tree. Despite this, traversing <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">b-tree</code></span> will
+still terminate, because there are no <span class="emph">cyclic</span> references in it:
+if you start from any node and visit its “children”, you cannot end
+up back at that node.  There is a special name for a value with such a
+shape: <span class="emph">directed acyclic graph</span> (<span class="Smaller">DAG</span>).</p><p>Many important data structures are actually a <span class="Smaller">DAG</span> underneath. For
+instance, consider Web sites. It is common to think of a site as a
+tree of pages: the top-level refers to several sections, each of which
+refers to sub-sections, and so on. However, sometimes an entry needs
+to be cataloged under multiple sections. For instance, an academic
+department might organize pages by people, teaching, and research. In
+the first of these pages it lists the people who work there; in the
+second, the list of courses; and in the third, the list of research
+groups. In turn, the courses might have references to the people
+teaching them, and the research groups are populated by these same
+people. Since we want only one page per person (for both maintenance
+and search indexing purposes), all these personnel links refer back to
+the same page for people.</p><p/><div class="SIntrapara">Let’s construct a simple form of this. First a datatype to represent a
+site’s content:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data Content:
+  | page(s :: String)
+  | section(title :: String, sub :: List&lt;Content&gt;)
+end</code></pre></div></div></div><div class="SIntrapara">Let’s now define a few people:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">people-pages :: Content =
+  section("People",
+    [list: page("Church"),
+      page("Dijkstra"),
+      page("Hopper") ])</code></pre></div></div></div><div class="SIntrapara">and a way to extract a particular person’s page:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun get-person(n): get(people-pages.sub, n) end</code></pre></div></div></div><div class="SIntrapara">Now we can define theory and systems sections:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">theory-pages :: Content =
+  section("Theory",
+    [list: get-person(0), get-person(1)])
+systems-pages :: Content =
+  section("Systems",
+    [list: get-person(1), get-person(2)])</code></pre></div></div></div><div class="SIntrapara">which are integrated into a site as a whole:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">site :: Content =
+  section("Computing Sciences",
+    [list: theory-pages, systems-pages])</code></pre></div></div></div><div class="SIntrapara">Now we can confirm that each of these luminaries needs to keep only
+one Web page current; for instance:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  theory  = get(site.sub, 0)
+  systems = get(site.sub, 1)
+  theory-dijkstra  = get(theory.sub, 1)
+  systems-dijkstra = get(systems.sub, 0)
+  theory-dijkstra is             systems-dijkstra
+  theory-dijkstra is%(identical) systems-dijkstra
+end</code></pre></div></div></div>&#13;
+<h4 class="heading">16.1.5<span class="stt"> </span><a name="(part._.It_s_.Always_.Been_a_.D.A.G)"/>It’s Always Been a DAG<span class="button-group"><a href="#(part._.It_s_.Always_.Been_a_.D.A.G)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>What we may not realize is that we’ve actually been creating a <span class="Smaller">DAG</span> for longer
+than we think. To see this, consider <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">a-tree</code></span>, which very clearly seems to
+be a tree. But look more closely not at the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">node</code></span>s but rather at the
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>(s). How many actual <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>s do we create?</p><p/><div class="SIntrapara">One hint is that we don’t seem to call a function when creating a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>:
+the data definition does not list any fields, and when constructing a
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">BT</code></span> value, we simply write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>, not (say)
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf()</code></span>. Still, it would be nice to know what is happening behind the
+scenes. To check, we can simply ask Pyret:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  leaf is%(identical) leaf
+end</code></pre></div></div></div><div class="SIntrapara"><span class="refelem"><span class="refcolumn"><span class="refcontent">It’s important that we not write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf &lt;=&gt; leaf</code></span> here, because
+that is just an expression whose result is ignored. We have to write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span>
+to register this as a <span class="emph">test</span> whose result is checked and reported.</span></span></span>
+and this check <span class="emph">passes</span>. That is, when we write a variant without any
+fields, Pyret automatically creates a <span style="font-style: italic">singleton</span>: it makes just one
+instance and uses that instance everywhere. This leads to a more efficient
+memory representation, because there is no reason to have lots of distinct
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span>s each taking up their own memory. However, a subtle consequence of
+that is that we have been creating a <span class="Smaller">DAG</span> all along.</div><p/><div class="SIntrapara">If we really wanted each <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span> to be distinct, it’s easy: we can write
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data BTDistinct:
+  | leaf()
+  | node(v, l :: BTDistinct, r :: BTDistinct)
+end</code></pre></div></div></div><div class="SIntrapara">Then we would need to use the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">leaf</code></span> <span class="emph">function</span> everywhere:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">c-tree :: BTDistinct =
+  node(5,
+    node(4, leaf(), leaf()),
+    node(4, leaf(), leaf()))</code></pre></div></div></div><div class="SIntrapara">And sure enough:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  leaf() is-not%(identical) leaf()
+end</code></pre></div></div></div>&#13;
+<h4 class="heading">16.1.6<span class="stt"> </span><a name="(part._acyc-to-cyc)"/>From Acyclicity to Cycles<span class="button-group"><a href="#(part._acyc-to-cyc)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Here’s another example that arises on the Web. Suppose we are
+constructing a table of output in a Web page. We would like the rows
+of the table to alternate between white and grey. If the table had
+only two rows, we could map the row-generating function over a list of
+these two colors. Since we do not know how many rows it will have,
+however, we would like the list to be as long as necessary. In effect,
+we would like to write:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors = link("white", link("grey", web-colors))</code></pre></div></div></div><div class="SIntrapara">to obtain an indefinitely long list, so that we could eventually write
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">map2(color-table-row, table-row-content, web-colors)</code></pre></div></div></div><div class="SIntrapara">which applies a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">color-table-row</code></span> function to two arguments: the
+current row from <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">table-row-content</code></span>, and the current color from
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors</code></span>, proceeding in lockstep over the two lists.</div><p>Unfortunately, there are many things wrong with this attempted
+definition.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Do you see what they are?</p></blockquote></blockquote><p/><div class="SIntrapara">Here are some problems in turn:
+</div><div class="SIntrapara"><ul><li><p>This will not even parse. The identifier <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors</code></span> is
+not bound on the right of the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">=</code></span>.</p></li><li><p/><div class="SIntrapara">Earlier, we saw a solution to such a problem: use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec</code></span>
+[<a href="func-as-data.html#%28part._streams-from-funs%29" data-pltdoc="x">Streams From Functions</a>]. What happens if we write
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec web-colors = link("white", link("grey", web-colors))</code></pre></div></div></div><div class="SIntrapara">instead?
+</div><div class="SIntrapara"><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Why does <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec</code></span> work in the definition of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">ones</code></span> but not above?</p></blockquote></blockquote></div></li><li><p>Assuming we have fixed the above problem, one of two things will
+happen. It depends on what the initial value of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors</code></span>
+is. Because it is a dummy value, we do not get an arbitrarily long
+list of colors but rather a list of two colors followed by the dummy
+value. Indeed, this program will not even type-check.</p><p/><div class="SIntrapara">Suppose, however, that <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors</code></span> were written instead as a
+function definition to delay its creation:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun web-colors(): link("white", link("grey", web-colors())) end</code></pre></div></div></div><div class="SIntrapara">On its own this just defines a function. If, however, we use
+it—<wbr/><span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">web-colors()</code></span>—<wbr/>it goes into an infinite loop constructing
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">link</code></span>s.</div></li><li><p>Even if all that were to work, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">map2</code></span> would either (a) not
+terminate because its second argument is indefinitely long, or (b)
+report an error because the two arguments aren’t the same length.</p></li></ul></div><div class="SIntrapara">All these problems are symptoms of a bigger issue. What we are trying
+to do here is not merely create a shared datum (like a <span class="Smaller">DAG</span>) but
+something much richer: a <span style="font-style: italic">cyclic</span> datum, i.e., one that refers
+back to itself:</div><blockquote class="SCentered"><p><img style="vertical-align: -1px; margin: -3px -3px -3px -3px;" src="../Images/e8661971bf1b4ec52d4a6cfb124b63a2.png" alt="image" width="108" height="108" data-original-src="https://dcic-world.org/2025-08-27/pict_4.png"/></p></blockquote><p>When you get to cycles, even defining the datum becomes difficult
+because its definition depends on itself so it (seemingly) needs to
+already be defined in the process of being defined. We will return to
+cyclic data later in <a href="unified-cyclic-data.html" data-pltdoc="x">Cyclic Data</a>, and to this
+specific example in <a href="rec-from-mut.html" data-pltdoc="x">Recursion and Cycles from Mutation</a>.</p>    
+</body>
+</html>

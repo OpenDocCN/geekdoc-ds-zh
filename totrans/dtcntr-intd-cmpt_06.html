@@ -1,0 +1,749 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>3.3 From Repeated Expressions to Functions🔗</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>3.3 From Repeated Expressions to Functions🔗</h1>
+<blockquote>原文：<a href="https://dcic-world.org/2025-08-27/From_Repeated_Expressions_to_Functions.html">https://dcic-world.org/2025-08-27/From_Repeated_Expressions_to_Functions.html</a></blockquote><table cellspacing="0" cellpadding="0"><tr><td><p><span class="hspace">    </span><a href="#%28part._similar-flags%29" class="toclink" data-pltdoc="x">3.3.1<span class="hspace"> </span>Example: Similar Flags</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._defining-functions%29" class="toclink" data-pltdoc="x">3.3.2<span class="hspace"> </span>Defining Functions</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._function-call-nm%29" class="toclink" data-pltdoc="x">3.3.2.1<span class="hspace"> </span>How Functions Evaluate</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._fun-annotations%29" class="toclink" data-pltdoc="x">3.3.2.2<span class="hspace"> </span>Type Annotations</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._doc-strings%29" class="toclink" data-pltdoc="x">3.3.2.3<span class="hspace"> </span>Documentation</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._moon-weight-pyret%29" class="toclink" data-pltdoc="x">3.3.3<span class="hspace"> </span>Functions Practice: Moon Weight</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._writing-examples%29" class="toclink" data-pltdoc="x">3.3.4<span class="hspace"> </span>Documenting Functions with Examples</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._pen-cost-pyret%29" class="toclink" data-pltdoc="x">3.3.5<span class="hspace"> </span>Functions Practice: Cost of pens</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Recap__.Defining_.Functions%29" class="toclink" data-pltdoc="x">3.3.6<span class="hspace"> </span>Recap: Defining Functions</a></p></td></tr></table><section class="SsectionLevel4" id="section 3.3.1"><h4 class="heading">3.3.1<span class="stt"> </span><a name="(part._similar-flags)"/>Example: Similar Flags<span class="button-group"><a href="#(part._similar-flags)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Consider the following two expressions to draw the flags of Armenia
+and Austria (respectively).  These two countries have the same flag,
+just with different colors. The <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame</code></span> operator draws a small
+black frame around the image.</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode"># Lines starting with # are comments for human readers.
+# Pyret ignores everything on a line after #.
+
+# armenia
+frame(
+  above(rectangle(120, 30, "solid", "red"),
+    above(rectangle(120, 30, "solid", "blue"),
+      rectangle(120, 30, "solid", "orange"))))
+
+# austria
+frame(
+  above(rectangle(120, 30, "solid", "red"),
+    above(rectangle(120, 30, "solid", "white"),
+      rectangle(120, 30, "solid", "red"))))</code></pre></div></div><p>Rather than write this program twice, it would be nice to write the
+common expression only once, then just change the colors to generate each
+flag. Concretely, we’d like to have a custom operator such as
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> that we could use as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode"># armenia
+three-stripe-flag("red", "blue", "orange")
+
+# austria
+three-stripe-flag("red", "white", "red")</code></pre></div></div><p>In this program, we provide <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> only with the
+information that customizes the image creation to a specific flag. The
+operation itself would take care of creating and aligning the
+rectangles. We want to end up with the same images for the Armenian
+and Austrian flags as we would have gotten with our original
+program. Such an operator doesn’t exist in Pyret: it is specific only to
+our application of creating flag images. To make this program work, then,
+we need the ability to add our own operators (henceforth called
+<span class="emph">functions</span>) to Pyret.</p></section><section class="SsectionLevel4" id="section 3.3.2"><h4 class="heading">3.3.2<span class="stt"> </span><a name="(part._defining-functions)"/>Defining Functions<span class="button-group"><a href="#(part._defining-functions)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>In programming, a <span class="emph">function</span> takes one or more (configuration)
+<span class="emph">parameters</span> and uses them to produce a result.</p><blockquote class="Strategy"><p class="StrategyHeader">Strategy: Creating Functions From Expressions</p><blockquote class="StrategyBody"><p>If we have multiple concrete expressions that are identical except for
+a couple of specific data values, we create a function with the common
+code as follows:</p><ul><li><p>Write down at least two expressions showing the desired computation (in this
+case, the expressions that produce the Armenian and Austrian flags).</p></li><li><p>Identify which parts are fixed (i.e., the creation of rectangles
+with dimensions <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">120</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">30</code></span>, the use of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">above</code></span> to stack the
+rectangles) and which
+are changing (i.e., the stripe colors).</p></li><li><p>For each changing part, give it a name (say
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">top</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">middle</code></span>, and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">bottom</code></span>), which will be the
+parameter that stands for that part.</p></li><li><p/><div class="SIntrapara">Rewrite the examples to be in terms of these parameters. For example:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", top),
+    above(rectangle(120, 30, "solid", middle),
+      rectangle(120, 30, "solid", bottom))))</code></pre></div></div></div></li><li><p>Name the function something suggestive: e.g., <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>.</p></li><li><p/><div class="SIntrapara">Write the syntax for functions around the expression:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun &lt;function name&gt;(&lt;parameters&gt;):
+  &lt;the expression goes here&gt;
+end</code></pre></div></div></div><div class="SIntrapara">where the expression is called the <span style="font-style: italic">body</span> of the
+function. (Programmers often use angle brackets to say “replace with
+something appropriate”; the brackets themselves aren’t part of the notation.)</div></li></ul></blockquote></blockquote><p/><div class="SIntrapara">Here’s the end product:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top, middle, bottom):
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div></div><div class="SIntrapara">While this looks like a lot of work now, it won’t once you get used to
+it. We will go through the same steps over and over, and eventually
+they’ll become so intuitive that you won’t need to start from multiple
+similar expressions.</div><p/><div class="SIntrapara"><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Why does the function body have only one expression, when before we had a separate one
+for each flag?</p></blockquote></blockquote></div><div class="SIntrapara">We have only one expression because the whole point was to get rid of
+all the changing parts and replace them with parameters.</div><p>With this function in hand, we can write the following two expressions
+to generate our original flag images:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag("red", "blue", "orange")
+three-stripe-flag("red", "white", "red")</code></pre></div></div><p>When we provide values for the parameters of a function to get a
+result, we say that we are <span class="emph">calling</span> the function. We use the
+term <span class="emph">call</span> for expressions of this form.</p><p>If we want to name the resulting images, we can do so as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">armenia = three-stripe-flag("red", "blue", "orange")
+austria = three-stripe-flag("red", "white", "red")</code></pre></div></div><p>(Side note: Pyret only allows one value per name in the directory. If
+your file already had definitions for the names <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">armenia</code></span> or
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">austria</code></span>, Pyret will give you an error at this point. You can
+use a different name (like <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">austria2</code></span>) or comment out the
+original definition using <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">#</code></span>.)</p><section class="SsectionLevel5" id="section 3.3.2.1"><h5 class="heading">3.3.2.1<span class="stt"> </span><a name="(part._function-call-nm)"/>How Functions Evaluate<span class="button-group"><a href="#(part._function-call-nm)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>So far, we have learned three rules for how Pyret processes your program:</p><ul><li><p>If you write an expression, Pyret evaluates it to produce
+its value.</p></li><li><p>If you write a statement that defines a name, Pyret evaluates
+the expression (right side of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">=</code></span>), then makes an entry in the
+directory to associate the name with the value.</p></li><li><p>If you write an expression that uses a name from the directory,
+Pyret substitutes the name with the corresponding value.</p></li></ul><p>Now that we can define our own functions, we have to consider two more
+cases: what does Pyret do when you <span class="emph">define</span> a function (using
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun</code></span>), and what does Pyret do when you <span class="emph">call</span> a function
+(with values for the parameters)?</p><ul><li><p>When Pyret encounters a function definition in your file, it makes an
+entry in the directory to associate the name of the function with its
+code. The body of the function does not get evaluated at this time.</p></li><li><p>When Pyret encounters a function call while evaluating an expression,
+it replaces the call with the body of the function, but with the
+parameter values substituted for the parameter names in the
+body. Pyret then continues to evaluate the body with the substituted
+values.</p></li></ul><p>As an example of the function-call rule, if you evaluate</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag("red", "blue", "orange")</code></pre></div></div><p>Pyret starts from the function body</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", top),
+    above(rectangle(120, 30, "solid", middle),
+      rectangle(120, 30, "solid", bottom))))</code></pre></div></div><p>substitutes the parameter values</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", "red"),
+    above(rectangle(120, 30, "solid", "blue"),
+      rectangle(120, 30, "solid", "orange"))))</code></pre></div></div><p>then evaluates the expression, producing the flag image.</p><p>Note that the second expression (with the substituted values) is the
+same expression we started from for the Armenian flag. Substitution
+restores that expression, while still allowing the programmer to write
+the shorthand in terms of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>.</p></section><section class="SsectionLevel5" id="section 3.3.2.2"><h5 class="heading">3.3.2.2<span class="stt"> </span><a name="(part._fun-annotations)"/>Type Annotations<span class="button-group"><a href="#(part._fun-annotations)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>What if we made a mistake, and tried to call the function as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag(50, "blue", "red")</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What do you think Pyret will produce for this expression?</p></blockquote></blockquote><p>The first parameter to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> is supposed to be the
+color of the top stripe. The value <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">50</code></span> is not a string (much less a string naming a
+color). Pyret will substitute <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">50</code></span> for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">top</code></span> in the first call to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span>, yielding the following:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", 50),
+    above(rectangle(120, 30, "solid", "blue"),
+      rectangle(120, 30, "solid", "red"))))</code></pre></div></div><p>When Pyret tries to evaluate the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span> expression to create
+the top stripe, it generates an error that refers to that call to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span>.</p><p>If someone else were using your function, this error might not make
+sense: they didn’t write an expression about rectangles. Wouldn’t it
+be better to have Pyret report that there was a problem in the use of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> itself?</p><p>As the author of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>, you can make that happen by
+<span class="emph">annotating</span> the parameters with information about the expected type of
+value for each parameter. Here’s the function definition again, this
+time requiring the three parameters to be strings:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String):
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>Notice that the notation here is similar to what we saw in contracts
+within the documentation: the parameter name is followed by a
+double-colon (<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">::</code></span>) and a type name (so far, one of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">Number</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">String</code></span>, or <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">Image</code></span>).<span class="refelem"><span class="refcolumn"><span class="refcontent">Putting each parameter
+on its own line is not required, but it sometimes helps with readability.</span></span></span></p><p>Run your file with this new definition and try the erroneous call
+again. You should get a different error message that is just in terms
+of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>.</p><p>It is also common practice to add a type annotation that captures the
+type of the function’s output. That annotation goes after the list of
+parameters:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String) -&gt; Image:
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>Note that all of these type annotations are optional. Pyret will run
+your program whether or not you include them. You can put type
+annotations on some parameters and not others; you can include the
+output type but not any of the parameter types. Different programming
+languages have different rules about types.</p><p>We will think of types as playing two roles: giving Pyret information
+that it can use to focus error messages more accurately, and guiding
+human readers of programs as to the proper use of user-defined functions.</p></section><section class="SsectionLevel5" id="section 3.3.2.3"><h5 class="heading">3.3.2.3<span class="stt"> </span><a name="(part._doc-strings)"/>Documentation<span class="button-group"><a href="#(part._doc-strings)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Imagine that you opened your program file from this chapter a couple
+of months from now. Would you remember what computation
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> does? The name is certainly suggestive, but
+it misses details such as that the stripes are stacked vertically
+(rather than horizontally) and that the stripes are equal
+height. Function names aren’t designed to carry this much information.</p><p>Programmers also annotate a function with a <span class="emph">docstring</span>, a short,
+human-language description of what the function does. Here’s what the
+Pyret docstring might look like for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String) -&gt; Image:
+  doc: "produce image of flag with three equal-height horizontal stripes"
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>While docstrings are also optional from Pyret’s perspective, you
+should always provide one when you write a function. They are
+extremely helpful to anyone who has to read your program, whether that is
+a co-worker, grader…or yourself, a couple of weeks from now.</p></section></section><section class="SsectionLevel4" id="section 3.3.3"><h4 class="heading">3.3.3<span class="stt"> </span><a name="(part._moon-weight-pyret)"/>Functions Practice: Moon Weight<span class="button-group"><a href="#(part._moon-weight-pyret)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Suppose we’re responsible for outfitting a team of astronauts for
+lunar exploration. We have to determine how much each of them will
+weigh on the Moon’s surface. On the Moon, objects weigh only one-sixth
+their weight on earth. Here are the expressions for
+several astronauts (whose weights are expressed in pounds):
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">100 * 1/6
+150 * 1/6
+90 * 1/6</code></pre></div></div></div><div class="SIntrapara">As with our examples of the Armenian and Austrian flags, we are
+writing the same expression multiple times. This is another situation
+in which we should create a function that takes the changing data as a
+parameter but captures the fixed computation only once.</div><p>In the case of the flags, we <span class="emph">noticed</span> we had written essentially the
+same expression more than once. Here, we have a computation that we
+<span class="emph">expect</span> to do multiple times (once for each astronaut). It’s
+boring to write the same expression over and over again. Besides, if
+we copy or re-type an expression multiple times, sooner or later we’re
+bound to make a transcription error.<span class="refelem"><span class="refcolumn"><span class="refcontent">This is an instance of
+the <a href="https://en.wikipedia.org/wiki/Don%27t_repeat_yourself">DRY
+principle</a>, where DRY means "don’t repeat yourself".</span></span></span></p><p>Let’s remind ourselves of the steps for creating a function:</p><ul><li><p>Write down some examples of the desired calculation. We did that
+above.</p></li><li><p>Identify which parts are fixed (above, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">* 1/6</code></span>) and which
+are changing (above, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">100</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">150</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">90</code></span>...).</p></li><li><p>For each changing part, give it a name (say
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">earth-weight</code></span>), which will be the parameter that stands for it.</p></li><li><p/><div class="SIntrapara">Rewrite the examples to be in terms of this parameter:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">earth-weight * 1/6</code></pre></div></div></div><div class="SIntrapara">This will be the <span style="font-style: italic">body</span>, i.e., the expression inside
+the function.</div></li><li><p>Come up with a suggestive name for the function: e.g., <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">moon-weight</code></span>.</p></li><li><p/><div class="SIntrapara">Write the syntax for functions around the body expression:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun moon-weight(earth-weight):
+  earth-weight * 1/6
+end</code></pre></div></div></div></li><li><p/><div class="SIntrapara">Remember to include the types of the parameter and output, as
+well as the documentation string. This yields the final function:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun moon-weight(earth-weight :: Number) -&gt; Number:
+  doc: "Compute weight on moon from weight on earth"
+  earth-weight * 1/6
+end</code></pre></div></div></div></li></ul></section><section class="SsectionLevel4" id="section 3.3.4"><h4 class="heading">3.3.4<span class="stt"> </span><a name="(part._writing-examples)"/>Documenting Functions with Examples<span class="button-group"><a href="#(part._writing-examples)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>In each of the functions above, we’ve started with some examples of
+what we wanted to compute, generalized from there to a generic
+formula, turned this into a function, and then used the function in
+place of the original expressions.</p><p>Now that we’re done, what use are the initial examples? It seems
+tempting to toss them away. However, there’s an important rule about
+software that you should learn: <span class="emph">Software Evolves</span>. Over time,
+any program that has any use will change and grow, and as a result may
+end up producing different values than it did initially. Sometimes
+these are intended, but sometimes these are a result of mistakes
+(including such silly but inevitable mistakes like accidentally adding
+or deleting text while typing). Therefore, it’s always useful to keep
+those examples around for future reference, so you can immediately be
+alerted if the function deviates from the examples it was supposed to
+generalize.</p><p/><div class="SIntrapara">Pyret makes this easy to do. Every function can be accompanied by a
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">where</code></span> clause that records the examples. For instance, our
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">moon-weight</code></span> function can be modified to read:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun moon-weight(earth-weight :: Number) -&gt; Number:
+  doc: "Compute weight on moon from weight on earth"
+  earth-weight * 1/6
+where:
+  moon-weight(100) is 100 * 1/6
+  moon-weight(150) is 150 * 1/6
+  moon-weight(90) is 90 * 1/6
+end</code></pre></div></div></div><div class="SIntrapara">When written this way, Pyret will actually <span class="emph">check the answers every
+time you run the program</span>, and notify you if you have changed the
+function to be inconsistent with these examples.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p/><div class="SIntrapara">Check this! Change the formula—<wbr/>for instance, replace the body of the
+function with
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">earth-weight * 1/3</code></pre></div></div></div><div class="SIntrapara">—<wbr/>and see what happens. <span class="emph">Pay attention to the output from CPO</span>: you
+should get used to recognizing this kind of output.</div></blockquote></blockquote><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p/><div class="SIntrapara">Now, fix the function body, and instead change one of the answers—<wbr/>e.g., write
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">moon-weight(90) is 90 * 1/3</code></pre></div></div></div><div class="SIntrapara">—<wbr/>and see what happens. Contrast the output in this case with the output above.</div></blockquote></blockquote><p>Of course, it’s pretty unlikely you will make a mistake with a
+function this simple (except through a typo). After all, the examples
+are so similar to the function’s own body. Later, however, we will see
+that the examples can be much simpler than the body, and there is a real chance
+for things to get inconsistent. At that point, the examples become invaluable
+in making sure we haven’t made a mistake in our program. In fact, this is so
+valuable in professional software development that good programmers
+always write down large collections of examples—<wbr/>called
+<span style="font-style: italic">tests</span>—<wbr/>to make sure their programs are behaving as they expect.</p><p>For our purposes, we are writing examples as part of the process of
+<span class="emph">making sure we understand the problem</span>. It’s always a good idea
+to make sure you understand the question before you start writing
+code to solve a problem. Examples are a nice intermediate point: you
+can sketch out the relevant computation <span style="font-weight: bold">on concrete
+values</span> first, then worry about turning it into a function. If you
+can’t write the examples, chances are you won’t be able to write the
+function either. Examples break down the programming process into
+smaller, manageable steps.</p></section><section class="SsectionLevel4" id="section 3.3.5"><h4 class="heading">3.3.5<span class="stt"> </span><a name="(part._pen-cost-pyret)"/>Functions Practice: Cost of pens<span class="button-group"><a href="#(part._pen-cost-pyret)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Let’s create one more function, this time for a more complicated example.
+Imagine that you are trying to compute the total cost of an order of
+pens with slogans (or messages) printed on them.  Each pen costs 25
+cents plus an additional 2 cents per character in the message (we’ll
+count spaces between words as characters).</p><p>Following our steps to create a function once again,
+let’s start by writing two concrete expressions that do this
+computation.</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode"># ordering 3 pens that say "wow"
+3 * (0.25 + (string-length("wow") * 0.02))
+
+# ordering 10 pens that say "smile"
+10 * (0.25 + (string-length("smile") * 0.02))</code></pre></div></div><p>These examples introduce a new built-in function called
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">string-length</code></span>. It takes a string as input and produces the
+number of characters (including spaces and punctuation) in the string.
+These examples also show an example of working with
+numbers other than integers.<span class="refelem"><span class="refcolumn"><span class="refcontent">Pyret requires a number before the
+decimal point, so if the “whole number” part is zero, you need to write
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> before the decimal. Also observe that Pyret uses a decimal
+<span class="emph">point</span>; it doesn’t support conventions such as
+<a href="https://en.wikipedia.org/wiki/Decimal_separator">“0,02”</a>.</span></span></span></p><p/><div class="SIntrapara">The second step to writing a function was to identify which
+information differs across our two examples. In this case, we have
+<span class="emph">two</span>: the number of pens and the message to put on the pens.
+This means our function will have two parameters rather than just one.
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun pen-cost(num-pens :: Number, message :: String) -&gt; Number:
+  num-pens * (0.25 + (string-length(message) * 0.02))
+end</code></pre></div></div></div><div class="SIntrapara">Of course, as things get too long, it may be helpful to use multiple lines:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun pen-cost(num-pens :: Number, message :: String)
+  -&gt; Number:
+  num-pens * (0.25 + (string-length(message) * 0.02))
+end</code></pre></div></div></div><div class="SIntrapara">If you want to write a multi-line docstring, you need to use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">```</code></span> rather
+than <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">"</code></span> to begin and end it, like so:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun pen-cost(num-pens :: Number, message :: String)
+  -&gt; Number:
+  doc: ```total cost for pens, each 25 cents
+       plus 2 cents per message character```
+  num-pens * (0.25 + (string-length(message) * 0.02))
+end</code></pre></div></div></div><div class="SIntrapara">We should also document the examples that we used when creating the
+function:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun pen-cost(num-pens :: Number, message :: String)
+  -&gt; Number:
+  doc: ```total cost for pens, each 25 cents
+       plus 2 cents per message character```
+  num-pens * (0.25 + (string-length(message) * 0.02))
+where:
+  pen-cost(3, "wow")
+    is 3 * (0.25 + (string-length("wow") * 0.02))
+  pen-cost(10, "smile")
+    is 10 * (0.25 + (string-length("smile") * 0.02))
+end</code></pre></div></div></div><p/><div class="SIntrapara">When writing <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">where</code></span> examples, we also want to include special
+yet valid cases that the function might have to handle, such as an empty
+message.
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">pen-cost(5, "") is 5 * 0.25</code></pre></div></div></div><div class="SIntrapara">Note that our empty-message example has a simpler expression on the
+right side of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span>. The expression for what the function returns
+doesn’t have to match the body expression; it simply has to evaluate
+to the same value as you expect the example to produce. Sometimes,
+we’ll find it easier to just write the expected value directly. For
+the case of someone ordering no pens, for example, we’d include:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">pen-cost(0, "bears") is 0</code></pre></div></div></div><div class="SIntrapara">The point of the examples is to document how a function behaves on a
+variety of inputs. What goes to the right of the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span> should
+summarize the computation or the answer in some meaningful way. Most
+important? <span style="font-weight: bold">Do not write the function, run it to determine the answer,
+then put that answer on the right side of the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span>!</span> Why not?
+Because the examples are meant to give some redundancy to the design
+process, so that you catch errors you might have made. If your
+function body is incorrect, and you use the function to generate the
+example, you won’t get the benefit of using the example to check for
+errors.</div><p>We’ll keep returning to this idea of writing good examples. Don’t
+worry if you still have questions for now. Also, for the time being,
+we won’t worry about nonsensical situations like negative numbers of
+pens. We’ll get to those after we’ve learned additional coding
+techniques that will help us handle such situations properly.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p/><div class="SIntrapara">We could have combined our two special cases into one example, such as
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">pen-cost(0, "") is 0</code></pre></div></div></div><div class="SIntrapara">Does doing this seem like a good idea? Why or why not?</div></blockquote></blockquote></section><section class="SsectionLevel4" id="section 3.3.6"><h4 class="heading">3.3.6<span class="stt"> </span><a name="(part._.Recap__.Defining_.Functions)"/>Recap: Defining Functions<span class="button-group"><a href="#(part._.Recap__.Defining_.Functions)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>This chapter has introduced the idea of a function. Functions play a
+key role in programming: they let us configure computations with
+different concrete values at different times. The first time we
+compute the cost of pens, we might be asking about <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">10</code></span> pens that say
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">"Welcome"</code></span>. The next time, we might be asking about <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">100</code></span> pens that say
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">"Go Bears!"</code></span>. The core computation is the same in both cases, so we
+want to write it out once, configuring it with different concrete
+values each time we use it.</p><p>We’ve covered several specific ideas about functions:</p><ul><li><p>We showed the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun</code></span> notation for writing functions. You learned
+that a function has a <span class="emph">name</span> (that we can use to refer to it),
+one or more <span class="emph">parameters</span> (names for the values we want to configure), as
+well as a <span class="emph">body</span>, which is the computation that we want to
+perform once we have concrete values for the parameters.</p></li><li><p>We showed that we should include <span class="emph">examples</span> with our functions,
+to illustrate what the function computes on various specific
+values. Examples go in a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">where</code></span> block within the function.</p></li><li><p>We showed that we can <span class="emph">use</span> a function by providing concrete
+values to configure its parameters. To do this, we write the name of
+the function we want to use, followed by a pair of parenthesis around
+comma-separated values for the parameters. For example, writing the following
+expression (at the interactions prompt) will compute the cost of a
+specific order of pens:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">pen-cost(10, "Welcome")</code></pre></div></div></li><li><p>We discussed that if we define a function in the definitions
+pane then press Run, Pyret will make an entry in the directory with
+the name of the function. If we later use the function, Pyret will
+look up the code that goes with that name, substitute the concrete
+values we provided for the parameters, and return the result of
+evaluating the resulting expression. Pyret will NOT produce anything
+in the interactions pane for a function definition (other than a
+report about whether the examples hold).</p></li></ul><p>There’s much more to learn about functions, including different
+reasons for creating them. We’ll get to those in due course.</p></section>&#13;
+<h4 class="heading">3.3.1<span class="stt"> </span><a name="(part._similar-flags)"/>Example: Similar Flags<span class="button-group"><a href="#(part._similar-flags)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Consider the following two expressions to draw the flags of Armenia
+and Austria (respectively).  These two countries have the same flag,
+just with different colors. The <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame</code></span> operator draws a small
+black frame around the image.</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode"># Lines starting with # are comments for human readers.
+# Pyret ignores everything on a line after #.
+
+# armenia
+frame(
+  above(rectangle(120, 30, "solid", "red"),
+    above(rectangle(120, 30, "solid", "blue"),
+      rectangle(120, 30, "solid", "orange"))))
+
+# austria
+frame(
+  above(rectangle(120, 30, "solid", "red"),
+    above(rectangle(120, 30, "solid", "white"),
+      rectangle(120, 30, "solid", "red"))))</code></pre></div></div><p>Rather than write this program twice, it would be nice to write the
+common expression only once, then just change the colors to generate each
+flag. Concretely, we’d like to have a custom operator such as
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> that we could use as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode"># armenia
+three-stripe-flag("red", "blue", "orange")
+
+# austria
+three-stripe-flag("red", "white", "red")</code></pre></div></div><p>In this program, we provide <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> only with the
+information that customizes the image creation to a specific flag. The
+operation itself would take care of creating and aligning the
+rectangles. We want to end up with the same images for the Armenian
+and Austrian flags as we would have gotten with our original
+program. Such an operator doesn’t exist in Pyret: it is specific only to
+our application of creating flag images. To make this program work, then,
+we need the ability to add our own operators (henceforth called
+<span class="emph">functions</span>) to Pyret.</p>&#13;
+<h4 class="heading">3.3.2<span class="stt"> </span><a name="(part._defining-functions)"/>Defining Functions<span class="button-group"><a href="#(part._defining-functions)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>In programming, a <span class="emph">function</span> takes one or more (configuration)
+<span class="emph">parameters</span> and uses them to produce a result.</p><blockquote class="Strategy"><p class="StrategyHeader">Strategy: Creating Functions From Expressions</p><blockquote class="StrategyBody"><p>If we have multiple concrete expressions that are identical except for
+a couple of specific data values, we create a function with the common
+code as follows:</p><ul><li><p>Write down at least two expressions showing the desired computation (in this
+case, the expressions that produce the Armenian and Austrian flags).</p></li><li><p>Identify which parts are fixed (i.e., the creation of rectangles
+with dimensions <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">120</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">30</code></span>, the use of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">above</code></span> to stack the
+rectangles) and which
+are changing (i.e., the stripe colors).</p></li><li><p>For each changing part, give it a name (say
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">top</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">middle</code></span>, and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">bottom</code></span>), which will be the
+parameter that stands for that part.</p></li><li><p/><div class="SIntrapara">Rewrite the examples to be in terms of these parameters. For example:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", top),
+    above(rectangle(120, 30, "solid", middle),
+      rectangle(120, 30, "solid", bottom))))</code></pre></div></div></div></li><li><p>Name the function something suggestive: e.g., <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>.</p></li><li><p/><div class="SIntrapara">Write the syntax for functions around the expression:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun &lt;function name&gt;(&lt;parameters&gt;):
+  &lt;the expression goes here&gt;
+end</code></pre></div></div></div><div class="SIntrapara">where the expression is called the <span style="font-style: italic">body</span> of the
+function. (Programmers often use angle brackets to say “replace with
+something appropriate”; the brackets themselves aren’t part of the notation.)</div></li></ul></blockquote></blockquote><p/><div class="SIntrapara">Here’s the end product:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top, middle, bottom):
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div></div><div class="SIntrapara">While this looks like a lot of work now, it won’t once you get used to
+it. We will go through the same steps over and over, and eventually
+they’ll become so intuitive that you won’t need to start from multiple
+similar expressions.</div><p/><div class="SIntrapara"><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Why does the function body have only one expression, when before we had a separate one
+for each flag?</p></blockquote></blockquote></div><div class="SIntrapara">We have only one expression because the whole point was to get rid of
+all the changing parts and replace them with parameters.</div><p>With this function in hand, we can write the following two expressions
+to generate our original flag images:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag("red", "blue", "orange")
+three-stripe-flag("red", "white", "red")</code></pre></div></div><p>When we provide values for the parameters of a function to get a
+result, we say that we are <span class="emph">calling</span> the function. We use the
+term <span class="emph">call</span> for expressions of this form.</p><p>If we want to name the resulting images, we can do so as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">armenia = three-stripe-flag("red", "blue", "orange")
+austria = three-stripe-flag("red", "white", "red")</code></pre></div></div><p>(Side note: Pyret only allows one value per name in the directory. If
+your file already had definitions for the names <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">armenia</code></span> or
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">austria</code></span>, Pyret will give you an error at this point. You can
+use a different name (like <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">austria2</code></span>) or comment out the
+original definition using <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">#</code></span>.)</p><section class="SsectionLevel5" id="section 3.3.2.1"><h5 class="heading">3.3.2.1<span class="stt"> </span><a name="(part._function-call-nm)"/>How Functions Evaluate<span class="button-group"><a href="#(part._function-call-nm)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>So far, we have learned three rules for how Pyret processes your program:</p><ul><li><p>If you write an expression, Pyret evaluates it to produce
+its value.</p></li><li><p>If you write a statement that defines a name, Pyret evaluates
+the expression (right side of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">=</code></span>), then makes an entry in the
+directory to associate the name with the value.</p></li><li><p>If you write an expression that uses a name from the directory,
+Pyret substitutes the name with the corresponding value.</p></li></ul><p>Now that we can define our own functions, we have to consider two more
+cases: what does Pyret do when you <span class="emph">define</span> a function (using
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun</code></span>), and what does Pyret do when you <span class="emph">call</span> a function
+(with values for the parameters)?</p><ul><li><p>When Pyret encounters a function definition in your file, it makes an
+entry in the directory to associate the name of the function with its
+code. The body of the function does not get evaluated at this time.</p></li><li><p>When Pyret encounters a function call while evaluating an expression,
+it replaces the call with the body of the function, but with the
+parameter values substituted for the parameter names in the
+body. Pyret then continues to evaluate the body with the substituted
+values.</p></li></ul><p>As an example of the function-call rule, if you evaluate</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag("red", "blue", "orange")</code></pre></div></div><p>Pyret starts from the function body</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", top),
+    above(rectangle(120, 30, "solid", middle),
+      rectangle(120, 30, "solid", bottom))))</code></pre></div></div><p>substitutes the parameter values</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", "red"),
+    above(rectangle(120, 30, "solid", "blue"),
+      rectangle(120, 30, "solid", "orange"))))</code></pre></div></div><p>then evaluates the expression, producing the flag image.</p><p>Note that the second expression (with the substituted values) is the
+same expression we started from for the Armenian flag. Substitution
+restores that expression, while still allowing the programmer to write
+the shorthand in terms of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>.</p></section><section class="SsectionLevel5" id="section 3.3.2.2"><h5 class="heading">3.3.2.2<span class="stt"> </span><a name="(part._fun-annotations)"/>Type Annotations<span class="button-group"><a href="#(part._fun-annotations)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>What if we made a mistake, and tried to call the function as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag(50, "blue", "red")</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What do you think Pyret will produce for this expression?</p></blockquote></blockquote><p>The first parameter to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> is supposed to be the
+color of the top stripe. The value <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">50</code></span> is not a string (much less a string naming a
+color). Pyret will substitute <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">50</code></span> for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">top</code></span> in the first call to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span>, yielding the following:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", 50),
+    above(rectangle(120, 30, "solid", "blue"),
+      rectangle(120, 30, "solid", "red"))))</code></pre></div></div><p>When Pyret tries to evaluate the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span> expression to create
+the top stripe, it generates an error that refers to that call to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span>.</p><p>If someone else were using your function, this error might not make
+sense: they didn’t write an expression about rectangles. Wouldn’t it
+be better to have Pyret report that there was a problem in the use of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> itself?</p><p>As the author of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>, you can make that happen by
+<span class="emph">annotating</span> the parameters with information about the expected type of
+value for each parameter. Here’s the function definition again, this
+time requiring the three parameters to be strings:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String):
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>Notice that the notation here is similar to what we saw in contracts
+within the documentation: the parameter name is followed by a
+double-colon (<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">::</code></span>) and a type name (so far, one of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">Number</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">String</code></span>, or <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">Image</code></span>).<span class="refelem"><span class="refcolumn"><span class="refcontent">Putting each parameter
+on its own line is not required, but it sometimes helps with readability.</span></span></span></p><p>Run your file with this new definition and try the erroneous call
+again. You should get a different error message that is just in terms
+of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>.</p><p>It is also common practice to add a type annotation that captures the
+type of the function’s output. That annotation goes after the list of
+parameters:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String) -&gt; Image:
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>Note that all of these type annotations are optional. Pyret will run
+your program whether or not you include them. You can put type
+annotations on some parameters and not others; you can include the
+output type but not any of the parameter types. Different programming
+languages have different rules about types.</p><p>We will think of types as playing two roles: giving Pyret information
+that it can use to focus error messages more accurately, and guiding
+human readers of programs as to the proper use of user-defined functions.</p></section><section class="SsectionLevel5" id="section 3.3.2.3"><h5 class="heading">3.3.2.3<span class="stt"> </span><a name="(part._doc-strings)"/>Documentation<span class="button-group"><a href="#(part._doc-strings)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Imagine that you opened your program file from this chapter a couple
+of months from now. Would you remember what computation
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> does? The name is certainly suggestive, but
+it misses details such as that the stripes are stacked vertically
+(rather than horizontally) and that the stripes are equal
+height. Function names aren’t designed to carry this much information.</p><p>Programmers also annotate a function with a <span class="emph">docstring</span>, a short,
+human-language description of what the function does. Here’s what the
+Pyret docstring might look like for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String) -&gt; Image:
+  doc: "produce image of flag with three equal-height horizontal stripes"
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>While docstrings are also optional from Pyret’s perspective, you
+should always provide one when you write a function. They are
+extremely helpful to anyone who has to read your program, whether that is
+a co-worker, grader…or yourself, a couple of weeks from now.</p></section>&#13;
+<h5 class="heading">3.3.2.1<span class="stt"> </span><a name="(part._function-call-nm)"/>How Functions Evaluate<span class="button-group"><a href="#(part._function-call-nm)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>So far, we have learned three rules for how Pyret processes your program:</p><ul><li><p>If you write an expression, Pyret evaluates it to produce
+its value.</p></li><li><p>If you write a statement that defines a name, Pyret evaluates
+the expression (right side of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">=</code></span>), then makes an entry in the
+directory to associate the name with the value.</p></li><li><p>If you write an expression that uses a name from the directory,
+Pyret substitutes the name with the corresponding value.</p></li></ul><p>Now that we can define our own functions, we have to consider two more
+cases: what does Pyret do when you <span class="emph">define</span> a function (using
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun</code></span>), and what does Pyret do when you <span class="emph">call</span> a function
+(with values for the parameters)?</p><ul><li><p>When Pyret encounters a function definition in your file, it makes an
+entry in the directory to associate the name of the function with its
+code. The body of the function does not get evaluated at this time.</p></li><li><p>When Pyret encounters a function call while evaluating an expression,
+it replaces the call with the body of the function, but with the
+parameter values substituted for the parameter names in the
+body. Pyret then continues to evaluate the body with the substituted
+values.</p></li></ul><p>As an example of the function-call rule, if you evaluate</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag("red", "blue", "orange")</code></pre></div></div><p>Pyret starts from the function body</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", top),
+    above(rectangle(120, 30, "solid", middle),
+      rectangle(120, 30, "solid", bottom))))</code></pre></div></div><p>substitutes the parameter values</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", "red"),
+    above(rectangle(120, 30, "solid", "blue"),
+      rectangle(120, 30, "solid", "orange"))))</code></pre></div></div><p>then evaluates the expression, producing the flag image.</p><p>Note that the second expression (with the substituted values) is the
+same expression we started from for the Armenian flag. Substitution
+restores that expression, while still allowing the programmer to write
+the shorthand in terms of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>.</p>&#13;
+<h5 class="heading">3.3.2.2<span class="stt"> </span><a name="(part._fun-annotations)"/>Type Annotations<span class="button-group"><a href="#(part._fun-annotations)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>What if we made a mistake, and tried to call the function as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag(50, "blue", "red")</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What do you think Pyret will produce for this expression?</p></blockquote></blockquote><p>The first parameter to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> is supposed to be the
+color of the top stripe. The value <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">50</code></span> is not a string (much less a string naming a
+color). Pyret will substitute <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">50</code></span> for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">top</code></span> in the first call to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span>, yielding the following:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">frame(
+  above(rectangle(120, 30, "solid", 50),
+    above(rectangle(120, 30, "solid", "blue"),
+      rectangle(120, 30, "solid", "red"))))</code></pre></div></div><p>When Pyret tries to evaluate the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span> expression to create
+the top stripe, it generates an error that refers to that call to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rectangle</code></span>.</p><p>If someone else were using your function, this error might not make
+sense: they didn’t write an expression about rectangles. Wouldn’t it
+be better to have Pyret report that there was a problem in the use of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> itself?</p><p>As the author of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>, you can make that happen by
+<span class="emph">annotating</span> the parameters with information about the expected type of
+value for each parameter. Here’s the function definition again, this
+time requiring the three parameters to be strings:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String):
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>Notice that the notation here is similar to what we saw in contracts
+within the documentation: the parameter name is followed by a
+double-colon (<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">::</code></span>) and a type name (so far, one of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">Number</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">String</code></span>, or <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">Image</code></span>).<span class="refelem"><span class="refcolumn"><span class="refcontent">Putting each parameter
+on its own line is not required, but it sometimes helps with readability.</span></span></span></p><p>Run your file with this new definition and try the erroneous call
+again. You should get a different error message that is just in terms
+of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>.</p><p>It is also common practice to add a type annotation that captures the
+type of the function’s output. That annotation goes after the list of
+parameters:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String) -&gt; Image:
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>Note that all of these type annotations are optional. Pyret will run
+your program whether or not you include them. You can put type
+annotations on some parameters and not others; you can include the
+output type but not any of the parameter types. Different programming
+languages have different rules about types.</p><p>We will think of types as playing two roles: giving Pyret information
+that it can use to focus error messages more accurately, and guiding
+human readers of programs as to the proper use of user-defined functions.</p>&#13;
+<h5 class="heading">3.3.2.3<span class="stt"> </span><a name="(part._doc-strings)"/>Documentation<span class="button-group"><a href="#(part._doc-strings)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Imagine that you opened your program file from this chapter a couple
+of months from now. Would you remember what computation
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span> does? The name is certainly suggestive, but
+it misses details such as that the stripes are stacked vertically
+(rather than horizontally) and that the stripes are equal
+height. Function names aren’t designed to carry this much information.</p><p>Programmers also annotate a function with a <span class="emph">docstring</span>, a short,
+human-language description of what the function does. Here’s what the
+Pyret docstring might look like for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">three-stripe-flag</code></span>:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun three-stripe-flag(top :: String,
+      middle :: String,
+      bottom :: String) -&gt; Image:
+  doc: "produce image of flag with three equal-height horizontal stripes"
+  frame(
+    above(rectangle(120, 30, "solid", top),
+      above(rectangle(120, 30, "solid", middle),
+        rectangle(120, 30, "solid", bottom))))
+end</code></pre></div></div><p>While docstrings are also optional from Pyret’s perspective, you
+should always provide one when you write a function. They are
+extremely helpful to anyone who has to read your program, whether that is
+a co-worker, grader…or yourself, a couple of weeks from now.</p>&#13;
+<h4 class="heading">3.3.3<span class="stt"> </span><a name="(part._moon-weight-pyret)"/>Functions Practice: Moon Weight<span class="button-group"><a href="#(part._moon-weight-pyret)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Suppose we’re responsible for outfitting a team of astronauts for
+lunar exploration. We have to determine how much each of them will
+weigh on the Moon’s surface. On the Moon, objects weigh only one-sixth
+their weight on earth. Here are the expressions for
+several astronauts (whose weights are expressed in pounds):
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">100 * 1/6
+150 * 1/6
+90 * 1/6</code></pre></div></div></div><div class="SIntrapara">As with our examples of the Armenian and Austrian flags, we are
+writing the same expression multiple times. This is another situation
+in which we should create a function that takes the changing data as a
+parameter but captures the fixed computation only once.</div><p>In the case of the flags, we <span class="emph">noticed</span> we had written essentially the
+same expression more than once. Here, we have a computation that we
+<span class="emph">expect</span> to do multiple times (once for each astronaut). It’s
+boring to write the same expression over and over again. Besides, if
+we copy or re-type an expression multiple times, sooner or later we’re
+bound to make a transcription error.<span class="refelem"><span class="refcolumn"><span class="refcontent">This is an instance of
+the <a href="https://en.wikipedia.org/wiki/Don%27t_repeat_yourself">DRY
+principle</a>, where DRY means "don’t repeat yourself".</span></span></span></p><p>Let’s remind ourselves of the steps for creating a function:</p><ul><li><p>Write down some examples of the desired calculation. We did that
+above.</p></li><li><p>Identify which parts are fixed (above, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">* 1/6</code></span>) and which
+are changing (above, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">100</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">150</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">90</code></span>...).</p></li><li><p>For each changing part, give it a name (say
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">earth-weight</code></span>), which will be the parameter that stands for it.</p></li><li><p/><div class="SIntrapara">Rewrite the examples to be in terms of this parameter:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">earth-weight * 1/6</code></pre></div></div></div><div class="SIntrapara">This will be the <span style="font-style: italic">body</span>, i.e., the expression inside
+the function.</div></li><li><p>Come up with a suggestive name for the function: e.g., <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">moon-weight</code></span>.</p></li><li><p/><div class="SIntrapara">Write the syntax for functions around the body expression:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun moon-weight(earth-weight):
+  earth-weight * 1/6
+end</code></pre></div></div></div></li><li><p/><div class="SIntrapara">Remember to include the types of the parameter and output, as
+well as the documentation string. This yields the final function:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun moon-weight(earth-weight :: Number) -&gt; Number:
+  doc: "Compute weight on moon from weight on earth"
+  earth-weight * 1/6
+end</code></pre></div></div></div></li></ul>&#13;
+<h4 class="heading">3.3.4<span class="stt"> </span><a name="(part._writing-examples)"/>Documenting Functions with Examples<span class="button-group"><a href="#(part._writing-examples)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>In each of the functions above, we’ve started with some examples of
+what we wanted to compute, generalized from there to a generic
+formula, turned this into a function, and then used the function in
+place of the original expressions.</p><p>Now that we’re done, what use are the initial examples? It seems
+tempting to toss them away. However, there’s an important rule about
+software that you should learn: <span class="emph">Software Evolves</span>. Over time,
+any program that has any use will change and grow, and as a result may
+end up producing different values than it did initially. Sometimes
+these are intended, but sometimes these are a result of mistakes
+(including such silly but inevitable mistakes like accidentally adding
+or deleting text while typing). Therefore, it’s always useful to keep
+those examples around for future reference, so you can immediately be
+alerted if the function deviates from the examples it was supposed to
+generalize.</p><p/><div class="SIntrapara">Pyret makes this easy to do. Every function can be accompanied by a
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">where</code></span> clause that records the examples. For instance, our
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">moon-weight</code></span> function can be modified to read:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun moon-weight(earth-weight :: Number) -&gt; Number:
+  doc: "Compute weight on moon from weight on earth"
+  earth-weight * 1/6
+where:
+  moon-weight(100) is 100 * 1/6
+  moon-weight(150) is 150 * 1/6
+  moon-weight(90) is 90 * 1/6
+end</code></pre></div></div></div><div class="SIntrapara">When written this way, Pyret will actually <span class="emph">check the answers every
+time you run the program</span>, and notify you if you have changed the
+function to be inconsistent with these examples.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p/><div class="SIntrapara">Check this! Change the formula—<wbr/>for instance, replace the body of the
+function with
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">earth-weight * 1/3</code></pre></div></div></div><div class="SIntrapara">—<wbr/>and see what happens. <span class="emph">Pay attention to the output from CPO</span>: you
+should get used to recognizing this kind of output.</div></blockquote></blockquote><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p/><div class="SIntrapara">Now, fix the function body, and instead change one of the answers—<wbr/>e.g., write
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">moon-weight(90) is 90 * 1/3</code></pre></div></div></div><div class="SIntrapara">—<wbr/>and see what happens. Contrast the output in this case with the output above.</div></blockquote></blockquote><p>Of course, it’s pretty unlikely you will make a mistake with a
+function this simple (except through a typo). After all, the examples
+are so similar to the function’s own body. Later, however, we will see
+that the examples can be much simpler than the body, and there is a real chance
+for things to get inconsistent. At that point, the examples become invaluable
+in making sure we haven’t made a mistake in our program. In fact, this is so
+valuable in professional software development that good programmers
+always write down large collections of examples—<wbr/>called
+<span style="font-style: italic">tests</span>—<wbr/>to make sure their programs are behaving as they expect.</p><p>For our purposes, we are writing examples as part of the process of
+<span class="emph">making sure we understand the problem</span>. It’s always a good idea
+to make sure you understand the question before you start writing
+code to solve a problem. Examples are a nice intermediate point: you
+can sketch out the relevant computation <span style="font-weight: bold">on concrete
+values</span> first, then worry about turning it into a function. If you
+can’t write the examples, chances are you won’t be able to write the
+function either. Examples break down the programming process into
+smaller, manageable steps.</p>&#13;
+<h4 class="heading">3.3.5<span class="stt"> </span><a name="(part._pen-cost-pyret)"/>Functions Practice: Cost of pens<span class="button-group"><a href="#(part._pen-cost-pyret)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Let’s create one more function, this time for a more complicated example.
+Imagine that you are trying to compute the total cost of an order of
+pens with slogans (or messages) printed on them.  Each pen costs 25
+cents plus an additional 2 cents per character in the message (we’ll
+count spaces between words as characters).</p><p>Following our steps to create a function once again,
+let’s start by writing two concrete expressions that do this
+computation.</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode"># ordering 3 pens that say "wow"
+3 * (0.25 + (string-length("wow") * 0.02))
+
+# ordering 10 pens that say "smile"
+10 * (0.25 + (string-length("smile") * 0.02))</code></pre></div></div><p>These examples introduce a new built-in function called
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">string-length</code></span>. It takes a string as input and produces the
+number of characters (including spaces and punctuation) in the string.
+These examples also show an example of working with
+numbers other than integers.<span class="refelem"><span class="refcolumn"><span class="refcontent">Pyret requires a number before the
+decimal point, so if the “whole number” part is zero, you need to write
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> before the decimal. Also observe that Pyret uses a decimal
+<span class="emph">point</span>; it doesn’t support conventions such as
+<a href="https://en.wikipedia.org/wiki/Decimal_separator">“0,02”</a>.</span></span></span></p><p/><div class="SIntrapara">The second step to writing a function was to identify which
+information differs across our two examples. In this case, we have
+<span class="emph">two</span>: the number of pens and the message to put on the pens.
+This means our function will have two parameters rather than just one.
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun pen-cost(num-pens :: Number, message :: String) -&gt; Number:
+  num-pens * (0.25 + (string-length(message) * 0.02))
+end</code></pre></div></div></div><div class="SIntrapara">Of course, as things get too long, it may be helpful to use multiple lines:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun pen-cost(num-pens :: Number, message :: String)
+  -&gt; Number:
+  num-pens * (0.25 + (string-length(message) * 0.02))
+end</code></pre></div></div></div><div class="SIntrapara">If you want to write a multi-line docstring, you need to use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">```</code></span> rather
+than <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">"</code></span> to begin and end it, like so:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun pen-cost(num-pens :: Number, message :: String)
+  -&gt; Number:
+  doc: ```total cost for pens, each 25 cents
+       plus 2 cents per message character```
+  num-pens * (0.25 + (string-length(message) * 0.02))
+end</code></pre></div></div></div><div class="SIntrapara">We should also document the examples that we used when creating the
+function:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun pen-cost(num-pens :: Number, message :: String)
+  -&gt; Number:
+  doc: ```total cost for pens, each 25 cents
+       plus 2 cents per message character```
+  num-pens * (0.25 + (string-length(message) * 0.02))
+where:
+  pen-cost(3, "wow")
+    is 3 * (0.25 + (string-length("wow") * 0.02))
+  pen-cost(10, "smile")
+    is 10 * (0.25 + (string-length("smile") * 0.02))
+end</code></pre></div></div></div><p/><div class="SIntrapara">When writing <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">where</code></span> examples, we also want to include special
+yet valid cases that the function might have to handle, such as an empty
+message.
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">pen-cost(5, "") is 5 * 0.25</code></pre></div></div></div><div class="SIntrapara">Note that our empty-message example has a simpler expression on the
+right side of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span>. The expression for what the function returns
+doesn’t have to match the body expression; it simply has to evaluate
+to the same value as you expect the example to produce. Sometimes,
+we’ll find it easier to just write the expected value directly. For
+the case of someone ordering no pens, for example, we’d include:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">pen-cost(0, "bears") is 0</code></pre></div></div></div><div class="SIntrapara">The point of the examples is to document how a function behaves on a
+variety of inputs. What goes to the right of the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span> should
+summarize the computation or the answer in some meaningful way. Most
+important? <span style="font-weight: bold">Do not write the function, run it to determine the answer,
+then put that answer on the right side of the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is</code></span>!</span> Why not?
+Because the examples are meant to give some redundancy to the design
+process, so that you catch errors you might have made. If your
+function body is incorrect, and you use the function to generate the
+example, you won’t get the benefit of using the example to check for
+errors.</div><p>We’ll keep returning to this idea of writing good examples. Don’t
+worry if you still have questions for now. Also, for the time being,
+we won’t worry about nonsensical situations like negative numbers of
+pens. We’ll get to those after we’ve learned additional coding
+techniques that will help us handle such situations properly.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p/><div class="SIntrapara">We could have combined our two special cases into one example, such as
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">pen-cost(0, "") is 0</code></pre></div></div></div><div class="SIntrapara">Does doing this seem like a good idea? Why or why not?</div></blockquote></blockquote>&#13;
+<h4 class="heading">3.3.6<span class="stt"> </span><a name="(part._.Recap__.Defining_.Functions)"/>Recap: Defining Functions<span class="button-group"><a href="#(part._.Recap__.Defining_.Functions)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>This chapter has introduced the idea of a function. Functions play a
+key role in programming: they let us configure computations with
+different concrete values at different times. The first time we
+compute the cost of pens, we might be asking about <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">10</code></span> pens that say
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">"Welcome"</code></span>. The next time, we might be asking about <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">100</code></span> pens that say
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">"Go Bears!"</code></span>. The core computation is the same in both cases, so we
+want to write it out once, configuring it with different concrete
+values each time we use it.</p><p>We’ve covered several specific ideas about functions:</p><ul><li><p>We showed the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun</code></span> notation for writing functions. You learned
+that a function has a <span class="emph">name</span> (that we can use to refer to it),
+one or more <span class="emph">parameters</span> (names for the values we want to configure), as
+well as a <span class="emph">body</span>, which is the computation that we want to
+perform once we have concrete values for the parameters.</p></li><li><p>We showed that we should include <span class="emph">examples</span> with our functions,
+to illustrate what the function computes on various specific
+values. Examples go in a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">where</code></span> block within the function.</p></li><li><p>We showed that we can <span class="emph">use</span> a function by providing concrete
+values to configure its parameters. To do this, we write the name of
+the function we want to use, followed by a pair of parenthesis around
+comma-separated values for the parameters. For example, writing the following
+expression (at the interactions prompt) will compute the cost of a
+specific order of pens:</p><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">pen-cost(10, "Welcome")</code></pre></div></div></li><li><p>We discussed that if we define a function in the definitions
+pane then press Run, Pyret will make an entry in the directory with
+the name of the function. If we later use the function, Pyret will
+look up the code that goes with that name, substitute the concrete
+values we provided for the parameters, and return the result of
+evaluating the resulting expression. Pyret will NOT produce anything
+in the interactions pane for a function definition (other than a
+report about whether the examples hold).</p></li></ul><p>There’s much more to learn about functions, including different
+reasons for creating them. We’ll get to those in due course.</p>    
+</body>
+</html>

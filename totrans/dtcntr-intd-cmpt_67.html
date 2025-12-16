@@ -1,0 +1,1656 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>22 Avoiding Recomputation by Remembering Answers🔗</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>22 Avoiding Recomputation by Remembering Answers🔗</h1>
+<blockquote>原文：<a href="https://dcic-world.org/2025-08-27/avoid-recomp.html">https://dcic-world.org/2025-08-27/avoid-recomp.html</a></blockquote><table cellspacing="0" cellpadding="0"><tr><td><p><span class="hspace">    </span><a href="#%28part._.An_.Interesting_.Numeric_.Sequence%29" class="toclink" data-pltdoc="x">22.1<span class="hspace"> </span>An Interesting Numeric Sequence</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.Using_.State_to_.Remember_.Past_.Answers%29" class="toclink" data-pltdoc="x">22.1.1<span class="hspace"> </span>Using State to Remember Past Answers</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.From_a_.Tree_of_.Computation_to_a_.D.A.G%29" class="toclink" data-pltdoc="x">22.1.2<span class="hspace"> </span>From a Tree of Computation to a <span class="Smaller">DAG</span></a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._numbers-not-constant%29" class="toclink" data-pltdoc="x">22.1.3<span class="hspace"> </span>The Complexity of Numbers</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.Abstracting_.Memoization%29" class="toclink" data-pltdoc="x">22.1.4<span class="hspace"> </span>Abstracting Memoization</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._levenshtein%29" class="toclink" data-pltdoc="x">22.2<span class="hspace"> </span>Edit-Distance for Spelling Correction</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._smith-waterman%29" class="toclink" data-pltdoc="x">22.3<span class="hspace"> </span>Nature as a Fat-Fingered Typist</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Dynamic_.Programming%29" class="toclink" data-pltdoc="x">22.4<span class="hspace"> </span>Dynamic Programming</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.Catalan_.Numbers_with_.Dynamic_.Programming%29" class="toclink" data-pltdoc="x">22.4.1<span class="hspace"> </span>Catalan Numbers with Dynamic Programming</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.Levenshtein_.Distance_and_.Dynamic_.Programming%29" class="toclink" data-pltdoc="x">22.4.2<span class="hspace"> </span>Levenshtein Distance and Dynamic Programming</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._memo-vs-dp%29" class="toclink" data-pltdoc="x">22.5<span class="hspace"> </span>Contrasting Memoization and Dynamic Programming</a></p></td></tr></table><p>We have on several instances already referred to a
+<a href="glossary.html#%28elem._glossary-space-time._tradeoff%29" data-pltdoc="x">☛ <span style="font-style: italic">space-time tradeoff</span></a>. The most obvious tradeoff is
+when a computation “remembers” prior results and, instead of
+recomputing them, looks them up and returns the answers. This is an
+instance of the tradeoff because it uses space (to remember prior
+answers) in place of time (recomputing the answer). Let’s see how we
+can write such computations.</p><section class="SsectionLevel3" id="section 22.1"><h3 class="heading">22.1<span class="stt"> </span><a name="(part._.An_.Interesting_.Numeric_.Sequence)"/>An Interesting Numeric Sequence<span class="button-group"><a href="#(part._.An_.Interesting_.Numeric_.Sequence)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>Suppose we want to create properly-parenthesized expressions, and
+ignore all non-parenthetical symbols. How many ways are there of
+creating parenthesized expressions given a certain number of opening
+(equivalently, closing) parentheses?</p><p>If we have zero opening parentheses, the only expression we can create
+is the empty expression. If we have one opening parenthesis, the only
+one we can construct is “()” (there must be a closing parenthesis
+since we’re interested only in properly-parenthesized expressions). If
+we have two opening parentheses, we can construct “(())” and
+“()()”. Given three, we can construct “((()))”, “(())()”,
+“()(())”, “()()()”, and “(()())”, for a total of five. And so
+on. Observe that the solutions at each level use all the possible
+solutions at one level lower, combined in all the possible ways.</p><p/><div class="SIntrapara">There is actually a famous mathematical sequence that corresponds to
+the number of such expressions, called the
+<a href="http://en.wikipedia.org/wiki/Catalan_number">Catalan sequence</a>.
+It has the property of growing quite large very quickly: starting from
+the modest origins above, the tenth Catalan number (i.e., tenth
+element of the Catalan sequence) is 16796. A simple recurrence formula
+gives us the Catalan number, which we can turn into a simple program:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(n):
+  if n == 0: 1
+  else if n &gt; 0:
+    for fold(acc from 0, k from range(0, n)):
+      acc + (catalan(k) * catalan(n - 1 - k))
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">This function’s tests look as follows—<wbr/>
+</div><div class="SIntrapara"><a name="(elem._catalan-tests)"/>&lt;<span style="font-style: italic">catalan-tests</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  catalan(0) is 1
+  catalan(1) is 1
+  catalan(2) is 2
+  catalan(3) is 5
+  catalan(4) is 14
+  catalan(5) is 42
+  catalan(6) is 132
+  catalan(7) is 429
+  catalan(8) is 1430
+  catalan(9) is 4862
+  catalan(10) is 16796
+  catalan(11) is 58786
+end</code></pre></div></div></div><div class="SIntrapara">but beware! When we time the function’s execution, we find that the
+first few tests run very quickly, but somewhere between a value of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">10</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">20</code></span>—<wbr/>depending on your machine and programming
+language implementation—<wbr/>you ought to see things start to slow down,
+first a little, then with extreme effect.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Check at what value you start to observe a significant slowdown on
+your machine. Plot the graph of running time against input size. What
+does this suggest?</p></blockquote></blockquote><p>The reason the Catalan computation takes so long is precisely
+because of what we alluded to earlier: at each level, we depend on
+computing the Catalan number of all the smaller levels; this
+computation in turn needs the numbers of all of its smaller levels;
+and so on down the road.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Map the subcomputations of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> to see why the computation
+time explodes as it does. What is the worst-case time complexity of
+this function?</p></blockquote></blockquote><p>Here is a graphical representation of all the sub-computations the
+Catalan function does for input <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">3</code></span>:</p><blockquote class="SCentered"><p><img src="../Images/79fbf0941364e29afa9e7ce828c8b1ec.png" alt="" width="644" height="223" data-original-src="https://dcic-world.org/2025-08-27/cat-no-memo.png"/></p></blockquote><p>Observe the very symmetric computation, reflecting the formula.</p><section class="SsectionLevel4" id="section 22.1.1"><h4 class="heading">22.1.1<span class="stt"> </span><a name="(part._.Using_.State_to_.Remember_.Past_.Answers)"/>Using State to Remember Past Answers<span class="button-group"><a href="#(part._.Using_.State_to_.Remember_.Past_.Answers)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Therefore, this is clearly a case where trading space for time is
+likely to be of help. How do we do this? We need a notion of
+<span class="emph">memory</span> that records all previous answers and, on subsequent
+attempts to compute them, checks whether they are already known and,
+if so, just returns them instead of recomputing them.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What critical assumption is this based on?</p></blockquote></blockquote><p>Naturally, this assumes that <span class="emph">for a given input, the answer will
+always be the same</span>. As we have seen, functions with state violate
+this liberally, so typical stateful functions cannot utilize this
+optimization. Ironically, we will use state to implement this
+optimization, so we will have a stateful function that always returns
+the same answer on a given input—<wbr/>and thereby use state in a stateful
+function to simulate a stateless one. Groovy, dude!</p><p/><div class="SIntrapara">First, then, we need some representation of memory. We can imagine
+several, but here’s a simple one:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data MemoryCell:
+  | mem(in, out)
+end
+
+var memory :: List&lt;MemoryCell&gt; = empty</code></pre></div></div></div><div class="SIntrapara">Now how does <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> need to change? We have to first look for
+whether the value is already in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span>; if it is, we return it
+without any further computation, but if it isn’t, then we compute the
+result, store it in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span>, and then return it:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(n :: Number) -&gt; Number:
+  answer = find(lam(elt): elt.in == n end, memory)
+  cases (Option) answer block:
+    | none =&gt;
+      result =
+        if n == 0: 1
+        else if n &gt; 0:
+          for fold(acc from 0, k from range(0, n)):
+            acc + (catalan(k) * catalan(n - 1 - k))
+          end
+        end
+      memory := link(mem(n, result), memory)
+      result
+    | some(v) =&gt; v.out
+  end
+end</code></pre></div></div></div><div class="SIntrapara">And that’s it! Now running our previous tests will reveal that the
+answer computes much quicker, but in addition we can dare to run
+bigger computations such as <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(50)</code></span>.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Trace through a call of this revised function and see how many calls
+it makes.</p></blockquote></blockquote><p>Here is a revised visualization of computing for input <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">3</code></span>:</p><blockquote class="SCentered"><p><img src="../Images/31c17fe6a16bbf3f25e501c178869546.png" alt="" width="644" height="294" data-original-src="https://dcic-world.org/2025-08-27/cat-memo.png"/></p></blockquote><p>Observe the <span class="emph">asymmetric</span> computation: the early calls perform the
+computations, while the latter calls simply look up the results.</p><p>This process, of converting a function into a version that remembers
+its past answers, is called <span style="font-style: italic">memoization</span>.</p></section><section class="SsectionLevel4" id="section 22.1.2"><h4 class="heading">22.1.2<span class="stt"> </span><a name="(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)"/>From a Tree of Computation to a <span class="Smaller">DAG</span><span class="button-group"><a href="#(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>What we have subtly done is to convert a tree of computation into a
+<span class="Smaller">DAG</span> over the same computation, with equivalent calls being
+reused. Whereas previously each call was generating lots of recursive
+calls, which induced still more recursive calls, now we are reusing
+previous recursive calls—<wbr/>i.e., sharing the results computed
+earlier. This, in effect, points the recursive call to one that had
+occurred earlier. Thus, the shape of computation converts from a tree
+to a <span class="Smaller">DAG</span> of calls.</p><p>This has an important complexity benefit. Whereas previously we were
+performing a super-exponential number of calls, now we perform only
+one call per input and share all previous calls—<wbr/>thereby reducing
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(n)</code></span> to take a number of fresh calls proportional to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">n</code></span>. Looking up the result of a previous call takes time
+proportional to the size of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span> (because we’ve represented
+it as a list; better representations would improve on that), but that
+only contributes another linear multiplicative factor, reducing the
+overall complexity to quadratic in the size of the input. This is a
+dramatic reduction in overall complexity. In contrast, other uses of
+memoization may result in much less dramatic improvements, turning the
+use of this technique into a true engineering trade-off.</p></section><section class="SsectionLevel4" id="section 22.1.3"><h4 class="heading">22.1.3<span class="stt"> </span><a name="(part._numbers-not-constant)"/>The Complexity of Numbers<span class="button-group"><a href="#(part._numbers-not-constant)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>As we start to run larger computations, however, we may start to
+notice that our computations are starting to take longer than linear
+growth. This is because our numbers are growing arbitrarily
+large—<wbr/>for instance, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(100)</code></span> is
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">896519947090131496687170070074100632420837521538745909320</code></span>—<wbr/>and
+computations on numbers can no longer be constant time, contrary to
+what we said earlier
+[<a href="predicting-growth.html#%28part._size-of-input%29" data-pltdoc="x">The Size of the Input</a>]. Indeed, when working on cryptographic
+problems, the fact that operations on numbers do not take constant
+time are absolutely critical to fundamental complexity results (and,
+for instance, the presumed unbreakability of contemporary cryptography).
+(See also <a href="factoring-numbers.html" data-pltdoc="x">Factoring Numbers</a>.)</p></section><section class="SsectionLevel4" id="section 22.1.4"><h4 class="heading">22.1.4<span class="stt"> </span><a name="(part._.Abstracting_.Memoization)"/>Abstracting Memoization<span class="button-group"><a href="#(part._.Abstracting_.Memoization)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Now we’ve achieved the desired complexity improvement, but there is
+still something unsatisfactory about the structure of our revised
+definition of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span>: the act of memoization is deeply
+intertwined with the definition of a Catalan number, even though these
+should be intellectually distinct. Let’s do that next.</p><p>In effect, we want to separate our program into two parts. One part
+defines a general notion of memoization, while the other defines
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> in terms of this general notion.</p><p/><div class="SIntrapara">What does the former mean? We want to encapsulate the idea of
+“memory” (since we presumably don’t want this stored in a variable
+that any old part of the program can modify). This should result in
+a function that takes the input we want to check; if it is found in
+the memory we return that answer, otherwise we compute the answer,
+store it, and return it. To compute the answer, we need a function
+that determines how to do so. Putting together these pieces:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data MemoryCell:
+  | mem(in, out)
+end
+
+fun memoize-1&lt;T, U&gt;(f :: (T -&gt; U)) -&gt; (T -&gt; U):
+
+  var memory :: List&lt;MemoryCell&gt; = empty
+
+  lam(n):
+    answer = find(lam(elt): elt.in == n end, memory)
+    cases (Option) answer block:
+      | none =&gt;
+        result = f(n)
+        memory := link(mem(n, result), memory)
+        result
+      | some(v) =&gt; v.out
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">We use the name <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span> to indicate that this is a
+<span style="font-style: italic">memoizer</span> for single-argument functions. Observe that the code
+above is virtually identical to what we had before, except where we
+had the logic of Catalan number computation, we now have the parameter
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">f</code></span> determining what to do.</div><p/><div class="SIntrapara">With this, we can now define <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> as follows:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec catalan :: (Number -&gt; Number) =
+  memoize-1(
+    lam(n):
+      if n == 0: 1
+      else if n &gt; 0:
+        for fold(acc from 0, k from range(0, n)):
+          acc + (catalan(k) * catalan(n - 1 - k))
+        end
+      end
+    end)</code></pre></div></div></div><div class="SIntrapara">Note several things about this definition:
+</div><div class="SIntrapara"><ol><li><p>We don’t write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(...): ...;</code></span> because the
+procedure bound to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> is produced by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span>.</p></li><li><p>Note carefully that the recursive calls to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> have
+to be to the function bound to the result of memoization, thereby
+behaving like an <span style="font-style: italic">object</span>.  Failing to
+refer to this same shared procedure means the recursive calls will
+not be memoized, thereby losing the benefit of this process.</p></li><li><p>We need to use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec</code></span> for reasons we saw earlier
+[<a href="func-as-data.html#%28part._streams-from-funs%29" data-pltdoc="x">Streams From Functions</a>].</p></li><li><p>Each invocation of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span> creates a new table of
+stored results. Therefore the memoization of different functions
+will each get their own tables rather than sharing tables, which is
+a bad idea!</p></li></ol></div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Why is sharing memoization tables a bad idea? Be concrete.</p></blockquote></blockquote></section></section><section class="SsectionLevel3" id="section 22.2"><h3 class="heading">22.2<span class="stt"> </span><a name="(part._levenshtein)"/>Edit-Distance for Spelling Correction<span class="button-group"><a href="#(part._levenshtein)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>Text editors, word processors, mobile phones, and various other
+devices now routinely implement spelling correction or offer
+suggestions on (mis-)spellings. How do they do this? Doing so requires
+two capabilities: computing the distance between words, and finding
+words that are nearby according to this metric. In this section we
+will study the first of these questions. (For the purposes of this
+discussion, we will not dwell on the exact definition of what a
+“word” is, and just deal with strings instead. A real system would
+need to focus on this definition in considerable detail.)</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Think about how you might define the “distance between two words”.
+Does it define a
+<a href="http://en.wikipedia.org/wiki/Metric_space">metric space</a>?</p></blockquote></blockquote><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Will the definition we give below define a metric space over the set
+of words?</p></blockquote></blockquote><p/><div class="SIntrapara">Though there may be several legitimate ways to define distances
+between words, here we care about the distance in the very specific
+context of spelling mistakes. Given the distance measure, one use
+might be to compute the distance of a given word from all the words in
+a dictionary, and offer the closest word (i.e., the one with the least
+distance) as a proposed correction.<span class="refelem"><span class="refcolumn"><span class="refcontent">Obviously, we can’t
+compute the distance to every word in a large dictionary
+on every single entered word. Making this process efficient constitutes
+the other half of this problem. Briefly, we need to quickly discard
+most words as unlikely to be close enough, for which a representation
+such as a
+<a href="http://en.wikipedia.org/wiki/Bag-of-words_model">bag-of-words</a>
+(here, a bag of characters) can greatly help.</span></span></span>
+Given such an intended use, we would like at least the following to hold:
+</div><div class="SIntrapara"><ul><li><p>That the distance from a word to itself be zero.</p></li><li><p>That the distance from a word to any word other than
+itself be strictly positive. (Otherwise, given a word that is
+already in the dictionary, the “correction” might be a different
+dictionary word.)</p></li><li><p>That the distance between two words be symmetric, i.e., it
+shouldn’t matter in which order we pass arguments.</p></li></ul></div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Observe that we have not included the triangle inequality relative to
+the properties of a metric. Why not? If we don’t need the triangle
+inequality, does this let us define more interesting distance
+functions that are not metrics?</p></blockquote></blockquote><p/><div class="SIntrapara">Given a pair of words, the assumption is that we meant to type one
+but actually typed the other. Here, too, there are several possible
+definitions, but a popular one considers that there are three ways to
+be fat-fingered:
+</div><div class="SIntrapara"><ol><li><p>we left out a character;</p></li><li><p>we typed a character twice; or,</p></li><li><p>we typed one character when we meant another.</p></li></ol></div><div class="SIntrapara">In particular, we are interested in the <span class="emph">fewest</span> edits of these
+forms that need to be performed to get from one word to the other.
+For natural reasons, this notion of distance is called the
+<span style="font-style: italic">edit distance</span> or, in honor of its creator, the
+<span style="font-style: italic">Levenshtein distance</span>.<span class="refelem"><span class="refcolumn"><span class="refcontent">See more on
+<a href="http://en.wikipedia.org/wiki/Levenshtein_distance">Wikipedia</a>.</span></span></span></div><p>There are several variations of this definition possible. For now, we
+will consider the simplest one, which assumes that each of these
+errors has equal cost. For certain input devices, we may want to
+assign different costs to these mistakes; we might also assign
+different costs depending on what wrong character was typed (two
+characters adjacent on a keyboard are much more likely to be a
+legitimate error than two that are far apart). We will return briefly
+to some of these considerations later [<a href="#%28part._smith-waterman%29" data-pltdoc="x">Nature as a Fat-Fingered Typist</a>].</p><p/><div class="SIntrapara">Under this metric, the distance between “kitten” and “sitting”
+is 3 because we have to replace “k” with “s”, replace “e” with
+“i”, and insert “g” (or symmetrically, perform the opposite
+replacements and delete “g”). Here are more examples:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-tests)"/>&lt;<span style="font-style: italic">levenshtein-tests</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  levenshtein(empty, empty) is 0
+  levenshtein([list: "x"], [list: "x"]) is 0
+  levenshtein([list: "x"], [list: "y"]) is 1
+  # one of about 600
+  levenshtein(
+    [list: "b", "r", "i", "t", "n", "e", "y"],
+    [list: "b", "r", "i", "t", "t", "a", "n", "y"])
+    is 3
+  # http://en.wikipedia.org/wiki/Levenshtein_distance
+  levenshtein(
+    [list: "k", "i", "t", "t", "e", "n"],
+    [list: "s", "i", "t", "t", "i", "n", "g"])
+    is 3
+  levenshtein(
+    [list: "k", "i", "t", "t", "e", "n"],
+    [list: "k", "i", "t", "t", "e", "n"])
+    is 0
+  # http://en.wikipedia.org/wiki/Levenshtein_distance
+  levenshtein(
+    [list: "S", "u", "n", "d", "a", "y"],
+    [list: "S", "a", "t", "u", "r", "d", "a", "y"])
+    is 3
+  # http://www.merriampark.com/ld.htm
+  levenshtein(
+    [list: "g", "u", "m", "b", "o"],
+    [list: "g", "a", "m", "b", "o", "l"])
+    is 2
+  # http://www.csse.monash.edu.au/~lloyd/tildeStrings/Alignment/92.IPL.html
+  levenshtein(
+    [list: "a", "c", "g", "t", "a", "c", "g", "t", "a", "c", "g", "t"],
+    [list: "a", "c", "a", "t", "a", "c", "t", "t", "g", "t", "a", "c", "t"])
+    is 4
+  levenshtein(
+    [list: "s", "u", "p", "e", "r", "c", "a", "l", "i",
+      "f", "r", "a", "g", "i", "l", "i", "s", "t" ],
+    [list: "s", "u", "p", "e", "r", "c", "a", "l", "y",
+      "f", "r", "a", "g", "i", "l", "e", "s", "t" ])
+    is 2
+end</code></pre></div></div></div><div class="SIntrapara">The basic algorithm is in fact very simple:
+</div><div class="SIntrapara"><a name="(elem._levenshtein)"/>&lt;<span style="font-style: italic">levenshtein</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec levenshtein :: (List&lt;String&gt;, List&lt;String&gt; -&gt; Number) =
+  <a href="#%28elem._levenshtein-body%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-body</span>&gt;</a></code></pre></div></div></div><div class="SIntrapara">where, because there are two list inputs, there are four cases, of
+which two are symmetric:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-body)"/>&lt;<span style="font-style: italic">levenshtein-body</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">lam(s, t):
+  <a href="#%28elem._levenshtein-both-empty%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-both-empty</span>&gt;</a>
+  <a href="#%28elem._levenshtein-one-empty%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-one-empty</span>&gt;</a>
+  <a href="#%28elem._levenshtein-neither-empty%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-neither-empty</span>&gt;</a>
+end</code></pre></div></div></div><div class="SIntrapara">If both inputs are empty, the answer is simple:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-both-empty)"/>&lt;<span style="font-style: italic">levenshtein-both-empty</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">if is-empty(s) and is-empty(t): 0</code></pre></div></div></div><div class="SIntrapara">When one is empty, then the edit distance corresponds to the length of
+the other, which needs to inserted (or deleted) in its entirety (so we
+charge a cost of one per character):
+</div><div class="SIntrapara"><a name="(elem._levenshtein-one-empty)"/>&lt;<span style="font-style: italic">levenshtein-one-empty</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">else if is-empty(s): t.length()
+else if is-empty(t): s.length()</code></pre></div></div></div><div class="SIntrapara">If neither is empty, then each has a first character. If they are the
+same, then there is no edit cost associated with this character (which
+we reflect by recurring on the rest of the words without adding to the
+edit cost). If they are not the same, however, we consider each of the
+possible edits:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-neither-empty)"/>&lt;<span style="font-style: italic">levenshtein-neither-empty</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">else:
+  if s.first == t.first:
+    levenshtein(s.rest, t.rest)
+  else:
+    min3(
+      1 + levenshtein(s.rest, t),
+      1 + levenshtein(s, t.rest),
+      1 + levenshtein(s.rest, t.rest))
+  end
+end</code></pre></div></div></div><div class="SIntrapara">In the first case, we assume <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s</code></span> has one too many characters, so
+we compute the cost as if we’re deleting it and finding the lowest
+cost for the rest of the strings (but charging one for this deletion);
+in the second case, we symmetrically assume <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">t</code></span> has one too many;
+and in the third case, we assume one character got replaced by
+another, so we charge one but consider the rest of both words (e.g.,
+assume “s” was typed for “k” and continue with “itten” and
+“itting”). This uses the following helper function:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun min3(a :: Number, b :: Number, c :: Number):
+  num-min(a, num-min(b, c))
+end</code></pre></div></div></div><p>This algorithm will indeed pass all the tests we have written above,
+but with a problem: the running time grows exponentially. That is
+because, each time we find a mismatch, we recur on three
+subproblems. In principle, therefore, the algorithm takes time
+proportional to <span class="emph">three</span> to the power of the length of the shorter
+word. In practice, any prefix that matches causes no branching, so it
+is mismatches that incur branching (thus, confirming that the distance
+of a word with itself is zero only takes time linear in the size of
+the word).</p><p>Observe, however, that many of these subproblems are the same. For
+instance, given “kitten” and “sitting”, the mismatch on the
+initial character will cause the algorithm to compute the distance of
+“itten” from “itting” but also “itten” from “sitting” and
+“kitten” from “itting”. Those latter two distance computations
+will also involve matching “itten” against “itting”. Thus, again,
+we want the computation tree to turn into a <span class="Smaller">DAG</span> of expressions
+that are actually evaluated.</p><p/><div class="SIntrapara">The solution, therefore, is naturally to memoize. First, we need a
+memoizer that works over two arguments rather than one:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data MemoryCell2&lt;T, U, V&gt;:
+  | mem(in-1 :: T, in-2 :: U, out :: V)
+end
+
+fun memoize-2&lt;T, U, V&gt;(f :: (T, U -&gt; V)) -&gt; (T, U -&gt; V):
+
+  var memory :: List&lt;MemoryCell2&lt;T, U, V&gt;&gt; = empty
+
+  lam(p, q):
+    answer = find(
+      lam(elt): (elt.in-1 == p) and (elt.in-2 == q) end,
+      memory)
+    cases (Option) answer block:
+      | none =&gt;
+        result = f(p, q)
+        memory :=
+        link(mem(p, q, result), memory)
+        result
+      | some(v) =&gt; v.out
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Most of the code is unchanged, except that we store two arguments
+rather than one, and correspondingly look up both.</div><p/><div class="SIntrapara">With this, we can redefine <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">levenshtein</code></span> to use memoization:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-memo)"/>&lt;<span style="font-style: italic">levenshtein-memo</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec levenshtein :: (List&lt;String&gt;, List&lt;String&gt; -&gt; Number) =
+  memoize-2(
+    lam(s, t):
+      if is-empty(s) and is-empty(t): 0
+      else if is-empty(s): t.length()
+      else if is-empty(t): s.length()
+      else:
+        if s.first == t.first:
+          levenshtein(s.rest, t.rest)
+        else:
+          min3(
+            1 + levenshtein(s.rest, t),
+            1 + levenshtein(s, t.rest),
+            1 + levenshtein(s.rest, t.rest))
+        end
+      end
+    end)</code></pre></div></div></div><div class="SIntrapara">where the argument to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-2</code></span> is precisely what we saw
+earlier as <a href="#%28elem._levenshtein-body%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-body</span>&gt;</a> (and now you know why we
+defined <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">levenshtein</code></span> slightly oddly, not using <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun</code></span>).</div><p>The complexity of this algorithm is still non-trivial. First, let’s
+introduce the term <span style="font-style: italic">suffix</span>: the suffix of a string is the rest of
+the string starting from any point in the string. (Thus “kitten”,
+“itten”, “ten”, “n”, and “” are all suffixes of “kitten”.)
+Now, observe that in the worst case, starting with every suffix in the
+first word, we may need to perform a comparison against every suffix
+in the second word. Fortunately, for each of these suffixes we perform
+a constant computation relative to the recursion. Therefore, the
+overall time complexity of computing the distance between strings of
+length \(m\) and \(n\) is \(O([m, n \rightarrow m \cdot n])\). (We will return to space
+consumption later [<a href="#%28part._memo-vs-dp%29" data-pltdoc="x">Contrasting Memoization and Dynamic Programming</a>].)</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Modify the above algorithm to produce an actual (optimal) sequence of
+edit operations. This is sometimes known as the <span style="font-style: italic">traceback</span>.</p></blockquote></blockquote></section><section class="SsectionLevel3" id="section 22.3"><h3 class="heading">22.3<span class="stt"> </span><a name="(part._smith-waterman)"/>Nature as a Fat-Fingered Typist<span class="button-group"><a href="#(part._smith-waterman)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>We have talked about how to address mistakes made by humans. However,
+humans are not the only bad typists: nature is one, too!</p><p>When studying living matter we obtain sequences of amino acids and
+other such chemicals that comprise molecules, such as <span class="Smaller">DNA</span>, that hold
+important and potentially determinative information about the
+organism. These sequences consist of similar fragments that we wish to
+identify because they represent relationships in
+the organism’s behavior or evolution.<span class="refelem"><span class="refcolumn"><span class="refcontent">This section may
+need to be skipped in
+<a href="http://en.wikipedia.org/wiki/Creation_and_evolution_in_public_education">some states and countries</a>.</span></span></span>
+Unfortunately, these sequences are never <span class="emph">identical</span>: like all
+low-level programmers, nature slips up and sometimes makes mistakes in
+copying (called—<wbr/>wait for it—<wbr/><span style="font-style: italic">mutations</span>). Therefore, looking
+for strict equality would rule out too many sequences that are almost
+certainly equivalent. Instead, we must perform an <span style="font-style: italic">alignment</span> step
+to find these equivalent sequences. As you might have guessed, this
+process is very much a process of computing an edit distance, and
+using some threshold to determine whether the edit is small
+enough.<span class="refelem"><span class="refcolumn"><span class="refcontent">To be precise, we are performing <span class="emph">local</span>
+<a href="http://en.wikipedia.org/wiki/Sequence_alignment">sequence alignment</a>.</span></span></span>
+This algorithm is named, after its creators, <span style="font-style: italic">Smith-Waterman</span>, and
+because it is essentially identical, has the same complexity as the
+Levenshtein algorithm.</p><p>The only difference between traditional presentations of Levenshtein and
+Smith-Waterman is something we alluded to earlier: why is every edit
+given a distance of one? Instead, in the Smith-Waterman presentation,
+we assume that we have a function that gives us the <span style="font-style: italic">gap score</span>,
+i.e., the value to assign every character’s alignment, i.e., scores
+for both matches and edits, with scores driven by biological
+considerations. Of course, as we have already noted, this need is not
+peculiar to biology; we could just as well use a “gap score” to
+reflect the likelihood of a substitution based on keyboard
+characteristics.</p></section><section class="SsectionLevel3" id="section 22.4"><h3 class="heading">22.4<span class="stt"> </span><a name="(part._.Dynamic_.Programming)"/>Dynamic Programming<span class="button-group"><a href="#(part._.Dynamic_.Programming)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>We have used memoization as our canonical means of saving the values
+of past computations to reuse later. There is another popular
+technique for doing this called <span style="font-style: italic">dynamic programming</span>. This
+technique is closely related to memoization; indeed, it can be viewed
+as the dual method for achieving the same end. First we will see
+dynamic programming at work, then discuss how it differs from
+memoization.</p><p>Dynamic programming also proceeds by building up a memory of answers,
+and looking them up instead of recomputing them. As such, it too is a
+process for turning a computation’s shape from a tree to a <span class="Smaller">DAG</span> of
+actual calls. The key difference is that instead of starting with the
+largest computation and recurring to smaller ones, it starts with the
+smallest computations and builds outward to larger ones.</p><p>We will revisit our previous examples in light of this approach.</p><section class="SsectionLevel4" id="section 22.4.1"><h4 class="heading">22.4.1<span class="stt"> </span><a name="(part._.Catalan_.Numbers_with_.Dynamic_.Programming)"/>Catalan Numbers with Dynamic Programming<span class="button-group"><a href="#(part._.Catalan_.Numbers_with_.Dynamic_.Programming)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">To begin with, we need to define a data structure to hold
+answers. Following convention, we will use an array.<span class="refelem"><span class="refcolumn"><span class="refcontent">What
+happens when we run out of space? We can use the doubling technique we
+studied for <a href="amortized-analysis.html" data-pltdoc="x">Halloween Analysis</a>.</span></span></span>
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">MAX-CAT = 11
+
+answers :: Array&lt;Option&lt;Number&gt;&gt; = array-of(none, MAX-CAT + 1)</code></pre></div></div></div><div class="SIntrapara">Then, the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> function simply looks up the answer in this
+array:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(n):
+  cases (Option) array-get-now(answers, n):
+    | none =&gt; raise("looking at uninitialized value")
+    | some(v) =&gt; v
+  end
+end</code></pre></div></div></div><div class="SIntrapara">But how do we fill the array? We initialize the one known value, and
+use the formula to compute the rest in incremental order. Because we have
+multiple things to do in the body, we use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">block</code></span>:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun fill-catalan(upper) block:
+  array-set-now(answers, 0, some(1))
+  when upper &gt; 0:
+    for each(n from range(1, upper + 1)):
+      block:
+        cat-at-n =
+          for fold(acc from 0, k from range(0, n)):
+            acc + (catalan(k) * catalan(n - 1 - k))
+          end
+        array-set-now(answers, n, some(cat-at-n))
+      end
+    end
+  end
+end
+
+fill-catalan(MAX-CAT)</code></pre></div></div></div><div class="SIntrapara">The resulting program obeys the tests in <a href="#%28elem._catalan-tests%29" data-pltdoc="x">&lt;<span style="font-style: italic">catalan-tests</span>&gt;</a>.</div><p>Notice that we have had to undo the natural recursive
+definition—<wbr/>which proceeds from bigger values to smaller ones—<wbr/>to
+instead use a loop that goes from smaller values to larger
+ones. In principle, the program has the danger that when we apply
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> to some value, that index of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> will have
+not yet been initialized, resultingin an error. In fact, however, we
+know that because we fill all smaller indices in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> before
+computing the next larger one, we will never actually encounter this
+error. Note that this requires careful reasoning about our program,
+which we did not need to perform when using memoization because
+there we made precisely the recursive call we needed, which either
+looked up the value or computed it afresh.</p></section><section class="SsectionLevel4" id="section 22.4.2"><h4 class="heading">22.4.2<span class="stt"> </span><a name="(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)"/>Levenshtein Distance and Dynamic Programming<span class="button-group"><a href="#(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Now let’s take on rewriting the Levenshtein distance computation:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp)"/>&lt;<span style="font-style: italic">levenshtein-dp</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun levenshtein(s1 :: List&lt;String&gt;, s2 :: List&lt;String&gt;) block:
+  <a href="#%28elem._levenshtein-dp%2F1%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/1</span>&gt;</a>
+end</code></pre></div></div></div><div class="SIntrapara">We will use a table representing the edit distance for each prefix of
+each word. That is, we will have a two-dimensional table with as many
+rows as the length of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> and as many columns as the length of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span>. At each position, we will record the edit distance for the
+prefixes of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span> up to the indices represented by
+that position in the table.</div><p/><div class="SIntrapara">Note that index arithmetic will be a constant burden: if a word is of
+length \(n\), we have to record the edit distance to its \(n + 1\)
+positions, the extra one corresponding to the empty word. This will
+hold for both words:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/1)"/>&lt;<span style="font-style: italic">levenshtein-dp/1</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1-len = s1.length()
+s2-len = s2.length()
+answers = array2d(s1-len + 1, s2-len + 1, none)
+<a href="#%28elem._levenshtein-dp%2F2%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/2</span>&gt;</a></code></pre></div></div></div><div class="SIntrapara">Observe that by creating <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> inside <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">levenshtein</code></span>, we
+can determine the exact size it needs to be based on the inputs,
+rather than having to over-allocate or dynamically grow the array.</div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p/><div class="SIntrapara">Define the functions
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">array2d :: Number, Number, A -&gt; Array&lt;A&gt;
+set-answer :: Array&lt;A&gt;, Number, Number, A -&gt; Nothing
+get-answer :: Array&lt;A&gt;, Number, Number -&gt; A</code></pre></div></div></div></blockquote></blockquote><p/><div class="SIntrapara">We have initialized the table with <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">none</code></span>, so we will get an
+  error if we accidentally try to use an uninitialized
+  entry.<span class="refelem"><span class="refcolumn"><span class="refcontent">Which proved to be necessary when
+writing and debugging this code!</span></span></span>  It will
+  therefore be convenient to create helper functions that let us
+  pretend the table contains only numbers:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/2)"/>&lt;<span style="font-style: italic">levenshtein-dp/2</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun put(s1-idx :: Number, s2-idx :: Number, n :: Number):
+  set-answer(answers, s1-idx, s2-idx, some(n))
+end
+fun lookup(s1-idx :: Number, s2-idx :: Number) -&gt; Number block:
+  a = get-answer(answers, s1-idx, s2-idx)
+  cases (Option) a:
+    | none =&gt; raise("looking at uninitialized value")
+    | some(v) =&gt; v
+  end
+end</code></pre></div></div></div><p/><div class="SIntrapara">Now we have to populate the array. First, we initialize the row
+representing the edit distances when <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span> is empty, and the
+column where <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> is empty. At \((0, 0)\), the edit distance is
+zero; at every position thereafter, it is the distance of that
+position from zero, because that many characters must be added to one
+or deleted from the other word for the two to coincide:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/3)"/>&lt;<span style="font-style: italic">levenshtein-dp/3</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">for each(s1i from range(0, s1-len + 1)):
+  put(s1i, 0, s1i)
+end
+for each(s2i from range(0, s2-len + 1)):
+  put(0, s2i, s2i)
+end
+<a href="#%28elem._levenshtein-dp%2F4%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/4</span>&gt;</a></code></pre></div></div></div><p/><div class="SIntrapara">Now we finally get to the heart of the computation. We need to iterate
+over every character in each word. these characters are at indices
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1-len - 1</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2-len - 1</code></span>, which are
+precisely the ranges of values produced by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">range(0, s1-len)</code></span> and
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">range(0, s2-len)</code></span>.
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/4)"/>&lt;<span style="font-style: italic">levenshtein-dp/4</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">for each(s1i from range(0, s1-len)):
+  for each(s2i from range(0, s2-len)):
+  <a href="#%28elem._levenshtein-dp%2Fcompute-dist%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt;</a>
+  end
+end
+<a href="#%28elem._levenshtein-dp%2Fget-result%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/get-result</span>&gt;</a></code></pre></div></div></div><div class="SIntrapara">Note that we’re building our way “out” from small cases to large
+ones, rather than starting with the large input and working our way
+“down”, recursively, to small ones.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Is this strictly true?</p></blockquote></blockquote><p>No, it isn’t. We did first fill in values for the “borders” of the
+table. This is because doing so in the midst of
+<a href="#%28elem._levenshtein-dp%2Fcompute-dist%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt;</a> would be much more
+annoying. By initializing all the known values, we keep the core
+computation cleaner. But it does mean the order in which we fill in
+the table is fairly complex.</p><p/><div class="SIntrapara">Now, let’s return to computing the distance.  For each pair of
+positions, we want the edit distance between the pair of words up to
+and including those positions. This distance is given by checking
+whether the characters at the pair of positions are identical. If they
+are, then the distance is the same as it was for the previous pair of
+prefixes; otherwise we have to try the three different kinds of edits:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/compute-dist)"/>&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">dist =
+  if get(s1, s1i) == get(s2, s2i):
+    lookup(s1i, s2i)
+  else:
+    min3(
+      1 + lookup(s1i, s2i + 1),
+      1 + lookup(s1i + 1, s2i),
+      1 + lookup(s1i, s2i))
+  end
+put(s1i + 1, s2i + 1, dist)</code></pre></div></div></div><div class="SIntrapara">As an aside, this sort of “off-by-one” coordinate arithmetic is
+traditional when using tabular representations, because we write code
+in terms of elements that are not inherently present, and therefore
+have to create a <span style="font-style: italic">padded</span> table to hold values for the boundary
+conditions. The alternative would be to allow the table to begin its
+addressing from <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">-1</code></span> so that the main computation looks
+traditional.</div><p/><div class="SIntrapara">At any rate, when this computation is done, the entire table has been
+filled with values. We still have to read out the answer, with lies at
+the end of the table:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/get-result)"/>&lt;<span style="font-style: italic">levenshtein-dp/get-result</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">lookup(s1-len, s2-len)</code></pre></div></div></div><p/><div class="SIntrapara">Even putting aside the helper functions we wrote to satiate our
+paranoia about using undefined values, we end up
+with:<span class="refelem"><span class="refcolumn"><span class="refcontent">As of this writing, the
+<a href="http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&amp;oldid=581406185#Iterative_with_full_matrix">current version</a>
+of the
+<a href="http://en.wikipedia.org/wiki/Levenshtein_distance">Wikipedia page</a>
+on the Levenshtein distance features a dynamic programming version
+that is very similar to the code above. By writing in pseudocode, it
+avoids address arithmetic issues (observe how the words are indexed
+starting from <span class="stt">1</span> instead of <span class="stt">0</span>, which enables the body of
+the code to look more “normal”), and by initializing all elements to
+zero it permits subtle bugs because an uninitialized table element is
+indistinguishable from a legitimate entry with edit distance of zero.
+The page also shows the
+<a href="http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&amp;oldid=581406185#Recursive">recursive</a>
+solution and alludes to memoization, but does not show it in code.</span></span></span>
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun levenshtein(s1 :: List&lt;String&gt;, s2 :: List&lt;String&gt;) block:
+  s1-len = s1.length()
+  s2-len = s2.length()
+  answers = array2d(s1-len + 1, s2-len + 1, none)
+
+  fun put(s1-idx :: Number, s2-idx :: Number, n :: Number):
+    set-answer(answers, s1-idx, s2-idx, some(n))
+  end
+  fun lookup(s1-idx :: Number, s2-idx :: Number) -&gt; Number block:
+    a = get-answer(answers, s1-idx, s2-idx)
+    cases (Option) a:
+      | none =&gt; raise("looking at uninitialized value")
+      | some(v) =&gt; v
+    end
+  end
+
+  for each(s1i from range(0, s1-len + 1)):
+    put(s1i, 0, s1i)
+  end
+  for each(s2i from range(0, s2-len + 1)):
+    put(0, s2i, s2i)
+  end
+
+  for each(s1i from range(0, s1-len)):
+    for each(s2i from range(0, s2-len)):
+      dist =
+        if get(s1, s1i) == get(s2, s2i):
+          lookup(s1i, s2i)
+        else:
+          min3(
+            1 + lookup(s1i, s2i + 1),
+            1 + lookup(s1i + 1, s2i),
+            1 + lookup(s1i, s2i))
+        end
+      put(s1i + 1, s2i + 1, dist)
+    end
+  end
+
+  lookup(s1-len, s2-len)
+end</code></pre></div></div></div><div class="SIntrapara">which is worth contrasting with the memoized version
+(<a href="#%28elem._levenshtein-memo%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-memo</span>&gt;</a>).<span class="refelem"><span class="refcolumn"><span class="refcontent">For more examples of
+canonical dynamic programming problems, see
+<a href="http://people.csail.mit.edu/bdean/6.046/dp/">this page</a>
+and think about how each can be expressed as a direct recursion.</span></span></span></div></section></section><section class="SsectionLevel3" id="section 22.5"><h3 class="heading">22.5<span class="stt"> </span><a name="(part._memo-vs-dp)"/>Contrasting Memoization and Dynamic Programming<span class="button-group"><a href="#(part._memo-vs-dp)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>Now that we’ve seen two very different techniques for avoiding recomputation,
+it’s worth contrasting them. The important thing to note is that
+memoization is a much simpler technique: write the natural recursive
+definition; determine its time complexity; decide whether this is
+problematic enough to warrant a space-time trade-off; and if it is,
+apply memoization. The code remains clean, and subsequent readers and
+maintainers will be grateful for that. In contrast, dynamic
+programming requires a reorganization of the algorithm to work
+bottom-up, which can often make the code harder to follow and full of
+subtle invariants about boundary conditions and computation order.</p><p>That said, the dynamic programming solution can sometimes be more
+computationally efficient. For instance, in the Levenshtein case,
+observe that at each table element, we (at most) only ever use the
+ones that are from the previous row and column. That means we never
+need to store the entire table; we can retain just the <span style="font-style: italic">fringe</span> of
+the table, which reduces space to being proportional to the
+<span class="emph">sum</span>, rather than product, of the length of the words. In a
+computational biology setting (when using Smith-Waterman), for
+instance, this saving can be substantial. This optimization is
+essentially impossible for memoization.</p><p/><div class="SIntrapara">In more detail, here’s the contrast:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0"><tr><td><p><span style="font-weight: bold">Memoization</span></p></td><td><p><span class="hspace">    </span></p></td><td><p><span style="font-weight: bold">Dynamic Programming</span></p></td></tr><tr><td><p>Top-down</p></td><td><p><span class="hspace">    </span></p></td><td><p>Bottom-up</p></td></tr><tr><td><p>Depth-first</p></td><td><p><span class="hspace">    </span></p></td><td><p>Breadth-first</p></td></tr><tr><td><p>Black-box</p></td><td><p><span class="hspace">    </span></p></td><td><p>Requires code reorganization</p></td></tr><tr><td><p>All stored calls are necessary</p></td><td><p><span class="hspace">    </span></p></td><td><p>May do unnecessary computation</p></td></tr><tr><td><p>Cannot easily get rid of unnecessary data</p></td><td><p><span class="hspace">    </span></p></td><td><p>Can more easily get rid of unnecessary data</p></td></tr><tr><td><p>Can never accidentally use an uninitialized answer</p></td><td><p><span class="hspace">    </span></p></td><td><p>Can accidentally use an uninitialized answer</p></td></tr><tr><td><p>Needs to check for the presence of an answer</p></td><td><p><span class="hspace">    </span></p></td><td><p>Can be designed to not need to check for the presence of an answer</p></td></tr></table></div><div class="SIntrapara">As this table should make clear, these are essentialy <span style="font-style: italic">dual</span>
+approaches. What is perhaps left unstated in most dynamic programming
+descriptions is that it, too, is predicated on the computation always
+producing the same answer for a given input—<wbr/>i.e., being a pure
+function.</div><p>From a software design perspective, there are two more considerations.</p><p>First, the performance of a memoized solution can trail that of
+dynamic programming when the memoized solution uses a <span class="emph">generic</span>
+data structure to store the memo table, whereas a dynamic programming
+solution will invariably use a custom data structure (since the code
+needs to be rewritten against it anyway). Therefore, before switching
+to dynamic programming for performance reasons, it makes sense to try
+to create a custom memoizer for the problem: the same knowledge
+embodied in the dynamic programming version can often be encoded in
+this custom memoizer (e.g., using an array instead of list to improve
+access times). This way, the program can enjoy speed comparable to
+that of dynamic programming while retaining readability and
+maintainability.</p><p>Second, suppose space is an important consideration and the dynamic
+programming version can make use of significantly less space. Then it
+does make sense to employ dynamic programming instead. Does this mean
+the memoized version is useless?</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What do you think? Do we still have use for the memoized version?</p></blockquote></blockquote><p>Yes, of course we do! It can serve as an oracle [<a href="testing.html#%28part._test-oracle%29" data-pltdoc="x">Oracles for Testing</a>] for the dynamic
+programming version, since the two are supposed to produce identical
+answers anyway—<wbr/>and the memoized version would be a much more
+efficient oracle than the purely recursive implemenation, and can
+therefore be used to test the dynamic programming version on much
+larger inputs.</p><p>In short, always first produce the memoized version. If you need more
+performance, consider customizing the memoizer’s data structure. If
+you need to also save space, and can arrive at a more space-efficient
+dynamic programming solution, then keep both versions around, using
+the former to test the latter (the person who inherits your code and
+needs to alter it will thank you!).</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p/><div class="SIntrapara">We have characterized the fundamental difference between memoization
+and dynamic programming as that between <span class="emph">top-down, depth-first</span>
+and <span class="emph">bottom-up, breadth-first</span> computation. This should naturally
+raise the question, what about:
+</div><div class="SIntrapara"><ul><li><p>top-down, breadth-first</p></li><li><p>bottom-up, depth-first</p></li></ul></div><div class="SIntrapara">orders of computation. Do they also have special names that we just
+happen to not know? Are they uninteresting? Or do they not get
+discussed for a reason?</div></blockquote></blockquote></section>&#13;
+<h3 class="heading">22.1<span class="stt"> </span><a name="(part._.An_.Interesting_.Numeric_.Sequence)"/>An Interesting Numeric Sequence<span class="button-group"><a href="#(part._.An_.Interesting_.Numeric_.Sequence)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>Suppose we want to create properly-parenthesized expressions, and
+ignore all non-parenthetical symbols. How many ways are there of
+creating parenthesized expressions given a certain number of opening
+(equivalently, closing) parentheses?</p><p>If we have zero opening parentheses, the only expression we can create
+is the empty expression. If we have one opening parenthesis, the only
+one we can construct is “()” (there must be a closing parenthesis
+since we’re interested only in properly-parenthesized expressions). If
+we have two opening parentheses, we can construct “(())” and
+“()()”. Given three, we can construct “((()))”, “(())()”,
+“()(())”, “()()()”, and “(()())”, for a total of five. And so
+on. Observe that the solutions at each level use all the possible
+solutions at one level lower, combined in all the possible ways.</p><p/><div class="SIntrapara">There is actually a famous mathematical sequence that corresponds to
+the number of such expressions, called the
+<a href="http://en.wikipedia.org/wiki/Catalan_number">Catalan sequence</a>.
+It has the property of growing quite large very quickly: starting from
+the modest origins above, the tenth Catalan number (i.e., tenth
+element of the Catalan sequence) is 16796. A simple recurrence formula
+gives us the Catalan number, which we can turn into a simple program:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(n):
+  if n == 0: 1
+  else if n &gt; 0:
+    for fold(acc from 0, k from range(0, n)):
+      acc + (catalan(k) * catalan(n - 1 - k))
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">This function’s tests look as follows—<wbr/>
+</div><div class="SIntrapara"><a name="(elem._catalan-tests)"/>&lt;<span style="font-style: italic">catalan-tests</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  catalan(0) is 1
+  catalan(1) is 1
+  catalan(2) is 2
+  catalan(3) is 5
+  catalan(4) is 14
+  catalan(5) is 42
+  catalan(6) is 132
+  catalan(7) is 429
+  catalan(8) is 1430
+  catalan(9) is 4862
+  catalan(10) is 16796
+  catalan(11) is 58786
+end</code></pre></div></div></div><div class="SIntrapara">but beware! When we time the function’s execution, we find that the
+first few tests run very quickly, but somewhere between a value of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">10</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">20</code></span>—<wbr/>depending on your machine and programming
+language implementation—<wbr/>you ought to see things start to slow down,
+first a little, then with extreme effect.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Check at what value you start to observe a significant slowdown on
+your machine. Plot the graph of running time against input size. What
+does this suggest?</p></blockquote></blockquote><p>The reason the Catalan computation takes so long is precisely
+because of what we alluded to earlier: at each level, we depend on
+computing the Catalan number of all the smaller levels; this
+computation in turn needs the numbers of all of its smaller levels;
+and so on down the road.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Map the subcomputations of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> to see why the computation
+time explodes as it does. What is the worst-case time complexity of
+this function?</p></blockquote></blockquote><p>Here is a graphical representation of all the sub-computations the
+Catalan function does for input <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">3</code></span>:</p><blockquote class="SCentered"><p><img src="../Images/79fbf0941364e29afa9e7ce828c8b1ec.png" alt="" width="644" height="223" data-original-src="https://dcic-world.org/2025-08-27/cat-no-memo.png"/></p></blockquote><p>Observe the very symmetric computation, reflecting the formula.</p><section class="SsectionLevel4" id="section 22.1.1"><h4 class="heading">22.1.1<span class="stt"> </span><a name="(part._.Using_.State_to_.Remember_.Past_.Answers)"/>Using State to Remember Past Answers<span class="button-group"><a href="#(part._.Using_.State_to_.Remember_.Past_.Answers)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Therefore, this is clearly a case where trading space for time is
+likely to be of help. How do we do this? We need a notion of
+<span class="emph">memory</span> that records all previous answers and, on subsequent
+attempts to compute them, checks whether they are already known and,
+if so, just returns them instead of recomputing them.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What critical assumption is this based on?</p></blockquote></blockquote><p>Naturally, this assumes that <span class="emph">for a given input, the answer will
+always be the same</span>. As we have seen, functions with state violate
+this liberally, so typical stateful functions cannot utilize this
+optimization. Ironically, we will use state to implement this
+optimization, so we will have a stateful function that always returns
+the same answer on a given input—<wbr/>and thereby use state in a stateful
+function to simulate a stateless one. Groovy, dude!</p><p/><div class="SIntrapara">First, then, we need some representation of memory. We can imagine
+several, but here’s a simple one:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data MemoryCell:
+  | mem(in, out)
+end
+
+var memory :: List&lt;MemoryCell&gt; = empty</code></pre></div></div></div><div class="SIntrapara">Now how does <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> need to change? We have to first look for
+whether the value is already in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span>; if it is, we return it
+without any further computation, but if it isn’t, then we compute the
+result, store it in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span>, and then return it:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(n :: Number) -&gt; Number:
+  answer = find(lam(elt): elt.in == n end, memory)
+  cases (Option) answer block:
+    | none =&gt;
+      result =
+        if n == 0: 1
+        else if n &gt; 0:
+          for fold(acc from 0, k from range(0, n)):
+            acc + (catalan(k) * catalan(n - 1 - k))
+          end
+        end
+      memory := link(mem(n, result), memory)
+      result
+    | some(v) =&gt; v.out
+  end
+end</code></pre></div></div></div><div class="SIntrapara">And that’s it! Now running our previous tests will reveal that the
+answer computes much quicker, but in addition we can dare to run
+bigger computations such as <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(50)</code></span>.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Trace through a call of this revised function and see how many calls
+it makes.</p></blockquote></blockquote><p>Here is a revised visualization of computing for input <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">3</code></span>:</p><blockquote class="SCentered"><p><img src="../Images/31c17fe6a16bbf3f25e501c178869546.png" alt="" width="644" height="294" data-original-src="https://dcic-world.org/2025-08-27/cat-memo.png"/></p></blockquote><p>Observe the <span class="emph">asymmetric</span> computation: the early calls perform the
+computations, while the latter calls simply look up the results.</p><p>This process, of converting a function into a version that remembers
+its past answers, is called <span style="font-style: italic">memoization</span>.</p></section><section class="SsectionLevel4" id="section 22.1.2"><h4 class="heading">22.1.2<span class="stt"> </span><a name="(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)"/>From a Tree of Computation to a <span class="Smaller">DAG</span><span class="button-group"><a href="#(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>What we have subtly done is to convert a tree of computation into a
+<span class="Smaller">DAG</span> over the same computation, with equivalent calls being
+reused. Whereas previously each call was generating lots of recursive
+calls, which induced still more recursive calls, now we are reusing
+previous recursive calls—<wbr/>i.e., sharing the results computed
+earlier. This, in effect, points the recursive call to one that had
+occurred earlier. Thus, the shape of computation converts from a tree
+to a <span class="Smaller">DAG</span> of calls.</p><p>This has an important complexity benefit. Whereas previously we were
+performing a super-exponential number of calls, now we perform only
+one call per input and share all previous calls—<wbr/>thereby reducing
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(n)</code></span> to take a number of fresh calls proportional to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">n</code></span>. Looking up the result of a previous call takes time
+proportional to the size of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span> (because we’ve represented
+it as a list; better representations would improve on that), but that
+only contributes another linear multiplicative factor, reducing the
+overall complexity to quadratic in the size of the input. This is a
+dramatic reduction in overall complexity. In contrast, other uses of
+memoization may result in much less dramatic improvements, turning the
+use of this technique into a true engineering trade-off.</p></section><section class="SsectionLevel4" id="section 22.1.3"><h4 class="heading">22.1.3<span class="stt"> </span><a name="(part._numbers-not-constant)"/>The Complexity of Numbers<span class="button-group"><a href="#(part._numbers-not-constant)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>As we start to run larger computations, however, we may start to
+notice that our computations are starting to take longer than linear
+growth. This is because our numbers are growing arbitrarily
+large—<wbr/>for instance, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(100)</code></span> is
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">896519947090131496687170070074100632420837521538745909320</code></span>—<wbr/>and
+computations on numbers can no longer be constant time, contrary to
+what we said earlier
+[<a href="predicting-growth.html#%28part._size-of-input%29" data-pltdoc="x">The Size of the Input</a>]. Indeed, when working on cryptographic
+problems, the fact that operations on numbers do not take constant
+time are absolutely critical to fundamental complexity results (and,
+for instance, the presumed unbreakability of contemporary cryptography).
+(See also <a href="factoring-numbers.html" data-pltdoc="x">Factoring Numbers</a>.)</p></section><section class="SsectionLevel4" id="section 22.1.4"><h4 class="heading">22.1.4<span class="stt"> </span><a name="(part._.Abstracting_.Memoization)"/>Abstracting Memoization<span class="button-group"><a href="#(part._.Abstracting_.Memoization)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Now we’ve achieved the desired complexity improvement, but there is
+still something unsatisfactory about the structure of our revised
+definition of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span>: the act of memoization is deeply
+intertwined with the definition of a Catalan number, even though these
+should be intellectually distinct. Let’s do that next.</p><p>In effect, we want to separate our program into two parts. One part
+defines a general notion of memoization, while the other defines
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> in terms of this general notion.</p><p/><div class="SIntrapara">What does the former mean? We want to encapsulate the idea of
+“memory” (since we presumably don’t want this stored in a variable
+that any old part of the program can modify). This should result in
+a function that takes the input we want to check; if it is found in
+the memory we return that answer, otherwise we compute the answer,
+store it, and return it. To compute the answer, we need a function
+that determines how to do so. Putting together these pieces:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data MemoryCell:
+  | mem(in, out)
+end
+
+fun memoize-1&lt;T, U&gt;(f :: (T -&gt; U)) -&gt; (T -&gt; U):
+
+  var memory :: List&lt;MemoryCell&gt; = empty
+
+  lam(n):
+    answer = find(lam(elt): elt.in == n end, memory)
+    cases (Option) answer block:
+      | none =&gt;
+        result = f(n)
+        memory := link(mem(n, result), memory)
+        result
+      | some(v) =&gt; v.out
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">We use the name <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span> to indicate that this is a
+<span style="font-style: italic">memoizer</span> for single-argument functions. Observe that the code
+above is virtually identical to what we had before, except where we
+had the logic of Catalan number computation, we now have the parameter
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">f</code></span> determining what to do.</div><p/><div class="SIntrapara">With this, we can now define <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> as follows:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec catalan :: (Number -&gt; Number) =
+  memoize-1(
+    lam(n):
+      if n == 0: 1
+      else if n &gt; 0:
+        for fold(acc from 0, k from range(0, n)):
+          acc + (catalan(k) * catalan(n - 1 - k))
+        end
+      end
+    end)</code></pre></div></div></div><div class="SIntrapara">Note several things about this definition:
+</div><div class="SIntrapara"><ol><li><p>We don’t write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(...): ...;</code></span> because the
+procedure bound to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> is produced by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span>.</p></li><li><p>Note carefully that the recursive calls to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> have
+to be to the function bound to the result of memoization, thereby
+behaving like an <span style="font-style: italic">object</span>.  Failing to
+refer to this same shared procedure means the recursive calls will
+not be memoized, thereby losing the benefit of this process.</p></li><li><p>We need to use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec</code></span> for reasons we saw earlier
+[<a href="func-as-data.html#%28part._streams-from-funs%29" data-pltdoc="x">Streams From Functions</a>].</p></li><li><p>Each invocation of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span> creates a new table of
+stored results. Therefore the memoization of different functions
+will each get their own tables rather than sharing tables, which is
+a bad idea!</p></li></ol></div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Why is sharing memoization tables a bad idea? Be concrete.</p></blockquote></blockquote></section>&#13;
+<h4 class="heading">22.1.1<span class="stt"> </span><a name="(part._.Using_.State_to_.Remember_.Past_.Answers)"/>Using State to Remember Past Answers<span class="button-group"><a href="#(part._.Using_.State_to_.Remember_.Past_.Answers)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Therefore, this is clearly a case where trading space for time is
+likely to be of help. How do we do this? We need a notion of
+<span class="emph">memory</span> that records all previous answers and, on subsequent
+attempts to compute them, checks whether they are already known and,
+if so, just returns them instead of recomputing them.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What critical assumption is this based on?</p></blockquote></blockquote><p>Naturally, this assumes that <span class="emph">for a given input, the answer will
+always be the same</span>. As we have seen, functions with state violate
+this liberally, so typical stateful functions cannot utilize this
+optimization. Ironically, we will use state to implement this
+optimization, so we will have a stateful function that always returns
+the same answer on a given input—<wbr/>and thereby use state in a stateful
+function to simulate a stateless one. Groovy, dude!</p><p/><div class="SIntrapara">First, then, we need some representation of memory. We can imagine
+several, but here’s a simple one:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data MemoryCell:
+  | mem(in, out)
+end
+
+var memory :: List&lt;MemoryCell&gt; = empty</code></pre></div></div></div><div class="SIntrapara">Now how does <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> need to change? We have to first look for
+whether the value is already in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span>; if it is, we return it
+without any further computation, but if it isn’t, then we compute the
+result, store it in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span>, and then return it:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(n :: Number) -&gt; Number:
+  answer = find(lam(elt): elt.in == n end, memory)
+  cases (Option) answer block:
+    | none =&gt;
+      result =
+        if n == 0: 1
+        else if n &gt; 0:
+          for fold(acc from 0, k from range(0, n)):
+            acc + (catalan(k) * catalan(n - 1 - k))
+          end
+        end
+      memory := link(mem(n, result), memory)
+      result
+    | some(v) =&gt; v.out
+  end
+end</code></pre></div></div></div><div class="SIntrapara">And that’s it! Now running our previous tests will reveal that the
+answer computes much quicker, but in addition we can dare to run
+bigger computations such as <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(50)</code></span>.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Trace through a call of this revised function and see how many calls
+it makes.</p></blockquote></blockquote><p>Here is a revised visualization of computing for input <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">3</code></span>:</p><blockquote class="SCentered"><p><img src="../Images/31c17fe6a16bbf3f25e501c178869546.png" alt="" width="644" height="294" data-original-src="https://dcic-world.org/2025-08-27/cat-memo.png"/></p></blockquote><p>Observe the <span class="emph">asymmetric</span> computation: the early calls perform the
+computations, while the latter calls simply look up the results.</p><p>This process, of converting a function into a version that remembers
+its past answers, is called <span style="font-style: italic">memoization</span>.</p>&#13;
+<h4 class="heading">22.1.2<span class="stt"> </span><a name="(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)"/>From a Tree of Computation to a <span class="Smaller">DAG</span><span class="button-group"><a href="#(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>What we have subtly done is to convert a tree of computation into a
+<span class="Smaller">DAG</span> over the same computation, with equivalent calls being
+reused. Whereas previously each call was generating lots of recursive
+calls, which induced still more recursive calls, now we are reusing
+previous recursive calls—<wbr/>i.e., sharing the results computed
+earlier. This, in effect, points the recursive call to one that had
+occurred earlier. Thus, the shape of computation converts from a tree
+to a <span class="Smaller">DAG</span> of calls.</p><p>This has an important complexity benefit. Whereas previously we were
+performing a super-exponential number of calls, now we perform only
+one call per input and share all previous calls—<wbr/>thereby reducing
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(n)</code></span> to take a number of fresh calls proportional to
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">n</code></span>. Looking up the result of a previous call takes time
+proportional to the size of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memory</code></span> (because we’ve represented
+it as a list; better representations would improve on that), but that
+only contributes another linear multiplicative factor, reducing the
+overall complexity to quadratic in the size of the input. This is a
+dramatic reduction in overall complexity. In contrast, other uses of
+memoization may result in much less dramatic improvements, turning the
+use of this technique into a true engineering trade-off.</p>&#13;
+<h4 class="heading">22.1.3<span class="stt"> </span><a name="(part._numbers-not-constant)"/>The Complexity of Numbers<span class="button-group"><a href="#(part._numbers-not-constant)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>As we start to run larger computations, however, we may start to
+notice that our computations are starting to take longer than linear
+growth. This is because our numbers are growing arbitrarily
+large—<wbr/>for instance, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan(100)</code></span> is
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">896519947090131496687170070074100632420837521538745909320</code></span>—<wbr/>and
+computations on numbers can no longer be constant time, contrary to
+what we said earlier
+[<a href="predicting-growth.html#%28part._size-of-input%29" data-pltdoc="x">The Size of the Input</a>]. Indeed, when working on cryptographic
+problems, the fact that operations on numbers do not take constant
+time are absolutely critical to fundamental complexity results (and,
+for instance, the presumed unbreakability of contemporary cryptography).
+(See also <a href="factoring-numbers.html" data-pltdoc="x">Factoring Numbers</a>.)</p>&#13;
+<h4 class="heading">22.1.4<span class="stt"> </span><a name="(part._.Abstracting_.Memoization)"/>Abstracting Memoization<span class="button-group"><a href="#(part._.Abstracting_.Memoization)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Now we’ve achieved the desired complexity improvement, but there is
+still something unsatisfactory about the structure of our revised
+definition of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span>: the act of memoization is deeply
+intertwined with the definition of a Catalan number, even though these
+should be intellectually distinct. Let’s do that next.</p><p>In effect, we want to separate our program into two parts. One part
+defines a general notion of memoization, while the other defines
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> in terms of this general notion.</p><p/><div class="SIntrapara">What does the former mean? We want to encapsulate the idea of
+“memory” (since we presumably don’t want this stored in a variable
+that any old part of the program can modify). This should result in
+a function that takes the input we want to check; if it is found in
+the memory we return that answer, otherwise we compute the answer,
+store it, and return it. To compute the answer, we need a function
+that determines how to do so. Putting together these pieces:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data MemoryCell:
+  | mem(in, out)
+end
+
+fun memoize-1&lt;T, U&gt;(f :: (T -&gt; U)) -&gt; (T -&gt; U):
+
+  var memory :: List&lt;MemoryCell&gt; = empty
+
+  lam(n):
+    answer = find(lam(elt): elt.in == n end, memory)
+    cases (Option) answer block:
+      | none =&gt;
+        result = f(n)
+        memory := link(mem(n, result), memory)
+        result
+      | some(v) =&gt; v.out
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">We use the name <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span> to indicate that this is a
+<span style="font-style: italic">memoizer</span> for single-argument functions. Observe that the code
+above is virtually identical to what we had before, except where we
+had the logic of Catalan number computation, we now have the parameter
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">f</code></span> determining what to do.</div><p/><div class="SIntrapara">With this, we can now define <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> as follows:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec catalan :: (Number -&gt; Number) =
+  memoize-1(
+    lam(n):
+      if n == 0: 1
+      else if n &gt; 0:
+        for fold(acc from 0, k from range(0, n)):
+          acc + (catalan(k) * catalan(n - 1 - k))
+        end
+      end
+    end)</code></pre></div></div></div><div class="SIntrapara">Note several things about this definition:
+</div><div class="SIntrapara"><ol><li><p>We don’t write <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(...): ...;</code></span> because the
+procedure bound to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> is produced by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span>.</p></li><li><p>Note carefully that the recursive calls to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> have
+to be to the function bound to the result of memoization, thereby
+behaving like an <span style="font-style: italic">object</span>.  Failing to
+refer to this same shared procedure means the recursive calls will
+not be memoized, thereby losing the benefit of this process.</p></li><li><p>We need to use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec</code></span> for reasons we saw earlier
+[<a href="func-as-data.html#%28part._streams-from-funs%29" data-pltdoc="x">Streams From Functions</a>].</p></li><li><p>Each invocation of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-1</code></span> creates a new table of
+stored results. Therefore the memoization of different functions
+will each get their own tables rather than sharing tables, which is
+a bad idea!</p></li></ol></div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Why is sharing memoization tables a bad idea? Be concrete.</p></blockquote></blockquote>&#13;
+<h3 class="heading">22.2<span class="stt"> </span><a name="(part._levenshtein)"/>Edit-Distance for Spelling Correction<span class="button-group"><a href="#(part._levenshtein)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>Text editors, word processors, mobile phones, and various other
+devices now routinely implement spelling correction or offer
+suggestions on (mis-)spellings. How do they do this? Doing so requires
+two capabilities: computing the distance between words, and finding
+words that are nearby according to this metric. In this section we
+will study the first of these questions. (For the purposes of this
+discussion, we will not dwell on the exact definition of what a
+“word” is, and just deal with strings instead. A real system would
+need to focus on this definition in considerable detail.)</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Think about how you might define the “distance between two words”.
+Does it define a
+<a href="http://en.wikipedia.org/wiki/Metric_space">metric space</a>?</p></blockquote></blockquote><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Will the definition we give below define a metric space over the set
+of words?</p></blockquote></blockquote><p/><div class="SIntrapara">Though there may be several legitimate ways to define distances
+between words, here we care about the distance in the very specific
+context of spelling mistakes. Given the distance measure, one use
+might be to compute the distance of a given word from all the words in
+a dictionary, and offer the closest word (i.e., the one with the least
+distance) as a proposed correction.<span class="refelem"><span class="refcolumn"><span class="refcontent">Obviously, we can’t
+compute the distance to every word in a large dictionary
+on every single entered word. Making this process efficient constitutes
+the other half of this problem. Briefly, we need to quickly discard
+most words as unlikely to be close enough, for which a representation
+such as a
+<a href="http://en.wikipedia.org/wiki/Bag-of-words_model">bag-of-words</a>
+(here, a bag of characters) can greatly help.</span></span></span>
+Given such an intended use, we would like at least the following to hold:
+</div><div class="SIntrapara"><ul><li><p>That the distance from a word to itself be zero.</p></li><li><p>That the distance from a word to any word other than
+itself be strictly positive. (Otherwise, given a word that is
+already in the dictionary, the “correction” might be a different
+dictionary word.)</p></li><li><p>That the distance between two words be symmetric, i.e., it
+shouldn’t matter in which order we pass arguments.</p></li></ul></div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Observe that we have not included the triangle inequality relative to
+the properties of a metric. Why not? If we don’t need the triangle
+inequality, does this let us define more interesting distance
+functions that are not metrics?</p></blockquote></blockquote><p/><div class="SIntrapara">Given a pair of words, the assumption is that we meant to type one
+but actually typed the other. Here, too, there are several possible
+definitions, but a popular one considers that there are three ways to
+be fat-fingered:
+</div><div class="SIntrapara"><ol><li><p>we left out a character;</p></li><li><p>we typed a character twice; or,</p></li><li><p>we typed one character when we meant another.</p></li></ol></div><div class="SIntrapara">In particular, we are interested in the <span class="emph">fewest</span> edits of these
+forms that need to be performed to get from one word to the other.
+For natural reasons, this notion of distance is called the
+<span style="font-style: italic">edit distance</span> or, in honor of its creator, the
+<span style="font-style: italic">Levenshtein distance</span>.<span class="refelem"><span class="refcolumn"><span class="refcontent">See more on
+<a href="http://en.wikipedia.org/wiki/Levenshtein_distance">Wikipedia</a>.</span></span></span></div><p>There are several variations of this definition possible. For now, we
+will consider the simplest one, which assumes that each of these
+errors has equal cost. For certain input devices, we may want to
+assign different costs to these mistakes; we might also assign
+different costs depending on what wrong character was typed (two
+characters adjacent on a keyboard are much more likely to be a
+legitimate error than two that are far apart). We will return briefly
+to some of these considerations later [<a href="#%28part._smith-waterman%29" data-pltdoc="x">Nature as a Fat-Fingered Typist</a>].</p><p/><div class="SIntrapara">Under this metric, the distance between “kitten” and “sitting”
+is 3 because we have to replace “k” with “s”, replace “e” with
+“i”, and insert “g” (or symmetrically, perform the opposite
+replacements and delete “g”). Here are more examples:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-tests)"/>&lt;<span style="font-style: italic">levenshtein-tests</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  levenshtein(empty, empty) is 0
+  levenshtein([list: "x"], [list: "x"]) is 0
+  levenshtein([list: "x"], [list: "y"]) is 1
+  # one of about 600
+  levenshtein(
+    [list: "b", "r", "i", "t", "n", "e", "y"],
+    [list: "b", "r", "i", "t", "t", "a", "n", "y"])
+    is 3
+  # http://en.wikipedia.org/wiki/Levenshtein_distance
+  levenshtein(
+    [list: "k", "i", "t", "t", "e", "n"],
+    [list: "s", "i", "t", "t", "i", "n", "g"])
+    is 3
+  levenshtein(
+    [list: "k", "i", "t", "t", "e", "n"],
+    [list: "k", "i", "t", "t", "e", "n"])
+    is 0
+  # http://en.wikipedia.org/wiki/Levenshtein_distance
+  levenshtein(
+    [list: "S", "u", "n", "d", "a", "y"],
+    [list: "S", "a", "t", "u", "r", "d", "a", "y"])
+    is 3
+  # http://www.merriampark.com/ld.htm
+  levenshtein(
+    [list: "g", "u", "m", "b", "o"],
+    [list: "g", "a", "m", "b", "o", "l"])
+    is 2
+  # http://www.csse.monash.edu.au/~lloyd/tildeStrings/Alignment/92.IPL.html
+  levenshtein(
+    [list: "a", "c", "g", "t", "a", "c", "g", "t", "a", "c", "g", "t"],
+    [list: "a", "c", "a", "t", "a", "c", "t", "t", "g", "t", "a", "c", "t"])
+    is 4
+  levenshtein(
+    [list: "s", "u", "p", "e", "r", "c", "a", "l", "i",
+      "f", "r", "a", "g", "i", "l", "i", "s", "t" ],
+    [list: "s", "u", "p", "e", "r", "c", "a", "l", "y",
+      "f", "r", "a", "g", "i", "l", "e", "s", "t" ])
+    is 2
+end</code></pre></div></div></div><div class="SIntrapara">The basic algorithm is in fact very simple:
+</div><div class="SIntrapara"><a name="(elem._levenshtein)"/>&lt;<span style="font-style: italic">levenshtein</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec levenshtein :: (List&lt;String&gt;, List&lt;String&gt; -&gt; Number) =
+  <a href="#%28elem._levenshtein-body%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-body</span>&gt;</a></code></pre></div></div></div><div class="SIntrapara">where, because there are two list inputs, there are four cases, of
+which two are symmetric:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-body)"/>&lt;<span style="font-style: italic">levenshtein-body</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">lam(s, t):
+  <a href="#%28elem._levenshtein-both-empty%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-both-empty</span>&gt;</a>
+  <a href="#%28elem._levenshtein-one-empty%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-one-empty</span>&gt;</a>
+  <a href="#%28elem._levenshtein-neither-empty%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-neither-empty</span>&gt;</a>
+end</code></pre></div></div></div><div class="SIntrapara">If both inputs are empty, the answer is simple:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-both-empty)"/>&lt;<span style="font-style: italic">levenshtein-both-empty</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">if is-empty(s) and is-empty(t): 0</code></pre></div></div></div><div class="SIntrapara">When one is empty, then the edit distance corresponds to the length of
+the other, which needs to inserted (or deleted) in its entirety (so we
+charge a cost of one per character):
+</div><div class="SIntrapara"><a name="(elem._levenshtein-one-empty)"/>&lt;<span style="font-style: italic">levenshtein-one-empty</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">else if is-empty(s): t.length()
+else if is-empty(t): s.length()</code></pre></div></div></div><div class="SIntrapara">If neither is empty, then each has a first character. If they are the
+same, then there is no edit cost associated with this character (which
+we reflect by recurring on the rest of the words without adding to the
+edit cost). If they are not the same, however, we consider each of the
+possible edits:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-neither-empty)"/>&lt;<span style="font-style: italic">levenshtein-neither-empty</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">else:
+  if s.first == t.first:
+    levenshtein(s.rest, t.rest)
+  else:
+    min3(
+      1 + levenshtein(s.rest, t),
+      1 + levenshtein(s, t.rest),
+      1 + levenshtein(s.rest, t.rest))
+  end
+end</code></pre></div></div></div><div class="SIntrapara">In the first case, we assume <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s</code></span> has one too many characters, so
+we compute the cost as if we’re deleting it and finding the lowest
+cost for the rest of the strings (but charging one for this deletion);
+in the second case, we symmetrically assume <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">t</code></span> has one too many;
+and in the third case, we assume one character got replaced by
+another, so we charge one but consider the rest of both words (e.g.,
+assume “s” was typed for “k” and continue with “itten” and
+“itting”). This uses the following helper function:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun min3(a :: Number, b :: Number, c :: Number):
+  num-min(a, num-min(b, c))
+end</code></pre></div></div></div><p>This algorithm will indeed pass all the tests we have written above,
+but with a problem: the running time grows exponentially. That is
+because, each time we find a mismatch, we recur on three
+subproblems. In principle, therefore, the algorithm takes time
+proportional to <span class="emph">three</span> to the power of the length of the shorter
+word. In practice, any prefix that matches causes no branching, so it
+is mismatches that incur branching (thus, confirming that the distance
+of a word with itself is zero only takes time linear in the size of
+the word).</p><p>Observe, however, that many of these subproblems are the same. For
+instance, given “kitten” and “sitting”, the mismatch on the
+initial character will cause the algorithm to compute the distance of
+“itten” from “itting” but also “itten” from “sitting” and
+“kitten” from “itting”. Those latter two distance computations
+will also involve matching “itten” against “itting”. Thus, again,
+we want the computation tree to turn into a <span class="Smaller">DAG</span> of expressions
+that are actually evaluated.</p><p/><div class="SIntrapara">The solution, therefore, is naturally to memoize. First, we need a
+memoizer that works over two arguments rather than one:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data MemoryCell2&lt;T, U, V&gt;:
+  | mem(in-1 :: T, in-2 :: U, out :: V)
+end
+
+fun memoize-2&lt;T, U, V&gt;(f :: (T, U -&gt; V)) -&gt; (T, U -&gt; V):
+
+  var memory :: List&lt;MemoryCell2&lt;T, U, V&gt;&gt; = empty
+
+  lam(p, q):
+    answer = find(
+      lam(elt): (elt.in-1 == p) and (elt.in-2 == q) end,
+      memory)
+    cases (Option) answer block:
+      | none =&gt;
+        result = f(p, q)
+        memory :=
+        link(mem(p, q, result), memory)
+        result
+      | some(v) =&gt; v.out
+    end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Most of the code is unchanged, except that we store two arguments
+rather than one, and correspondingly look up both.</div><p/><div class="SIntrapara">With this, we can redefine <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">levenshtein</code></span> to use memoization:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-memo)"/>&lt;<span style="font-style: italic">levenshtein-memo</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">rec levenshtein :: (List&lt;String&gt;, List&lt;String&gt; -&gt; Number) =
+  memoize-2(
+    lam(s, t):
+      if is-empty(s) and is-empty(t): 0
+      else if is-empty(s): t.length()
+      else if is-empty(t): s.length()
+      else:
+        if s.first == t.first:
+          levenshtein(s.rest, t.rest)
+        else:
+          min3(
+            1 + levenshtein(s.rest, t),
+            1 + levenshtein(s, t.rest),
+            1 + levenshtein(s.rest, t.rest))
+        end
+      end
+    end)</code></pre></div></div></div><div class="SIntrapara">where the argument to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">memoize-2</code></span> is precisely what we saw
+earlier as <a href="#%28elem._levenshtein-body%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-body</span>&gt;</a> (and now you know why we
+defined <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">levenshtein</code></span> slightly oddly, not using <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun</code></span>).</div><p>The complexity of this algorithm is still non-trivial. First, let’s
+introduce the term <span style="font-style: italic">suffix</span>: the suffix of a string is the rest of
+the string starting from any point in the string. (Thus “kitten”,
+“itten”, “ten”, “n”, and “” are all suffixes of “kitten”.)
+Now, observe that in the worst case, starting with every suffix in the
+first word, we may need to perform a comparison against every suffix
+in the second word. Fortunately, for each of these suffixes we perform
+a constant computation relative to the recursion. Therefore, the
+overall time complexity of computing the distance between strings of
+length \(m\) and \(n\) is \(O([m, n \rightarrow m \cdot n])\). (We will return to space
+consumption later [<a href="#%28part._memo-vs-dp%29" data-pltdoc="x">Contrasting Memoization and Dynamic Programming</a>].)</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Modify the above algorithm to produce an actual (optimal) sequence of
+edit operations. This is sometimes known as the <span style="font-style: italic">traceback</span>.</p></blockquote></blockquote>&#13;
+<h3 class="heading">22.3<span class="stt"> </span><a name="(part._smith-waterman)"/>Nature as a Fat-Fingered Typist<span class="button-group"><a href="#(part._smith-waterman)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>We have talked about how to address mistakes made by humans. However,
+humans are not the only bad typists: nature is one, too!</p><p>When studying living matter we obtain sequences of amino acids and
+other such chemicals that comprise molecules, such as <span class="Smaller">DNA</span>, that hold
+important and potentially determinative information about the
+organism. These sequences consist of similar fragments that we wish to
+identify because they represent relationships in
+the organism’s behavior or evolution.<span class="refelem"><span class="refcolumn"><span class="refcontent">This section may
+need to be skipped in
+<a href="http://en.wikipedia.org/wiki/Creation_and_evolution_in_public_education">some states and countries</a>.</span></span></span>
+Unfortunately, these sequences are never <span class="emph">identical</span>: like all
+low-level programmers, nature slips up and sometimes makes mistakes in
+copying (called—<wbr/>wait for it—<wbr/><span style="font-style: italic">mutations</span>). Therefore, looking
+for strict equality would rule out too many sequences that are almost
+certainly equivalent. Instead, we must perform an <span style="font-style: italic">alignment</span> step
+to find these equivalent sequences. As you might have guessed, this
+process is very much a process of computing an edit distance, and
+using some threshold to determine whether the edit is small
+enough.<span class="refelem"><span class="refcolumn"><span class="refcontent">To be precise, we are performing <span class="emph">local</span>
+<a href="http://en.wikipedia.org/wiki/Sequence_alignment">sequence alignment</a>.</span></span></span>
+This algorithm is named, after its creators, <span style="font-style: italic">Smith-Waterman</span>, and
+because it is essentially identical, has the same complexity as the
+Levenshtein algorithm.</p><p>The only difference between traditional presentations of Levenshtein and
+Smith-Waterman is something we alluded to earlier: why is every edit
+given a distance of one? Instead, in the Smith-Waterman presentation,
+we assume that we have a function that gives us the <span style="font-style: italic">gap score</span>,
+i.e., the value to assign every character’s alignment, i.e., scores
+for both matches and edits, with scores driven by biological
+considerations. Of course, as we have already noted, this need is not
+peculiar to biology; we could just as well use a “gap score” to
+reflect the likelihood of a substitution based on keyboard
+characteristics.</p>&#13;
+<h3 class="heading">22.4<span class="stt"> </span><a name="(part._.Dynamic_.Programming)"/>Dynamic Programming<span class="button-group"><a href="#(part._.Dynamic_.Programming)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>We have used memoization as our canonical means of saving the values
+of past computations to reuse later. There is another popular
+technique for doing this called <span style="font-style: italic">dynamic programming</span>. This
+technique is closely related to memoization; indeed, it can be viewed
+as the dual method for achieving the same end. First we will see
+dynamic programming at work, then discuss how it differs from
+memoization.</p><p>Dynamic programming also proceeds by building up a memory of answers,
+and looking them up instead of recomputing them. As such, it too is a
+process for turning a computation’s shape from a tree to a <span class="Smaller">DAG</span> of
+actual calls. The key difference is that instead of starting with the
+largest computation and recurring to smaller ones, it starts with the
+smallest computations and builds outward to larger ones.</p><p>We will revisit our previous examples in light of this approach.</p><section class="SsectionLevel4" id="section 22.4.1"><h4 class="heading">22.4.1<span class="stt"> </span><a name="(part._.Catalan_.Numbers_with_.Dynamic_.Programming)"/>Catalan Numbers with Dynamic Programming<span class="button-group"><a href="#(part._.Catalan_.Numbers_with_.Dynamic_.Programming)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">To begin with, we need to define a data structure to hold
+answers. Following convention, we will use an array.<span class="refelem"><span class="refcolumn"><span class="refcontent">What
+happens when we run out of space? We can use the doubling technique we
+studied for <a href="amortized-analysis.html" data-pltdoc="x">Halloween Analysis</a>.</span></span></span>
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">MAX-CAT = 11
+
+answers :: Array&lt;Option&lt;Number&gt;&gt; = array-of(none, MAX-CAT + 1)</code></pre></div></div></div><div class="SIntrapara">Then, the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> function simply looks up the answer in this
+array:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(n):
+  cases (Option) array-get-now(answers, n):
+    | none =&gt; raise("looking at uninitialized value")
+    | some(v) =&gt; v
+  end
+end</code></pre></div></div></div><div class="SIntrapara">But how do we fill the array? We initialize the one known value, and
+use the formula to compute the rest in incremental order. Because we have
+multiple things to do in the body, we use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">block</code></span>:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun fill-catalan(upper) block:
+  array-set-now(answers, 0, some(1))
+  when upper &gt; 0:
+    for each(n from range(1, upper + 1)):
+      block:
+        cat-at-n =
+          for fold(acc from 0, k from range(0, n)):
+            acc + (catalan(k) * catalan(n - 1 - k))
+          end
+        array-set-now(answers, n, some(cat-at-n))
+      end
+    end
+  end
+end
+
+fill-catalan(MAX-CAT)</code></pre></div></div></div><div class="SIntrapara">The resulting program obeys the tests in <a href="#%28elem._catalan-tests%29" data-pltdoc="x">&lt;<span style="font-style: italic">catalan-tests</span>&gt;</a>.</div><p>Notice that we have had to undo the natural recursive
+definition—<wbr/>which proceeds from bigger values to smaller ones—<wbr/>to
+instead use a loop that goes from smaller values to larger
+ones. In principle, the program has the danger that when we apply
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> to some value, that index of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> will have
+not yet been initialized, resultingin an error. In fact, however, we
+know that because we fill all smaller indices in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> before
+computing the next larger one, we will never actually encounter this
+error. Note that this requires careful reasoning about our program,
+which we did not need to perform when using memoization because
+there we made precisely the recursive call we needed, which either
+looked up the value or computed it afresh.</p></section><section class="SsectionLevel4" id="section 22.4.2"><h4 class="heading">22.4.2<span class="stt"> </span><a name="(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)"/>Levenshtein Distance and Dynamic Programming<span class="button-group"><a href="#(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Now let’s take on rewriting the Levenshtein distance computation:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp)"/>&lt;<span style="font-style: italic">levenshtein-dp</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun levenshtein(s1 :: List&lt;String&gt;, s2 :: List&lt;String&gt;) block:
+  <a href="#%28elem._levenshtein-dp%2F1%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/1</span>&gt;</a>
+end</code></pre></div></div></div><div class="SIntrapara">We will use a table representing the edit distance for each prefix of
+each word. That is, we will have a two-dimensional table with as many
+rows as the length of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> and as many columns as the length of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span>. At each position, we will record the edit distance for the
+prefixes of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span> up to the indices represented by
+that position in the table.</div><p/><div class="SIntrapara">Note that index arithmetic will be a constant burden: if a word is of
+length \(n\), we have to record the edit distance to its \(n + 1\)
+positions, the extra one corresponding to the empty word. This will
+hold for both words:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/1)"/>&lt;<span style="font-style: italic">levenshtein-dp/1</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1-len = s1.length()
+s2-len = s2.length()
+answers = array2d(s1-len + 1, s2-len + 1, none)
+<a href="#%28elem._levenshtein-dp%2F2%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/2</span>&gt;</a></code></pre></div></div></div><div class="SIntrapara">Observe that by creating <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> inside <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">levenshtein</code></span>, we
+can determine the exact size it needs to be based on the inputs,
+rather than having to over-allocate or dynamically grow the array.</div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p/><div class="SIntrapara">Define the functions
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">array2d :: Number, Number, A -&gt; Array&lt;A&gt;
+set-answer :: Array&lt;A&gt;, Number, Number, A -&gt; Nothing
+get-answer :: Array&lt;A&gt;, Number, Number -&gt; A</code></pre></div></div></div></blockquote></blockquote><p/><div class="SIntrapara">We have initialized the table with <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">none</code></span>, so we will get an
+  error if we accidentally try to use an uninitialized
+  entry.<span class="refelem"><span class="refcolumn"><span class="refcontent">Which proved to be necessary when
+writing and debugging this code!</span></span></span>  It will
+  therefore be convenient to create helper functions that let us
+  pretend the table contains only numbers:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/2)"/>&lt;<span style="font-style: italic">levenshtein-dp/2</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun put(s1-idx :: Number, s2-idx :: Number, n :: Number):
+  set-answer(answers, s1-idx, s2-idx, some(n))
+end
+fun lookup(s1-idx :: Number, s2-idx :: Number) -&gt; Number block:
+  a = get-answer(answers, s1-idx, s2-idx)
+  cases (Option) a:
+    | none =&gt; raise("looking at uninitialized value")
+    | some(v) =&gt; v
+  end
+end</code></pre></div></div></div><p/><div class="SIntrapara">Now we have to populate the array. First, we initialize the row
+representing the edit distances when <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span> is empty, and the
+column where <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> is empty. At \((0, 0)\), the edit distance is
+zero; at every position thereafter, it is the distance of that
+position from zero, because that many characters must be added to one
+or deleted from the other word for the two to coincide:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/3)"/>&lt;<span style="font-style: italic">levenshtein-dp/3</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">for each(s1i from range(0, s1-len + 1)):
+  put(s1i, 0, s1i)
+end
+for each(s2i from range(0, s2-len + 1)):
+  put(0, s2i, s2i)
+end
+<a href="#%28elem._levenshtein-dp%2F4%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/4</span>&gt;</a></code></pre></div></div></div><p/><div class="SIntrapara">Now we finally get to the heart of the computation. We need to iterate
+over every character in each word. these characters are at indices
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1-len - 1</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2-len - 1</code></span>, which are
+precisely the ranges of values produced by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">range(0, s1-len)</code></span> and
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">range(0, s2-len)</code></span>.
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/4)"/>&lt;<span style="font-style: italic">levenshtein-dp/4</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">for each(s1i from range(0, s1-len)):
+  for each(s2i from range(0, s2-len)):
+  <a href="#%28elem._levenshtein-dp%2Fcompute-dist%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt;</a>
+  end
+end
+<a href="#%28elem._levenshtein-dp%2Fget-result%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/get-result</span>&gt;</a></code></pre></div></div></div><div class="SIntrapara">Note that we’re building our way “out” from small cases to large
+ones, rather than starting with the large input and working our way
+“down”, recursively, to small ones.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Is this strictly true?</p></blockquote></blockquote><p>No, it isn’t. We did first fill in values for the “borders” of the
+table. This is because doing so in the midst of
+<a href="#%28elem._levenshtein-dp%2Fcompute-dist%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt;</a> would be much more
+annoying. By initializing all the known values, we keep the core
+computation cleaner. But it does mean the order in which we fill in
+the table is fairly complex.</p><p/><div class="SIntrapara">Now, let’s return to computing the distance.  For each pair of
+positions, we want the edit distance between the pair of words up to
+and including those positions. This distance is given by checking
+whether the characters at the pair of positions are identical. If they
+are, then the distance is the same as it was for the previous pair of
+prefixes; otherwise we have to try the three different kinds of edits:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/compute-dist)"/>&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">dist =
+  if get(s1, s1i) == get(s2, s2i):
+    lookup(s1i, s2i)
+  else:
+    min3(
+      1 + lookup(s1i, s2i + 1),
+      1 + lookup(s1i + 1, s2i),
+      1 + lookup(s1i, s2i))
+  end
+put(s1i + 1, s2i + 1, dist)</code></pre></div></div></div><div class="SIntrapara">As an aside, this sort of “off-by-one” coordinate arithmetic is
+traditional when using tabular representations, because we write code
+in terms of elements that are not inherently present, and therefore
+have to create a <span style="font-style: italic">padded</span> table to hold values for the boundary
+conditions. The alternative would be to allow the table to begin its
+addressing from <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">-1</code></span> so that the main computation looks
+traditional.</div><p/><div class="SIntrapara">At any rate, when this computation is done, the entire table has been
+filled with values. We still have to read out the answer, with lies at
+the end of the table:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/get-result)"/>&lt;<span style="font-style: italic">levenshtein-dp/get-result</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">lookup(s1-len, s2-len)</code></pre></div></div></div><p/><div class="SIntrapara">Even putting aside the helper functions we wrote to satiate our
+paranoia about using undefined values, we end up
+with:<span class="refelem"><span class="refcolumn"><span class="refcontent">As of this writing, the
+<a href="http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&amp;oldid=581406185#Iterative_with_full_matrix">current version</a>
+of the
+<a href="http://en.wikipedia.org/wiki/Levenshtein_distance">Wikipedia page</a>
+on the Levenshtein distance features a dynamic programming version
+that is very similar to the code above. By writing in pseudocode, it
+avoids address arithmetic issues (observe how the words are indexed
+starting from <span class="stt">1</span> instead of <span class="stt">0</span>, which enables the body of
+the code to look more “normal”), and by initializing all elements to
+zero it permits subtle bugs because an uninitialized table element is
+indistinguishable from a legitimate entry with edit distance of zero.
+The page also shows the
+<a href="http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&amp;oldid=581406185#Recursive">recursive</a>
+solution and alludes to memoization, but does not show it in code.</span></span></span>
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun levenshtein(s1 :: List&lt;String&gt;, s2 :: List&lt;String&gt;) block:
+  s1-len = s1.length()
+  s2-len = s2.length()
+  answers = array2d(s1-len + 1, s2-len + 1, none)
+
+  fun put(s1-idx :: Number, s2-idx :: Number, n :: Number):
+    set-answer(answers, s1-idx, s2-idx, some(n))
+  end
+  fun lookup(s1-idx :: Number, s2-idx :: Number) -&gt; Number block:
+    a = get-answer(answers, s1-idx, s2-idx)
+    cases (Option) a:
+      | none =&gt; raise("looking at uninitialized value")
+      | some(v) =&gt; v
+    end
+  end
+
+  for each(s1i from range(0, s1-len + 1)):
+    put(s1i, 0, s1i)
+  end
+  for each(s2i from range(0, s2-len + 1)):
+    put(0, s2i, s2i)
+  end
+
+  for each(s1i from range(0, s1-len)):
+    for each(s2i from range(0, s2-len)):
+      dist =
+        if get(s1, s1i) == get(s2, s2i):
+          lookup(s1i, s2i)
+        else:
+          min3(
+            1 + lookup(s1i, s2i + 1),
+            1 + lookup(s1i + 1, s2i),
+            1 + lookup(s1i, s2i))
+        end
+      put(s1i + 1, s2i + 1, dist)
+    end
+  end
+
+  lookup(s1-len, s2-len)
+end</code></pre></div></div></div><div class="SIntrapara">which is worth contrasting with the memoized version
+(<a href="#%28elem._levenshtein-memo%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-memo</span>&gt;</a>).<span class="refelem"><span class="refcolumn"><span class="refcontent">For more examples of
+canonical dynamic programming problems, see
+<a href="http://people.csail.mit.edu/bdean/6.046/dp/">this page</a>
+and think about how each can be expressed as a direct recursion.</span></span></span></div></section>&#13;
+<h4 class="heading">22.4.1<span class="stt"> </span><a name="(part._.Catalan_.Numbers_with_.Dynamic_.Programming)"/>Catalan Numbers with Dynamic Programming<span class="button-group"><a href="#(part._.Catalan_.Numbers_with_.Dynamic_.Programming)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">To begin with, we need to define a data structure to hold
+answers. Following convention, we will use an array.<span class="refelem"><span class="refcolumn"><span class="refcontent">What
+happens when we run out of space? We can use the doubling technique we
+studied for <a href="amortized-analysis.html" data-pltdoc="x">Halloween Analysis</a>.</span></span></span>
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">MAX-CAT = 11
+
+answers :: Array&lt;Option&lt;Number&gt;&gt; = array-of(none, MAX-CAT + 1)</code></pre></div></div></div><div class="SIntrapara">Then, the <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> function simply looks up the answer in this
+array:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun catalan(n):
+  cases (Option) array-get-now(answers, n):
+    | none =&gt; raise("looking at uninitialized value")
+    | some(v) =&gt; v
+  end
+end</code></pre></div></div></div><div class="SIntrapara">But how do we fill the array? We initialize the one known value, and
+use the formula to compute the rest in incremental order. Because we have
+multiple things to do in the body, we use <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">block</code></span>:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun fill-catalan(upper) block:
+  array-set-now(answers, 0, some(1))
+  when upper &gt; 0:
+    for each(n from range(1, upper + 1)):
+      block:
+        cat-at-n =
+          for fold(acc from 0, k from range(0, n)):
+            acc + (catalan(k) * catalan(n - 1 - k))
+          end
+        array-set-now(answers, n, some(cat-at-n))
+      end
+    end
+  end
+end
+
+fill-catalan(MAX-CAT)</code></pre></div></div></div><div class="SIntrapara">The resulting program obeys the tests in <a href="#%28elem._catalan-tests%29" data-pltdoc="x">&lt;<span style="font-style: italic">catalan-tests</span>&gt;</a>.</div><p>Notice that we have had to undo the natural recursive
+definition—<wbr/>which proceeds from bigger values to smaller ones—<wbr/>to
+instead use a loop that goes from smaller values to larger
+ones. In principle, the program has the danger that when we apply
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">catalan</code></span> to some value, that index of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> will have
+not yet been initialized, resultingin an error. In fact, however, we
+know that because we fill all smaller indices in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> before
+computing the next larger one, we will never actually encounter this
+error. Note that this requires careful reasoning about our program,
+which we did not need to perform when using memoization because
+there we made precisely the recursive call we needed, which either
+looked up the value or computed it afresh.</p>&#13;
+<h4 class="heading">22.4.2<span class="stt"> </span><a name="(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)"/>Levenshtein Distance and Dynamic Programming<span class="button-group"><a href="#(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p/><div class="SIntrapara">Now let’s take on rewriting the Levenshtein distance computation:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp)"/>&lt;<span style="font-style: italic">levenshtein-dp</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun levenshtein(s1 :: List&lt;String&gt;, s2 :: List&lt;String&gt;) block:
+  <a href="#%28elem._levenshtein-dp%2F1%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/1</span>&gt;</a>
+end</code></pre></div></div></div><div class="SIntrapara">We will use a table representing the edit distance for each prefix of
+each word. That is, we will have a two-dimensional table with as many
+rows as the length of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> and as many columns as the length of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span>. At each position, we will record the edit distance for the
+prefixes of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span> up to the indices represented by
+that position in the table.</div><p/><div class="SIntrapara">Note that index arithmetic will be a constant burden: if a word is of
+length \(n\), we have to record the edit distance to its \(n + 1\)
+positions, the extra one corresponding to the empty word. This will
+hold for both words:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/1)"/>&lt;<span style="font-style: italic">levenshtein-dp/1</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1-len = s1.length()
+s2-len = s2.length()
+answers = array2d(s1-len + 1, s2-len + 1, none)
+<a href="#%28elem._levenshtein-dp%2F2%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/2</span>&gt;</a></code></pre></div></div></div><div class="SIntrapara">Observe that by creating <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">answers</code></span> inside <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">levenshtein</code></span>, we
+can determine the exact size it needs to be based on the inputs,
+rather than having to over-allocate or dynamically grow the array.</div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p/><div class="SIntrapara">Define the functions
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">array2d :: Number, Number, A -&gt; Array&lt;A&gt;
+set-answer :: Array&lt;A&gt;, Number, Number, A -&gt; Nothing
+get-answer :: Array&lt;A&gt;, Number, Number -&gt; A</code></pre></div></div></div></blockquote></blockquote><p/><div class="SIntrapara">We have initialized the table with <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">none</code></span>, so we will get an
+  error if we accidentally try to use an uninitialized
+  entry.<span class="refelem"><span class="refcolumn"><span class="refcontent">Which proved to be necessary when
+writing and debugging this code!</span></span></span>  It will
+  therefore be convenient to create helper functions that let us
+  pretend the table contains only numbers:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/2)"/>&lt;<span style="font-style: italic">levenshtein-dp/2</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun put(s1-idx :: Number, s2-idx :: Number, n :: Number):
+  set-answer(answers, s1-idx, s2-idx, some(n))
+end
+fun lookup(s1-idx :: Number, s2-idx :: Number) -&gt; Number block:
+  a = get-answer(answers, s1-idx, s2-idx)
+  cases (Option) a:
+    | none =&gt; raise("looking at uninitialized value")
+    | some(v) =&gt; v
+  end
+end</code></pre></div></div></div><p/><div class="SIntrapara">Now we have to populate the array. First, we initialize the row
+representing the edit distances when <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2</code></span> is empty, and the
+column where <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1</code></span> is empty. At \((0, 0)\), the edit distance is
+zero; at every position thereafter, it is the distance of that
+position from zero, because that many characters must be added to one
+or deleted from the other word for the two to coincide:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/3)"/>&lt;<span style="font-style: italic">levenshtein-dp/3</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">for each(s1i from range(0, s1-len + 1)):
+  put(s1i, 0, s1i)
+end
+for each(s2i from range(0, s2-len + 1)):
+  put(0, s2i, s2i)
+end
+<a href="#%28elem._levenshtein-dp%2F4%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/4</span>&gt;</a></code></pre></div></div></div><p/><div class="SIntrapara">Now we finally get to the heart of the computation. We need to iterate
+over every character in each word. these characters are at indices
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">0</code></span> to <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s1-len - 1</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">s2-len - 1</code></span>, which are
+precisely the ranges of values produced by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">range(0, s1-len)</code></span> and
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">range(0, s2-len)</code></span>.
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/4)"/>&lt;<span style="font-style: italic">levenshtein-dp/4</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">for each(s1i from range(0, s1-len)):
+  for each(s2i from range(0, s2-len)):
+  <a href="#%28elem._levenshtein-dp%2Fcompute-dist%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt;</a>
+  end
+end
+<a href="#%28elem._levenshtein-dp%2Fget-result%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/get-result</span>&gt;</a></code></pre></div></div></div><div class="SIntrapara">Note that we’re building our way “out” from small cases to large
+ones, rather than starting with the large input and working our way
+“down”, recursively, to small ones.</div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Is this strictly true?</p></blockquote></blockquote><p>No, it isn’t. We did first fill in values for the “borders” of the
+table. This is because doing so in the midst of
+<a href="#%28elem._levenshtein-dp%2Fcompute-dist%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt;</a> would be much more
+annoying. By initializing all the known values, we keep the core
+computation cleaner. But it does mean the order in which we fill in
+the table is fairly complex.</p><p/><div class="SIntrapara">Now, let’s return to computing the distance.  For each pair of
+positions, we want the edit distance between the pair of words up to
+and including those positions. This distance is given by checking
+whether the characters at the pair of positions are identical. If they
+are, then the distance is the same as it was for the previous pair of
+prefixes; otherwise we have to try the three different kinds of edits:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/compute-dist)"/>&lt;<span style="font-style: italic">levenshtein-dp/compute-dist</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">dist =
+  if get(s1, s1i) == get(s2, s2i):
+    lookup(s1i, s2i)
+  else:
+    min3(
+      1 + lookup(s1i, s2i + 1),
+      1 + lookup(s1i + 1, s2i),
+      1 + lookup(s1i, s2i))
+  end
+put(s1i + 1, s2i + 1, dist)</code></pre></div></div></div><div class="SIntrapara">As an aside, this sort of “off-by-one” coordinate arithmetic is
+traditional when using tabular representations, because we write code
+in terms of elements that are not inherently present, and therefore
+have to create a <span style="font-style: italic">padded</span> table to hold values for the boundary
+conditions. The alternative would be to allow the table to begin its
+addressing from <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">-1</code></span> so that the main computation looks
+traditional.</div><p/><div class="SIntrapara">At any rate, when this computation is done, the entire table has been
+filled with values. We still have to read out the answer, with lies at
+the end of the table:
+</div><div class="SIntrapara"><a name="(elem._levenshtein-dp/get-result)"/>&lt;<span style="font-style: italic">levenshtein-dp/get-result</span>&gt; ::=</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">lookup(s1-len, s2-len)</code></pre></div></div></div><p/><div class="SIntrapara">Even putting aside the helper functions we wrote to satiate our
+paranoia about using undefined values, we end up
+with:<span class="refelem"><span class="refcolumn"><span class="refcontent">As of this writing, the
+<a href="http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&amp;oldid=581406185#Iterative_with_full_matrix">current version</a>
+of the
+<a href="http://en.wikipedia.org/wiki/Levenshtein_distance">Wikipedia page</a>
+on the Levenshtein distance features a dynamic programming version
+that is very similar to the code above. By writing in pseudocode, it
+avoids address arithmetic issues (observe how the words are indexed
+starting from <span class="stt">1</span> instead of <span class="stt">0</span>, which enables the body of
+the code to look more “normal”), and by initializing all elements to
+zero it permits subtle bugs because an uninitialized table element is
+indistinguishable from a legitimate entry with edit distance of zero.
+The page also shows the
+<a href="http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&amp;oldid=581406185#Recursive">recursive</a>
+solution and alludes to memoization, but does not show it in code.</span></span></span>
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun levenshtein(s1 :: List&lt;String&gt;, s2 :: List&lt;String&gt;) block:
+  s1-len = s1.length()
+  s2-len = s2.length()
+  answers = array2d(s1-len + 1, s2-len + 1, none)
+
+  fun put(s1-idx :: Number, s2-idx :: Number, n :: Number):
+    set-answer(answers, s1-idx, s2-idx, some(n))
+  end
+  fun lookup(s1-idx :: Number, s2-idx :: Number) -&gt; Number block:
+    a = get-answer(answers, s1-idx, s2-idx)
+    cases (Option) a:
+      | none =&gt; raise("looking at uninitialized value")
+      | some(v) =&gt; v
+    end
+  end
+
+  for each(s1i from range(0, s1-len + 1)):
+    put(s1i, 0, s1i)
+  end
+  for each(s2i from range(0, s2-len + 1)):
+    put(0, s2i, s2i)
+  end
+
+  for each(s1i from range(0, s1-len)):
+    for each(s2i from range(0, s2-len)):
+      dist =
+        if get(s1, s1i) == get(s2, s2i):
+          lookup(s1i, s2i)
+        else:
+          min3(
+            1 + lookup(s1i, s2i + 1),
+            1 + lookup(s1i + 1, s2i),
+            1 + lookup(s1i, s2i))
+        end
+      put(s1i + 1, s2i + 1, dist)
+    end
+  end
+
+  lookup(s1-len, s2-len)
+end</code></pre></div></div></div><div class="SIntrapara">which is worth contrasting with the memoized version
+(<a href="#%28elem._levenshtein-memo%29" data-pltdoc="x">&lt;<span style="font-style: italic">levenshtein-memo</span>&gt;</a>).<span class="refelem"><span class="refcolumn"><span class="refcontent">For more examples of
+canonical dynamic programming problems, see
+<a href="http://people.csail.mit.edu/bdean/6.046/dp/">this page</a>
+and think about how each can be expressed as a direct recursion.</span></span></span></div>&#13;
+<h3 class="heading">22.5<span class="stt"> </span><a name="(part._memo-vs-dp)"/>Contrasting Memoization and Dynamic Programming<span class="button-group"><a href="#(part._memo-vs-dp)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h3><p>Now that we’ve seen two very different techniques for avoiding recomputation,
+it’s worth contrasting them. The important thing to note is that
+memoization is a much simpler technique: write the natural recursive
+definition; determine its time complexity; decide whether this is
+problematic enough to warrant a space-time trade-off; and if it is,
+apply memoization. The code remains clean, and subsequent readers and
+maintainers will be grateful for that. In contrast, dynamic
+programming requires a reorganization of the algorithm to work
+bottom-up, which can often make the code harder to follow and full of
+subtle invariants about boundary conditions and computation order.</p><p>That said, the dynamic programming solution can sometimes be more
+computationally efficient. For instance, in the Levenshtein case,
+observe that at each table element, we (at most) only ever use the
+ones that are from the previous row and column. That means we never
+need to store the entire table; we can retain just the <span style="font-style: italic">fringe</span> of
+the table, which reduces space to being proportional to the
+<span class="emph">sum</span>, rather than product, of the length of the words. In a
+computational biology setting (when using Smith-Waterman), for
+instance, this saving can be substantial. This optimization is
+essentially impossible for memoization.</p><p/><div class="SIntrapara">In more detail, here’s the contrast:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0"><tr><td><p><span style="font-weight: bold">Memoization</span></p></td><td><p><span class="hspace">    </span></p></td><td><p><span style="font-weight: bold">Dynamic Programming</span></p></td></tr><tr><td><p>Top-down</p></td><td><p><span class="hspace">    </span></p></td><td><p>Bottom-up</p></td></tr><tr><td><p>Depth-first</p></td><td><p><span class="hspace">    </span></p></td><td><p>Breadth-first</p></td></tr><tr><td><p>Black-box</p></td><td><p><span class="hspace">    </span></p></td><td><p>Requires code reorganization</p></td></tr><tr><td><p>All stored calls are necessary</p></td><td><p><span class="hspace">    </span></p></td><td><p>May do unnecessary computation</p></td></tr><tr><td><p>Cannot easily get rid of unnecessary data</p></td><td><p><span class="hspace">    </span></p></td><td><p>Can more easily get rid of unnecessary data</p></td></tr><tr><td><p>Can never accidentally use an uninitialized answer</p></td><td><p><span class="hspace">    </span></p></td><td><p>Can accidentally use an uninitialized answer</p></td></tr><tr><td><p>Needs to check for the presence of an answer</p></td><td><p><span class="hspace">    </span></p></td><td><p>Can be designed to not need to check for the presence of an answer</p></td></tr></table></div><div class="SIntrapara">As this table should make clear, these are essentialy <span style="font-style: italic">dual</span>
+approaches. What is perhaps left unstated in most dynamic programming
+descriptions is that it, too, is predicated on the computation always
+producing the same answer for a given input—<wbr/>i.e., being a pure
+function.</div><p>From a software design perspective, there are two more considerations.</p><p>First, the performance of a memoized solution can trail that of
+dynamic programming when the memoized solution uses a <span class="emph">generic</span>
+data structure to store the memo table, whereas a dynamic programming
+solution will invariably use a custom data structure (since the code
+needs to be rewritten against it anyway). Therefore, before switching
+to dynamic programming for performance reasons, it makes sense to try
+to create a custom memoizer for the problem: the same knowledge
+embodied in the dynamic programming version can often be encoded in
+this custom memoizer (e.g., using an array instead of list to improve
+access times). This way, the program can enjoy speed comparable to
+that of dynamic programming while retaining readability and
+maintainability.</p><p>Second, suppose space is an important consideration and the dynamic
+programming version can make use of significantly less space. Then it
+does make sense to employ dynamic programming instead. Does this mean
+the memoized version is useless?</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What do you think? Do we still have use for the memoized version?</p></blockquote></blockquote><p>Yes, of course we do! It can serve as an oracle [<a href="testing.html#%28part._test-oracle%29" data-pltdoc="x">Oracles for Testing</a>] for the dynamic
+programming version, since the two are supposed to produce identical
+answers anyway—<wbr/>and the memoized version would be a much more
+efficient oracle than the purely recursive implemenation, and can
+therefore be used to test the dynamic programming version on much
+larger inputs.</p><p>In short, always first produce the memoized version. If you need more
+performance, consider customizing the memoizer’s data structure. If
+you need to also save space, and can arrive at a more space-efficient
+dynamic programming solution, then keep both versions around, using
+the former to test the latter (the person who inherits your code and
+needs to alter it will thank you!).</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p/><div class="SIntrapara">We have characterized the fundamental difference between memoization
+and dynamic programming as that between <span class="emph">top-down, depth-first</span>
+and <span class="emph">bottom-up, breadth-first</span> computation. This should naturally
+raise the question, what about:
+</div><div class="SIntrapara"><ul><li><p>top-down, breadth-first</p></li><li><p>bottom-up, depth-first</p></li></ul></div><div class="SIntrapara">orders of computation. Do they also have special names that we just
+happen to not know? Are they uninteresting? Or do they not get
+discussed for a reason?</div></blockquote></blockquote>    
+</body>
+</html>

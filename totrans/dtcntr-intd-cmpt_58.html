@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>18.2 Making Sets Grow on Trees🔗</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>18.2 Making Sets Grow on Trees🔗</h1>
+<blockquote>原文：<a href="https://dcic-world.org/2025-08-27/sets-from-trees.html">https://dcic-world.org/2025-08-27/sets-from-trees.html</a></blockquote><table cellspacing="0" cellpadding="0"><tr><td><p><span class="hspace">    </span><a href="#%28part._.Using_.Binary_.Trees%29" class="toclink" data-pltdoc="x">18.2.1<span class="hspace"> </span>Using Binary Trees</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Checking_the_.Complexity%29" class="toclink" data-pltdoc="x">18.2.2<span class="hspace"> </span>Checking the Complexity</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._sets-from-balanced-trees%29" class="toclink" data-pltdoc="x">18.2.3<span class="hspace"> </span>A Fine Balance: Tree Surgery</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.Left-.Left_.Case%29" class="toclink" data-pltdoc="x">18.2.3.1<span class="hspace"> </span>Left-Left Case</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.Left-.Right_.Case%29" class="toclink" data-pltdoc="x">18.2.3.2<span class="hspace"> </span>Left-Right Case</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.Any_.Other_.Cases_%29" class="toclink" data-pltdoc="x">18.2.3.3<span class="hspace"> </span>Any Other Cases?</a></p></td></tr></table><p>In <a href="sets-from-lists.html" data-pltdoc="x">Representing Sets as Lists</a> we saw multiple list representations of
+sets. They all came with at least some operations having linear time
+complexity—<wbr/>linear in different ways, but always linear in at least
+the number of distinct elements in the set. Can we do better?</p><p>Let’s start by noting that it seems better, if at all possible, to
+avoid storing duplicates.  Duplicates are only problematic during
+insertion due to the need for a membership test.  But if we can make
+membership testing cheap, then we would be better off using it to
+check for duplicates and storing only one instance of each value
+(which also saves us space).  Thus, let’s try to improve the time
+complexity of membership testing (and, hopefully, of other operations
+too).</p><p>It seems clear that with a (duplicate-free) list representation of a
+set, we cannot really beat linear time for membership checking.  This
+is because at each step, we can eliminate only one element from
+contention which in the worst case requires a linear amount of work to
+examine the whole set.  Instead, we need to eliminate many more
+elements with each comparison—<wbr/>more than just a constant.</p><p>In our handy set of recurrences [<a href="predicting-growth.html#%28part._solving-recurrences%29" data-pltdoc="x">Solving Recurrences</a>], one
+stands out: \(T(k) = T(k/2) + c\).  It says that if, with a
+<span class="emph">constant</span> amount of work we can eliminate <span class="emph">half</span> the input,
+we can perform membership checking in logarithmic time.  This will be
+our goal.</p><p>Before we proceed, it’s worth putting logarithmic growth in
+perspective. Asymptotically, logarithmic is obviously not as nice as
+constant. However, logarithmic growth is very pleasant because it
+grows so slowly. For instance, if an input doubles from size \(k\) to
+\(2k\), its logarithm—<wbr/>and hence resource usage—<wbr/>grows only by
+\(\log 2k - \log k = \log 2\), which is a constant. Indeed, for just
+about all problems, practically speaking the logarithm of the input
+size is bounded by a constant (that isn’t even very large). Therefore,
+in practice, for many programs, if we can shrink our resource
+consumption to logarithmic growth, it’s probably time to move on and
+focus on improving some other part of the system.</p><p>We have actually just made an extremely subtle assumption. In the list
+representation of sets, when we check one element for membership and
+eliminate it, we have eliminated <span class="emph">only that one element</span>. To
+obtain this logarithmic complexity, we need comparing against one
+element to remove an entire <span class="emph">set</span> of elements. Because we are
+constructing sets of numbers, we don’t need to confront this issue
+here. Instead, we go into it in much more detail in
+<a href="orderability.html#%28part._hashing-values%29" data-pltdoc="x">Converting Values to Ordered Values</a>.</p><section class="SsectionLevel4" id="section 18.2.1"><h4 class="heading">18.2.1<span class="stt"> </span><a name="(part._.Using_.Binary_.Trees)"/>Using Binary Trees<span class="button-group"><a href="#(part._.Using_.Binary_.Trees)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p><span class="refelem"><span class="refcolumn"><span class="refcontent">Because logs come from trees.</span></span></span></p><p/><div class="SIntrapara">Clearly, a list representation does not let us eliminate half the
+elements with a constant amount of work; instead, we need a tree.
+Thus we define a <span style="font-style: italic">binary tree</span> of (for simplicity) numbers:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data BT:
+  | leaf
+  | node(v :: Number, l :: BT, r :: BT)
+end</code></pre></div></div></div><p/><div class="SIntrapara">Given this definition, let’s define the membership checker:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun is-in-bt(e :: Number, s :: BT) -&gt; Boolean:
+  cases (BT) s:
+    | leaf =&gt; false
+    | node(v, l, r) =&gt;
+      if e == v:
+        true
+      else:
+        is-in-bt(e, l) or is-in-bt(e, r)
+      end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Oh, wait.  If the element we’re looking for isn’t the root, what do we
+do?  It could be in the left child or it could be in the right; we
+won’t know for sure until we’ve examined both.  Thus, we can’t throw
+away half the elements; the only one we can dispose of is the value at
+the root.  Furthermore, this property holds at every level of the
+tree.  Thus, membership checking needs to examine the entire tree, and
+we still have complexity linear in the size of the set.</div><p>How can we improve on this?  The comparison needs to help us eliminate
+not only the root but also <span class="emph">one whole sub-tree</span>.  We can only do
+this if the comparison “speaks for” an entire sub-tree.  It can do
+so if all elements in one sub-tree are less than or equal to the root
+value, and all elements in the other sub-tree are greater than or
+equal to it.  Of course, we have to be consistent about which side
+contains which subset; it is conventional to put the smaller elements
+to the left and the bigger ones to the right.  This refines our binary
+tree definition to give us a <span style="font-style: italic">binary search tree</span> (<span class="Smaller">BST</span>).</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p/><div class="SIntrapara">Here is a candiate predicate for recognizing when a binary tree is in
+fact a binary search tree:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun is-a-bst-buggy(b :: BT) -&gt; Boolean:
+  cases (BT) b:
+    | leaf =&gt; true
+    | node(v, l, r) =&gt;
+      (is-leaf(l) or (l.v &lt;= v)) and
+      (is-leaf(r) or (v &lt;= r.v)) and
+      is-a-bst-buggy(l) and
+      is-a-bst-buggy(r)
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Is this definition correct?</div></blockquote></blockquote><p/><div class="SIntrapara">It’s not.  To actually throw away half the tree, we need to be sure
+that <span class="emph">everything</span> in the left sub-tree is less than the value in
+the root and similarly, everything in the right sub-tree is greater
+than the root.<span class="refelem"><span class="refcolumn"><span class="refcontent">We have used <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">&lt;=</code></span> instead of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">&lt;</code></span> above
+because even though we don’t want to permit duplicates when
+representing sets, in other cases we might not want to be so
+stringent; this way we can reuse the above implementation for other
+purposes.</span></span></span>  But the definition above performs only a “shallow”
+comparison.  Thus we could have a root <span style="font-style: italic">a</span> with a right child,
+<span style="font-style: italic">b</span>, such that <span style="font-style: italic">b &gt; a</span>; and the <span style="font-style: italic">b</span> node
+could have a left child <span style="font-style: italic">c</span> such that <span style="font-style: italic">c &lt; b</span>;
+but this does not guarantee that <span style="font-style: italic">c &gt; a</span>.  In fact, it is
+easy to construct a counter-example that passes this check:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  node(5, node(3, leaf, node(6, leaf, leaf)), leaf)
+    satisfies is-a-bst-buggy # FALSE!
+end</code></pre></div></div></div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Fix the <span class="Smaller">BST</span> checker.</p></blockquote></blockquote><p/><div class="SIntrapara">With a corrected definition, we can now define a refined version of
+binary trees that are search trees:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">type BST = BT%(is-a-bst)</code></pre></div></div></div><div class="SIntrapara">We can also remind ourselves that the purpose of this exercise was to
+define sets, and define <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">TSet</code></span>s to be tree sets:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">type TSet = BST
+mt-set = leaf</code></pre></div></div></div><p/><div class="SIntrapara">Now let’s implement our operations on the <span class="Smaller">BST</span> representation.  First
+we’ll write a template:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun is-in(e :: Number, s :: BST) -&gt; Bool:
+  cases (BST) s:
+    | leaf =&gt; ...
+    | node(v, l :: BST, r :: BST) =&gt; ...
+      ... is-in(l) ...
+      ... is-in(r) ...
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Observe that the data definition of a <span class="Smaller">BST</span> gives us rich information
+about the two children: they are each a <span class="Smaller">BST</span>, so we know their
+elements obey the ordering property.  We can use this to define the
+actual operations:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun is-in(e :: Number, s :: BST) -&gt; Boolean:
+  cases (BST) s:
+    | leaf =&gt; false
+    | node(v, l, r) =&gt;
+      if e == v:
+        true
+      else if e &lt; v:
+        is-in(e, l)
+      else if e &gt; v:
+        is-in(e, r)
+      end
+  end
+end
+
+fun insert(e :: Number, s :: BST) -&gt; BST:
+  cases (BST) s:
+    | leaf =&gt; node(e, leaf, leaf)
+    | node(v, l, r) =&gt;
+      if e == v:
+        s
+      else if e &lt; v:
+        node(v, insert(e, l), r)
+      else if e &gt; v:
+        node(v, l, insert(e, r))
+      end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">In both functions we are strictly assuming the invariant of
+the <span class="Smaller">BST</span>, and in the latter case also ensuring it. Make sure you
+identify where, why, and how.</div><p>You should now be able to define the remaining operations. Of these,
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">size</code></span> clearly requires linear time (since it has to count all
+the elements), but because <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-in</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> both throw
+away one of two children each time they recur, they take logarithmic
+time.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Suppose we frequently needed to compute the size of a set.  We ought
+to be able to reduce the time complexity of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">size</code></span> by having each
+tree <a href="glossary.html#%28elem._glossary-cache%29" data-pltdoc="x">☛ <span style="font-style: italic">cache</span></a> its size, so that <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">size</code></span> could
+complete in constant time (note that the size of the tree clearly fits
+the criterion of a cache, since it can always be reconstructed).
+Update the data definition and all affected functions to keep track of
+this information correctly.</p></blockquote></blockquote></section><section class="SsectionLevel4" id="section 18.2.2"><h4 class="heading">18.2.2<span class="stt"> </span><a name="(part._.Checking_the_.Complexity)"/>Checking the Complexity<span class="button-group"><a href="#(part._.Checking_the_.Complexity)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>But wait a minute.  Are we actually done?  Our recurrence takes the
+form \(T(k) = T(k/2) + c\), but what in our data definition guaranteed
+that the size of the child traversed by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-in</code></span> will be half the
+size?</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Construct an example—<wbr/>consisting of a sequence of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span>s to the empty tree—<wbr/>such that the resulting tree is not
+balanced.  Show that searching for certain elements in this tree will
+take linear, not logarithmic, time in its size.</p></blockquote></blockquote><p/><div class="SIntrapara">Imagine starting with the empty tree and inserting the values
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">1</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">2</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">3</code></span>, and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span>, in order.  The
+resulting tree would be
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  insert(4, insert(3, insert(2, insert(1, mt-set)))) is
+  node(1, leaf,
+    node(2, leaf,
+      node(3, leaf,
+        node(4, leaf, leaf))))
+end</code></pre></div></div></div><div class="SIntrapara">Searching for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span> in this tree would have to examine all the set
+elements in the tree.  In other words, this binary search tree is
+<span style="font-style: italic">degenerate</span>—<wbr/>it is effectively a list, and we are back to having
+the same complexity we had earlier.</div><p>Therefore, using a binary tree, and even a <span class="Smaller">BST</span>, does not guarantee
+the complexity we want: it does only if our inputs have arrived in
+just the right order.  However, we cannot assume any input ordering;
+instead, we would like an implementation that works in all cases.
+Thus, we must find a way to ensure that the tree is always
+<span style="font-style: italic">balanced</span>, so each recursive call in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-in</code></span>
+really does throw away half the elements.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Observe that we have not talked about computing the <span class="emph">size</span> of the set.
+Even if we could assume that the binary tree is balanced, how do we
+determine the size in logarithmic-or-better time?</p></blockquote></blockquote></section><section class="SsectionLevel4" id="section 18.2.3"><h4 class="heading">18.2.3<span class="stt"> </span><a name="(part._sets-from-balanced-trees)"/>A Fine Balance: Tree Surgery<span class="button-group"><a href="#(part._sets-from-balanced-trees)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Let’s define a <span style="font-style: italic">balanced binary search tree</span> (<span class="Smaller">BBST</span>).  It must
+obviously be a search tree, so let’s focus on the “balanced” part.
+We have to be careful about precisely what this means: we can’t simply
+expect both sides to be of equal size because this demands that the
+tree (and hence the set) have an even number of elements and, even
+more stringently, to have a size that is a power of two.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Define a predicate for a <span class="Smaller">BBST</span> that consumes a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">BT</code></span> and returns a
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">Boolean</code></span> indicating whether or not it a balanced search tree.</p></blockquote></blockquote><p>Therefore, we relax the notion of balance to one that is both
+accommodating and sufficient.  We use the term <span style="font-style: italic">balance factor</span>
+for a node to refer to the height of its left child minus the height
+of its right child (where the height is the depth, in edges, of the
+deepest node).  We allow every node of a <span class="Smaller">BBST</span> to have a balance
+factor of \(-1\), \(0\), or \(1\) (but nothing else): that is, either
+both have the same height, or the left or the right can be one taller.
+Note that this is a recursive property, but it applies at all levels,
+so the imbalance cannot accumulate making the whole tree arbitrarily
+imbalanced.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Given this definition of a <span class="Smaller">BBST</span>, show that the number of nodes is
+exponential in the height.  Thus, always recurring on one branch will
+terminate after a logarithmic (in the number of nodes) number of
+steps.</p></blockquote></blockquote><p>Here is an obvious but useful observation: <span class="emph">every <span class="Smaller">BBST</span> is also
+a <span class="Smaller">BST</span></span> (this was true by the very definition of a <span class="Smaller">BBST</span>).  Why
+does this matter?  It means that a function that operates on a <span class="Smaller">BST</span> can
+just as well be applied to a <span class="Smaller">BBST</span> without any loss of correctness.</p><p>So far, so easy.  All that leaves is a means of <span class="emph">creating</span> a
+<span class="Smaller">BBST</span>, because it’s responsible for ensuring balance.  It’s easy to
+see that the constant <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">empty-set</code></span> is a <span class="Smaller">BBST</span> value.  So that
+leaves only <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span>.</p><p>Here is our situation with <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span>.  Assuming we start with a
+<span class="Smaller">BBST</span>, we can determine in logarithmic time whether the element is
+already in the tree and, if so, ignore it.<span class="refelem"><span class="refcolumn"><span class="refcontent">To implement a
+<span style="font-style: italic">bag</span> we count how many of each element are in it, which does not
+affect the tree’s height.</span></span></span>
+When inserting an element, given balanced trees, the
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> for a <span class="Smaller">BST</span> takes only a logarithmic amount of time to
+perform the insertion.  Thus, if performing the insertion does not
+affect the tree’s balance, we’re done.  Therefore, we only need to
+consider cases where performing the insertion throws off the balance.</p><p>Observe that because \(&lt;\) and \(&gt;\) are symmetric (likewise with
+\(&lt;=\) and \(&gt;=\)), we can consider insertions into one half of the
+tree and a symmetric argument handles insertions into the other half.
+Thus, suppose we have a tree that is currently balanced into which we
+are inserting the element \(e\).  Let’s say \(e\) is going into the
+left sub-tree and, by virtue of being inserted, will cause the entire
+tree to become imbalanced.<span class="refelem"><span class="refcolumn"><span class="refcontent">Some trees, like family trees (<a href="trees.html#%28part._ancestor-trees%29" data-pltdoc="x">Data Design Problem – Ancestry Data</a>)
+represent real-world data.  It makes no sense to “balance” a family
+tree: it must accurately model whatever reality it represents.  These
+set-representing trees, in contrast, are chosen by us, not dictated by
+some external reality, so we are free to rearrange them.</span></span></span></p><p>There are two ways to proceed.  One is to consider all the places
+where we might insert \(e\) in a way that causes an imbalance and
+determine what to do in each case.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Enumerate all the cases where insertion might be problematic, and
+dictate what to do in each case.</p></blockquote></blockquote><p>The number of cases is actually quite overwhelming (if you didn’t
+think so, you missed a few...).  Therefore, we instead attack the
+problem after it has occurred: allow the existing <span class="Smaller">BST</span> <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span>
+to insert the element, assume that we have an imbalanced tree,
+and show how to restore its balance.<span class="refelem"><span class="refcolumn"><span class="refcontent">The insight that a tree can
+be made “self-balancing” is quite remarkable, and there are now many
+solutions to this problem.  This particular one, one of the oldest, is
+due to G.M. Adelson-Velskii and E.M. Landis. In honor of their
+initials it is called an <span style="font-style: italic">AVL Tree</span>, though the tree itself is quite
+evident; their genius is in defining re-balancing.</span></span></span></p><p>Thus, in what follows, we begin with a tree that is balanced;
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> causes it to become imbalanced; we have assumed that the
+insertion happened in the left sub-tree.  In particular, suppose a
+(sub-)tree has a balance factor of \(2\) (positive because we’re
+assuming the left is imbalanced by insertion).  The procedure for
+restoring balance depends critically on the following property:</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Show that if a tree is currently balanced, i.e., the balance factor at every
+node is \(-1\), \(0\), or \(1\), then <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> can at worst make
+the balance factor \(\pm 2\).</p></blockquote></blockquote><p>The algorithm that follows is applied as <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> returns from
+its recursion, i.e., on the path from the inserted value back to the
+root.  Since this path is of logarithmic length in the set’s size (due
+to the balancing property), and (as we shall see) performs only a
+constant amount of work at each step, it ensures that insertion also
+takes only logarithmic time, thus completing our challenge.</p><p/><div class="SIntrapara">To visualize the algorithm, let’s use this tree schematic:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">B</span></p></td></tr></table></div><div class="SIntrapara">Here, \(p\) is the value of the element at the root (though we will
+also abuse terminology and use the value at a root to refer to that
+whole tree), \(q\) is the value at the root of the left sub-tree (so
+\(q &lt; p\)), and \(A\), \(B\), and \(C\) name the respective sub-trees.
+We have assumed that \(e\) is being inserted into the left sub-tree,
+which means \(e &lt; p\).</div><p>Let’s say that \(C\) is of height \(k\). Before insertion, the tree
+rooted at \(q\) must have had height \(k+1\) (or else one insertion
+cannot create imbalance). In turn, this means \(A\) must have had
+height \(k\) or \(k-1\), and likewise for \(B\).</p><p/><div class="SIntrapara">Suppose that after insertion, the tree rooted at \(q\) has height
+\(k+2\). Thus, either \(A\) or \(B\) has height \(k+1\) and the other
+<span class="emph">must</span> have height less than that (either \(k\) or \(k-1\)).
+</div><div class="SIntrapara"><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Why can they both not have height \(k+1\) after insertion?</p></blockquote></blockquote></div><div class="SIntrapara">This gives us two cases to consider.</div><section class="SsectionLevel5" id="section 18.2.3.1"><h5 class="heading">18.2.3.1<span class="stt"> </span><a name="(part._.Left-.Left_.Case)"/>Left-Left Case<span class="button-group"><a href="#(part._.Left-.Left_.Case)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p/><div class="SIntrapara">Let’s say the imbalance is in \(A\), i.e., it has height \(k+1\).
+Let’s expand that tree:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">r</span><span class="hspace">   </span><span class="stt">B</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A1</span><span class="hspace">  </span><span class="stt">A2</span></p></td></tr></table></div><div class="SIntrapara">We know the following about the data in the sub-trees.  We’ll use the
+notation \(T &lt; a\) where \(T\) is a tree and \(a\) is a single value
+to mean every value in \(T\) is less than \(a\).
+</div><div class="SIntrapara"><ul><li><p>\(A_1 &lt; r\).</p></li><li><p>\(r &lt; A_2 &lt; q\).</p></li><li><p>\(q &lt; B &lt; p\).</p></li><li><p>\(p &lt; C\).</p></li></ul></div><div class="SIntrapara">Let’s also remind ourselves of the sizes:
+</div><div class="SIntrapara"><ul><li><p>The height of \(A_1\) or of \(A_2\) is \(k\) (the cause of imbalance).</p></li><li><p>The height of the other \(A_i\) is \(k-1\) (see the exercise above).</p></li><li><p>The height of \(C\) is \(k\) (initial assumption; \(k\) is arbitrary).</p></li><li><p>The height of \(B\) must be \(k-1\) or \(k\) (argued above).</p></li></ul></div><p/><div class="SIntrapara">Imagine this tree is a mobile, which has gotten a little skewed to the
+left.  You would naturally think to suspend the mobile a little
+further to the left to bring it back into balance.  That is
+effectively what we will do:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">q</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">r</span><span class="hspace">     </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A1</span><span class="hspace">  </span><span class="stt">A2 B</span><span class="hspace">  </span><span class="stt">C</span></p></td></tr></table></div><div class="SIntrapara">Observe that this preserves each of the ordering properties above.  In
+addition, the \(A\) subtree has been brought one level closer to the
+root than earlier relative to \(B\) and \(C\). This restores the
+balance (as you can see if you work out the heights of each of
+\(A_i\), \(B\), and \(C\)). Thus, we have also restored balance.</div></section><section class="SsectionLevel5" id="section 18.2.3.2"><h5 class="heading">18.2.3.2<span class="stt"> </span><a name="(part._.Left-.Right_.Case)"/>Left-Right Case<span class="button-group"><a href="#(part._.Left-.Right_.Case)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p/><div class="SIntrapara">The imbalance might instead be in \(B\).  Expanding:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">r</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">B1</span><span class="hspace">  </span><span class="stt">B2</span></p></td></tr></table></div><div class="SIntrapara">Again, let’s record what we know about data order:
+</div><div class="SIntrapara"><ul><li><p>\(A &lt; q\).</p></li><li><p>\(q &lt; B_1 &lt; r\).</p></li><li><p>\(r &lt; B_2 &lt; p\).</p></li><li><p>\(p &lt; C\).</p></li></ul></div><div class="SIntrapara">and sizes:
+</div><div class="SIntrapara"><ul><li><p>Suppose the height of \(C\) is \(k\).</p></li><li><p>The height of \(A\) must be \(k-1\) or \(k\).</p></li><li><p>The height of \(B_1\) or \(B_2\) must be \(k\), but not both
+(see the exercise above).  The other must be \(k-1\).</p></li></ul></div><div class="SIntrapara">We therefore have to somehow bring \(B_1\) and \(B_2\) one level
+closer to the root of the tree.  By using the above data ordering
+knowledge, we can construct this tree:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">r</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">B2</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">B1</span></p></td></tr></table></div><div class="SIntrapara">Of course, if \(B_1\) is the problematic sub-tree, this still does not
+address the problem.  However, we are now back to the previous
+(left-left) case; rotating gets us to:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">r</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/</span><span class="hspace">    </span><span class="stt">\</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span><span class="hspace">    </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">B1 B2</span><span class="hspace">  </span><span class="stt">C</span></p></td></tr></table></div><div class="SIntrapara">Now observe that we have precisely maintained the data ordering
+constraints.  Furthermore, from the root, \(A\)’s lowest node is at
+height \(k+1\) or \(k+2\); so is \(B_1\)’s; so is \(B_2\)’s; and
+\(C\)’s is at \(k+2\).</div></section><section class="SsectionLevel5" id="section 18.2.3.3"><h5 class="heading">18.2.3.3<span class="stt"> </span><a name="(part._.Any_.Other_.Cases_)"/>Any Other Cases?<span class="button-group"><a href="#(part._.Any_.Other_.Cases_)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Were we a little too glib before?  In the left-right case we said that
+only one of \(B_1\) or \(B_2\) could be of height \(k\) (after
+insertion); the other had to be of height \(k-1\).  Actually, all we
+can say for sure is that the other has to be <span class="emph">at most</span> height
+\(k-2\).</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><ul><li><p>Can the height of the other tree actually be \(k-2\) instead of
+\(k-1\)?</p></li><li><p>If so, does the solution above hold?  Is there not still an
+imbalance of two in the resulting tree?</p></li><li><p>Is there actually a bug in the above algorithm?</p></li></ul></blockquote></blockquote></section></section>&#13;
+<h4 class="heading">18.2.1<span class="stt"> </span><a name="(part._.Using_.Binary_.Trees)"/>Using Binary Trees<span class="button-group"><a href="#(part._.Using_.Binary_.Trees)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p><span class="refelem"><span class="refcolumn"><span class="refcontent">Because logs come from trees.</span></span></span></p><p/><div class="SIntrapara">Clearly, a list representation does not let us eliminate half the
+elements with a constant amount of work; instead, we need a tree.
+Thus we define a <span style="font-style: italic">binary tree</span> of (for simplicity) numbers:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">data BT:
+  | leaf
+  | node(v :: Number, l :: BT, r :: BT)
+end</code></pre></div></div></div><p/><div class="SIntrapara">Given this definition, let’s define the membership checker:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun is-in-bt(e :: Number, s :: BT) -&gt; Boolean:
+  cases (BT) s:
+    | leaf =&gt; false
+    | node(v, l, r) =&gt;
+      if e == v:
+        true
+      else:
+        is-in-bt(e, l) or is-in-bt(e, r)
+      end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Oh, wait.  If the element we’re looking for isn’t the root, what do we
+do?  It could be in the left child or it could be in the right; we
+won’t know for sure until we’ve examined both.  Thus, we can’t throw
+away half the elements; the only one we can dispose of is the value at
+the root.  Furthermore, this property holds at every level of the
+tree.  Thus, membership checking needs to examine the entire tree, and
+we still have complexity linear in the size of the set.</div><p>How can we improve on this?  The comparison needs to help us eliminate
+not only the root but also <span class="emph">one whole sub-tree</span>.  We can only do
+this if the comparison “speaks for” an entire sub-tree.  It can do
+so if all elements in one sub-tree are less than or equal to the root
+value, and all elements in the other sub-tree are greater than or
+equal to it.  Of course, we have to be consistent about which side
+contains which subset; it is conventional to put the smaller elements
+to the left and the bigger ones to the right.  This refines our binary
+tree definition to give us a <span style="font-style: italic">binary search tree</span> (<span class="Smaller">BST</span>).</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p/><div class="SIntrapara">Here is a candiate predicate for recognizing when a binary tree is in
+fact a binary search tree:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun is-a-bst-buggy(b :: BT) -&gt; Boolean:
+  cases (BT) b:
+    | leaf =&gt; true
+    | node(v, l, r) =&gt;
+      (is-leaf(l) or (l.v &lt;= v)) and
+      (is-leaf(r) or (v &lt;= r.v)) and
+      is-a-bst-buggy(l) and
+      is-a-bst-buggy(r)
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Is this definition correct?</div></blockquote></blockquote><p/><div class="SIntrapara">It’s not.  To actually throw away half the tree, we need to be sure
+that <span class="emph">everything</span> in the left sub-tree is less than the value in
+the root and similarly, everything in the right sub-tree is greater
+than the root.<span class="refelem"><span class="refcolumn"><span class="refcontent">We have used <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">&lt;=</code></span> instead of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">&lt;</code></span> above
+because even though we don’t want to permit duplicates when
+representing sets, in other cases we might not want to be so
+stringent; this way we can reuse the above implementation for other
+purposes.</span></span></span>  But the definition above performs only a “shallow”
+comparison.  Thus we could have a root <span style="font-style: italic">a</span> with a right child,
+<span style="font-style: italic">b</span>, such that <span style="font-style: italic">b &gt; a</span>; and the <span style="font-style: italic">b</span> node
+could have a left child <span style="font-style: italic">c</span> such that <span style="font-style: italic">c &lt; b</span>;
+but this does not guarantee that <span style="font-style: italic">c &gt; a</span>.  In fact, it is
+easy to construct a counter-example that passes this check:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  node(5, node(3, leaf, node(6, leaf, leaf)), leaf)
+    satisfies is-a-bst-buggy # FALSE!
+end</code></pre></div></div></div><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Fix the <span class="Smaller">BST</span> checker.</p></blockquote></blockquote><p/><div class="SIntrapara">With a corrected definition, we can now define a refined version of
+binary trees that are search trees:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">type BST = BT%(is-a-bst)</code></pre></div></div></div><div class="SIntrapara">We can also remind ourselves that the purpose of this exercise was to
+define sets, and define <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">TSet</code></span>s to be tree sets:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">type TSet = BST
+mt-set = leaf</code></pre></div></div></div><p/><div class="SIntrapara">Now let’s implement our operations on the <span class="Smaller">BST</span> representation.  First
+we’ll write a template:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun is-in(e :: Number, s :: BST) -&gt; Bool:
+  cases (BST) s:
+    | leaf =&gt; ...
+    | node(v, l :: BST, r :: BST) =&gt; ...
+      ... is-in(l) ...
+      ... is-in(r) ...
+  end
+end</code></pre></div></div></div><div class="SIntrapara">Observe that the data definition of a <span class="Smaller">BST</span> gives us rich information
+about the two children: they are each a <span class="Smaller">BST</span>, so we know their
+elements obey the ordering property.  We can use this to define the
+actual operations:
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">fun is-in(e :: Number, s :: BST) -&gt; Boolean:
+  cases (BST) s:
+    | leaf =&gt; false
+    | node(v, l, r) =&gt;
+      if e == v:
+        true
+      else if e &lt; v:
+        is-in(e, l)
+      else if e &gt; v:
+        is-in(e, r)
+      end
+  end
+end
+
+fun insert(e :: Number, s :: BST) -&gt; BST:
+  cases (BST) s:
+    | leaf =&gt; node(e, leaf, leaf)
+    | node(v, l, r) =&gt;
+      if e == v:
+        s
+      else if e &lt; v:
+        node(v, insert(e, l), r)
+      else if e &gt; v:
+        node(v, l, insert(e, r))
+      end
+  end
+end</code></pre></div></div></div><div class="SIntrapara">In both functions we are strictly assuming the invariant of
+the <span class="Smaller">BST</span>, and in the latter case also ensuring it. Make sure you
+identify where, why, and how.</div><p>You should now be able to define the remaining operations. Of these,
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">size</code></span> clearly requires linear time (since it has to count all
+the elements), but because <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-in</code></span> and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> both throw
+away one of two children each time they recur, they take logarithmic
+time.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Suppose we frequently needed to compute the size of a set.  We ought
+to be able to reduce the time complexity of <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">size</code></span> by having each
+tree <a href="glossary.html#%28elem._glossary-cache%29" data-pltdoc="x">☛ <span style="font-style: italic">cache</span></a> its size, so that <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">size</code></span> could
+complete in constant time (note that the size of the tree clearly fits
+the criterion of a cache, since it can always be reconstructed).
+Update the data definition and all affected functions to keep track of
+this information correctly.</p></blockquote></blockquote>&#13;
+<h4 class="heading">18.2.2<span class="stt"> </span><a name="(part._.Checking_the_.Complexity)"/>Checking the Complexity<span class="button-group"><a href="#(part._.Checking_the_.Complexity)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>But wait a minute.  Are we actually done?  Our recurrence takes the
+form \(T(k) = T(k/2) + c\), but what in our data definition guaranteed
+that the size of the child traversed by <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-in</code></span> will be half the
+size?</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Construct an example—<wbr/>consisting of a sequence of
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span>s to the empty tree—<wbr/>such that the resulting tree is not
+balanced.  Show that searching for certain elements in this tree will
+take linear, not logarithmic, time in its size.</p></blockquote></blockquote><p/><div class="SIntrapara">Imagine starting with the empty tree and inserting the values
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">1</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">2</code></span>, <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">3</code></span>, and <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span>, in order.  The
+resulting tree would be
+</div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Pyret" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">check:
+  insert(4, insert(3, insert(2, insert(1, mt-set)))) is
+  node(1, leaf,
+    node(2, leaf,
+      node(3, leaf,
+        node(4, leaf, leaf))))
+end</code></pre></div></div></div><div class="SIntrapara">Searching for <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">4</code></span> in this tree would have to examine all the set
+elements in the tree.  In other words, this binary search tree is
+<span style="font-style: italic">degenerate</span>—<wbr/>it is effectively a list, and we are back to having
+the same complexity we had earlier.</div><p>Therefore, using a binary tree, and even a <span class="Smaller">BST</span>, does not guarantee
+the complexity we want: it does only if our inputs have arrived in
+just the right order.  However, we cannot assume any input ordering;
+instead, we would like an implementation that works in all cases.
+Thus, we must find a way to ensure that the tree is always
+<span style="font-style: italic">balanced</span>, so each recursive call in <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">is-in</code></span>
+really does throw away half the elements.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Observe that we have not talked about computing the <span class="emph">size</span> of the set.
+Even if we could assume that the binary tree is balanced, how do we
+determine the size in logarithmic-or-better time?</p></blockquote></blockquote>&#13;
+<h4 class="heading">18.2.3<span class="stt"> </span><a name="(part._sets-from-balanced-trees)"/>A Fine Balance: Tree Surgery<span class="button-group"><a href="#(part._sets-from-balanced-trees)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Let’s define a <span style="font-style: italic">balanced binary search tree</span> (<span class="Smaller">BBST</span>).  It must
+obviously be a search tree, so let’s focus on the “balanced” part.
+We have to be careful about precisely what this means: we can’t simply
+expect both sides to be of equal size because this demands that the
+tree (and hence the set) have an even number of elements and, even
+more stringently, to have a size that is a power of two.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Define a predicate for a <span class="Smaller">BBST</span> that consumes a <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">BT</code></span> and returns a
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">Boolean</code></span> indicating whether or not it a balanced search tree.</p></blockquote></blockquote><p>Therefore, we relax the notion of balance to one that is both
+accommodating and sufficient.  We use the term <span style="font-style: italic">balance factor</span>
+for a node to refer to the height of its left child minus the height
+of its right child (where the height is the depth, in edges, of the
+deepest node).  We allow every node of a <span class="Smaller">BBST</span> to have a balance
+factor of \(-1\), \(0\), or \(1\) (but nothing else): that is, either
+both have the same height, or the left or the right can be one taller.
+Note that this is a recursive property, but it applies at all levels,
+so the imbalance cannot accumulate making the whole tree arbitrarily
+imbalanced.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Given this definition of a <span class="Smaller">BBST</span>, show that the number of nodes is
+exponential in the height.  Thus, always recurring on one branch will
+terminate after a logarithmic (in the number of nodes) number of
+steps.</p></blockquote></blockquote><p>Here is an obvious but useful observation: <span class="emph">every <span class="Smaller">BBST</span> is also
+a <span class="Smaller">BST</span></span> (this was true by the very definition of a <span class="Smaller">BBST</span>).  Why
+does this matter?  It means that a function that operates on a <span class="Smaller">BST</span> can
+just as well be applied to a <span class="Smaller">BBST</span> without any loss of correctness.</p><p>So far, so easy.  All that leaves is a means of <span class="emph">creating</span> a
+<span class="Smaller">BBST</span>, because it’s responsible for ensuring balance.  It’s easy to
+see that the constant <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">empty-set</code></span> is a <span class="Smaller">BBST</span> value.  So that
+leaves only <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span>.</p><p>Here is our situation with <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span>.  Assuming we start with a
+<span class="Smaller">BBST</span>, we can determine in logarithmic time whether the element is
+already in the tree and, if so, ignore it.<span class="refelem"><span class="refcolumn"><span class="refcontent">To implement a
+<span style="font-style: italic">bag</span> we count how many of each element are in it, which does not
+affect the tree’s height.</span></span></span>
+When inserting an element, given balanced trees, the
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> for a <span class="Smaller">BST</span> takes only a logarithmic amount of time to
+perform the insertion.  Thus, if performing the insertion does not
+affect the tree’s balance, we’re done.  Therefore, we only need to
+consider cases where performing the insertion throws off the balance.</p><p>Observe that because \(&lt;\) and \(&gt;\) are symmetric (likewise with
+\(&lt;=\) and \(&gt;=\)), we can consider insertions into one half of the
+tree and a symmetric argument handles insertions into the other half.
+Thus, suppose we have a tree that is currently balanced into which we
+are inserting the element \(e\).  Let’s say \(e\) is going into the
+left sub-tree and, by virtue of being inserted, will cause the entire
+tree to become imbalanced.<span class="refelem"><span class="refcolumn"><span class="refcontent">Some trees, like family trees (<a href="trees.html#%28part._ancestor-trees%29" data-pltdoc="x">Data Design Problem – Ancestry Data</a>)
+represent real-world data.  It makes no sense to “balance” a family
+tree: it must accurately model whatever reality it represents.  These
+set-representing trees, in contrast, are chosen by us, not dictated by
+some external reality, so we are free to rearrange them.</span></span></span></p><p>There are two ways to proceed.  One is to consider all the places
+where we might insert \(e\) in a way that causes an imbalance and
+determine what to do in each case.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Enumerate all the cases where insertion might be problematic, and
+dictate what to do in each case.</p></blockquote></blockquote><p>The number of cases is actually quite overwhelming (if you didn’t
+think so, you missed a few...).  Therefore, we instead attack the
+problem after it has occurred: allow the existing <span class="Smaller">BST</span> <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span>
+to insert the element, assume that we have an imbalanced tree,
+and show how to restore its balance.<span class="refelem"><span class="refcolumn"><span class="refcontent">The insight that a tree can
+be made “self-balancing” is quite remarkable, and there are now many
+solutions to this problem.  This particular one, one of the oldest, is
+due to G.M. Adelson-Velskii and E.M. Landis. In honor of their
+initials it is called an <span style="font-style: italic">AVL Tree</span>, though the tree itself is quite
+evident; their genius is in defining re-balancing.</span></span></span></p><p>Thus, in what follows, we begin with a tree that is balanced;
+<span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> causes it to become imbalanced; we have assumed that the
+insertion happened in the left sub-tree.  In particular, suppose a
+(sub-)tree has a balance factor of \(2\) (positive because we’re
+assuming the left is imbalanced by insertion).  The procedure for
+restoring balance depends critically on the following property:</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Show that if a tree is currently balanced, i.e., the balance factor at every
+node is \(-1\), \(0\), or \(1\), then <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> can at worst make
+the balance factor \(\pm 2\).</p></blockquote></blockquote><p>The algorithm that follows is applied as <span title="Pyret" class="sourceCode"><code data-lang="pyret" class="sourceCode">insert</code></span> returns from
+its recursion, i.e., on the path from the inserted value back to the
+root.  Since this path is of logarithmic length in the set’s size (due
+to the balancing property), and (as we shall see) performs only a
+constant amount of work at each step, it ensures that insertion also
+takes only logarithmic time, thus completing our challenge.</p><p/><div class="SIntrapara">To visualize the algorithm, let’s use this tree schematic:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">B</span></p></td></tr></table></div><div class="SIntrapara">Here, \(p\) is the value of the element at the root (though we will
+also abuse terminology and use the value at a root to refer to that
+whole tree), \(q\) is the value at the root of the left sub-tree (so
+\(q &lt; p\)), and \(A\), \(B\), and \(C\) name the respective sub-trees.
+We have assumed that \(e\) is being inserted into the left sub-tree,
+which means \(e &lt; p\).</div><p>Let’s say that \(C\) is of height \(k\). Before insertion, the tree
+rooted at \(q\) must have had height \(k+1\) (or else one insertion
+cannot create imbalance). In turn, this means \(A\) must have had
+height \(k\) or \(k-1\), and likewise for \(B\).</p><p/><div class="SIntrapara">Suppose that after insertion, the tree rooted at \(q\) has height
+\(k+2\). Thus, either \(A\) or \(B\) has height \(k+1\) and the other
+<span class="emph">must</span> have height less than that (either \(k\) or \(k-1\)).
+</div><div class="SIntrapara"><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Why can they both not have height \(k+1\) after insertion?</p></blockquote></blockquote></div><div class="SIntrapara">This gives us two cases to consider.</div><section class="SsectionLevel5" id="section 18.2.3.1"><h5 class="heading">18.2.3.1<span class="stt"> </span><a name="(part._.Left-.Left_.Case)"/>Left-Left Case<span class="button-group"><a href="#(part._.Left-.Left_.Case)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p/><div class="SIntrapara">Let’s say the imbalance is in \(A\), i.e., it has height \(k+1\).
+Let’s expand that tree:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">r</span><span class="hspace">   </span><span class="stt">B</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A1</span><span class="hspace">  </span><span class="stt">A2</span></p></td></tr></table></div><div class="SIntrapara">We know the following about the data in the sub-trees.  We’ll use the
+notation \(T &lt; a\) where \(T\) is a tree and \(a\) is a single value
+to mean every value in \(T\) is less than \(a\).
+</div><div class="SIntrapara"><ul><li><p>\(A_1 &lt; r\).</p></li><li><p>\(r &lt; A_2 &lt; q\).</p></li><li><p>\(q &lt; B &lt; p\).</p></li><li><p>\(p &lt; C\).</p></li></ul></div><div class="SIntrapara">Let’s also remind ourselves of the sizes:
+</div><div class="SIntrapara"><ul><li><p>The height of \(A_1\) or of \(A_2\) is \(k\) (the cause of imbalance).</p></li><li><p>The height of the other \(A_i\) is \(k-1\) (see the exercise above).</p></li><li><p>The height of \(C\) is \(k\) (initial assumption; \(k\) is arbitrary).</p></li><li><p>The height of \(B\) must be \(k-1\) or \(k\) (argued above).</p></li></ul></div><p/><div class="SIntrapara">Imagine this tree is a mobile, which has gotten a little skewed to the
+left.  You would naturally think to suspend the mobile a little
+further to the left to bring it back into balance.  That is
+effectively what we will do:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">q</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">r</span><span class="hspace">     </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A1</span><span class="hspace">  </span><span class="stt">A2 B</span><span class="hspace">  </span><span class="stt">C</span></p></td></tr></table></div><div class="SIntrapara">Observe that this preserves each of the ordering properties above.  In
+addition, the \(A\) subtree has been brought one level closer to the
+root than earlier relative to \(B\) and \(C\). This restores the
+balance (as you can see if you work out the heights of each of
+\(A_i\), \(B\), and \(C\)). Thus, we have also restored balance.</div></section><section class="SsectionLevel5" id="section 18.2.3.2"><h5 class="heading">18.2.3.2<span class="stt"> </span><a name="(part._.Left-.Right_.Case)"/>Left-Right Case<span class="button-group"><a href="#(part._.Left-.Right_.Case)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p/><div class="SIntrapara">The imbalance might instead be in \(B\).  Expanding:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">r</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">B1</span><span class="hspace">  </span><span class="stt">B2</span></p></td></tr></table></div><div class="SIntrapara">Again, let’s record what we know about data order:
+</div><div class="SIntrapara"><ul><li><p>\(A &lt; q\).</p></li><li><p>\(q &lt; B_1 &lt; r\).</p></li><li><p>\(r &lt; B_2 &lt; p\).</p></li><li><p>\(p &lt; C\).</p></li></ul></div><div class="SIntrapara">and sizes:
+</div><div class="SIntrapara"><ul><li><p>Suppose the height of \(C\) is \(k\).</p></li><li><p>The height of \(A\) must be \(k-1\) or \(k\).</p></li><li><p>The height of \(B_1\) or \(B_2\) must be \(k\), but not both
+(see the exercise above).  The other must be \(k-1\).</p></li></ul></div><div class="SIntrapara">We therefore have to somehow bring \(B_1\) and \(B_2\) one level
+closer to the root of the tree.  By using the above data ordering
+knowledge, we can construct this tree:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">r</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">B2</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">B1</span></p></td></tr></table></div><div class="SIntrapara">Of course, if \(B_1\) is the problematic sub-tree, this still does not
+address the problem.  However, we are now back to the previous
+(left-left) case; rotating gets us to:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">r</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/</span><span class="hspace">    </span><span class="stt">\</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span><span class="hspace">    </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">B1 B2</span><span class="hspace">  </span><span class="stt">C</span></p></td></tr></table></div><div class="SIntrapara">Now observe that we have precisely maintained the data ordering
+constraints.  Furthermore, from the root, \(A\)’s lowest node is at
+height \(k+1\) or \(k+2\); so is \(B_1\)’s; so is \(B_2\)’s; and
+\(C\)’s is at \(k+2\).</div></section><section class="SsectionLevel5" id="section 18.2.3.3"><h5 class="heading">18.2.3.3<span class="stt"> </span><a name="(part._.Any_.Other_.Cases_)"/>Any Other Cases?<span class="button-group"><a href="#(part._.Any_.Other_.Cases_)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Were we a little too glib before?  In the left-right case we said that
+only one of \(B_1\) or \(B_2\) could be of height \(k\) (after
+insertion); the other had to be of height \(k-1\).  Actually, all we
+can say for sure is that the other has to be <span class="emph">at most</span> height
+\(k-2\).</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><ul><li><p>Can the height of the other tree actually be \(k-2\) instead of
+\(k-1\)?</p></li><li><p>If so, does the solution above hold?  Is there not still an
+imbalance of two in the resulting tree?</p></li><li><p>Is there actually a bug in the above algorithm?</p></li></ul></blockquote></blockquote></section>&#13;
+<h5 class="heading">18.2.3.1<span class="stt"> </span><a name="(part._.Left-.Left_.Case)"/>Left-Left Case<span class="button-group"><a href="#(part._.Left-.Left_.Case)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p/><div class="SIntrapara">Let’s say the imbalance is in \(A\), i.e., it has height \(k+1\).
+Let’s expand that tree:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">r</span><span class="hspace">   </span><span class="stt">B</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A1</span><span class="hspace">  </span><span class="stt">A2</span></p></td></tr></table></div><div class="SIntrapara">We know the following about the data in the sub-trees.  We’ll use the
+notation \(T &lt; a\) where \(T\) is a tree and \(a\) is a single value
+to mean every value in \(T\) is less than \(a\).
+</div><div class="SIntrapara"><ul><li><p>\(A_1 &lt; r\).</p></li><li><p>\(r &lt; A_2 &lt; q\).</p></li><li><p>\(q &lt; B &lt; p\).</p></li><li><p>\(p &lt; C\).</p></li></ul></div><div class="SIntrapara">Let’s also remind ourselves of the sizes:
+</div><div class="SIntrapara"><ul><li><p>The height of \(A_1\) or of \(A_2\) is \(k\) (the cause of imbalance).</p></li><li><p>The height of the other \(A_i\) is \(k-1\) (see the exercise above).</p></li><li><p>The height of \(C\) is \(k\) (initial assumption; \(k\) is arbitrary).</p></li><li><p>The height of \(B\) must be \(k-1\) or \(k\) (argued above).</p></li></ul></div><p/><div class="SIntrapara">Imagine this tree is a mobile, which has gotten a little skewed to the
+left.  You would naturally think to suspend the mobile a little
+further to the left to bring it back into balance.  That is
+effectively what we will do:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">q</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">r</span><span class="hspace">     </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A1</span><span class="hspace">  </span><span class="stt">A2 B</span><span class="hspace">  </span><span class="stt">C</span></p></td></tr></table></div><div class="SIntrapara">Observe that this preserves each of the ordering properties above.  In
+addition, the \(A\) subtree has been brought one level closer to the
+root than earlier relative to \(B\) and \(C\). This restores the
+balance (as you can see if you work out the heights of each of
+\(A_i\), \(B\), and \(C\)). Thus, we have also restored balance.</div>&#13;
+<h5 class="heading">18.2.3.2<span class="stt"> </span><a name="(part._.Left-.Right_.Case)"/>Left-Right Case<span class="button-group"><a href="#(part._.Left-.Right_.Case)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p/><div class="SIntrapara">The imbalance might instead be in \(B\).  Expanding:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">r</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">B1</span><span class="hspace">  </span><span class="stt">B2</span></p></td></tr></table></div><div class="SIntrapara">Again, let’s record what we know about data order:
+</div><div class="SIntrapara"><ul><li><p>\(A &lt; q\).</p></li><li><p>\(q &lt; B_1 &lt; r\).</p></li><li><p>\(r &lt; B_2 &lt; p\).</p></li><li><p>\(p &lt; C\).</p></li></ul></div><div class="SIntrapara">and sizes:
+</div><div class="SIntrapara"><ul><li><p>Suppose the height of \(C\) is \(k\).</p></li><li><p>The height of \(A\) must be \(k-1\) or \(k\).</p></li><li><p>The height of \(B_1\) or \(B_2\) must be \(k\), but not both
+(see the exercise above).  The other must be \(k-1\).</p></li></ul></div><div class="SIntrapara">We therefore have to somehow bring \(B_1\) and \(B_2\) one level
+closer to the root of the tree.  By using the above data ordering
+knowledge, we can construct this tree:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">     </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">    </span><span class="stt">r</span><span class="hspace">   </span><span class="stt">C</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">   </span><span class="stt">B2</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">B1</span></p></td></tr></table></div><div class="SIntrapara">Of course, if \(B_1\) is the problematic sub-tree, this still does not
+address the problem.  However, we are now back to the previous
+(left-left) case; rotating gets us to:
+</div><div class="SIntrapara"><table cellspacing="0" cellpadding="0" class="SVerbatim"><tr><td><p><span class="stt"/><span class="hspace">      </span><span class="stt">r</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">   </span><span class="stt">/</span><span class="hspace">    </span><span class="stt">\</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace">  </span><span class="stt">q</span><span class="hspace">      </span><span class="stt">p</span></p></td></tr><tr><td><p><span class="stt"/><span class="hspace"> </span><span class="stt">/ \</span><span class="hspace">    </span><span class="stt">/ \</span></p></td></tr><tr><td><p><span class="stt">A</span><span class="hspace">   </span><span class="stt">B1 B2</span><span class="hspace">  </span><span class="stt">C</span></p></td></tr></table></div><div class="SIntrapara">Now observe that we have precisely maintained the data ordering
+constraints.  Furthermore, from the root, \(A\)’s lowest node is at
+height \(k+1\) or \(k+2\); so is \(B_1\)’s; so is \(B_2\)’s; and
+\(C\)’s is at \(k+2\).</div>&#13;
+<h5 class="heading">18.2.3.3<span class="stt"> </span><a name="(part._.Any_.Other_.Cases_)"/>Any Other Cases?<span class="button-group"><a href="#(part._.Any_.Other_.Cases_)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Were we a little too glib before?  In the left-right case we said that
+only one of \(B_1\) or \(B_2\) could be of height \(k\) (after
+insertion); the other had to be of height \(k-1\).  Actually, all we
+can say for sure is that the other has to be <span class="emph">at most</span> height
+\(k-2\).</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><ul><li><p>Can the height of the other tree actually be \(k-2\) instead of
+\(k-1\)?</p></li><li><p>If so, does the solution above hold?  Is there not still an
+imbalance of two in the resulting tree?</p></li><li><p>Is there actually a bug in the above algorithm?</p></li></ul></blockquote></blockquote>    
+</body>
+</html>

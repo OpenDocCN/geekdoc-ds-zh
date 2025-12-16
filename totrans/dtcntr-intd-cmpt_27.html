@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>9.2 Dictionaries🔗</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>9.2 Dictionaries🔗</h1>
+<blockquote>原文：<a href="https://dcic-world.org/2025-08-27/dictionaries.html">https://dcic-world.org/2025-08-27/dictionaries.html</a></blockquote><table cellspacing="0" cellpadding="0"><tr><td><p><span class="hspace">    </span><a href="#%28part._.Creating_and_.Using_a_.Dictionary%29" class="toclink" data-pltdoc="x">9.2.1<span class="hspace"> </span>Creating and Using a Dictionary</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Searching_.Through_the_.Values_in_a_.Dictionary%29" class="toclink" data-pltdoc="x">9.2.2<span class="hspace"> </span>Searching Through the Values in a Dictionary</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Dictionaries_with_.More_.Complex_.Values%29" class="toclink" data-pltdoc="x">9.2.3<span class="hspace"> </span>Dictionaries with More Complex Values</a></p></td></tr><tr><td><p><span class="hspace">    </span><a href="#%28part._.Dictionaries_versus_.Dataclasses%29" class="toclink" data-pltdoc="x">9.2.4<span class="hspace"> </span>Dictionaries versus Dataclasses</a></p></td></tr><tr><td><p><span class="hspace">      </span><a href="#%28part._.Summary%29" class="toclink" data-pltdoc="x">Summary</a></p></td></tr></table><p>So far, we have seen several ways to process sequential data such as
+lists. In each of Pyret and Python, we can use <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">filter</code></span> and
+<span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">map</code></span> to perform certain operations that yield lists. In Pyret,
+we used recursion to aggregate list data into a single value. In
+Python, we used for-loops for this task. While we could use recursion
+or for-loops for <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">filter</code></span> and <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">map</code></span> tasks as well, using
+these named operators makes it easier for someone else to quickly read
+your code and understand what kind of operation it is performing.</p><p>This observation raises a question though: are there other common code
+patterns that get written with recursion or for-loops that would
+benefit from specialized handling?</p><p>As an example, imagine that we had a dataclass for airline
+flights. Each flight has its origin and destination cities, the flight
+code (including the airline name and flight number), and the number of seats on the
+flight. Imagine also that we have functions to look up the destination
+and seating capacity of individual flights:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">@dataclass
+class Flight:
+    from_city: str
+    to_city: str
+    code: str
+    seats: int
+
+schedule = [Flight('NYC','PVD','CSA-342',50),
+            Flight('PVD','ORD','CSA-590',50),
+            Flight('NYC','ORD','CSA-723',120),
+            Flight('ORD','DEN','CSA-145',175),
+            Flight('BOS','ORD','CSA-647',80)]
+
+def destination1(for_code: str, flights: list):
+   '''get the destination of the flight with the given code'''
+   for fl in flights:
+      if fl.code == for_code:
+          return fl.to_city
+
+def capacity1(for_code: str, flights: list):
+   '''get the seating capacity of the flight with the given code'''
+   for fl in flights:
+      if fl.code == for_code:
+          return fl.seats</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Look at the similarity between <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">destination1</code></span> and
+<span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">capacity1</code></span>. How might we share the common code between these
+two functions?</p></blockquote></blockquote><p>Both <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">destination1</code></span> and <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">capacity1</code></span> traverse the list of
+flights looking for the one with the given flight-code, then extract a
+piece of information from that flight. The for-loop isn’t doing
+anything other than looking for the desired flight data. This suggests
+that a <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">find_flight</code></span> helper could be useful here:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">def find_flight(for_code: str, flights: list):
+   '''return the flight with the given code'''
+   for fl in flights:
+      if fl.code == for_code:
+          return fl
+
+def destination2(for_code: str, flights: list):
+    return find_flight(for_code, flights).to_city
+
+def capacity2(for_code: str, flights: list):
+    return find_flight(for_code, flights).seats</code></pre></div></div><p>Searching for a single element from a list based on a specific piece
+of information is common in many programs. This is so common, in fact,
+that languages provide special data structures and operations just to
+help with this task. In Python, this data structure is called a
+<span style="font-style: italic">dictionary</span> (<span class="emph">hashmap</span>, <span class="emph">hashtable</span>, and
+<span class="emph">associative arrays</span> are names for similar data structures in other
+languages, though there are key nuances that distinguish all these variations).</p><section class="SsectionLevel4" id="section 9.2.1"><h4 class="heading">9.2.1<span class="stt"> </span><a name="(part._.Creating_and_.Using_a_.Dictionary)"/>Creating and Using a Dictionary<span class="button-group"><a href="#(part._.Creating_and_.Using_a_.Dictionary)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>A dictionary maps unique values (called keys) to corresponding pieces
+of data for each key (called values). Here is our flight example
+written instead as a dictionary instead of a list:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">sched_dict = {'CSA-342': Flight('NYC','PVD','CSA-342',50),
+              'CSA-590': Flight('PVD','ORD','CSA-590',50),
+              'CSA-723': Flight('NYC','ORD','CSA-723',120),
+              'CSA-145': Flight('ORD','DEN','CSA-145',175),
+              'CSA-647': Flight('BOS','ORD','CSA-647',80)
+             }</code></pre></div></div><p>The general form of a dictionary is:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">{key1: value1,
+ key2: value2,
+ key3: value3,
+ ...}</code></pre></div></div><p/><div class="SIntrapara">Dictionaries are designed to enable easy lookup of values give a
+key. To get the </div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></pre></div></div></div><div class="SIntrapara"> associated with key
+<span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">'CSA-145'</code></span>, we can write simply:</div><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">sched_dict['CSA-145']</code></pre></div></div><p>To get the number of seats on flight <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">'CSA-145'</code></span>, we can simply
+write:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">sched_dict['CSA-145'].seats</code></pre></div></div><p>In other words, the dictionary data structure removes the need to
+traverse a list to find the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></span> with a specific key. The
+dictionary lookup operation does that work for us. Actually,
+dictionaries are even more nuanced: depending on how they are
+designed, dictionaries can retrieve the value for a key without
+traversing all the values (or even any other value). In general,
+you can assume that dictionary-based lookup is significantly faster
+than a list-based one. How this works is a more advanced topic; some
+of this content is explained in [SECREF].</p><p>One limitation of dictionaries is that they allow only one value per
+key. Let’s consider a different example, this time one that uses
+rooms in a building as keys and occupants as values:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">office_dict = {410: 'Farhan',
+               411: 'Pauline',
+               412: 'Marisol',
+               413: 'Saleh'}</code></pre></div></div><p>What if someone new moves into office 412? In Python, we can the value
+for that key as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">office_dict[412] = 'Zeynep'</code></pre></div></div><p>Now, any use of <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">office_dict[412]</code></span> will evaluate to
+<span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">'Zeynep'</code></span> instead of <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">'Marisol'</code></span>.</p></section><section class="SsectionLevel4" id="section 9.2.2"><h4 class="heading">9.2.2<span class="stt"> </span><a name="(part._.Searching_.Through_the_.Values_in_a_.Dictionary)"/>Searching Through the Values in a Dictionary<span class="button-group"><a href="#(part._.Searching_.Through_the_.Values_in_a_.Dictionary)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>What if we wanted to find all of the flights with more than 100 seats?
+For this, we have to search through all of the key-value pairs and
+check their balances. This again sounds like we need a for-loop. What
+does that look like on a dictionary though?</p><p>Turns out, it looks much like writing a for loop on a list (at least
+in Python). Here’s a program that creates a list of the flights with
+more than 100 seats:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">above_100 = []
+
+# the room variable takes on each key in the dictionary
+for flight_code in sched_dict:
+    if sched_dict[flight_code].seats &gt; 100:
+        above_100.append(sched_dict[flight_code])</code></pre></div></div><p>Here, the for-loop iterates over the keys. Within the loop, we use
+each key to retrieve its corresponding <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></span>, perform the
+balance check on the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></span>, then put the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></span> in
+our running list if it meets our criterion.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Create a dictionary that maps names of classrooms or meeting rooms to
+the numbers of seats that they have. Write expressions to:</p><ol><li><p>Look up how many seats are in a specific room</p></li><li><p>Change the capacity of a specific room to have 10 more seats
+than it did initially</p></li><li><p>Find all rooms that can seat at least 50 students</p></li></ol></blockquote></blockquote></section><section class="SsectionLevel4" id="section 9.2.3"><h4 class="heading">9.2.3<span class="stt"> </span><a name="(part._.Dictionaries_with_.More_.Complex_.Values)"/>Dictionaries with More Complex Values<span class="button-group"><a href="#(part._.Dictionaries_with_.More_.Complex_.Values)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>A track-and-field tournament needs to manage the names of the
+players on the individual teams that will be competing. For
+example, “Team Red” has “Shaoming” and “Lijin”, “Team
+Green” contains “Obi” and ”Chinara”, and “Team Blue” has
+“Mateo” and “Sophia”. Come up with a way to organize the data that
+will allow the organizers to easily access the names of the players on
+each team, keeping in mind that there could be many more teams than
+just the three listed here.</p></blockquote></blockquote><p>This feels like a dictionary situation, in that we have a meaningful
+key (the team name) with which we want to access values (the names of
+the players). However, we have already said that dictionaries allow
+only one value per key. Consider the following code:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">players = {}
+players["Team Red"] = "Shaoming"
+players["Team Red"] = "Lijin"</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What would be in the dictionary after running this code? If you aren’t
+sure, try it out!</p></blockquote></blockquote><p>How do we store multiple player names under the same key? The insight
+here is that the collection of players, not an individual player, is
+what we want to associate with the team name. We should therefore
+store a list of players under each key, as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">players = {}
+players["Team Red"] = ["Shaoming", "Lijin"]
+players["Team Green"] = ["Obi", "Chinara"]
+players["Team Blue"] = ["Mateo", "Sophia"]</code></pre></div></div><p>The values in a dictionary aren’t limited to being basic values. They
+can be arbitrarily complex, including lists, tables, or even other
+dictionaries (and more!). There is still only one value
+per key, which is the requirement of a dictionary.</p></section><section class="SsectionLevel4" id="section 9.2.4"><h4 class="heading">9.2.4<span class="stt"> </span><a name="(part._.Dictionaries_versus_.Dataclasses)"/>Dictionaries versus Dataclasses<span class="button-group"><a href="#(part._.Dictionaries_versus_.Dataclasses)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Previously, we learned about dataclasses as a way to create compound
+data in Python. Here again is the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">ToDoItem</code></span> dataclass that we
+introduced earlier, as well as an example datum for that class:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">class ToDoItem:
+    descr: str
+    due: date
+    tags: list
+
+milk = ToDoItem("buy milk", date(2020, 7, 27), ["shopping", "home"]</code></pre></div></div><p>One could view the field names in the dataclass as akin to keys in a
+dictionary. If we did so, we could also capture the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">milk</code></span>
+datum via a dictionary as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">milk_dict = {"descr": "buy milk",
+             "due": date(2020, 7, 27),
+             "tags": ["shopping", "home"]
+             }</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Create a dictionary to capture the compound datum</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">ToDoItem("grade hwk", date(2020, 7, 27), ["teaching"])</code></pre></div></div></blockquote></blockquote><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Create a to-do list named <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">myTD_D</code></span> that contains a list of
+dictionaries, rather than a list of dataclasses.</p></blockquote></blockquote><p>Putting these two approaches side-by-side, here’s the contrast:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">myTD_L = [ToDoItem("buy milk", date(2020, 7, 27), ["shopping", "home"]),
+          ToDoItem("grade hwk", date(2020, 7, 27), ["teaching"]),
+          ToDoItem("meet students", date(2020, 7, 26), ["research"])
+         ]
+
+myTD_D = [milk_dict,
+          {"descr": "grade hwk",
+           "due": date(2020, 7, 27),
+           "tags": ["teaching"]
+          },
+          {"descr": "meet students",
+           "due": date(2020, 7, 26),
+           "tags": ["research"]
+          }
+         ]</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What do you see as the benefits and drawbacks of each of dataclasses and
+dictionaries to represent compound data?</p></blockquote></blockquote><p>Dataclasses have a fixed number of fields, while directories allow
+arbitrary numbers of keys. Dataclass fields can be annotated with
+types (which most languages will check when you make new data);
+dictionaries can use fixed types for each of keys and values, though
+this gets restrictive when using dictionaries to capture dataclasses
+with fields of different types. Dataclasses give you a function name
+for creating new data, whereas with dictionaries you’d have to create
+such a function on your own.</p><p>Overall, dataclasses come with more linguistic support for error
+checking: you can’t supply data for the wrong number of fields or
+field values of the wrong type. Dictionaries are more flexible: you
+can support optional fields more easily, including adding new
+fields/keys as a program runs. Each of these makes more sense in some
+programming situations.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Write a function <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">ToDoItem_D</code></span> that takes a description, due
+date, and list of tags and returns a dictionary with keys for each
+field of a to-do item.</p></blockquote></blockquote><section class="SsectionLevel5" id="section 0"><h5 class="heading"><a name="(part._.Summary)"/>Summary<span class="button-group"><a href="#(part._.Summary)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Python programmers tend to make substantial use of dictionaries. In
+this chapter, we’ve seen dictionaries used in two different settings:</p><ul><li><p>one in which the keys uniquely identify different
+entities or individuals among a larger set; the values represent some
+consistent type of information about each individual. The dictionary
+overall captures information about a large population of individuals,
+each with their own key.</p></li><li><p>one in which the keys name fields of compound data; the values
+associated with each field can have different types from the values
+for other fields. This setting corresponds to the use of dataclasses,
+in which a dictionary captures information about one individual; some
+other structure (such as a list or another dictionary) would be needed
+to hold the dictionaries for each individual.</p></li></ul><p>As a general rule, it is better to use dataclasses for the second
+setting when you have a fixed set of fields. The use of dictionaries
+for dataclasses is somewhat associated with programming practices in
+the Python community (less so in other languages). The first setting,
+however, is a common use of dictionaries in nearly all languages,
+especially since dictionaries are usually built to provide fast access
+to the data associated with a specific key.</p></section></section>&#13;
+<h4 class="heading">9.2.1<span class="stt"> </span><a name="(part._.Creating_and_.Using_a_.Dictionary)"/>Creating and Using a Dictionary<span class="button-group"><a href="#(part._.Creating_and_.Using_a_.Dictionary)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>A dictionary maps unique values (called keys) to corresponding pieces
+of data for each key (called values). Here is our flight example
+written instead as a dictionary instead of a list:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">sched_dict = {'CSA-342': Flight('NYC','PVD','CSA-342',50),
+              'CSA-590': Flight('PVD','ORD','CSA-590',50),
+              'CSA-723': Flight('NYC','ORD','CSA-723',120),
+              'CSA-145': Flight('ORD','DEN','CSA-145',175),
+              'CSA-647': Flight('BOS','ORD','CSA-647',80)
+             }</code></pre></div></div><p>The general form of a dictionary is:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">{key1: value1,
+ key2: value2,
+ key3: value3,
+ ...}</code></pre></div></div><p/><div class="SIntrapara">Dictionaries are designed to enable easy lookup of values give a
+key. To get the </div><div class="SIntrapara"><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></pre></div></div></div><div class="SIntrapara"> associated with key
+<span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">'CSA-145'</code></span>, we can write simply:</div><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">sched_dict['CSA-145']</code></pre></div></div><p>To get the number of seats on flight <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">'CSA-145'</code></span>, we can simply
+write:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">sched_dict['CSA-145'].seats</code></pre></div></div><p>In other words, the dictionary data structure removes the need to
+traverse a list to find the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></span> with a specific key. The
+dictionary lookup operation does that work for us. Actually,
+dictionaries are even more nuanced: depending on how they are
+designed, dictionaries can retrieve the value for a key without
+traversing all the values (or even any other value). In general,
+you can assume that dictionary-based lookup is significantly faster
+than a list-based one. How this works is a more advanced topic; some
+of this content is explained in [SECREF].</p><p>One limitation of dictionaries is that they allow only one value per
+key. Let’s consider a different example, this time one that uses
+rooms in a building as keys and occupants as values:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">office_dict = {410: 'Farhan',
+               411: 'Pauline',
+               412: 'Marisol',
+               413: 'Saleh'}</code></pre></div></div><p>What if someone new moves into office 412? In Python, we can the value
+for that key as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">office_dict[412] = 'Zeynep'</code></pre></div></div><p>Now, any use of <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">office_dict[412]</code></span> will evaluate to
+<span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">'Zeynep'</code></span> instead of <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">'Marisol'</code></span>.</p>&#13;
+<h4 class="heading">9.2.2<span class="stt"> </span><a name="(part._.Searching_.Through_the_.Values_in_a_.Dictionary)"/>Searching Through the Values in a Dictionary<span class="button-group"><a href="#(part._.Searching_.Through_the_.Values_in_a_.Dictionary)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>What if we wanted to find all of the flights with more than 100 seats?
+For this, we have to search through all of the key-value pairs and
+check their balances. This again sounds like we need a for-loop. What
+does that look like on a dictionary though?</p><p>Turns out, it looks much like writing a for loop on a list (at least
+in Python). Here’s a program that creates a list of the flights with
+more than 100 seats:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">above_100 = []
+
+# the room variable takes on each key in the dictionary
+for flight_code in sched_dict:
+    if sched_dict[flight_code].seats &gt; 100:
+        above_100.append(sched_dict[flight_code])</code></pre></div></div><p>Here, the for-loop iterates over the keys. Within the loop, we use
+each key to retrieve its corresponding <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></span>, perform the
+balance check on the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></span>, then put the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">Flight</code></span> in
+our running list if it meets our criterion.</p><blockquote class="Exercise"><p class="ExerciseHeader">Exercise</p><blockquote class="ExerciseBody"><p>Create a dictionary that maps names of classrooms or meeting rooms to
+the numbers of seats that they have. Write expressions to:</p><ol><li><p>Look up how many seats are in a specific room</p></li><li><p>Change the capacity of a specific room to have 10 more seats
+than it did initially</p></li><li><p>Find all rooms that can seat at least 50 students</p></li></ol></blockquote></blockquote>&#13;
+<h4 class="heading">9.2.3<span class="stt"> </span><a name="(part._.Dictionaries_with_.More_.Complex_.Values)"/>Dictionaries with More Complex Values<span class="button-group"><a href="#(part._.Dictionaries_with_.More_.Complex_.Values)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>A track-and-field tournament needs to manage the names of the
+players on the individual teams that will be competing. For
+example, “Team Red” has “Shaoming” and “Lijin”, “Team
+Green” contains “Obi” and ”Chinara”, and “Team Blue” has
+“Mateo” and “Sophia”. Come up with a way to organize the data that
+will allow the organizers to easily access the names of the players on
+each team, keeping in mind that there could be many more teams than
+just the three listed here.</p></blockquote></blockquote><p>This feels like a dictionary situation, in that we have a meaningful
+key (the team name) with which we want to access values (the names of
+the players). However, we have already said that dictionaries allow
+only one value per key. Consider the following code:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">players = {}
+players["Team Red"] = "Shaoming"
+players["Team Red"] = "Lijin"</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What would be in the dictionary after running this code? If you aren’t
+sure, try it out!</p></blockquote></blockquote><p>How do we store multiple player names under the same key? The insight
+here is that the collection of players, not an individual player, is
+what we want to associate with the team name. We should therefore
+store a list of players under each key, as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">players = {}
+players["Team Red"] = ["Shaoming", "Lijin"]
+players["Team Green"] = ["Obi", "Chinara"]
+players["Team Blue"] = ["Mateo", "Sophia"]</code></pre></div></div><p>The values in a dictionary aren’t limited to being basic values. They
+can be arbitrarily complex, including lists, tables, or even other
+dictionaries (and more!). There is still only one value
+per key, which is the requirement of a dictionary.</p>&#13;
+<h4 class="heading">9.2.4<span class="stt"> </span><a name="(part._.Dictionaries_versus_.Dataclasses)"/>Dictionaries versus Dataclasses<span class="button-group"><a href="#(part._.Dictionaries_versus_.Dataclasses)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h4><p>Previously, we learned about dataclasses as a way to create compound
+data in Python. Here again is the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">ToDoItem</code></span> dataclass that we
+introduced earlier, as well as an example datum for that class:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">class ToDoItem:
+    descr: str
+    due: date
+    tags: list
+
+milk = ToDoItem("buy milk", date(2020, 7, 27), ["shopping", "home"]</code></pre></div></div><p>One could view the field names in the dataclass as akin to keys in a
+dictionary. If we did so, we could also capture the <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">milk</code></span>
+datum via a dictionary as follows:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">milk_dict = {"descr": "buy milk",
+             "due": date(2020, 7, 27),
+             "tags": ["shopping", "home"]
+             }</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Create a dictionary to capture the compound datum</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">ToDoItem("grade hwk", date(2020, 7, 27), ["teaching"])</code></pre></div></div></blockquote></blockquote><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Create a to-do list named <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">myTD_D</code></span> that contains a list of
+dictionaries, rather than a list of dataclasses.</p></blockquote></blockquote><p>Putting these two approaches side-by-side, here’s the contrast:</p><p/><div class="sourceCodeWrapper"><span data-label="Python" class="sourceLangLabel"/><div class="sourceCode"><pre data-lang="text/x-python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">myTD_L = [ToDoItem("buy milk", date(2020, 7, 27), ["shopping", "home"]),
+          ToDoItem("grade hwk", date(2020, 7, 27), ["teaching"]),
+          ToDoItem("meet students", date(2020, 7, 26), ["research"])
+         ]
+
+myTD_D = [milk_dict,
+          {"descr": "grade hwk",
+           "due": date(2020, 7, 27),
+           "tags": ["teaching"]
+          },
+          {"descr": "meet students",
+           "due": date(2020, 7, 26),
+           "tags": ["research"]
+          }
+         ]</code></pre></div></div><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>What do you see as the benefits and drawbacks of each of dataclasses and
+dictionaries to represent compound data?</p></blockquote></blockquote><p>Dataclasses have a fixed number of fields, while directories allow
+arbitrary numbers of keys. Dataclass fields can be annotated with
+types (which most languages will check when you make new data);
+dictionaries can use fixed types for each of keys and values, though
+this gets restrictive when using dictionaries to capture dataclasses
+with fields of different types. Dataclasses give you a function name
+for creating new data, whereas with dictionaries you’d have to create
+such a function on your own.</p><p>Overall, dataclasses come with more linguistic support for error
+checking: you can’t supply data for the wrong number of fields or
+field values of the wrong type. Dictionaries are more flexible: you
+can support optional fields more easily, including adding new
+fields/keys as a program runs. Each of these makes more sense in some
+programming situations.</p><blockquote class="Incercise"><p class="IncerciseHeader">Do Now!</p><blockquote class="IncerciseBody"><p>Write a function <span title="Python" class="sourceCode"><code data-lang="text/x-python" class="sourceCode">ToDoItem_D</code></span> that takes a description, due
+date, and list of tags and returns a dictionary with keys for each
+field of a to-do item.</p></blockquote></blockquote><section class="SsectionLevel5" id="section 0"><h5 class="heading"><a name="(part._.Summary)"/>Summary<span class="button-group"><a href="#(part._.Summary)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Python programmers tend to make substantial use of dictionaries. In
+this chapter, we’ve seen dictionaries used in two different settings:</p><ul><li><p>one in which the keys uniquely identify different
+entities or individuals among a larger set; the values represent some
+consistent type of information about each individual. The dictionary
+overall captures information about a large population of individuals,
+each with their own key.</p></li><li><p>one in which the keys name fields of compound data; the values
+associated with each field can have different types from the values
+for other fields. This setting corresponds to the use of dataclasses,
+in which a dictionary captures information about one individual; some
+other structure (such as a list or another dictionary) would be needed
+to hold the dictionaries for each individual.</p></li></ul><p>As a general rule, it is better to use dataclasses for the second
+setting when you have a fixed set of fields. The use of dictionaries
+for dataclasses is somewhat associated with programming practices in
+the Python community (less so in other languages). The first setting,
+however, is a common use of dictionaries in nearly all languages,
+especially since dictionaries are usually built to provide fast access
+to the data associated with a specific key.</p></section>&#13;
+<h5 class="heading"><a name="(part._.Summary)"/>Summary<span class="button-group"><a href="#(part._.Summary)" class="heading-anchor" title="Link to here">🔗</a><span style="visibility: hidden"> </span></span></h5><p>Python programmers tend to make substantial use of dictionaries. In
+this chapter, we’ve seen dictionaries used in two different settings:</p><ul><li><p>one in which the keys uniquely identify different
+entities or individuals among a larger set; the values represent some
+consistent type of information about each individual. The dictionary
+overall captures information about a large population of individuals,
+each with their own key.</p></li><li><p>one in which the keys name fields of compound data; the values
+associated with each field can have different types from the values
+for other fields. This setting corresponds to the use of dataclasses,
+in which a dictionary captures information about one individual; some
+other structure (such as a list or another dictionary) would be needed
+to hold the dictionaries for each individual.</p></li></ul><p>As a general rule, it is better to use dataclasses for the second
+setting when you have a fixed set of fields. The use of dictionaries
+for dataclasses is somewhat associated with programming practices in
+the Python community (less so in other languages). The first setting,
+however, is a common use of dictionaries in nearly all languages,
+especially since dictionaries are usually built to provide fast access
+to the data associated with a specific key.</p>    
+</body>
+</html>
