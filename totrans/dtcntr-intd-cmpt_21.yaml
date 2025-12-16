@@ -1,0 +1,1208 @@
+- en: 8.1 Functions as Data🔗
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://dcic-world.org/2025-08-27/func-as-data.html](https://dcic-world.org/2025-08-27/func-as-data.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '|     [8.1.1 A Little Calculus](#%28part._fd-calculus%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [8.1.2 A Helpful Shorthand for Anonymous Functions](#%28part._lam-shorthand%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [8.1.3 Streams From Functions](#%28part._streams-from-funs%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [8.1.4 Combining Forces: Streams of Derivatives](#%28part._d-dx-streams%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: It’s interesting to consider how expressive the little programming we’ve learned
+    so far can be. To illustrate this, we’ll work through a few exercises of interesting
+    concepts we can express using just functions as values. We’ll write two quite
+    different things, then show how they converge nicely.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.1.1 A Little Calculus[🔗](#(part._fd-calculus) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'If you’ve studied the differential calculus, you’ve come across curious sytactic
+    statements such as this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}{\frac{d}{dx}} x^2 = 2x\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s unpack what this means: the \(d/dx\), the \(x^2\), and the \(2x\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let’s take on the two expressions; we’ll discuss one, and the discussion
+    will cover the other as well. The correct response to “what does \(x^2\) mean?”
+    is, of course, an error: it doesn’t mean anything, because \(x\) is an unbound
+    identifier.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So what is it intended to mean? The intent, clearly, is to represent the function
+    that squares its input, just as \(2x\) is meant to be the function that doubles
+    its input. We have nicer ways of writing those:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: and what we’re really trying to say is that the \(d/dx\) (whatever that is)
+    of `sq` is `dbl`.We’re assuming functions of arity one in the variable that is
+    changing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So now let’s unpack \(d/dx\), starting with its type. As the above example
+    illustrates, \(d/dx\) is really a function from functions to functions. That is,
+    we can write its type as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: (This type might explain why your calculus course never explained this operation
+    this way—<wbr>though it’s not clear that obscuring its true meaning is any better
+    for your understanding.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us now implement `d-dx`. We’ll implement numerical differentiation, though
+    in principle we could also implement symbolic differentiation—<wbr>using rules
+    you learned, e.g., given a polynomial, multiply by the exponent and reduce the
+    exponent by one—<wbr>with a representation of expressions (a problem that will
+    be covered in more detail in a future release).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In general, numeric differentiation of a function at a point yields the value
+    of the derivative at that point. We have a handy formula for it: the derivative
+    of \(f\) at \(x\) is'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}\frac{f(x + \epsilon) - f(x)}{\epsilon}\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'as \(\epsilon\) goes to zero in the limit. For now we’ll give the infinitesimal
+    a small but fixed value, and later [[Combining Forces: Streams of Derivatives](#%28part._d-dx-streams%29)]
+    see how we can improve on this.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now translate the above formula into a function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And sure enough, we can check and make sure it works as expected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Confession: We chose the value of `epsilon` so that the default tolerance `is-roughly`
+    works for this example.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, there is something unsatisfying about this. The function we’ve written
+    clearly does not have the type we described earlier! What we wanted was an operation
+    that takes just a function, and represents the platonic notion of differentiation;
+    but we’ve been forced, by the nature of numeric differentiation, to describe the
+    derivative at a point. We might instead like to write something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What’s the problem with the above definition?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'If you didn’t notice, Pyret will soon tell you: `x` isn’t bound. Indeed, what
+    is `x`? It’s the point at which we’re trying to compute the numeric derivative.
+    That is, `d-dx` needs to return not a number but a function (as the type indicates)
+    that will consume this `x`:“Lambdas are relegated to relative obscurity until
+    Java makes them popular by not having them.”—<wbr>James Iry, [A Brief, Incomplete,
+    and Mostly Wrong History of Programming Languages](https://james-iry.blogspot.com/2009/05/brief-incomplete-and-mostly-wrong.html)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we want to be a little more explicit we can annotate the inner function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is a special case of a concept useful in many programming contexts, which
+    we explore in more detail elsewhere: [Staging](staging.html).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Sure enough, this definition now works. We can, for instance, test it as follows
+    (note the use of `num-floor` to avoid numeric precision issues from making our
+    tests appear to fail):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can return to the original example that launched this investigation:
+    what the sloppy and mysterious notation of math is really trying to say is,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: or, in the notation of [A Notation for Functions](predicting-growth.html#%28part._math-anon-functions%29),
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}{\frac{d}{dx}} [x \rightarrow x^2] = [x \rightarrow 2x]\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pity math textbooks for not wanting to tell us the truth!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.1.2 A Helpful Shorthand for Anonymous Functions[🔗](#(part._lam-shorthand)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Pyret offers a shorter syntax for writing anonymous functions. Though, stylistically,
+    we generally avoid it so that our programs don’t become a jumble of special characters,
+    sometimes it’s particularly convenient, as we will see below. This syntax is
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'where `a` is zero or more arguments and `b` is the body. For instance, we can
+    write `lam(x): x * x end` as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: where we can see the benefit of brevity. In particular, note that there is no
+    need for `end`, because the braces take the place of showing where the expression
+    begins and ends. Similarly, we could have written `d-dx` as
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: but many readers would say this makes the function harder to read, because the
+    prominent `lam` makes clear that `d-dx` returns an (anonymous) function, whereas
+    this syntax obscures it. Therefore, we will usually only use this shorthand syntax
+    for “one-liners”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.1.3 Streams From Functions[🔗](#(part._streams-from-funs) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'People typically think of a function as serving one purpose: to parameterize
+    an expression. While that is both true and the most common use of a function,
+    it does not justify having a function of no arguments, because that clearly parameterizes
+    over nothing at all. Yet functions of no argument also have a use, because functions
+    actually serve two purposes: to parameterize, and to suspend evaluation of the
+    body until the function is applied. In fact, these two uses are orthogonal, in
+    that one can employ one feature without the other. Below, we will focus on delay
+    without abstraction (the other shows up in other computer science settings).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s consider the humble list. A list can be only finitely long. However,
+    there are many lists (or sequences) in nature that have no natural upper bound:
+    from mathematical objects (the sequence of natural numbers) to natural ones (the
+    sequence of hits to a Web site). Rather than try to squeeze these unbounded lists
+    into bounded ones, let’s look at how we might represent and program over these
+    unbounded lists.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let’s write a program to compute the sequence of natural numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Does this program have a problem?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'While this represents our intent, it doesn’t work: running it—<wbr>e.g., `nats-from(0)`—<wbr>creates
+    an infinite loop evaluating `nats-from` for every subsequent natural number. In
+    other words, we want to write something very like the above, but that doesn’t
+    recur until we want it to, i.e., on demand. In other words, we want the rest of
+    the list to be lazy.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where our insight into functions comes in. A function, as we have just
+    noted, delays evaluation of its body until it is applied. Therefore, a function
+    would, in principle, defer the invocation of `nats-from(n + 1)` until it’s needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Except, this creates a type problem: the second argument to `link` needs to
+    be a list, and cannot be a function. Indeed, because it must be a list, and every
+    value that has been constructed must be finite, every list is finite and eventually
+    terminates in `empty`. Therefore, we need a new data structure to represent the
+    links in these lazy lists (also known as streams):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <stream-type-def> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: where the annotation `( -> Stream<T>)` means a function from no arguments (hence
+    the lack of anything before `->`), also known as a thunk. Note that the way we
+    have defined streams they must be infinite, since we have provided no way to terminate
+    them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s construct the simplest example we can, a stream of constant values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Pyret will actually complain about this definition. Note that the list equivalent
+    of this also will not work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'because `ones` is not defined at the point of definition, so when Pyret evaluates
+    `link(1, ones)`, it complains that `ones` is not defined. However, it is being
+    overly conservative with our former definition: the use of `ones` is “under a
+    `lam`”, and hence won’t be needed until after the definition of `ones` is done,
+    at which point `ones` will be defined. We can indicate this to Pyret by using
+    the keyword `rec`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that in Pyret, every `fun` implicitly has a `rec` beneath it, which is
+    why we can create recursive functions with aplomb.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Earlier we said that we can’t write
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What if we tried to write
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: instead? Does this work and, if so, what value is `ones` bound to? If it doesn’t
+    work, does it fail to work for the same reason as the definition without the `rec`?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Henceforth, we will use the shorthand [[A Helpful Shorthand for Anonymous Functions](#%28part._lam-shorthand%29)]
+    instead. Therefore, we can rewrite the above definition as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Notice that `{(): …}` defines an anonymous function of no arguments. You can’t
+    leave out the `()`! If you do, Pyret will get confused about what your program
+    means.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because functions are automatically recursive, when we write a function to
+    create a stream, we don’t need to use `rec`. Consider this example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'with which we can define the natural numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that the definition of `nats` is not recursive itself—<wbr>the recursion
+    is inside `nats-from`—<wbr>so we don’t need to use `rec` to define `nats`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Earlier, we said that every list is finite and hence eventually terminates.
+    How does this remark apply to streams, such as the definition of `ones` or `nats`
+    above?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The description of `ones` is still a finite one; it simply represents the potential
+    for an infinite number of values. Note that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A similar reasoning doesn’t apply to lists because the rest of the list has
+    already been constructed; in contrast, placing a function there creates the potential
+    for a potentially unbounded amount of computation to still be forthcoming.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: That said, even with streams, in any given computation, we will create only
+    a finite prefix of the stream. However, we don’t have to prematurely decide how
+    many; each client and use is welcome to extract less or more, as needed.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now we’ve created multiple streams, but we still don’t have an easy way to
+    “see” one. First we’ll define the traditional list-like selectors. Getting the
+    first element works exactly as with lists:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In contrast, when trying to access the rest of the stream, all we get out of
+    the data structure is a thunk. To access the actual rest, we need to force the
+    thunk, which of course means applying it to no arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is useful for examining individual values of the stream. It is also useful
+    to extract a finite prefix of it (of a given size) as a (regular) list, which
+    would be especially handy for testing. Let’s write that function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you pay close attention, you’ll find that this body is not defined by cases
+    over the structure of the (stream) input—<wbr>instead, it’s defined by the cases
+    of the definition of a natural number (zero or a successor). We’ll return to this
+    below ([<lz-map2-def>](#%28elem._lz-map2-def%29)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have this, we can use it for testing. Note that usually we use
+    our data to test our functions; here, we’re using this function to test our data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: The notation `(_ + 1)` defines a Pyret function of one argument that adds `1`
+    to the given argument.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s define one more function: the equivalent of `map` over streams. For reasons
+    that will soon become obvious, we’ll define a version that takes two lists and
+    applies the first argument to them pointwise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <lz-map2-def> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can see our earlier remark about the structure of the function driven
+    home especially clearly. Whereas a traditional `map` over lists would have two
+    cases, here we have only one case because the data definition ([<stream-type-def>](#%28elem._stream-type-def%29))
+    has only one case! What is the consequence of this? In a traditional `map`, one
+    case looks like the above, but the other case corresponds to the `empty` input,
+    for which it produces the same output. Here, because the stream never terminates,
+    mapping over it doesn’t either, and the structure of the function reflects this.This
+    raises a much subtler problem: if the function’s body doesn’t have base- and inductive-cases,
+    how can we perform an inductive proof over it? The short answer is we can’t: we
+    must instead use [☛ coinduction](glossary.html#%28elem._glossary-coinduction%29).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Why did we define `lz-map2` instead of `lz-map`? Because it enables us to write
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: from which, of course, we can extract as many Fibonacci numbers as we want!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Define the equivalent of `map` and `filter` for streams.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Streams and, more generally, infinite data structures that unfold on demand
+    are extremely valuable in programming. Consider, for instance, the possible moves
+    in a game. In some games, this can be infinite; even if it is finite, for interesting
+    games the combinatorics mean that the tree is too large to feasibly store in memory.
+    Therefore, the programmer of the computer’s intelligence must unfold the game
+    tree on demand. Programming it by using the encoding we have described above means
+    the program describes the entire tree, lazily, and the tree unfolds automatically
+    on demand, relieving the programmer of the burden of implementing such a strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some languages, such as Haskell, lazy evaluation is built in by default.
+    In such a language, there is no need to use thunks. However, lazy evaluation places
+    other burdens on the language, which you can learn about in a programming-languages
+    class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '8.1.4 Combining Forces: Streams of Derivatives[🔗](#(part._d-dx-streams) "Link
+    to here")'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: When we defined `d-dx`, we set `epsilon` to an arbitrary, high value. We could
+    instead think of `epsilon` as itself a stream that produces successively finer
+    values; then, for instance, when the difference in the value of the derivative
+    becomes small enough, we can decide we have a sufficient approximation to the
+    derivative.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first step is, therefore, to make `epsilon` some kind of parameter rather
+    than a global constant. That leaves open what kind of parameter it should be (number
+    or stream?) as well as when it should be supplied.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It makes most sense to consume this parameter after we have decided what function
+    we want to differentiate and at what value we want its derivative; after all,
+    the stream of `epsilon` values may depend on both. Thus, we get:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'with which we can return to our `square` example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that at this point we have simply redefined `d-dx` without any reference
+    to streams: we have merely made a constant into a parameter.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now let’s define the stream of negative powers of ten:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: so that
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For concreteness, let’s pick an abscissa at which to compute the numeric derivative
+    of `square`—<wbr>say `10`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Recall, from the types, that this is now a function of type `(Number -> Number)`:
+    given a value for `epsilon`, it computes the derivative using that value. We know,
+    analytically, that the value of this derivative should be `20`. We can now (lazily)
+    map `tenths` to provide increasingly better approximations for `epsilon` and see
+    what happens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sure enough, the values we obtain are `20.1`, `20.01`, `20.001`, and so on:
+    progressively better numerical approximations to `20`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Extend the above program to take a tolerance, and draw as many values from the
+    `epsilon` stream as necessary until the difference between successive approximations
+    of the derivative fall within this tolerance.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 8.1.1 A Little Calculus[🔗](#(part._fd-calculus) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'If you’ve studied the differential calculus, you’ve come across curious sytactic
+    statements such as this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}{\frac{d}{dx}} x^2 = 2x\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s unpack what this means: the \(d/dx\), the \(x^2\), and the \(2x\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let’s take on the two expressions; we’ll discuss one, and the discussion
+    will cover the other as well. The correct response to “what does \(x^2\) mean?”
+    is, of course, an error: it doesn’t mean anything, because \(x\) is an unbound
+    identifier.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So what is it intended to mean? The intent, clearly, is to represent the function
+    that squares its input, just as \(2x\) is meant to be the function that doubles
+    its input. We have nicer ways of writing those:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: and what we’re really trying to say is that the \(d/dx\) (whatever that is)
+    of `sq` is `dbl`.We’re assuming functions of arity one in the variable that is
+    changing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So now let’s unpack \(d/dx\), starting with its type. As the above example
+    illustrates, \(d/dx\) is really a function from functions to functions. That is,
+    we can write its type as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: (This type might explain why your calculus course never explained this operation
+    this way—<wbr>though it’s not clear that obscuring its true meaning is any better
+    for your understanding.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us now implement `d-dx`. We’ll implement numerical differentiation, though
+    in principle we could also implement symbolic differentiation—<wbr>using rules
+    you learned, e.g., given a polynomial, multiply by the exponent and reduce the
+    exponent by one—<wbr>with a representation of expressions (a problem that will
+    be covered in more detail in a future release).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In general, numeric differentiation of a function at a point yields the value
+    of the derivative at that point. We have a handy formula for it: the derivative
+    of \(f\) at \(x\) is'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}\frac{f(x + \epsilon) - f(x)}{\epsilon}\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'as \(\epsilon\) goes to zero in the limit. For now we’ll give the infinitesimal
+    a small but fixed value, and later [[Combining Forces: Streams of Derivatives](#%28part._d-dx-streams%29)]
+    see how we can improve on this.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now translate the above formula into a function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And sure enough, we can check and make sure it works as expected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Confession: We chose the value of `epsilon` so that the default tolerance `is-roughly`
+    works for this example.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, there is something unsatisfying about this. The function we’ve written
+    clearly does not have the type we described earlier! What we wanted was an operation
+    that takes just a function, and represents the platonic notion of differentiation;
+    but we’ve been forced, by the nature of numeric differentiation, to describe the
+    derivative at a point. We might instead like to write something like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What’s the problem with the above definition?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'If you didn’t notice, Pyret will soon tell you: `x` isn’t bound. Indeed, what
+    is `x`? It’s the point at which we’re trying to compute the numeric derivative.
+    That is, `d-dx` needs to return not a number but a function (as the type indicates)
+    that will consume this `x`:“Lambdas are relegated to relative obscurity until
+    Java makes them popular by not having them.”—<wbr>James Iry, [A Brief, Incomplete,
+    and Mostly Wrong History of Programming Languages](https://james-iry.blogspot.com/2009/05/brief-incomplete-and-mostly-wrong.html)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we want to be a little more explicit we can annotate the inner function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is a special case of a concept useful in many programming contexts, which
+    we explore in more detail elsewhere: [Staging](staging.html).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Sure enough, this definition now works. We can, for instance, test it as follows
+    (note the use of `num-floor` to avoid numeric precision issues from making our
+    tests appear to fail):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can return to the original example that launched this investigation:
+    what the sloppy and mysterious notation of math is really trying to say is,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: or, in the notation of [A Notation for Functions](predicting-growth.html#%28part._math-anon-functions%29),
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}{\frac{d}{dx}} [x \rightarrow x^2] = [x \rightarrow 2x]\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pity math textbooks for not wanting to tell us the truth!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.1.2 A Helpful Shorthand for Anonymous Functions[🔗](#(part._lam-shorthand)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Pyret offers a shorter syntax for writing anonymous functions. Though, stylistically,
+    we generally avoid it so that our programs don’t become a jumble of special characters,
+    sometimes it’s particularly convenient, as we will see below. This syntax is
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'where `a` is zero or more arguments and `b` is the body. For instance, we can
+    write `lam(x): x * x end` as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: where we can see the benefit of brevity. In particular, note that there is no
+    need for `end`, because the braces take the place of showing where the expression
+    begins and ends. Similarly, we could have written `d-dx` as
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: but many readers would say this makes the function harder to read, because the
+    prominent `lam` makes clear that `d-dx` returns an (anonymous) function, whereas
+    this syntax obscures it. Therefore, we will usually only use this shorthand syntax
+    for “one-liners”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.1.3 Streams From Functions[🔗](#(part._streams-from-funs) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'People typically think of a function as serving one purpose: to parameterize
+    an expression. While that is both true and the most common use of a function,
+    it does not justify having a function of no arguments, because that clearly parameterizes
+    over nothing at all. Yet functions of no argument also have a use, because functions
+    actually serve two purposes: to parameterize, and to suspend evaluation of the
+    body until the function is applied. In fact, these two uses are orthogonal, in
+    that one can employ one feature without the other. Below, we will focus on delay
+    without abstraction (the other shows up in other computer science settings).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s consider the humble list. A list can be only finitely long. However,
+    there are many lists (or sequences) in nature that have no natural upper bound:
+    from mathematical objects (the sequence of natural numbers) to natural ones (the
+    sequence of hits to a Web site). Rather than try to squeeze these unbounded lists
+    into bounded ones, let’s look at how we might represent and program over these
+    unbounded lists.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let’s write a program to compute the sequence of natural numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Does this program have a problem?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'While this represents our intent, it doesn’t work: running it—<wbr>e.g., `nats-from(0)`—<wbr>creates
+    an infinite loop evaluating `nats-from` for every subsequent natural number. In
+    other words, we want to write something very like the above, but that doesn’t
+    recur until we want it to, i.e., on demand. In other words, we want the rest of
+    the list to be lazy.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is where our insight into functions comes in. A function, as we have just
+    noted, delays evaluation of its body until it is applied. Therefore, a function
+    would, in principle, defer the invocation of `nats-from(n + 1)` until it’s needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Except, this creates a type problem: the second argument to `link` needs to
+    be a list, and cannot be a function. Indeed, because it must be a list, and every
+    value that has been constructed must be finite, every list is finite and eventually
+    terminates in `empty`. Therefore, we need a new data structure to represent the
+    links in these lazy lists (also known as streams):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <stream-type-def> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: where the annotation `( -> Stream<T>)` means a function from no arguments (hence
+    the lack of anything before `->`), also known as a thunk. Note that the way we
+    have defined streams they must be infinite, since we have provided no way to terminate
+    them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s construct the simplest example we can, a stream of constant values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Pyret will actually complain about this definition. Note that the list equivalent
+    of this also will not work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'because `ones` is not defined at the point of definition, so when Pyret evaluates
+    `link(1, ones)`, it complains that `ones` is not defined. However, it is being
+    overly conservative with our former definition: the use of `ones` is “under a
+    `lam`”, and hence won’t be needed until after the definition of `ones` is done,
+    at which point `ones` will be defined. We can indicate this to Pyret by using
+    the keyword `rec`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that in Pyret, every `fun` implicitly has a `rec` beneath it, which is
+    why we can create recursive functions with aplomb.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Earlier we said that we can’t write
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What if we tried to write
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: instead? Does this work and, if so, what value is `ones` bound to? If it doesn’t
+    work, does it fail to work for the same reason as the definition without the `rec`?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Henceforth, we will use the shorthand [[A Helpful Shorthand for Anonymous Functions](#%28part._lam-shorthand%29)]
+    instead. Therefore, we can rewrite the above definition as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Notice that `{(): …}` defines an anonymous function of no arguments. You can’t
+    leave out the `()`! If you do, Pyret will get confused about what your program
+    means.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because functions are automatically recursive, when we write a function to
+    create a stream, we don’t need to use `rec`. Consider this example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'with which we can define the natural numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that the definition of `nats` is not recursive itself—<wbr>the recursion
+    is inside `nats-from`—<wbr>so we don’t need to use `rec` to define `nats`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Earlier, we said that every list is finite and hence eventually terminates.
+    How does this remark apply to streams, such as the definition of `ones` or `nats`
+    above?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The description of `ones` is still a finite one; it simply represents the potential
+    for an infinite number of values. Note that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A similar reasoning doesn’t apply to lists because the rest of the list has
+    already been constructed; in contrast, placing a function there creates the potential
+    for a potentially unbounded amount of computation to still be forthcoming.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: That said, even with streams, in any given computation, we will create only
+    a finite prefix of the stream. However, we don’t have to prematurely decide how
+    many; each client and use is welcome to extract less or more, as needed.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now we’ve created multiple streams, but we still don’t have an easy way to
+    “see” one. First we’ll define the traditional list-like selectors. Getting the
+    first element works exactly as with lists:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In contrast, when trying to access the rest of the stream, all we get out of
+    the data structure is a thunk. To access the actual rest, we need to force the
+    thunk, which of course means applying it to no arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is useful for examining individual values of the stream. It is also useful
+    to extract a finite prefix of it (of a given size) as a (regular) list, which
+    would be especially handy for testing. Let’s write that function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you pay close attention, you’ll find that this body is not defined by cases
+    over the structure of the (stream) input—<wbr>instead, it’s defined by the cases
+    of the definition of a natural number (zero or a successor). We’ll return to this
+    below ([<lz-map2-def>](#%28elem._lz-map2-def%29)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have this, we can use it for testing. Note that usually we use
+    our data to test our functions; here, we’re using this function to test our data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: The notation `(_ + 1)` defines a Pyret function of one argument that adds `1`
+    to the given argument.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s define one more function: the equivalent of `map` over streams. For reasons
+    that will soon become obvious, we’ll define a version that takes two lists and
+    applies the first argument to them pointwise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <lz-map2-def> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can see our earlier remark about the structure of the function driven
+    home especially clearly. Whereas a traditional `map` over lists would have two
+    cases, here we have only one case because the data definition ([<stream-type-def>](#%28elem._stream-type-def%29))
+    has only one case! What is the consequence of this? In a traditional `map`, one
+    case looks like the above, but the other case corresponds to the `empty` input,
+    for which it produces the same output. Here, because the stream never terminates,
+    mapping over it doesn’t either, and the structure of the function reflects this.This
+    raises a much subtler problem: if the function’s body doesn’t have base- and inductive-cases,
+    how can we perform an inductive proof over it? The short answer is we can’t: we
+    must instead use [☛ coinduction](glossary.html#%28elem._glossary-coinduction%29).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Why did we define `lz-map2` instead of `lz-map`? Because it enables us to write
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: from which, of course, we can extract as many Fibonacci numbers as we want!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Define the equivalent of `map` and `filter` for streams.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Streams and, more generally, infinite data structures that unfold on demand
+    are extremely valuable in programming. Consider, for instance, the possible moves
+    in a game. In some games, this can be infinite; even if it is finite, for interesting
+    games the combinatorics mean that the tree is too large to feasibly store in memory.
+    Therefore, the programmer of the computer’s intelligence must unfold the game
+    tree on demand. Programming it by using the encoding we have described above means
+    the program describes the entire tree, lazily, and the tree unfolds automatically
+    on demand, relieving the programmer of the burden of implementing such a strategy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some languages, such as Haskell, lazy evaluation is built in by default.
+    In such a language, there is no need to use thunks. However, lazy evaluation places
+    other burdens on the language, which you can learn about in a programming-languages
+    class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '8.1.4 Combining Forces: Streams of Derivatives[🔗](#(part._d-dx-streams) "Link
+    to here")'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: When we defined `d-dx`, we set `epsilon` to an arbitrary, high value. We could
+    instead think of `epsilon` as itself a stream that produces successively finer
+    values; then, for instance, when the difference in the value of the derivative
+    becomes small enough, we can decide we have a sufficient approximation to the
+    derivative.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first step is, therefore, to make `epsilon` some kind of parameter rather
+    than a global constant. That leaves open what kind of parameter it should be (number
+    or stream?) as well as when it should be supplied.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It makes most sense to consume this parameter after we have decided what function
+    we want to differentiate and at what value we want its derivative; after all,
+    the stream of `epsilon` values may depend on both. Thus, we get:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'with which we can return to our `square` example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that at this point we have simply redefined `d-dx` without any reference
+    to streams: we have merely made a constant into a parameter.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now let’s define the stream of negative powers of ten:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: so that
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For concreteness, let’s pick an abscissa at which to compute the numeric derivative
+    of `square`—<wbr>say `10`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Recall, from the types, that this is now a function of type `(Number -> Number)`:
+    given a value for `epsilon`, it computes the derivative using that value. We know,
+    analytically, that the value of this derivative should be `20`. We can now (lazily)
+    map `tenths` to provide increasingly better approximations for `epsilon` and see
+    what happens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sure enough, the values we obtain are `20.1`, `20.01`, `20.001`, and so on:
+    progressively better numerical approximations to `20`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Extend the above program to take a tolerance, and draw as many values from the
+    `epsilon` stream as necessary until the difference between successive approximations
+    of the derivative fall within this tolerance.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL

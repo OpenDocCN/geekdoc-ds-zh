@@ -1,0 +1,611 @@
+- en: 15 Halloween Analysis🔗
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://dcic-world.org/2025-08-27/amortized-analysis.html](https://dcic-world.org/2025-08-27/amortized-analysis.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '|     [15.1 A First Example](#%28part._.A_.First_.Example%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [15.2 The New Form of Analysis](#%28part._.The_.New_.Form_of_.Analysis%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [15.3 An Example: Queues from Lists](#%28part._queue-data-structure%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [15.3.1 List Representations](#%28part._.List_.Representations%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [15.3.2 A First Analysis](#%28part._.A_.First_.Analysis%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [15.3.3 More Liberal Sequences of Operations](#%28part._.More_.Liberal_.Sequences_of_.Operations%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [15.3.4 A Second Analysis](#%28part._.A_.Second_.Analysis%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [15.3.5 Amortization Versus Individual Operations](#%28part._worst-case-ops-amort%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [15.4 Reading More](#%28part._.Reading_.More%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: In [Predicting Growth](predicting-growth.html), we introduced the idea of big-Oh
+    complexity to measure the worst-case time of a computation. As we see in [Choosing
+    Between Representations](sets-from-lists.html#%28part._choosing-set-reps%29),
+    however, this is sometimes too coarse a bound when the complexity is heavily dependent
+    on the exact sequence of operations run. Now, we will consider a different style
+    of complexity analysis that better accommodates operation sequences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.1 A First Example[🔗](#(part._.A_.First_.Example) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Consider, for instance, a set that starts out empty, followed by a sequence
+    of \(k\) insertions and then \(k\) membership tests, and suppose we are using
+    the representation without duplicates. Insertion time is proportional to the size
+    of the set (and list); this is initially \(0\), then \(1\), and so on, until it
+    reaches size \(k\). Therefore, the total cost of the sequence of insertions is
+    \(k \cdot (k+1) / 2\). The membership tests cost \(k\) each in the worst case,
+    because we’ve inserted up to \(k\) distinct elements into the set. The total time
+    is then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}k^2 / 2 + k / 2 + k^2\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: for a total of \(2k\) operations, yielding an average of
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}\frac{3}{4} k + \frac{1}{4}\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: steps per operation in the worst case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.2 The New Form of Analysis[🔗](#(part._.The_.New_.Form_of_.Analysis) "Link
+    to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: What have we computed? We are still computing a worst case cost, because we
+    have taken the cost of each operation in the sequence in the worst case. We are
+    then computing the average cost per operation. Therefore, this is a average of
+    worst cases.Importantly, this is different from what is known as average-case
+    analysis, which uses probability theory to compute the estimated cost of the computation.
+    We have not used any probability here. Note that because this is an average per
+    operation, it does not say anything about how bad any one operation can be (which,
+    as we will see [[Amortization Versus Individual Operations](#%28part._worst-case-ops-amort%29)],
+    can be quite a bit worse); it only says what their average is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the above case, this new analysis did not yield any big surprises. We have
+    found that on average we spend about \(k\) steps per operation; a big-Oh analysis
+    would have told us that we’re performing \(2k\) operations with a cost of \(O([k
+    \rightarrow k])\) each in the number of distinct elements; per operation, then,
+    we are performing roughly linear work in the worst-case number of set elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we will soon see, however, this won’t always be the case: this new analysis
+    can cough up pleasant surprises.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we proceed, we should give this analysis its name. Formally, it is called
+    amortized analysis. Amortization is the process of spreading a payment out over
+    an extended but fixed term. In the same way, we spread out the cost of a computation
+    over a fixed sequence, then determine how much each payment will be.We have given
+    it a whimsical name because [Halloween](http://en.wikipedia.org/wiki/Halloween)
+    is a(n American) holiday devoted to ghosts, ghouls, and other symbols of death.
+    Amortization comes from the Latin root mort-, which means death, because an amortized
+    analysis is one conducted “at the death”, i.e., at the end of a fixed sequence
+    of operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '15.3 An Example: Queues from Lists[🔗](#(part._queue-data-structure) "Link to
+    here")'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We have seen lists [[From Tables to Lists](tables-to-lists.html)] and sets
+    [[Several Variations on Sets](part_sets.html)]. Here we focus on queues, which
+    too can be represented as lists: [Queues from Lists](queues-from-lists.html).
+    If you have not read that material, it’s worth reading at least the early portions
+    now. In this section, we will ignore the various programming niceties discussed
+    there, and focus on raw list representations to make an algorithmic point.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.1 List Representations[🔗](#(part._.List_.Representations) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Consider two natural ways of defining queues using lists. One is that every
+    enqueue is implemented with `link`, while every dequeue requires traversing the
+    whole list until its end. Conversely, we could make enqueuing traverse to the
+    end, and dequeuing correspond to `.rest`. Either way, one of these operations
+    will take constant time while the other will be linear in the length of the list
+    representing the queue. (This should be loosely reminiscent of trade-offs we ran
+    into when representing sets as lists: [Representing Sets as Lists](sets-from-lists.html).)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact, however, the above paragraph contains a key insight that will let us
+    do better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe that if we store the queue in a list with most-recently-enqueued element
+    first, enqueuing is cheap (constant time). In contrast, if we store the queue
+    in the reverse order, then dequeuing is constant time. It would be wonderful if
+    we could have both, but once we pick an order we must give up one or the other.
+    Unless, that is, we pick...both.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One half of this is easy. We simply enqueue elements into a list with the most
+    recent addition first. Now for the (first) crucial insight: when we need to dequeue,
+    we reverse the list. Now, dequeuing also takes constant time.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.2 A First Analysis[🔗](#(part._.A_.First_.Analysis) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Of course, to fully analyze the complexity of this data structure, we must also
+    account for the reversal. In the worst case, we might argue that any operation
+    might reverse (because it might be the first dequeue); therefore, the worst-case
+    time of any operation is the time it takes to reverse, which is linear in the
+    length of the list (which corresponds to the elements of the queue).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this answer should be unsatisfying. If we perform \(k\) enqueues followed
+    by \(k\) dequeues, then each of the enqueues takes one step; each of the last
+    \(k-1\) dequeues takes one step; and only the first dequeue requires a reversal,
+    which takes steps proportional to the number of elements in the list, which at
+    that point is \(k\). Thus, the total cost of operations for this sequence is \(k
+    \cdot 1 + k + (k-1) \cdot 1 = 3k-1\) for a total of \(2k\) operations, giving
+    an amortized complexity of effectively constant time per operation!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.3 More Liberal Sequences of Operations[🔗](#(part._.More_.Liberal_.Sequences_of_.Operations)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'In the process of this, however, we’ve quietly glossed over something that
+    you may not have picked up on: in our candidate sequence all dequeues followed
+    all enqueues. What happens on the next enqueue? Because the list is now reversed,
+    it will have to take a linear amount of time! So we have only partially solved
+    the problem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we can introduce the second insight: have two lists instead of one. One
+    of them will be the tail of the queue, where new elements get enqueued; the other
+    will be the head of the queue, where they get dequeued:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Provided the tail is stored so that the most recent element is the first, then
+    enqueuing takes constant time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For dequeuing to take constant time, the head of the queue must be stored in
+    the reverse direction. However, how does any element ever get from the tail to
+    the head? Easy: when we try to dequeue and find no elements in the head, we reverse
+    the (entire) tail into the head (resulting in an empty tail). We will first define
+    a datatype to represent the response from dequeuing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now for the implementation of `dequeue`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 15.3.4 A Second Analysis[🔗](#(part._.A_.Second_.Analysis) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: We can now reason about sequences of operations as we did before, by adding
+    up costs and averaging. However, another way to think of it is this. Let’s give
+    each element in the queue three “credits”. Each credit can be used for one constant-time
+    operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One credit gets used up in enqueuing. So long as the element stays in the tail
+    list, it still has two credits to spare. When it needs to be moved to the head
+    list, it spends one more credit in the link step of reversal. Finally, the dequeuing
+    operation performs one operation too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because the element does not run out of credits, we know it must have had enough.
+    These credits reflect the cost of operations on that element. From this (very
+    informal) analysis, we can conclude that in the worst case, any permutation of
+    enqueues and dequeues will still cost only a constant amount of amortized time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.5 Amortization Versus Individual Operations[🔗](#(part._worst-case-ops-amort)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Note, however, that the constant represents an average across the sequence of
+    operations. It does not put a bound on the cost of any one operation. Indeed,
+    as we have seen above, when dequeue finds the head list empty it reverses the
+    tail, which takes time linear in the size of the tail—<wbr>not constant at all!
+    Therefore, we should be careful to not assume that every step in the sequence
+    will is bounded. Nevertheless, an amortized analysis sometimes gives us a much
+    more nuanced understanding of the real behavior of a data structure than a worst-case
+    analysis does on its own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.4 Reading More[🔗](#(part._.Reading_.More) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: At this point we have only briefly touched on the subject of amortized analysis.
+    A very nice [tutorial by Rebecca Fiebrink](https://web.archive.org/web/20131020020356/http://www.cs.princeton.edu/~fiebrink/423/AmortizedAnalysisExplained_Fiebrink.pdf)
+    provides much more information. The authoritative book on algorithms, Introduction
+    to Algorithms by Cormen, Leiserson, Rivest, and Stein, covers amortized analysis
+    in extensive detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.1 A First Example[🔗](#(part._.A_.First_.Example) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Consider, for instance, a set that starts out empty, followed by a sequence
+    of \(k\) insertions and then \(k\) membership tests, and suppose we are using
+    the representation without duplicates. Insertion time is proportional to the size
+    of the set (and list); this is initially \(0\), then \(1\), and so on, until it
+    reaches size \(k\). Therefore, the total cost of the sequence of insertions is
+    \(k \cdot (k+1) / 2\). The membership tests cost \(k\) each in the worst case,
+    because we’ve inserted up to \(k\) distinct elements into the set. The total time
+    is then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}k^2 / 2 + k / 2 + k^2\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: for a total of \(2k\) operations, yielding an average of
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}\frac{3}{4} k + \frac{1}{4}\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: steps per operation in the worst case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.2 The New Form of Analysis[🔗](#(part._.The_.New_.Form_of_.Analysis) "Link
+    to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: What have we computed? We are still computing a worst case cost, because we
+    have taken the cost of each operation in the sequence in the worst case. We are
+    then computing the average cost per operation. Therefore, this is a average of
+    worst cases.Importantly, this is different from what is known as average-case
+    analysis, which uses probability theory to compute the estimated cost of the computation.
+    We have not used any probability here. Note that because this is an average per
+    operation, it does not say anything about how bad any one operation can be (which,
+    as we will see [[Amortization Versus Individual Operations](#%28part._worst-case-ops-amort%29)],
+    can be quite a bit worse); it only says what their average is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the above case, this new analysis did not yield any big surprises. We have
+    found that on average we spend about \(k\) steps per operation; a big-Oh analysis
+    would have told us that we’re performing \(2k\) operations with a cost of \(O([k
+    \rightarrow k])\) each in the number of distinct elements; per operation, then,
+    we are performing roughly linear work in the worst-case number of set elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we will soon see, however, this won’t always be the case: this new analysis
+    can cough up pleasant surprises.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we proceed, we should give this analysis its name. Formally, it is called
+    amortized analysis. Amortization is the process of spreading a payment out over
+    an extended but fixed term. In the same way, we spread out the cost of a computation
+    over a fixed sequence, then determine how much each payment will be.We have given
+    it a whimsical name because [Halloween](http://en.wikipedia.org/wiki/Halloween)
+    is a(n American) holiday devoted to ghosts, ghouls, and other symbols of death.
+    Amortization comes from the Latin root mort-, which means death, because an amortized
+    analysis is one conducted “at the death”, i.e., at the end of a fixed sequence
+    of operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '15.3 An Example: Queues from Lists[🔗](#(part._queue-data-structure) "Link to
+    here")'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We have seen lists [[From Tables to Lists](tables-to-lists.html)] and sets
+    [[Several Variations on Sets](part_sets.html)]. Here we focus on queues, which
+    too can be represented as lists: [Queues from Lists](queues-from-lists.html).
+    If you have not read that material, it’s worth reading at least the early portions
+    now. In this section, we will ignore the various programming niceties discussed
+    there, and focus on raw list representations to make an algorithmic point.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.1 List Representations[🔗](#(part._.List_.Representations) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Consider two natural ways of defining queues using lists. One is that every
+    enqueue is implemented with `link`, while every dequeue requires traversing the
+    whole list until its end. Conversely, we could make enqueuing traverse to the
+    end, and dequeuing correspond to `.rest`. Either way, one of these operations
+    will take constant time while the other will be linear in the length of the list
+    representing the queue. (This should be loosely reminiscent of trade-offs we ran
+    into when representing sets as lists: [Representing Sets as Lists](sets-from-lists.html).)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact, however, the above paragraph contains a key insight that will let us
+    do better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe that if we store the queue in a list with most-recently-enqueued element
+    first, enqueuing is cheap (constant time). In contrast, if we store the queue
+    in the reverse order, then dequeuing is constant time. It would be wonderful if
+    we could have both, but once we pick an order we must give up one or the other.
+    Unless, that is, we pick...both.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One half of this is easy. We simply enqueue elements into a list with the most
+    recent addition first. Now for the (first) crucial insight: when we need to dequeue,
+    we reverse the list. Now, dequeuing also takes constant time.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.2 A First Analysis[🔗](#(part._.A_.First_.Analysis) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Of course, to fully analyze the complexity of this data structure, we must also
+    account for the reversal. In the worst case, we might argue that any operation
+    might reverse (because it might be the first dequeue); therefore, the worst-case
+    time of any operation is the time it takes to reverse, which is linear in the
+    length of the list (which corresponds to the elements of the queue).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this answer should be unsatisfying. If we perform \(k\) enqueues followed
+    by \(k\) dequeues, then each of the enqueues takes one step; each of the last
+    \(k-1\) dequeues takes one step; and only the first dequeue requires a reversal,
+    which takes steps proportional to the number of elements in the list, which at
+    that point is \(k\). Thus, the total cost of operations for this sequence is \(k
+    \cdot 1 + k + (k-1) \cdot 1 = 3k-1\) for a total of \(2k\) operations, giving
+    an amortized complexity of effectively constant time per operation!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.3 More Liberal Sequences of Operations[🔗](#(part._.More_.Liberal_.Sequences_of_.Operations)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'In the process of this, however, we’ve quietly glossed over something that
+    you may not have picked up on: in our candidate sequence all dequeues followed
+    all enqueues. What happens on the next enqueue? Because the list is now reversed,
+    it will have to take a linear amount of time! So we have only partially solved
+    the problem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we can introduce the second insight: have two lists instead of one. One
+    of them will be the tail of the queue, where new elements get enqueued; the other
+    will be the head of the queue, where they get dequeued:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Provided the tail is stored so that the most recent element is the first, then
+    enqueuing takes constant time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For dequeuing to take constant time, the head of the queue must be stored in
+    the reverse direction. However, how does any element ever get from the tail to
+    the head? Easy: when we try to dequeue and find no elements in the head, we reverse
+    the (entire) tail into the head (resulting in an empty tail). We will first define
+    a datatype to represent the response from dequeuing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now for the implementation of `dequeue`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 15.3.4 A Second Analysis[🔗](#(part._.A_.Second_.Analysis) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: We can now reason about sequences of operations as we did before, by adding
+    up costs and averaging. However, another way to think of it is this. Let’s give
+    each element in the queue three “credits”. Each credit can be used for one constant-time
+    operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One credit gets used up in enqueuing. So long as the element stays in the tail
+    list, it still has two credits to spare. When it needs to be moved to the head
+    list, it spends one more credit in the link step of reversal. Finally, the dequeuing
+    operation performs one operation too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because the element does not run out of credits, we know it must have had enough.
+    These credits reflect the cost of operations on that element. From this (very
+    informal) analysis, we can conclude that in the worst case, any permutation of
+    enqueues and dequeues will still cost only a constant amount of amortized time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.5 Amortization Versus Individual Operations[🔗](#(part._worst-case-ops-amort)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Note, however, that the constant represents an average across the sequence of
+    operations. It does not put a bound on the cost of any one operation. Indeed,
+    as we have seen above, when dequeue finds the head list empty it reverses the
+    tail, which takes time linear in the size of the tail—<wbr>not constant at all!
+    Therefore, we should be careful to not assume that every step in the sequence
+    will is bounded. Nevertheless, an amortized analysis sometimes gives us a much
+    more nuanced understanding of the real behavior of a data structure than a worst-case
+    analysis does on its own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.1 List Representations[🔗](#(part._.List_.Representations) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Consider two natural ways of defining queues using lists. One is that every
+    enqueue is implemented with `link`, while every dequeue requires traversing the
+    whole list until its end. Conversely, we could make enqueuing traverse to the
+    end, and dequeuing correspond to `.rest`. Either way, one of these operations
+    will take constant time while the other will be linear in the length of the list
+    representing the queue. (This should be loosely reminiscent of trade-offs we ran
+    into when representing sets as lists: [Representing Sets as Lists](sets-from-lists.html).)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact, however, the above paragraph contains a key insight that will let us
+    do better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe that if we store the queue in a list with most-recently-enqueued element
+    first, enqueuing is cheap (constant time). In contrast, if we store the queue
+    in the reverse order, then dequeuing is constant time. It would be wonderful if
+    we could have both, but once we pick an order we must give up one or the other.
+    Unless, that is, we pick...both.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One half of this is easy. We simply enqueue elements into a list with the most
+    recent addition first. Now for the (first) crucial insight: when we need to dequeue,
+    we reverse the list. Now, dequeuing also takes constant time.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.2 A First Analysis[🔗](#(part._.A_.First_.Analysis) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Of course, to fully analyze the complexity of this data structure, we must also
+    account for the reversal. In the worst case, we might argue that any operation
+    might reverse (because it might be the first dequeue); therefore, the worst-case
+    time of any operation is the time it takes to reverse, which is linear in the
+    length of the list (which corresponds to the elements of the queue).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this answer should be unsatisfying. If we perform \(k\) enqueues followed
+    by \(k\) dequeues, then each of the enqueues takes one step; each of the last
+    \(k-1\) dequeues takes one step; and only the first dequeue requires a reversal,
+    which takes steps proportional to the number of elements in the list, which at
+    that point is \(k\). Thus, the total cost of operations for this sequence is \(k
+    \cdot 1 + k + (k-1) \cdot 1 = 3k-1\) for a total of \(2k\) operations, giving
+    an amortized complexity of effectively constant time per operation!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.3 More Liberal Sequences of Operations[🔗](#(part._.More_.Liberal_.Sequences_of_.Operations)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'In the process of this, however, we’ve quietly glossed over something that
+    you may not have picked up on: in our candidate sequence all dequeues followed
+    all enqueues. What happens on the next enqueue? Because the list is now reversed,
+    it will have to take a linear amount of time! So we have only partially solved
+    the problem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we can introduce the second insight: have two lists instead of one. One
+    of them will be the tail of the queue, where new elements get enqueued; the other
+    will be the head of the queue, where they get dequeued:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Provided the tail is stored so that the most recent element is the first, then
+    enqueuing takes constant time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For dequeuing to take constant time, the head of the queue must be stored in
+    the reverse direction. However, how does any element ever get from the tail to
+    the head? Easy: when we try to dequeue and find no elements in the head, we reverse
+    the (entire) tail into the head (resulting in an empty tail). We will first define
+    a datatype to represent the response from dequeuing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now for the implementation of `dequeue`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 15.3.4 A Second Analysis[🔗](#(part._.A_.Second_.Analysis) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: We can now reason about sequences of operations as we did before, by adding
+    up costs and averaging. However, another way to think of it is this. Let’s give
+    each element in the queue three “credits”. Each credit can be used for one constant-time
+    operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One credit gets used up in enqueuing. So long as the element stays in the tail
+    list, it still has two credits to spare. When it needs to be moved to the head
+    list, it spends one more credit in the link step of reversal. Finally, the dequeuing
+    operation performs one operation too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because the element does not run out of credits, we know it must have had enough.
+    These credits reflect the cost of operations on that element. From this (very
+    informal) analysis, we can conclude that in the worst case, any permutation of
+    enqueues and dequeues will still cost only a constant amount of amortized time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.3.5 Amortization Versus Individual Operations[🔗](#(part._worst-case-ops-amort)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Note, however, that the constant represents an average across the sequence of
+    operations. It does not put a bound on the cost of any one operation. Indeed,
+    as we have seen above, when dequeue finds the head list empty it reverses the
+    tail, which takes time linear in the size of the tail—<wbr>not constant at all!
+    Therefore, we should be careful to not assume that every step in the sequence
+    will is bounded. Nevertheless, an amortized analysis sometimes gives us a much
+    more nuanced understanding of the real behavior of a data structure than a worst-case
+    analysis does on its own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 15.4 Reading More[🔗](#(part._.Reading_.More) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: At this point we have only briefly touched on the subject of amortized analysis.
+    A very nice [tutorial by Rebecca Fiebrink](https://web.archive.org/web/20131020020356/http://www.cs.princeton.edu/~fiebrink/423/AmortizedAnalysisExplained_Fiebrink.pdf)
+    provides much more information. The authoritative book on algorithms, Introduction
+    to Algorithms by Cormen, Leiserson, Rivest, and Stein, covers amortized analysis
+    in extensive detail.
+  prefs: []
+  type: TYPE_NORMAL

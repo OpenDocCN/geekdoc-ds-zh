@@ -1,0 +1,991 @@
+- en: 23 Partial Domains🔗
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://dcic-world.org/2025-08-27/partial-domains.html](https://dcic-world.org/2025-08-27/partial-domains.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '|     [23.1 A Non-Solution](#%28part._pd-sentinel%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [23.2 Exceptions](#%28part._pd-exceptions%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [23.3 The Option Type](#%28part._pd-option%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [23.4 Total Domains, Dynamically](#%28part._pd-total-dyn%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [23.5 Total Domains, Statically](#%28part._pd-total-static%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [23.6 Summary](#%28part._pd-summary%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [23.7 A Note on Notation](#%28part._pd-pyret-list-constr%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: Sometimes, we cannot precisely capture the domain of a function with the precision
+    we would like. In mathematics, if a function cannot accept all values in its domain,
+    it is called partial. This is a problem we encounter more often than we might
+    like in programming, so we need to know how to handle it. There are actually several
+    programming strategies that we can use, with different benefits and weaknesses.
+    Here, we will examine some of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider some functions on lists of numbers, such as computing the median or
+    the average. In both cases, these functions don’t work on all lists of numbers:
+    there is no median for the empty list, and we can’t compute its average either,
+    because there are no elements (so trying to compute the average would result in
+    a divison-by-zero error). Thus, while it is a convenient fiction to write'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'it is just that: a (bit of a) fiction. The function is only defined on non-empty
+    lists.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now see how to handle this from a software engineering perspective.
+    We’ll specifically work through `average` because the function is simple enough
+    that we can focus on the software structure without getting lost in the solution
+    details. There are at least four solutions, and one non-solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.1 A Non-Solution[🔗](#(part._pd-sentinel) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We will start with a strategy that has often been used by programmers in the
+    past, but that we reject as a non-solution. This strategy is to make the above
+    contract absolutely correct by returning a value in the erroneous case; this value
+    is often called a sentinel. For instance, the sentinel might be `0`. Here is the
+    full program:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'and here are a few tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Is there a test missing here? Yes, for the empty list! Should we add it?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: The question is, should we be happy with this “solution”? There are two problems
+    with it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, every single use of `avg0` needs to check for whether it got back `0`
+    or not. If it did not, then the answer is legitimate, and it can proceed with
+    the computation. But if it did, then it has to assume that the input may have
+    been illegitimate, and cannot use the answer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Second, even that’s not quite true. To understand why, we need to write a few
+    more tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: So the problem is that when `avg0` returns `0`, we don’t know whether that’s
+    a legitimate answer or a “fake” answer that stands for “this is not a valid input”.
+    So even our strategy of “check everywhere” fails!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Ah, but maybe the problem is the use of `0`! Perhaps we could use a different
+    number that would work. How about `1`? Or `-1`? The question is: Is there any
+    number that reasonably can’t be the average of an actual input? (And in general,
+    for all problems, can you be sure of this?) Well, of course not.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'That’s why this is a non-solution. It has created several problems:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can’t tell from the output whether the input was invalid.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That means every caller needs to check.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A caller that forgets to check may compute with nonsense.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Compositionality is ruined: any function passed `average` needs to know to
+    check the output (and there is nothing in the contract to warn it!).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Indeed, decades of experience tells us that some of the world’s most sophisticated
+    programmers have not been able to handle this issue even when it matters most,
+    resulting in numerous, pernicious security problems. Therefore, we should now
+    regard this as a flawed approach to software construction, and never do it ourselves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s instead look at four actual solutions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.2 Exceptions[🔗](#(part._pd-exceptions) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One technique that many languages, including Pyret, provide is called the exception.
+    An exception is a special programming construct that effectively halts the computation
+    because the program cannot figure out how to continue computing with the data
+    it has. There are more sophisticated forms of exceptions in some languages, but
+    here we focus simply on using them as a strategy for handling partiality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the average program written using an exception (we reuse `sum` from
+    before):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The way `raise` works is that it terminates everything that is waiting to happen.
+    For instance, if we were to write
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'the `1 + …` part never happens: the whole computation ends. `raise` creates
+    exceptions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Again, we’re missing a test. How do we write it?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `raises` form takes a string that it matches against that provided to `raise`.
+    In act, for convenience, any sub-string of the original string is permitted: we
+    can, for instance, also write `check: avg1(empty) raises "no average" avg1(empty)
+    raises "empty list" end`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In many programming languages, the use of exceptions is the standard way of
+    dealing with partiality. It is certainly a pragmatic solution. Observe that we
+    got to reuse `sum` from earlier; the contract looks clean; and we only needed
+    to use `raise` at the spot where we didn’t know what to do. What’s not to like?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two main problems with exceptions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In real systems, exceptions halt a program’s execution in unpredictable ways.
+    A caller to `avg1` may be half-way through doing something else (e.g., it may
+    have opened a file that it intends to close), but the exception causes the call
+    to not finish cleanly, causing the remaining computation to not run, leaving the
+    system in a messy state.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Relatedly, what we presented as a feature should actually be treated as a problem:
+    the contract lies! There’s no indication at all in the contract that an exception
+    might occur. A programmer has to read the whole implementation—<wbr>which could
+    change at any time—<wbr>instead of being able to rely on its published contract,
+    when the whole point of contracts was that they saved us from having to read the
+    whole implementation!'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Indeed, some modern programming languages designed for large-scale programming
+    (such as Go and Rust) no longer have exception constructs. Therefore, you should
+    not assume that this will continue to be the “standard” way of doing things in
+    the future.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe that there is are two kinds of exceptions that can occur. One is as
+    we’ve written above. The other is when we completely ignore (or forget to even
+    think about) the empty list case, and end up getting an error from Pyret, which
+    is also a kind of exception. If Pyret will raise an exception anyway, does it
+    make sense for us to go through the trouble of doing it ourselves?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Yes it does! For several reasons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, you get to control where the exception occurs and what it says.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You can document that the exception will occur.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You are less dependent on the behavior of Pyret or whatever underlying programming
+    language, which can change in subtle ways.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You can create an exception that is unique to you, so it can’t be confused with
+    other division-by-zero errors that may lurk in your program.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For these reasons, it’s better to check and raise an exception explicitly than
+    letting it “fall through” to the programming language. Instead, the real problems
+    with this solution are subtler: the lying contract, and the impact on program
+    execution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.3 The Option Type[🔗](#(part._pd-option) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let’s revisit `avg0`. The problem with it was that it returned a value that
+    was not distinguishable from an actual answer. So perhaps another approach is
+    to return a value that is guaranteed to be distinguishable! For this, a growing
+    number of languages (including Pyret) have something like this type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is a type we use when we aren’t sure we will have an answer: `none` means
+    we don’t have an answer, whereas `some` means we do and `value` is that answer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s how our program now looks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now our tests look a bit different:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The good news is, the contract is now truthful. Just by looking at it, we are
+    reminded that `avg0` may not always be able to compute an answer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unfortunately, this imposes some cost on every user: they have to use `cases`
+    to check return values and only use them if they are legitimate. However, this
+    is the same thing we expected in `avg0`—<wbr>except we lacked a discipline for
+    making sure we didn’t abuse that value! So this is `avg0` done in a principled
+    way.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.4 Total Domains, Dynamically[🔗](#(part._pd-total-dyn) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: All these problems arise because we said that `average` (like `median`) is partial.
+    However, it’s only partial if we give the domain as `List<Number>`; it’s actually
+    a total function on the `non-empty` list of numbers. But how do we represent that?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In some languages, like Pyret, we can actually express this directly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: This says that we’re refining numeric lists to always have a `link`, i.e., to
+    be non-empty. In Pyret, currently, this check is only done at run-time; in some
+    other programming languages, this can be done by the type-checker itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This refinement lets us pretend that we’re dealing with regular lists and reuse
+    all existing list code, while knowing for sure we will never get a divide-by-zero
+    error:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we do try passing an empty list, we get an internal exception:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a pretty interesting solution. Our function’s code is clean. We don’t
+    deal with nonsensical values. The interface is truthful! (However, it does require
+    a careful reading to observe that there’s an exception lurking underneath the
+    domain.) And it lets us reuse existing code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two main weaknesses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dynamic refinements aren’t found in most languages, so we’d have to do more
+    manual work to obtain the same solution.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We don’t get a static guarantee (i.e., before even running the program) that
+    we’ll never get an exception.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 23.5 Total Domains, Statically[🔗](#(part._pd-total-static) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'How do we make the function total with a static guarantee? That would require
+    that we ensure that we can never construct an empty list! Obviously, this is not
+    possible with the existing lists in Pyret. However, we can construct a new list-like
+    datatype that “bottoms out” not at empty lists but at lists of one element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Observe that there is simply no way to make an empty list: the smallest list
+    has one element in it. Furthermore, our type checker enforces this for us.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, this is an entirely different datatype than a list of numbers. We
+    can’t, for instance, use the existing `sum` or `length` code on it. However, one
+    option is to convert a `NeLoN` into a `LoN`, which is always safe, and reuse that
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can write the average in an interesting way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once again, we don’t have to have any logic for dealing with errors. However,
+    it’s not because we’re sloppy or letting Pyret deal with it or getting it checked
+    at runtime or anything else: it’s because there is no way for an empty list to
+    arise. Thus we have both the simplest body and the most truthful interface! But
+    it comes at a cost: we need to do some work to reuse existing functions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This problem extends to writing tests, which is now more painful:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That is, we’ve lost our convenient way of writing lists. We can recover that
+    by writing a helper that creates `NeLoN`s:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Notice that if we try to use an empty list, we get an exception:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, it’s very important to understand where the error is coming from:
+    the exception is not from `avg4`, it’s coming from `lon-to-nelon`, i.e., from
+    the “interface” function. The bad datum never makes it as far as `avg4`! We can
+    verify this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Remember, there’s no way to send an empty list to `avg4`! Nevertheless, this
+    suggests a trade-off: we can either use `NeLoN` explicitly but with more notational
+    pain, or we can use `list` but run the risk of some confusion about exceptions.
+    This is a trade-off in general, but there are better options in some languages
+    ([A Note on Notation](#%28part._pd-pyret-list-constr%29)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So this is actually a very powerful technique: building a datatype that reflects
+    exactly what we want, thereby turning a partial function into a total one. Programmers
+    call this principle making illegal states unrepresentable. It may require writing
+    some procedures to convert to and from other convenient representations for code
+    reuse. Somewhere in those procedures there must be checks that reflect the partiality.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.6 Summary[🔗](#(part._pd-summary) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In general, there is one non-solution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Return a sentinel value. Do not ever do this unless you’ve first fixed all the
+    security bugs lurking in C programs from the past several decades.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'and there are four solutions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use `raise`. This is not very good for software engineering in general because
+    exceptions are clunky, semantically complicated, and not compositional.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use a dynamic refinement. Dynamic refinements aren’t in most languages. Also,
+    it’s less good than each of the other solutions, but it’s a decent compromise
+    in many settings.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Define a datatype to make illegal states unrepresentable. A bit of work. Pretty
+    sophisticated, invaluable in some places, but not always worth the effort.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Use `Option`. Often the ideal option, because:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The type tells us to expect funny business. (`raise` hides that.)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We can’t accidentally misuse the value. (Sentinels hide that.)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'It’s compositional: we can create functions to help us handle it.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It’s much lower overhead than the static totality solution.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It’s more statically robust than the dynamic totality solution.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'It generalizes: in practice, instead of just `none` and `some`, a real program
+    will have `some` for the “normal” case, and a bunch of variants describing the
+    different kinds of errors that are possible, with extra information in each case.
+    For concrete examples of this, see [Picking Elements from Sets](Collections_of_Structured_Data.html#%28part._coll-sd-pick%29)
+    on sets [Combining Answers](queues-from-lists.html#%28part._qfl-comb-ans%29) on
+    queues.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 23.7 A Note on Notation[🔗](#(part._pd-pyret-list-constr) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'When we wrote above that we can’t get the convenience of writing, say, `[list:
+    1, 2, 3]` when using `NeLoN`s, we were speaking in general. In some languages,
+    we can actually make similar convenient constructors. In Pyret, for instance,
+    there is a protocol for defining custom constructors; in fact, seemingly built-in
+    constructors like `list` and `set` are built using this protocol. The code for
+    doing this is a bit ungainly (in part because it’s optimized to save some space
+    and time by making the constructor-writer’s life a little harder), but it only
+    needs to be written once. Here’s a `nelon` constructor for `NeLoN`s:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'These tests show that this constructor works very much like the built-in `list`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With this, we can rewrite the tests from [Total Domains, Statically](#%28part._pd-total-static%29)
+    very conveniently:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: thereby having our cake and eating it too!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.1 A Non-Solution[🔗](#(part._pd-sentinel) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We will start with a strategy that has often been used by programmers in the
+    past, but that we reject as a non-solution. This strategy is to make the above
+    contract absolutely correct by returning a value in the erroneous case; this value
+    is often called a sentinel. For instance, the sentinel might be `0`. Here is the
+    full program:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'and here are a few tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Is there a test missing here? Yes, for the empty list! Should we add it?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: The question is, should we be happy with this “solution”? There are two problems
+    with it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, every single use of `avg0` needs to check for whether it got back `0`
+    or not. If it did not, then the answer is legitimate, and it can proceed with
+    the computation. But if it did, then it has to assume that the input may have
+    been illegitimate, and cannot use the answer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Second, even that’s not quite true. To understand why, we need to write a few
+    more tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: So the problem is that when `avg0` returns `0`, we don’t know whether that’s
+    a legitimate answer or a “fake” answer that stands for “this is not a valid input”.
+    So even our strategy of “check everywhere” fails!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Ah, but maybe the problem is the use of `0`! Perhaps we could use a different
+    number that would work. How about `1`? Or `-1`? The question is: Is there any
+    number that reasonably can’t be the average of an actual input? (And in general,
+    for all problems, can you be sure of this?) Well, of course not.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'That’s why this is a non-solution. It has created several problems:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can’t tell from the output whether the input was invalid.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That means every caller needs to check.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A caller that forgets to check may compute with nonsense.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Compositionality is ruined: any function passed `average` needs to know to
+    check the output (and there is nothing in the contract to warn it!).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Indeed, decades of experience tells us that some of the world’s most sophisticated
+    programmers have not been able to handle this issue even when it matters most,
+    resulting in numerous, pernicious security problems. Therefore, we should now
+    regard this as a flawed approach to software construction, and never do it ourselves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s instead look at four actual solutions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.2 Exceptions[🔗](#(part._pd-exceptions) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: One technique that many languages, including Pyret, provide is called the exception.
+    An exception is a special programming construct that effectively halts the computation
+    because the program cannot figure out how to continue computing with the data
+    it has. There are more sophisticated forms of exceptions in some languages, but
+    here we focus simply on using them as a strategy for handling partiality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the average program written using an exception (we reuse `sum` from
+    before):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: The way `raise` works is that it terminates everything that is waiting to happen.
+    For instance, if we were to write
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'the `1 + …` part never happens: the whole computation ends. `raise` creates
+    exceptions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Again, we’re missing a test. How do we write it?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `raises` form takes a string that it matches against that provided to `raise`.
+    In act, for convenience, any sub-string of the original string is permitted: we
+    can, for instance, also write `check: avg1(empty) raises "no average" avg1(empty)
+    raises "empty list" end`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In many programming languages, the use of exceptions is the standard way of
+    dealing with partiality. It is certainly a pragmatic solution. Observe that we
+    got to reuse `sum` from earlier; the contract looks clean; and we only needed
+    to use `raise` at the spot where we didn’t know what to do. What’s not to like?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two main problems with exceptions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In real systems, exceptions halt a program’s execution in unpredictable ways.
+    A caller to `avg1` may be half-way through doing something else (e.g., it may
+    have opened a file that it intends to close), but the exception causes the call
+    to not finish cleanly, causing the remaining computation to not run, leaving the
+    system in a messy state.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Relatedly, what we presented as a feature should actually be treated as a problem:
+    the contract lies! There’s no indication at all in the contract that an exception
+    might occur. A programmer has to read the whole implementation—<wbr>which could
+    change at any time—<wbr>instead of being able to rely on its published contract,
+    when the whole point of contracts was that they saved us from having to read the
+    whole implementation!'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Indeed, some modern programming languages designed for large-scale programming
+    (such as Go and Rust) no longer have exception constructs. Therefore, you should
+    not assume that this will continue to be the “standard” way of doing things in
+    the future.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe that there is are two kinds of exceptions that can occur. One is as
+    we’ve written above. The other is when we completely ignore (or forget to even
+    think about) the empty list case, and end up getting an error from Pyret, which
+    is also a kind of exception. If Pyret will raise an exception anyway, does it
+    make sense for us to go through the trouble of doing it ourselves?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Yes it does! For several reasons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, you get to control where the exception occurs and what it says.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You can document that the exception will occur.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You are less dependent on the behavior of Pyret or whatever underlying programming
+    language, which can change in subtle ways.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: You can create an exception that is unique to you, so it can’t be confused with
+    other division-by-zero errors that may lurk in your program.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For these reasons, it’s better to check and raise an exception explicitly than
+    letting it “fall through” to the programming language. Instead, the real problems
+    with this solution are subtler: the lying contract, and the impact on program
+    execution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.3 The Option Type[🔗](#(part._pd-option) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let’s revisit `avg0`. The problem with it was that it returned a value that
+    was not distinguishable from an actual answer. So perhaps another approach is
+    to return a value that is guaranteed to be distinguishable! For this, a growing
+    number of languages (including Pyret) have something like this type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is a type we use when we aren’t sure we will have an answer: `none` means
+    we don’t have an answer, whereas `some` means we do and `value` is that answer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s how our program now looks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now our tests look a bit different:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: The good news is, the contract is now truthful. Just by looking at it, we are
+    reminded that `avg0` may not always be able to compute an answer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unfortunately, this imposes some cost on every user: they have to use `cases`
+    to check return values and only use them if they are legitimate. However, this
+    is the same thing we expected in `avg0`—<wbr>except we lacked a discipline for
+    making sure we didn’t abuse that value! So this is `avg0` done in a principled
+    way.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.4 Total Domains, Dynamically[🔗](#(part._pd-total-dyn) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: All these problems arise because we said that `average` (like `median`) is partial.
+    However, it’s only partial if we give the domain as `List<Number>`; it’s actually
+    a total function on the `non-empty` list of numbers. But how do we represent that?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In some languages, like Pyret, we can actually express this directly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: This says that we’re refining numeric lists to always have a `link`, i.e., to
+    be non-empty. In Pyret, currently, this check is only done at run-time; in some
+    other programming languages, this can be done by the type-checker itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This refinement lets us pretend that we’re dealing with regular lists and reuse
+    all existing list code, while knowing for sure we will never get a divide-by-zero
+    error:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we do try passing an empty list, we get an internal exception:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a pretty interesting solution. Our function’s code is clean. We don’t
+    deal with nonsensical values. The interface is truthful! (However, it does require
+    a careful reading to observe that there’s an exception lurking underneath the
+    domain.) And it lets us reuse existing code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two main weaknesses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dynamic refinements aren’t found in most languages, so we’d have to do more
+    manual work to obtain the same solution.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We don’t get a static guarantee (i.e., before even running the program) that
+    we’ll never get an exception.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 23.5 Total Domains, Statically[🔗](#(part._pd-total-static) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'How do we make the function total with a static guarantee? That would require
+    that we ensure that we can never construct an empty list! Obviously, this is not
+    possible with the existing lists in Pyret. However, we can construct a new list-like
+    datatype that “bottoms out” not at empty lists but at lists of one element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Observe that there is simply no way to make an empty list: the smallest list
+    has one element in it. Furthermore, our type checker enforces this for us.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, this is an entirely different datatype than a list of numbers. We
+    can’t, for instance, use the existing `sum` or `length` code on it. However, one
+    option is to convert a `NeLoN` into a `LoN`, which is always safe, and reuse that
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we can write the average in an interesting way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once again, we don’t have to have any logic for dealing with errors. However,
+    it’s not because we’re sloppy or letting Pyret deal with it or getting it checked
+    at runtime or anything else: it’s because there is no way for an empty list to
+    arise. Thus we have both the simplest body and the most truthful interface! But
+    it comes at a cost: we need to do some work to reuse existing functions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This problem extends to writing tests, which is now more painful:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That is, we’ve lost our convenient way of writing lists. We can recover that
+    by writing a helper that creates `NeLoN`s:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Notice that if we try to use an empty list, we get an exception:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, it’s very important to understand where the error is coming from:
+    the exception is not from `avg4`, it’s coming from `lon-to-nelon`, i.e., from
+    the “interface” function. The bad datum never makes it as far as `avg4`! We can
+    verify this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Remember, there’s no way to send an empty list to `avg4`! Nevertheless, this
+    suggests a trade-off: we can either use `NeLoN` explicitly but with more notational
+    pain, or we can use `list` but run the risk of some confusion about exceptions.
+    This is a trade-off in general, but there are better options in some languages
+    ([A Note on Notation](#%28part._pd-pyret-list-constr%29)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So this is actually a very powerful technique: building a datatype that reflects
+    exactly what we want, thereby turning a partial function into a total one. Programmers
+    call this principle making illegal states unrepresentable. It may require writing
+    some procedures to convert to and from other convenient representations for code
+    reuse. Somewhere in those procedures there must be checks that reflect the partiality.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 23.6 Summary[🔗](#(part._pd-summary) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In general, there is one non-solution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Return a sentinel value. Do not ever do this unless you’ve first fixed all the
+    security bugs lurking in C programs from the past several decades.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'and there are four solutions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use `raise`. This is not very good for software engineering in general because
+    exceptions are clunky, semantically complicated, and not compositional.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use a dynamic refinement. Dynamic refinements aren’t in most languages. Also,
+    it’s less good than each of the other solutions, but it’s a decent compromise
+    in many settings.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Define a datatype to make illegal states unrepresentable. A bit of work. Pretty
+    sophisticated, invaluable in some places, but not always worth the effort.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Use `Option`. Often the ideal option, because:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The type tells us to expect funny business. (`raise` hides that.)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We can’t accidentally misuse the value. (Sentinels hide that.)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'It’s compositional: we can create functions to help us handle it.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It’s much lower overhead than the static totality solution.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It’s more statically robust than the dynamic totality solution.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'It generalizes: in practice, instead of just `none` and `some`, a real program
+    will have `some` for the “normal” case, and a bunch of variants describing the
+    different kinds of errors that are possible, with extra information in each case.
+    For concrete examples of this, see [Picking Elements from Sets](Collections_of_Structured_Data.html#%28part._coll-sd-pick%29)
+    on sets [Combining Answers](queues-from-lists.html#%28part._qfl-comb-ans%29) on
+    queues.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 23.7 A Note on Notation[🔗](#(part._pd-pyret-list-constr) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'When we wrote above that we can’t get the convenience of writing, say, `[list:
+    1, 2, 3]` when using `NeLoN`s, we were speaking in general. In some languages,
+    we can actually make similar convenient constructors. In Pyret, for instance,
+    there is a protocol for defining custom constructors; in fact, seemingly built-in
+    constructors like `list` and `set` are built using this protocol. The code for
+    doing this is a bit ungainly (in part because it’s optimized to save some space
+    and time by making the constructor-writer’s life a little harder), but it only
+    needs to be written once. Here’s a `nelon` constructor for `NeLoN`s:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'These tests show that this constructor works very much like the built-in `list`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With this, we can rewrite the tests from [Total Domains, Statically](#%28part._pd-total-static%29)
+    very conveniently:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: thereby having our cake and eating it too!
+  prefs: []
+  type: TYPE_NORMAL

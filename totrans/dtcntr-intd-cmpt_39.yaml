@@ -1,0 +1,1181 @@
+- en: 12.4 Cyclic Data🔗
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://dcic-world.org/2025-08-27/unified-cyclic-data.html](https://dcic-world.org/2025-08-27/unified-cyclic-data.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '|     [12.4.1 Creating Cyclic Data](#%28part._.Creating_.Cyclic_.Data%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [12.4.2 Testing Cyclic Data](#%28part._.Testing_.Cyclic_.Data%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [12.4.3 Cycles in Practice](#%28part._.Cycles_in_.Practice%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: 12.4.1 Creating Cyclic Data[🔗](#(part._.Creating_.Cyclic_.Data) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Earlier [[Aliasing](mutating-structures.html#%28part._mult-bank-acct%29)], we
+    introduced the idea of aliased bank accounts, where multiple customers can operate
+    the same account. Sometimes, a bank wants to keep track of all the customers who
+    have access to a given account. For instance, when the account balance runs low,
+    it would want to notify all the customers who have access to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, each account needs to maintain a list of its customers. Because
+    the set of owners can change over time, we make that field mutable in Pyret:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python | Pyret |'
+  prefs: []
+  type: TYPE_TB
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look closely, you’ll see that `Account` refers to `Customer` (specifically,
+    a list of them) and in turn `Customer` refers to `Account`. This could get interesting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Previously, we could create an account with one customer as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do we do that now? Every `Account` requires a list of its `Customer`s. We
+    need to write
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But what goes in `_____`? It needs to refer to the very customer account that
+    we are presently creating.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another way to think about writing this is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This hasn’t solved our fundamental problem—<wbr>we still need to fill in `_____`—<wbr>but
+    at least we now have names to refer to entities. We would like to be able to write
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But when we try to run this, both Python and Pyret will give us an error. That
+    is because they try to evaluate the right-hand-side of the first line to create
+    an account, whose heap address will be bound in the directory to `acct1`. To do
+    so, they must evaluate that account-creation expression. In doing so, they look
+    up the name `elena`. However, `elena` has not yet been bound in the directory.
+    Therefore, they produce an error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Observe that we can’t just reverse the order of these two bindings. If we try
+    that, we end up with the same problem: we try to create a customer that refers
+    to `acct1`. But we haven’t yet defined `acct1`, producing the same error.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem is we are trying to create cyclic data. The two data refer to one
+    another. We could already sense that this might happen from the data definitions,
+    and now we must confront it. The problem is that we have to create some value
+    first, and we can’t produce either one correctly since each one depends on the
+    other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you might guess, we have to compromise. We have to construct one of the data
+    first, and when we do so, it might not be entirely accurate. Then we create the
+    other, and then modify the first one to have the correct contents.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our case, the Pyret version makes clear what order to use in creating the
+    data. Nothing in a `Customer` is mutable (nor needs to be), whereas the list of
+    account owners is (and should be, because the set of customers can grow). Therefore,
+    we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that at this point, this is actually accurate! There are no owners of this
+    account.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we create Elena’s account:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, our memory looks like this:For simplicity, we will show the list
+    of owners inside the account instead of putting it in its own memory location(s).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directory
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1002
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Heap
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1001: `Account(8404, 500, [])`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1002: `Customer("Elena", 1001)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Now things are slightly inaccurate: the account at 1001 does have an owner,
+    which is not yet reflected. So we have to update it to reflect that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python | Pyret |'
+  prefs: []
+  type: TYPE_TB
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can legitimately do this now because `elena` is bound in the dictionary.
+    Furthermore, it is bound to something useful: Elena’s customer information. So
+    now the values are properly set up: Elena’s customer information refers to the
+    account, and the account refers to Elena’s customer information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directory
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1002
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Heap
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1001: `Account(8404, 500, [1002])`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1002: `Customer("Elena", 1001)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This is the cycle in “cyclic”: 1001 depends on 1002 and 1002 depends on 1001.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Observe that if we introduce another customer, Jorge, who shares the same account,
+    we can update the account to reflect that also:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Again, the information in `acct1` is inaccurate because it does not reflect
+    the new owner. We can modify it in a similar way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So now our memory would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directory
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1002
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1003
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Heap
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1001: `Account(8404, 500, [1002, 1003])`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1002: `Customer("Elena", 1001)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1003: `Customer("Jorge", 1001)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: We wrote slightly different code when adding Jorge’s account than when adding
+    Elena’s account. Is one better than the other?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The code for Elena’s addition ignored whatever owners there previously were.
+    That is, it would only work correctly in a setting where there were no other owners.
+    The code for Jorge’s addition takes into account all the previous owners. Therefore,
+    Elena’s code was perfectly fine for illustrating the simple first case, but Jorge’s
+    code is more general in that it will work in all settings (including when the
+    prior list of owners is empty).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Write a function that takes care of adding a customer to an account.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 12.4.2 Testing Cyclic Data[🔗](#(part._.Testing_.Cyclic_.Data) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'When you want to write a test involving circular data, you can’t write out
+    the circular data manually. For example, imagine that we wanted to write out `acct1`
+    from earlier:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, because of the circularity, we can’t finish writing down the data.
+    We can’t just leave part of it unspecified with `…`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This leaves us with two choices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You have two options: write tests in terms of the names of data, or write tests
+    on the components of the data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s an example that illustrates both. After setting up the account, we might
+    want to check that the owner of the new account is the new customer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, rather than write out the `Customer` explicitly, we use the name of the
+    existing item in the directory. This doesn’t require you to write ellipses. We
+    also focused on just the `owner` component, as a part of the `Account` value that
+    we expected to change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 12.4.3 Cycles in Practice[🔗](#(part._.Cycles_in_.Practice) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Cyclic data show up in many settings in real programs. Whenever two data are
+    interrelated, and we have good reason to want to get from either one to the other,
+    they have the potential to have references to each other, which can lead to cycles.
+    Sometimes the connection can be to provide updates, as above; other times it can
+    simply be for navigational convenience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the Document Object Model (DOM), which is the data structure that
+    represents every Web page in a Web browser. Programmers usually think of the DOM
+    hierarchically, as a tree, because every note refers to all the nodes that constitute
+    it: e.g., a page has references to each of its paragraphs, a list has references
+    to each list item, and so forth. However, every one of these elements also has
+    a reference to its parent. This way, a program can conveniently traverse “downward”
+    or “upward”.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Programming with cyclic data introduces complications. If we traverse the data
+    naïvely, we would go into an infinite loop. Rather, we have to keep track of the
+    data we have previously visited, and make sure we don’t visit them again (see
+    [The Size of a DAG](size-of-dag.html)). Indeed, cyclic data are graphs [[Graphs](part_graphs.html)],
+    so issues in processing graphs become relevant here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One interesting question that programming languages face is, how do you print
+    cyclic data? For instance, what happens if the programmer writes
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '? To print the account we must print its owners; to print each owner, we must
+    print their account; to print that account…'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Try it out in both Python and Pyret!
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Different programming languages handle this problem in different ways. Some
+    languages will go into an infinite loop trying to print cyclic data. Both Python
+    and Pyret handle this more intelligently. Determining even whether a datum is
+    cyclic is an interesting question, which we take up in [Detecting Cycles](cycle-detection.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 12.4.1 Creating Cyclic Data[🔗](#(part._.Creating_.Cyclic_.Data) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Earlier [[Aliasing](mutating-structures.html#%28part._mult-bank-acct%29)], we
+    introduced the idea of aliased bank accounts, where multiple customers can operate
+    the same account. Sometimes, a bank wants to keep track of all the customers who
+    have access to a given account. For instance, when the account balance runs low,
+    it would want to notify all the customers who have access to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, each account needs to maintain a list of its customers. Because
+    the set of owners can change over time, we make that field mutable in Pyret:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python | Pyret |'
+  prefs: []
+  type: TYPE_TB
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look closely, you’ll see that `Account` refers to `Customer` (specifically,
+    a list of them) and in turn `Customer` refers to `Account`. This could get interesting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Previously, we could create an account with one customer as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do we do that now? Every `Account` requires a list of its `Customer`s. We
+    need to write
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But what goes in `_____`? It needs to refer to the very customer account that
+    we are presently creating.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another way to think about writing this is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This hasn’t solved our fundamental problem—<wbr>we still need to fill in `_____`—<wbr>but
+    at least we now have names to refer to entities. We would like to be able to write
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But when we try to run this, both Python and Pyret will give us an error. That
+    is because they try to evaluate the right-hand-side of the first line to create
+    an account, whose heap address will be bound in the directory to `acct1`. To do
+    so, they must evaluate that account-creation expression. In doing so, they look
+    up the name `elena`. However, `elena` has not yet been bound in the directory.
+    Therefore, they produce an error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Observe that we can’t just reverse the order of these two bindings. If we try
+    that, we end up with the same problem: we try to create a customer that refers
+    to `acct1`. But we haven’t yet defined `acct1`, producing the same error.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem is we are trying to create cyclic data. The two data refer to one
+    another. We could already sense that this might happen from the data definitions,
+    and now we must confront it. The problem is that we have to create some value
+    first, and we can’t produce either one correctly since each one depends on the
+    other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you might guess, we have to compromise. We have to construct one of the data
+    first, and when we do so, it might not be entirely accurate. Then we create the
+    other, and then modify the first one to have the correct contents.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our case, the Pyret version makes clear what order to use in creating the
+    data. Nothing in a `Customer` is mutable (nor needs to be), whereas the list of
+    account owners is (and should be, because the set of customers can grow). Therefore,
+    we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that at this point, this is actually accurate! There are no owners of this
+    account.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we create Elena’s account:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, our memory looks like this:For simplicity, we will show the list
+    of owners inside the account instead of putting it in its own memory location(s).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directory
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1002
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Heap
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1001: `Account(8404, 500, [])`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1002: `Customer("Elena", 1001)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Now things are slightly inaccurate: the account at 1001 does have an owner,
+    which is not yet reflected. So we have to update it to reflect that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python | Pyret |'
+  prefs: []
+  type: TYPE_TB
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can legitimately do this now because `elena` is bound in the dictionary.
+    Furthermore, it is bound to something useful: Elena’s customer information. So
+    now the values are properly set up: Elena’s customer information refers to the
+    account, and the account refers to Elena’s customer information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directory
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1002
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Heap
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1001: `Account(8404, 500, [1002])`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1002: `Customer("Elena", 1001)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This is the cycle in “cyclic”: 1001 depends on 1002 and 1002 depends on 1001.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Observe that if we introduce another customer, Jorge, who shares the same account,
+    we can update the account to reflect that also:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Again, the information in `acct1` is inaccurate because it does not reflect
+    the new owner. We can modify it in a similar way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So now our memory would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directory
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1002
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1003
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Heap
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1001: `Account(8404, 500, [1002, 1003])`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1002: `Customer("Elena", 1001)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1003: `Customer("Jorge", 1001)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: We wrote slightly different code when adding Jorge’s account than when adding
+    Elena’s account. Is one better than the other?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The code for Elena’s addition ignored whatever owners there previously were.
+    That is, it would only work correctly in a setting where there were no other owners.
+    The code for Jorge’s addition takes into account all the previous owners. Therefore,
+    Elena’s code was perfectly fine for illustrating the simple first case, but Jorge’s
+    code is more general in that it will work in all settings (including when the
+    prior list of owners is empty).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Write a function that takes care of adding a customer to an account.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 12.4.2 Testing Cyclic Data[🔗](#(part._.Testing_.Cyclic_.Data) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'When you want to write a test involving circular data, you can’t write out
+    the circular data manually. For example, imagine that we wanted to write out `acct1`
+    from earlier:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Python |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Pyret |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, because of the circularity, we can’t finish writing down the data.
+    We can’t just leave part of it unspecified with `…`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This leaves us with two choices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You have two options: write tests in terms of the names of data, or write tests
+    on the components of the data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here’s an example that illustrates both. After setting up the account, we might
+    want to check that the owner of the new account is the new customer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, rather than write out the `Customer` explicitly, we use the name of the
+    existing item in the directory. This doesn’t require you to write ellipses. We
+    also focused on just the `owner` component, as a part of the `Account` value that
+    we expected to change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 12.4.3 Cycles in Practice[🔗](#(part._.Cycles_in_.Practice) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Cyclic data show up in many settings in real programs. Whenever two data are
+    interrelated, and we have good reason to want to get from either one to the other,
+    they have the potential to have references to each other, which can lead to cycles.
+    Sometimes the connection can be to provide updates, as above; other times it can
+    simply be for navigational convenience.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the Document Object Model (DOM), which is the data structure that
+    represents every Web page in a Web browser. Programmers usually think of the DOM
+    hierarchically, as a tree, because every note refers to all the nodes that constitute
+    it: e.g., a page has references to each of its paragraphs, a list has references
+    to each list item, and so forth. However, every one of these elements also has
+    a reference to its parent. This way, a program can conveniently traverse “downward”
+    or “upward”.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Programming with cyclic data introduces complications. If we traverse the data
+    naïvely, we would go into an infinite loop. Rather, we have to keep track of the
+    data we have previously visited, and make sure we don’t visit them again (see
+    [The Size of a DAG](size-of-dag.html)). Indeed, cyclic data are graphs [[Graphs](part_graphs.html)],
+    so issues in processing graphs become relevant here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One interesting question that programming languages face is, how do you print
+    cyclic data? For instance, what happens if the programmer writes
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: '? To print the account we must print its owners; to print each owner, we must
+    print their account; to print that account…'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Try it out in both Python and Pyret!
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Different programming languages handle this problem in different ways. Some
+    languages will go into an infinite loop trying to print cyclic data. Both Python
+    and Pyret handle this more intelligently. Determining even whether a datum is
+    cyclic is an interesting question, which we take up in [Detecting Cycles](cycle-detection.html).
+  prefs: []
+  type: TYPE_NORMAL

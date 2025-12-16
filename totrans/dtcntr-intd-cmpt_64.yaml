@@ -1,0 +1,869 @@
+- en: 19 State and Equality🔗
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://dcic-world.org/2025-08-27/state-in-pyret.html](https://dcic-world.org/2025-08-27/state-in-pyret.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '|     [19.1 Boxes: A Canonical Mutable Structure](#%28part._boxes%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [19.2 Mutation and Types](#%28part._.Mutation_and_.Types%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [19.3 Mutation and Equality](#%28part._.Mutation_and_.Equality%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [19.4 Another Equality Predicate](#%28part._.Another_.Equality_.Predicate%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [19.5 A Hierarchy of Equality](#%28part._equality-hierarchy%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [19.6 Space and Time Complexity](#%28part._.Space_and_.Time_.Complexity%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [19.7 What it Means to be Identical](#%28part._sem-identical%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [19.8 Comparing Functions](#%28part._comp-func%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: 'In [Mutating Structures](mutating-structures.html), we introduced the notion
+    of mutable data. We also saw the impact it has on testing. Underlying testing
+    is some notion of equality: when we write a test in Pyret using `is`, we are implicitly
+    making a statement about equality between the two sides. Here we will examine
+    equality in the presence of state in more detail.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '19.1 Boxes: A Canonical Mutable Structure[🔗](#(part._boxes) "Link to here")'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In [Mutating Structures](mutating-structures.html) we saw a motivating example
+    using bank accounts. To focus our study of equality, it can be convenient to have
+    an even simpler mutable data structure, called a box (which you will find in other
+    programming languages as well). A box has only one field—<wbr>the value being
+    boxed—<wbr>and supports just three operations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: box consumes a value and creates a mutable box containing that value.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: unbox-now consumes a box and returns the value contained in the box.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: set-box-now consumes a box, a new value, and changes the box to contain the
+    value. All subsequent unbox-nows of that box will now return the new value—<wbr>unless
+    it is mutated again.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Here are the corresponding definitions in Pyret:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that we use `b!v` to extract the current value, and use the naming convention
+    of `-now` to make clear these are stateful operations, so the value now may not
+    be the same as the value later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.2 Mutation and Types[🔗](#(part._.Mutation_and_.Types) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In terms of types, whenever we replace the value in a box, we want it to be
+    type-consistent with what was previously there. Otherwise it would be very difficult
+    to program against a box, because the type of its content would keep changing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These definitions obey the following tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, we cannot write `set-box-now(n1, "hi")`, because that would violate
+    the type of `n1`, which is `Box<Number>`. We could make this explicit by writing
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'if we wanted to be explicit. However, note that `n1` being a box of numbers
+    does not preclude us from having a box of strings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: or indeed a box of any other type. We just need its type to remain consistent,
+    whatever that type is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is a general rule we want to follow with mutable data: the new value must
+    be the same type as the old value. This gives programs a consistent interface
+    to program against. For instance, above, we know that we can always perform numeric
+    operations against the value extracted from `n1`—<wbr>there is no danger that
+    it will suddenly produce a string. This discipline can either be enforced by a
+    system of annotations, or has to be manually maintained by the programmer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.3 Mutation and Equality[🔗](#(part._.Mutation_and_.Equality) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We’ve already seen [[Re-Examining Equality](Sharing_and_Equality.html#%28part._identical-eq%29)]
+    that equality is subtle. It’s about to become much subtler with the introduction
+    of mutation!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a running example, we’ll work with:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <three-boxes> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|   b1 = box(7) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|   b2 = box(7) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|   b3 = b1 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Observe that `b1` and `b3` are referring to the same box, while `b2` is referring
+    to a different one. We can see this from a memory diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directory
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1002
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Heap
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1001: `box(7)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1002: `box(7)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can confirm this using the following tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: In other words, `b1` and `b3` are aliases for the same box, but neither is an
+    alias to the box referred to by `b2`. Since `identical` is transitive, it follows
+    from the first two tests that the third test must also pass (and thankfully, Pyret
+    confirms this for us!).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, you might wonder why we have used `identical` and not `equal-always` [[Notations
+    for Equality](Sharing_and_Equality.html#%28part._equal-always%29)], i.e., plain
+    old `is`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Let’s try that:'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What do you see?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'It’s unsurprising that the first test, `b1 is b3`, passes. However, the second,
+    `b1 is b2`, fails! And the name suggests why: the two are not guaranteed to always
+    be equal. That is, suppose we were to modify the box referred to by `b1`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sure enough, the values in the boxes are not the same, but because `b1` and
+    `b3` are aliases, their values change in lock-step (more accurately, there is
+    only one value—<wbr>the box at 1001):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 19.4 Another Equality Predicate[🔗](#(part._.Another_.Equality_.Predicate) "Link
+    to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Suppose we return to the state where we have defined the three boxes [[<three-boxes>](#%28elem._three-boxes%29)]
+    but not mutated `b1`. That is, when printed, all three boxes have the same value,
+    `box(7)`. We have seen that `b1` and `b3` are both `equal-always` and `identical`
+    to each other. However, we have also seen that `b1` and `b2` are neither of those.
+    This is somewhat frustrating, because there is clearly some sense in which they
+    are “equal”: at the moment, they contain the same value, even if later on one
+    of them might not.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, Pyret offers a third equality predicate that is designed for just
+    these situations: it is (as you might guess) called `equal-now`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `-now` in the name reminds us that these values are equal at the moment,
+    but may not be equal later. Sure enough, if we add
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'back into the program, the above `equal-now` tests fail: now, they are no longer
+    equal!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Recall that the other two equality predicates have an binary operator notation:
+    `==` for `equal-always` and `<=>` for `identical`. Similarly, `equal-now` has
+    the binary operator `=~`. You should view that as `=` with hand-waving `~`: it’s
+    equal for now, but don’t expect it to remain so. That is, we can rewrite the above
+    tests as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Whether they pass, of course, depends on the state of the program: whether
+    `b1`, `b2`, or `b3` has had its content modified.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.5 A Hierarchy of Equality[🔗](#(part._equality-hierarchy) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As you might guess, the equality operators have a hierarchy of implication.
+    That is, if one operator is true of two expressions, the other necessarily is,
+    but not vice versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Can you work out this hierarchy of implication?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Observe that if two expressions are `identical`, then they are aliases, i.e.,
+    they are referring to one and the same value. Therefore, the values produced by
+    those expressions must be `equal-always`. If they are always equal, then clearly
+    at any given moment, they must also be `equal-now`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even if two expressions are not `identical`, they may be `equal-always`. This
+    would never be true of mutable data (because there is the possibility of a future
+    mutation), but it can be true of immutable data that have the same structure and
+    contents. In that case, if they are always equal, then again they must be `equal-now`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the converses are not true.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If two data are `equal-now`, they may not be `equal-always`: if they are mutable,
+    a future mutation may change the equality, as we have seen above. Similarly, two
+    data may be `equal-always` but not be `identical`, because they reside at different
+    heap addresses and are therefore truly different data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In most languages, it is common to have two equality operators, corresponding
+    to `identical` (known as reference equality) and `equal-now` (known as structural
+    equality). Pyret is rare in having a third operator, `equal-always`. For most
+    programs, this is in fact the most useful equality operator: it is not overly
+    bothered with details of aliasing, which can be difficult to predict; at the same
+    time it makes decisions that stand the test of time, thereby forming a useful
+    basis for various optimizations (which may not even be conscious of their temporal
+    assumptions). This is why `is` in testing uses `equal-always` by default, and
+    forces users to explicitly pick a different primitive if they want it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.6 Space and Time Complexity[🔗](#(part._.Space_and_.Time_.Complexity) "Link
+    to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '`identical` always takes constant time. Indeed, some programs use `identical`
+    precisely because they want constant-time equality, carefully structuring their
+    program so that values that should be considered equal are aliases to the same
+    value. Of course, maintaining this programming discipline is tricky.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`equal-always` and `equal-now` both must traverse at least the immutable part
+    of data. Therefore, they take time proportional to the smaller datum (because
+    if the two data are of different size, they must not be equal anyway, so there
+    is no need to visit the extra data). The difference is that `equal-always` reduces
+    to `identical` at references, thereby performing less computation than `equal-now`
+    would.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.7 What it Means to be Identical[🔗](#(part._sem-identical) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Return for a moment to the state where we have just defined the three boxes
+    [[<three-boxes>](#%28elem._three-boxes%29)]. We could have written the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we can compare the contents of the various boxes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And at the end of performing comparisons, we can restore them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that `b1-id-b2` would be `false` but `b1-id-b3` would be `true`. And
+    notice that this would always be true when the two expressions are identical,
+    but not otherwise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, at the end there has been no change, but by making the change we can check
+    which values are and aren’t aliases of others. In other words, thisrepresents
+    the essence of `identical`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In practice, `identical` does not behave this way: it would be too disruptive.
+    It is also not the most efficient implementation possible, when Pyret can simply
+    check the memory addresses being the same. Nevertheless, it does demonstrate the
+    basic idea behind `identical`: two values are `identical` precisely when, when
+    you make changes to one, you see the changes manifest on the “other” (i.e., there
+    is really only one value, but with potentially multiple names for it).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.8 Comparing Functions[🔗](#(part._comp-func) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We haven’t actually provided the full truth about equality because we haven’t
+    discussed functions. Defining equality for functions—<wbr>especially extensional
+    equality, namely whether two functions have the same graph, i.e., for each input
+    produce the same output—<wbr>is complicated (a euphemism for impossible) due to
+    the Halting Problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because of this, most languages have tended to use approximations for function
+    equality, most commonly reference equality. This is, however, a very weak approximation:
+    even if the exact same function text in the same environment is allocated as two
+    different closures, these would not be reference-equal. At least when this is
+    done as part of the definition of `identical`, it makes sense; if other operators
+    do this, however, they are actively lying, which is something the equality operators
+    do not usually do.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is one other approach we can take: simply disallow function comparison.
+    This is what Pyret does: all three equality operators above will result in an
+    error if you try to compare two functions. (You can compare against just one function,
+    however, and you will get the answer `false`.) This ensures that the language’s
+    comparison operators are never trusted falsely.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pyret did have the choice of allowing reference equality for functions inside
+    `identical` and erroring only in the other two cases. Had it done so, however,
+    it would have violated the chain of implication above [[A Hierarchy of Equality](#%28part._equality-hierarchy%29)].
+    The present design is arguably more elegant. Programmers who do want to use reference
+    equality on functions can simply embed the functions inside a mutable structure
+    like boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is one problem with erroring when comparing two functions: a completely
+    generic procedure that compares two arbitrary values may error if both of the
+    values given are functions. Because this can cause unpredictable program failure,
+    Pyret offers a three-valued version of each of the above three operators (`identical3`,
+    `equal-always3` and `equal-now3`), all of which return `EqualityResult` values
+    that correspond to truth, falsity, and ignorance (returned in the case when both
+    arguments are functions). Programmers can use this in place of the Boolean-valued
+    comparison operators if they are uncertain about the types of the parameters.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '19.1 Boxes: A Canonical Mutable Structure[🔗](#(part._boxes) "Link to here")'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In [Mutating Structures](mutating-structures.html) we saw a motivating example
+    using bank accounts. To focus our study of equality, it can be convenient to have
+    an even simpler mutable data structure, called a box (which you will find in other
+    programming languages as well). A box has only one field—<wbr>the value being
+    boxed—<wbr>and supports just three operations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: box consumes a value and creates a mutable box containing that value.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: unbox-now consumes a box and returns the value contained in the box.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: set-box-now consumes a box, a new value, and changes the box to contain the
+    value. All subsequent unbox-nows of that box will now return the new value—<wbr>unless
+    it is mutated again.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Here are the corresponding definitions in Pyret:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that we use `b!v` to extract the current value, and use the naming convention
+    of `-now` to make clear these are stateful operations, so the value now may not
+    be the same as the value later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.2 Mutation and Types[🔗](#(part._.Mutation_and_.Types) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In terms of types, whenever we replace the value in a box, we want it to be
+    type-consistent with what was previously there. Otherwise it would be very difficult
+    to program against a box, because the type of its content would keep changing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These definitions obey the following tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, we cannot write `set-box-now(n1, "hi")`, because that would violate
+    the type of `n1`, which is `Box<Number>`. We could make this explicit by writing
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'if we wanted to be explicit. However, note that `n1` being a box of numbers
+    does not preclude us from having a box of strings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: or indeed a box of any other type. We just need its type to remain consistent,
+    whatever that type is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is a general rule we want to follow with mutable data: the new value must
+    be the same type as the old value. This gives programs a consistent interface
+    to program against. For instance, above, we know that we can always perform numeric
+    operations against the value extracted from `n1`—<wbr>there is no danger that
+    it will suddenly produce a string. This discipline can either be enforced by a
+    system of annotations, or has to be manually maintained by the programmer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.3 Mutation and Equality[🔗](#(part._.Mutation_and_.Equality) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We’ve already seen [[Re-Examining Equality](Sharing_and_Equality.html#%28part._identical-eq%29)]
+    that equality is subtle. It’s about to become much subtler with the introduction
+    of mutation!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a running example, we’ll work with:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <three-boxes> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|   b1 = box(7) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|   b2 = box(7) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|   b3 = b1 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Observe that `b1` and `b3` are referring to the same box, while `b2` is referring
+    to a different one. We can see this from a memory diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directory
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1002
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_UL
+  type: TYPE_PRE
+- en: → 1001
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Heap
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1001: `box(7)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 1002: `box(7)`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can confirm this using the following tests:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: In other words, `b1` and `b3` are aliases for the same box, but neither is an
+    alias to the box referred to by `b2`. Since `identical` is transitive, it follows
+    from the first two tests that the third test must also pass (and thankfully, Pyret
+    confirms this for us!).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, you might wonder why we have used `identical` and not `equal-always` [[Notations
+    for Equality](Sharing_and_Equality.html#%28part._equal-always%29)], i.e., plain
+    old `is`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Let’s try that:'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What do you see?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'It’s unsurprising that the first test, `b1 is b3`, passes. However, the second,
+    `b1 is b2`, fails! And the name suggests why: the two are not guaranteed to always
+    be equal. That is, suppose we were to modify the box referred to by `b1`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sure enough, the values in the boxes are not the same, but because `b1` and
+    `b3` are aliases, their values change in lock-step (more accurately, there is
+    only one value—<wbr>the box at 1001):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 19.4 Another Equality Predicate[🔗](#(part._.Another_.Equality_.Predicate) "Link
+    to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Suppose we return to the state where we have defined the three boxes [[<three-boxes>](#%28elem._three-boxes%29)]
+    but not mutated `b1`. That is, when printed, all three boxes have the same value,
+    `box(7)`. We have seen that `b1` and `b3` are both `equal-always` and `identical`
+    to each other. However, we have also seen that `b1` and `b2` are neither of those.
+    This is somewhat frustrating, because there is clearly some sense in which they
+    are “equal”: at the moment, they contain the same value, even if later on one
+    of them might not.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, Pyret offers a third equality predicate that is designed for just
+    these situations: it is (as you might guess) called `equal-now`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `-now` in the name reminds us that these values are equal at the moment,
+    but may not be equal later. Sure enough, if we add
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'back into the program, the above `equal-now` tests fail: now, they are no longer
+    equal!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Recall that the other two equality predicates have an binary operator notation:
+    `==` for `equal-always` and `<=>` for `identical`. Similarly, `equal-now` has
+    the binary operator `=~`. You should view that as `=` with hand-waving `~`: it’s
+    equal for now, but don’t expect it to remain so. That is, we can rewrite the above
+    tests as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Whether they pass, of course, depends on the state of the program: whether
+    `b1`, `b2`, or `b3` has had its content modified.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.5 A Hierarchy of Equality[🔗](#(part._equality-hierarchy) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As you might guess, the equality operators have a hierarchy of implication.
+    That is, if one operator is true of two expressions, the other necessarily is,
+    but not vice versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Can you work out this hierarchy of implication?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Observe that if two expressions are `identical`, then they are aliases, i.e.,
+    they are referring to one and the same value. Therefore, the values produced by
+    those expressions must be `equal-always`. If they are always equal, then clearly
+    at any given moment, they must also be `equal-now`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even if two expressions are not `identical`, they may be `equal-always`. This
+    would never be true of mutable data (because there is the possibility of a future
+    mutation), but it can be true of immutable data that have the same structure and
+    contents. In that case, if they are always equal, then again they must be `equal-now`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the converses are not true.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If two data are `equal-now`, they may not be `equal-always`: if they are mutable,
+    a future mutation may change the equality, as we have seen above. Similarly, two
+    data may be `equal-always` but not be `identical`, because they reside at different
+    heap addresses and are therefore truly different data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In most languages, it is common to have two equality operators, corresponding
+    to `identical` (known as reference equality) and `equal-now` (known as structural
+    equality). Pyret is rare in having a third operator, `equal-always`. For most
+    programs, this is in fact the most useful equality operator: it is not overly
+    bothered with details of aliasing, which can be difficult to predict; at the same
+    time it makes decisions that stand the test of time, thereby forming a useful
+    basis for various optimizations (which may not even be conscious of their temporal
+    assumptions). This is why `is` in testing uses `equal-always` by default, and
+    forces users to explicitly pick a different primitive if they want it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.6 Space and Time Complexity[🔗](#(part._.Space_and_.Time_.Complexity) "Link
+    to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '`identical` always takes constant time. Indeed, some programs use `identical`
+    precisely because they want constant-time equality, carefully structuring their
+    program so that values that should be considered equal are aliases to the same
+    value. Of course, maintaining this programming discipline is tricky.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`equal-always` and `equal-now` both must traverse at least the immutable part
+    of data. Therefore, they take time proportional to the smaller datum (because
+    if the two data are of different size, they must not be equal anyway, so there
+    is no need to visit the extra data). The difference is that `equal-always` reduces
+    to `identical` at references, thereby performing less computation than `equal-now`
+    would.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.7 What it Means to be Identical[🔗](#(part._sem-identical) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Return for a moment to the state where we have just defined the three boxes
+    [[<three-boxes>](#%28elem._three-boxes%29)]. We could have written the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we can compare the contents of the various boxes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And at the end of performing comparisons, we can restore them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that `b1-id-b2` would be `false` but `b1-id-b3` would be `true`. And
+    notice that this would always be true when the two expressions are identical,
+    but not otherwise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, at the end there has been no change, but by making the change we can check
+    which values are and aren’t aliases of others. In other words, thisrepresents
+    the essence of `identical`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In practice, `identical` does not behave this way: it would be too disruptive.
+    It is also not the most efficient implementation possible, when Pyret can simply
+    check the memory addresses being the same. Nevertheless, it does demonstrate the
+    basic idea behind `identical`: two values are `identical` precisely when, when
+    you make changes to one, you see the changes manifest on the “other” (i.e., there
+    is really only one value, but with potentially multiple names for it).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 19.8 Comparing Functions[🔗](#(part._comp-func) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We haven’t actually provided the full truth about equality because we haven’t
+    discussed functions. Defining equality for functions—<wbr>especially extensional
+    equality, namely whether two functions have the same graph, i.e., for each input
+    produce the same output—<wbr>is complicated (a euphemism for impossible) due to
+    the Halting Problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because of this, most languages have tended to use approximations for function
+    equality, most commonly reference equality. This is, however, a very weak approximation:
+    even if the exact same function text in the same environment is allocated as two
+    different closures, these would not be reference-equal. At least when this is
+    done as part of the definition of `identical`, it makes sense; if other operators
+    do this, however, they are actively lying, which is something the equality operators
+    do not usually do.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is one other approach we can take: simply disallow function comparison.
+    This is what Pyret does: all three equality operators above will result in an
+    error if you try to compare two functions. (You can compare against just one function,
+    however, and you will get the answer `false`.) This ensures that the language’s
+    comparison operators are never trusted falsely.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pyret did have the choice of allowing reference equality for functions inside
+    `identical` and erroring only in the other two cases. Had it done so, however,
+    it would have violated the chain of implication above [[A Hierarchy of Equality](#%28part._equality-hierarchy%29)].
+    The present design is arguably more elegant. Programmers who do want to use reference
+    equality on functions can simply embed the functions inside a mutable structure
+    like boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is one problem with erroring when comparing two functions: a completely
+    generic procedure that compares two arbitrary values may error if both of the
+    values given are functions. Because this can cause unpredictable program failure,
+    Pyret offers a three-valued version of each of the above three operators (`identical3`,
+    `equal-always3` and `equal-now3`), all of which return `EqualityResult` values
+    that correspond to truth, falsity, and ignorance (returned in the case when both
+    arguments are functions). Programmers can use this in place of the Boolean-valued
+    comparison operators if they are uncertain about the types of the parameters.'
+  prefs: []
+  type: TYPE_NORMAL

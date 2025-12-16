@@ -1,0 +1,795 @@
+- en: 18.1 Representing Sets as Lists🔗
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://dcic-world.org/2025-08-27/sets-from-lists.html](https://dcic-world.org/2025-08-27/sets-from-lists.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '|     [18.1.1 Representation Choices](#%28part._.Representation_.Choices%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [18.1.2 Time Complexity](#%28part._.Time_.Complexity%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [18.1.3 Choosing Between Representations](#%28part._choosing-set-reps%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [18.1.4 Other Operations](#%28part._.Other_.Operations%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: Earlier [[Sets as Collective Data](Collections_of_Structured_Data.html#%28part._sets-as-collections%29)]
+    we introduced sets. Recall that the elements of a set have no specific order,
+    and ignore duplicates.If these ideas are not familiar, please read [Sets as Collective
+    Data](Collections_of_Structured_Data.html#%28part._sets-as-collections%29), since
+    they will be important when discussing the representation of sets. At that time
+    we relied on Pyret’s built-in representation of sets. Now we will discuss how
+    to build sets for ourselves. In what follows, we will focus only on sets of numbers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will start by discussing how to represent sets using lists. Intuitively,
+    using lists to represent sets of data seems problematic, because lists respect
+    both order and duplication. For instance,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: fails, but the corresponding sets are equal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In principle, we want sets to obey the following interface:Note that a type
+    called `Set` is already built into Pyret, so below we will use the name `LSet`
+    for a set represented as a list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: <set-operations> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: We may also find it also useful to have functions such as
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: which, combined with `mt-set`, easily gives us a `to-set` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Sets can contain many kinds of values, but not necessarily any kind: we need
+    to be able to check for two values being equal (which is a requirement for a set,
+    but not for a list!), which can’t be done with all values (such as functions).
+    We discuss the nuances of this elsewhere [[Equality and Ordering](orderability.html#%28part._eq-ord%29)].
+    For now, we can ignore these issues by focusing on sets of (non-rough)numbers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 18.1.1 Representation Choices[🔗](#(part._.Representation_.Choices) "Link to
+    here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: The empty list can stand in for the empty set—<wbr>
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: —<wbr>and we can presumably define `size` as
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, this [☛ reduction](glossary.html#%28elem._glossary-reduction%29) (of
+    sets to lists) can be dangerous:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is a subtle difference between lists and sets. The list
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: is not the same as
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'because the first list has length two whereas the second has length one. Treated
+    as a set, however, the two are the same: they both have size one. Thus, our implementation
+    of `size` above is incorrect if we don’t take into account duplicates (either
+    during insertion or while computing the size).'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We might falsely make assumptions about the order in which elements are retrieved
+    from the set due to the ordering guaranteed provided by the underlying list representation.
+    This might hide bugs that we don’t discover until we change the representation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We might have chosen a set representation because we didn’t need to care about
+    order, and expected lots of duplicate items. A list representation might store
+    all the duplicates, resulting in significantly more memory use (and slower programs)
+    than we expected.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: To avoid these perils, we have to be precise about how we’re going to use lists
+    to represent sets. One key question (but not the only one, as we’ll soon see [[Choosing
+    Between Representations](#%28part._choosing-set-reps%29)]) is what to do about
+    duplicates. One possibility is for `insert` to check whether an element is already
+    in the set and, if so, leave the representation unchanged; this incurs a cost
+    during insertion but avoids unnecessary duplication and lets us use `length` to
+    implement `size`. The other option is to define `insert` as `link`—<wbr>literally,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: —<wbr>and have some other procedure perform the filtering of duplicates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 18.1.2 Time Complexity[🔗](#(part._.Time_.Complexity) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'What is the complexity of this representation of sets? Let’s consider just
+    `insert`, `is-in`, and `size`. Suppose the size of the set is \(k\) (where, to
+    avoid ambiguity, we let \(k\) represent the number of distinct elements). The
+    complexity of these operations depends on whether or not we store duplicates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we don’t store duplicates, then `size` is simply `length`, which takes time
+    linear in \(k\). Similarly, `is-in` only needs to traverse the list once to determine
+    whether or not an element is present, which also takes time linear in \(k\). But
+    `insert` needs to check whether an element is already present, which takes time
+    linear in \(k\), followed by at most a constant-time operation (`link`).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'If we do store duplicates, then `insert` is constant time: it simply `link`s
+    on the new element without regard to whether it already is in the set representation.
+    `is-in` traverses the list once, but the number of elements it needs to visit
+    could be significantly greater than \(k\), depending on how many duplicates have
+    been added. Finally, `size` needs to check whether or not each element is duplicated
+    before counting it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What is the time complexity of `size` if the list has duplicates?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: One implementation of `size` is
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let’s now compute the complexity of the body of the function, assuming the number
+    of distinct elements in `s` is \(k\) but the actual number of elements in `s`
+    is \(d\), where \(d \geq k\). To compute the time to run `size` on \(d\) elements,
+    \(T(d)\), we should determine the number of operations in each question and answer.
+    The first question has a constant number of operations, and the first answer also
+    a constant. The second question also has a constant number of operations. Its
+    answer is a conditional, whose first question (`r.member(f)` needs to traverse
+    the entire list, and hence has \(O([k \rightarrow d])\) operations. If it succeeds,
+    we recur on something of size \(T(d-1)\); else we do the same but perform a constant
+    more operations. Thus \(T(0)\) is a constant, while the recurrence (in big-Oh
+    terms) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}T(d) = d + T(d-1)\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus \(T \in O([d \rightarrow d^2])\). Note that this is quadratic in the number
+    of elements in the list, which may be much bigger than the size of the set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 18.1.3 Choosing Between Representations[🔗](#(part._choosing-set-reps) "Link
+    to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now that we have two representations with different complexities, it’s worth
+    thinking about how to choose between them. To do so, let’s build up the following
+    table. The table distinguishes between the interface (the set) and the implementation
+    (the list), because—<wbr>owing to duplicates in the representation—<wbr>these
+    two may not be the same. In the table we’ll consider just two of the most common
+    operations, insertion and membership checking:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  |  | With Duplicates |  | Without Duplicates |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |  | `insert` |  | `is-in` |  | `insert` |  | `is-in` |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Size of Set |  | constant |  | linear |  | linear |  | linear |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Size of List |  | constant |  | linear |  | linear |  | linear |'
+  prefs: []
+  type: TYPE_TB
+- en: 'A naive reading of this would suggest that the representation with duplicates
+    is better because it’s sometimes constant and sometimes linear, whereas the version
+    without duplicates is always linear. However, this masks a very important distinction:
+    what the linear means. When there are no duplicates, the size of the list is the
+    same as the size of the set. However, with duplicates, the size of the list can
+    be arbitrarily larger than that of the set!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Based on this, we can draw several lessons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which representation we choose is a matter of how much duplication we expect.
+    If there won’t be many duplicates, then the version that stores duplicates pays
+    a small extra price in return for some faster operations.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Which representation we choose is also a matter of how often we expect each
+    operation to be performed. The representation without duplication is “in the middle”:
+    everything is roughly equally expensive (in the worst case). With duplicates is
+    “at the extremes”: very cheap insertion, potentially very expensive membership.
+    But if we will mostly only insert without checking membership, and especially
+    if we know membership checking will only occur in situations where we’re willing
+    to wait, then permitting duplicates may in fact be the smart choice. (When might
+    we ever be in such a situation? Suppose your set represents a backup data structure;
+    then we add lots of data but very rarely—<wbr>indeed, only in case of some catastrophe—<wbr>ever
+    need to look for things in it.)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Another way to cast these insights is that our form of analysis is too weak.
+    In situations where the complexity depends so heavily on a particular sequence
+    of operations, big-Oh is too loose and we should instead study the complexity
+    of specific sequences of operations. We will address precisely this question later
+    [[Halloween Analysis](amortized-analysis.html)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Moreover, there is no reason a program should use only one representation. It
+    could well begin with one representation, then switch to another as it better
+    understands its workload. The only thing it would need to do to switch is to convert
+    all existing data between the representations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'How might this play out above? Observe that data conversion is very cheap in
+    one direction: since every list without duplicates is automatically also a list
+    with (potential) duplicates, converting in that direction is trivial (the representation
+    stays unchanged, only its interpretation changes). The other direction is harder:
+    we have to filter duplicates (which takes time quadratic in the number of elements
+    in the list). Thus, a program can make an initial guess about its workload and
+    pick a representation accordingly, but maintain statistics as it runs and, when
+    it finds its assumption is wrong, switch representations—<wbr>and can do so as
+    many times as needed.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 18.1.4 Other Operations[🔗](#(part._.Other_.Operations) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Implement the remaining operations catalogued above ([<set-operations>](#%28elem._set-operations%29))
+    under each list representation.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Implement the operation
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: under each list representation (renaming `Set` appropriately. What difference
+    do you see?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Suppose you’re asked to extend sets with these operations, as the set analog
+    of `first` and `rest`:'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: You should refuse to do so! Do you see why?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: With lists the “first” element is well-defined, whereas sets are defined to
+    have no ordering. Indeed, just to make sure users of your sets don’t accidentally
+    assume anything about your implementation (e.g., if you implement `one` using
+    `first`, they may notice that `one` always returns the element most recently added
+    to the list), you really ought to return a random element of the set on each invocation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, returning a random element means the above interface is unusable.
+    Suppose `s` is bound to a set containing `1`, `2`, and `3`. Say the first time
+    `one(s)` is invoked it returns `2`, and the second time `1`. (This already means
+    `one` is not a function.) The third time it may again return `2`. Thus `others`
+    has to remember which element was returned the last time `one` was called, and
+    return the set sans that element. Suppose we now invoke `one` on the result of
+    calling `others`. That means we might have a situation where `one(s)` produces
+    the same result as `one(others(s))`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Why is it unreasonable for `one(s)` to produce the same result as `one(others(s))`?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Suppose you wanted to extend sets with a `subset` operation that partitioned
+    the set according to some condition. What would its type be?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The types we have written above are not as crisp as they could be. Define a
+    `has-no-duplicates` predicate, refine the relevant types with it, and check that
+    the functions really do satisfy this criterion.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 18.1.1 Representation Choices[🔗](#(part._.Representation_.Choices) "Link to
+    here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: The empty list can stand in for the empty set—<wbr>
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: —<wbr>and we can presumably define `size` as
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, this [☛ reduction](glossary.html#%28elem._glossary-reduction%29) (of
+    sets to lists) can be dangerous:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is a subtle difference between lists and sets. The list
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: is not the same as
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'because the first list has length two whereas the second has length one. Treated
+    as a set, however, the two are the same: they both have size one. Thus, our implementation
+    of `size` above is incorrect if we don’t take into account duplicates (either
+    during insertion or while computing the size).'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We might falsely make assumptions about the order in which elements are retrieved
+    from the set due to the ordering guaranteed provided by the underlying list representation.
+    This might hide bugs that we don’t discover until we change the representation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We might have chosen a set representation because we didn’t need to care about
+    order, and expected lots of duplicate items. A list representation might store
+    all the duplicates, resulting in significantly more memory use (and slower programs)
+    than we expected.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: To avoid these perils, we have to be precise about how we’re going to use lists
+    to represent sets. One key question (but not the only one, as we’ll soon see [[Choosing
+    Between Representations](#%28part._choosing-set-reps%29)]) is what to do about
+    duplicates. One possibility is for `insert` to check whether an element is already
+    in the set and, if so, leave the representation unchanged; this incurs a cost
+    during insertion but avoids unnecessary duplication and lets us use `length` to
+    implement `size`. The other option is to define `insert` as `link`—<wbr>literally,
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: —<wbr>and have some other procedure perform the filtering of duplicates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 18.1.2 Time Complexity[🔗](#(part._.Time_.Complexity) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'What is the complexity of this representation of sets? Let’s consider just
+    `insert`, `is-in`, and `size`. Suppose the size of the set is \(k\) (where, to
+    avoid ambiguity, we let \(k\) represent the number of distinct elements). The
+    complexity of these operations depends on whether or not we store duplicates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we don’t store duplicates, then `size` is simply `length`, which takes time
+    linear in \(k\). Similarly, `is-in` only needs to traverse the list once to determine
+    whether or not an element is present, which also takes time linear in \(k\). But
+    `insert` needs to check whether an element is already present, which takes time
+    linear in \(k\), followed by at most a constant-time operation (`link`).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'If we do store duplicates, then `insert` is constant time: it simply `link`s
+    on the new element without regard to whether it already is in the set representation.
+    `is-in` traverses the list once, but the number of elements it needs to visit
+    could be significantly greater than \(k\), depending on how many duplicates have
+    been added. Finally, `size` needs to check whether or not each element is duplicated
+    before counting it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What is the time complexity of `size` if the list has duplicates?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: One implementation of `size` is
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let’s now compute the complexity of the body of the function, assuming the number
+    of distinct elements in `s` is \(k\) but the actual number of elements in `s`
+    is \(d\), where \(d \geq k\). To compute the time to run `size` on \(d\) elements,
+    \(T(d)\), we should determine the number of operations in each question and answer.
+    The first question has a constant number of operations, and the first answer also
+    a constant. The second question also has a constant number of operations. Its
+    answer is a conditional, whose first question (`r.member(f)` needs to traverse
+    the entire list, and hence has \(O([k \rightarrow d])\) operations. If it succeeds,
+    we recur on something of size \(T(d-1)\); else we do the same but perform a constant
+    more operations. Thus \(T(0)\) is a constant, while the recurrence (in big-Oh
+    terms) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \begin{equation*}T(d) = d + T(d-1)\end{equation*}
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus \(T \in O([d \rightarrow d^2])\). Note that this is quadratic in the number
+    of elements in the list, which may be much bigger than the size of the set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 18.1.3 Choosing Between Representations[🔗](#(part._choosing-set-reps) "Link
+    to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now that we have two representations with different complexities, it’s worth
+    thinking about how to choose between them. To do so, let’s build up the following
+    table. The table distinguishes between the interface (the set) and the implementation
+    (the list), because—<wbr>owing to duplicates in the representation—<wbr>these
+    two may not be the same. In the table we’ll consider just two of the most common
+    operations, insertion and membership checking:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  |  | With Duplicates |  | Without Duplicates |'
+  prefs: []
+  type: TYPE_TB
+- en: '|  |  | `insert` |  | `is-in` |  | `insert` |  | `is-in` |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Size of Set |  | constant |  | linear |  | linear |  | linear |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Size of List |  | constant |  | linear |  | linear |  | linear |'
+  prefs: []
+  type: TYPE_TB
+- en: 'A naive reading of this would suggest that the representation with duplicates
+    is better because it’s sometimes constant and sometimes linear, whereas the version
+    without duplicates is always linear. However, this masks a very important distinction:
+    what the linear means. When there are no duplicates, the size of the list is the
+    same as the size of the set. However, with duplicates, the size of the list can
+    be arbitrarily larger than that of the set!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Based on this, we can draw several lessons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which representation we choose is a matter of how much duplication we expect.
+    If there won’t be many duplicates, then the version that stores duplicates pays
+    a small extra price in return for some faster operations.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Which representation we choose is also a matter of how often we expect each
+    operation to be performed. The representation without duplication is “in the middle”:
+    everything is roughly equally expensive (in the worst case). With duplicates is
+    “at the extremes”: very cheap insertion, potentially very expensive membership.
+    But if we will mostly only insert without checking membership, and especially
+    if we know membership checking will only occur in situations where we’re willing
+    to wait, then permitting duplicates may in fact be the smart choice. (When might
+    we ever be in such a situation? Suppose your set represents a backup data structure;
+    then we add lots of data but very rarely—<wbr>indeed, only in case of some catastrophe—<wbr>ever
+    need to look for things in it.)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Another way to cast these insights is that our form of analysis is too weak.
+    In situations where the complexity depends so heavily on a particular sequence
+    of operations, big-Oh is too loose and we should instead study the complexity
+    of specific sequences of operations. We will address precisely this question later
+    [[Halloween Analysis](amortized-analysis.html)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Moreover, there is no reason a program should use only one representation. It
+    could well begin with one representation, then switch to another as it better
+    understands its workload. The only thing it would need to do to switch is to convert
+    all existing data between the representations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'How might this play out above? Observe that data conversion is very cheap in
+    one direction: since every list without duplicates is automatically also a list
+    with (potential) duplicates, converting in that direction is trivial (the representation
+    stays unchanged, only its interpretation changes). The other direction is harder:
+    we have to filter duplicates (which takes time quadratic in the number of elements
+    in the list). Thus, a program can make an initial guess about its workload and
+    pick a representation accordingly, but maintain statistics as it runs and, when
+    it finds its assumption is wrong, switch representations—<wbr>and can do so as
+    many times as needed.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 18.1.4 Other Operations[🔗](#(part._.Other_.Operations) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Implement the remaining operations catalogued above ([<set-operations>](#%28elem._set-operations%29))
+    under each list representation.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Implement the operation
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: under each list representation (renaming `Set` appropriately. What difference
+    do you see?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Suppose you’re asked to extend sets with these operations, as the set analog
+    of `first` and `rest`:'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: You should refuse to do so! Do you see why?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: With lists the “first” element is well-defined, whereas sets are defined to
+    have no ordering. Indeed, just to make sure users of your sets don’t accidentally
+    assume anything about your implementation (e.g., if you implement `one` using
+    `first`, they may notice that `one` always returns the element most recently added
+    to the list), you really ought to return a random element of the set on each invocation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, returning a random element means the above interface is unusable.
+    Suppose `s` is bound to a set containing `1`, `2`, and `3`. Say the first time
+    `one(s)` is invoked it returns `2`, and the second time `1`. (This already means
+    `one` is not a function.) The third time it may again return `2`. Thus `others`
+    has to remember which element was returned the last time `one` was called, and
+    return the set sans that element. Suppose we now invoke `one` on the result of
+    calling `others`. That means we might have a situation where `one(s)` produces
+    the same result as `one(others(s))`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Why is it unreasonable for `one(s)` to produce the same result as `one(others(s))`?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Suppose you wanted to extend sets with a `subset` operation that partitioned
+    the set according to some condition. What would its type be?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The types we have written above are not as crisp as they could be. Define a
+    `has-no-duplicates` predicate, refine the relevant types with it, and check that
+    the functions really do satisfy this criterion.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL

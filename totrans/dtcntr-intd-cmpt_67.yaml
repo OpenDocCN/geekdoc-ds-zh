@@ -1,0 +1,2460 @@
+- en: 22 Avoiding Recomputation by Remembering Answers🔗
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://dcic-world.org/2025-08-27/avoid-recomp.html](https://dcic-world.org/2025-08-27/avoid-recomp.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '|     [22.1 An Interesting Numeric Sequence](#%28part._.An_.Interesting_.Numeric_.Sequence%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [22.1.1 Using State to Remember Past Answers](#%28part._.Using_.State_to_.Remember_.Past_.Answers%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [22.1.2 From a Tree of Computation to a DAG](#%28part._.From_a_.Tree_of_.Computation_to_a_.D.A.G%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [22.1.3 The Complexity of Numbers](#%28part._numbers-not-constant%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [22.1.4 Abstracting Memoization](#%28part._.Abstracting_.Memoization%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [22.2 Edit-Distance for Spelling Correction](#%28part._levenshtein%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [22.3 Nature as a Fat-Fingered Typist](#%28part._smith-waterman%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [22.4 Dynamic Programming](#%28part._.Dynamic_.Programming%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [22.4.1 Catalan Numbers with Dynamic Programming](#%28part._.Catalan_.Numbers_with_.Dynamic_.Programming%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [22.4.2 Levenshtein Distance and Dynamic Programming](#%28part._.Levenshtein_.Distance_and_.Dynamic_.Programming%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [22.5 Contrasting Memoization and Dynamic Programming](#%28part._memo-vs-dp%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: We have on several instances already referred to a [☛ space-time tradeoff](glossary.html#%28elem._glossary-space-time._tradeoff%29).
+    The most obvious tradeoff is when a computation “remembers” prior results and,
+    instead of recomputing them, looks them up and returns the answers. This is an
+    instance of the tradeoff because it uses space (to remember prior answers) in
+    place of time (recomputing the answer). Let’s see how we can write such computations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1 An Interesting Numeric Sequence[🔗](#(part._.An_.Interesting_.Numeric_.Sequence)
+    "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Suppose we want to create properly-parenthesized expressions, and ignore all
+    non-parenthetical symbols. How many ways are there of creating parenthesized expressions
+    given a certain number of opening (equivalently, closing) parentheses?
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we have zero opening parentheses, the only expression we can create is the
+    empty expression. If we have one opening parenthesis, the only one we can construct
+    is “()” (there must be a closing parenthesis since we’re interested only in properly-parenthesized
+    expressions). If we have two opening parentheses, we can construct “(())” and
+    “()()”. Given three, we can construct “((()))”, “(())()”, “()(())”, “()()()”,
+    and “(()())”, for a total of five. And so on. Observe that the solutions at each
+    level use all the possible solutions at one level lower, combined in all the possible
+    ways.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is actually a famous mathematical sequence that corresponds to the number
+    of such expressions, called the [Catalan sequence](http://en.wikipedia.org/wiki/Catalan_number).
+    It has the property of growing quite large very quickly: starting from the modest
+    origins above, the tenth Catalan number (i.e., tenth element of the Catalan sequence)
+    is 16796\. A simple recurrence formula gives us the Catalan number, which we can
+    turn into a simple program:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This function’s tests look as follows—<wbr>
+  prefs: []
+  type: TYPE_NORMAL
+- en: <catalan-tests> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: but beware! When we time the function’s execution, we find that the first few
+    tests run very quickly, but somewhere between a value of `10` and `20`—<wbr>depending
+    on your machine and programming language implementation—<wbr>you ought to see
+    things start to slow down, first a little, then with extreme effect.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Check at what value you start to observe a significant slowdown on your machine.
+    Plot the graph of running time against input size. What does this suggest?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The reason the Catalan computation takes so long is precisely because of what
+    we alluded to earlier: at each level, we depend on computing the Catalan number
+    of all the smaller levels; this computation in turn needs the numbers of all of
+    its smaller levels; and so on down the road.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Map the subcomputations of `catalan` to see why the computation time explodes
+    as it does. What is the worst-case time complexity of this function?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Here is a graphical representation of all the sub-computations the Catalan
+    function does for input `3`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/79fbf0941364e29afa9e7ce828c8b1ec.png)'
+  prefs:
+  - PREF_BQ
+  type: TYPE_IMG
+- en: Observe the very symmetric computation, reflecting the formula.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.1 Using State to Remember Past Answers[🔗](#(part._.Using_.State_to_.Remember_.Past_.Answers)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Therefore, this is clearly a case where trading space for time is likely to
+    be of help. How do we do this? We need a notion of memory that records all previous
+    answers and, on subsequent attempts to compute them, checks whether they are already
+    known and, if so, just returns them instead of recomputing them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What critical assumption is this based on?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Naturally, this assumes that for a given input, the answer will always be the
+    same. As we have seen, functions with state violate this liberally, so typical
+    stateful functions cannot utilize this optimization. Ironically, we will use state
+    to implement this optimization, so we will have a stateful function that always
+    returns the same answer on a given input—<wbr>and thereby use state in a stateful
+    function to simulate a stateless one. Groovy, dude!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, then, we need some representation of memory. We can imagine several,
+    but here’s a simple one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now how does `catalan` need to change? We have to first look for whether the
+    value is already in `memory`; if it is, we return it without any further computation,
+    but if it isn’t, then we compute the result, store it in `memory`, and then return
+    it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: And that’s it! Now running our previous tests will reveal that the answer computes
+    much quicker, but in addition we can dare to run bigger computations such as `catalan(50)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Trace through a call of this revised function and see how many calls it makes.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Here is a revised visualization of computing for input `3`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/31c17fe6a16bbf3f25e501c178869546.png)'
+  prefs:
+  - PREF_BQ
+  type: TYPE_IMG
+- en: 'Observe the asymmetric computation: the early calls perform the computations,
+    while the latter calls simply look up the results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This process, of converting a function into a version that remembers its past
+    answers, is called memoization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.2 From a Tree of Computation to a DAG[🔗](#(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: What we have subtly done is to convert a tree of computation into a DAG over
+    the same computation, with equivalent calls being reused. Whereas previously each
+    call was generating lots of recursive calls, which induced still more recursive
+    calls, now we are reusing previous recursive calls—<wbr>i.e., sharing the results
+    computed earlier. This, in effect, points the recursive call to one that had occurred
+    earlier. Thus, the shape of computation converts from a tree to a DAG of calls.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This has an important complexity benefit. Whereas previously we were performing
+    a super-exponential number of calls, now we perform only one call per input and
+    share all previous calls—<wbr>thereby reducing `catalan(n)` to take a number of
+    fresh calls proportional to `n`. Looking up the result of a previous call takes
+    time proportional to the size of `memory` (because we’ve represented it as a list;
+    better representations would improve on that), but that only contributes another
+    linear multiplicative factor, reducing the overall complexity to quadratic in
+    the size of the input. This is a dramatic reduction in overall complexity. In
+    contrast, other uses of memoization may result in much less dramatic improvements,
+    turning the use of this technique into a true engineering trade-off.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.3 The Complexity of Numbers[🔗](#(part._numbers-not-constant) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: As we start to run larger computations, however, we may start to notice that
+    our computations are starting to take longer than linear growth. This is because
+    our numbers are growing arbitrarily large—<wbr>for instance, `catalan(100)` is
+    `896519947090131496687170070074100632420837521538745909320`—<wbr>and computations
+    on numbers can no longer be constant time, contrary to what we said earlier [[The
+    Size of the Input](predicting-growth.html#%28part._size-of-input%29)]. Indeed,
+    when working on cryptographic problems, the fact that operations on numbers do
+    not take constant time are absolutely critical to fundamental complexity results
+    (and, for instance, the presumed unbreakability of contemporary cryptography).
+    (See also [Factoring Numbers](factoring-numbers.html).)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.4 Abstracting Memoization[🔗](#(part._.Abstracting_.Memoization) "Link to
+    here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now we’ve achieved the desired complexity improvement, but there is still something
+    unsatisfactory about the structure of our revised definition of `catalan`: the
+    act of memoization is deeply intertwined with the definition of a Catalan number,
+    even though these should be intellectually distinct. Let’s do that next.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In effect, we want to separate our program into two parts. One part defines
+    a general notion of memoization, while the other defines `catalan` in terms of
+    this general notion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What does the former mean? We want to encapsulate the idea of “memory” (since
+    we presumably don’t want this stored in a variable that any old part of the program
+    can modify). This should result in a function that takes the input we want to
+    check; if it is found in the memory we return that answer, otherwise we compute
+    the answer, store it, and return it. To compute the answer, we need a function
+    that determines how to do so. Putting together these pieces:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use the name `memoize-1` to indicate that this is a memoizer for single-argument
+    functions. Observe that the code above is virtually identical to what we had before,
+    except where we had the logic of Catalan number computation, we now have the parameter
+    `f` determining what to do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this, we can now define `catalan` as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note several things about this definition:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We don’t write `fun catalan(...): ...;` because the procedure bound to `catalan`
+    is produced by `memoize-1`.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note carefully that the recursive calls to `catalan` have to be to the function
+    bound to the result of memoization, thereby behaving like an object. Failing to
+    refer to this same shared procedure means the recursive calls will not be memoized,
+    thereby losing the benefit of this process.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We need to use `rec` for reasons we saw earlier [[Streams From Functions](func-as-data.html#%28part._streams-from-funs%29)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Each invocation of `memoize-1` creates a new table of stored results. Therefore
+    the memoization of different functions will each get their own tables rather than
+    sharing tables, which is a bad idea!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Why is sharing memoization tables a bad idea? Be concrete.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 22.2 Edit-Distance for Spelling Correction[🔗](#(part._levenshtein) "Link to
+    here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Text editors, word processors, mobile phones, and various other devices now
+    routinely implement spelling correction or offer suggestions on (mis-)spellings.
+    How do they do this? Doing so requires two capabilities: computing the distance
+    between words, and finding words that are nearby according to this metric. In
+    this section we will study the first of these questions. (For the purposes of
+    this discussion, we will not dwell on the exact definition of what a “word” is,
+    and just deal with strings instead. A real system would need to focus on this
+    definition in considerable detail.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Think about how you might define the “distance between two words”. Does it define
+    a [metric space](http://en.wikipedia.org/wiki/Metric_space)?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Will the definition we give below define a metric space over the set of words?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Though there may be several legitimate ways to define distances between words,
+    here we care about the distance in the very specific context of spelling mistakes.
+    Given the distance measure, one use might be to compute the distance of a given
+    word from all the words in a dictionary, and offer the closest word (i.e., the
+    one with the least distance) as a proposed correction.Obviously, we can’t compute
+    the distance to every word in a large dictionary on every single entered word.
+    Making this process efficient constitutes the other half of this problem. Briefly,
+    we need to quickly discard most words as unlikely to be close enough, for which
+    a representation such as a [bag-of-words](http://en.wikipedia.org/wiki/Bag-of-words_model)
+    (here, a bag of characters) can greatly help. Given such an intended use, we would
+    like at least the following to hold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: That the distance from a word to itself be zero.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That the distance from a word to any word other than itself be strictly positive.
+    (Otherwise, given a word that is already in the dictionary, the “correction” might
+    be a different dictionary word.)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That the distance between two words be symmetric, i.e., it shouldn’t matter
+    in which order we pass arguments.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Observe that we have not included the triangle inequality relative to the properties
+    of a metric. Why not? If we don’t need the triangle inequality, does this let
+    us define more interesting distance functions that are not metrics?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Given a pair of words, the assumption is that we meant to type one but actually
+    typed the other. Here, too, there are several possible definitions, but a popular
+    one considers that there are three ways to be fat-fingered:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: we left out a character;
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: we typed a character twice; or,
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: we typed one character when we meant another.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In particular, we are interested in the fewest edits of these forms that need
+    to be performed to get from one word to the other. For natural reasons, this notion
+    of distance is called the edit distance or, in honor of its creator, the Levenshtein
+    distance.See more on [Wikipedia](http://en.wikipedia.org/wiki/Levenshtein_distance).
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are several variations of this definition possible. For now, we will consider
+    the simplest one, which assumes that each of these errors has equal cost. For
+    certain input devices, we may want to assign different costs to these mistakes;
+    we might also assign different costs depending on what wrong character was typed
+    (two characters adjacent on a keyboard are much more likely to be a legitimate
+    error than two that are far apart). We will return briefly to some of these considerations
+    later [[Nature as a Fat-Fingered Typist](#%28part._smith-waterman%29)].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Under this metric, the distance between “kitten” and “sitting” is 3 because
+    we have to replace “k” with “s”, replace “e” with “i”, and insert “g” (or symmetrically,
+    perform the opposite replacements and delete “g”). Here are more examples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-tests> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The basic algorithm is in fact very simple:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'where, because there are two list inputs, there are four cases, of which two
+    are symmetric:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-body> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If both inputs are empty, the answer is simple:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-both-empty> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When one is empty, then the edit distance corresponds to the length of the
+    other, which needs to inserted (or deleted) in its entirety (so we charge a cost
+    of one per character):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-one-empty> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If neither is empty, then each has a first character. If they are the same,
+    then there is no edit cost associated with this character (which we reflect by
+    recurring on the rest of the words without adding to the edit cost). If they are
+    not the same, however, we consider each of the possible edits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-neither-empty> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the first case, we assume `s` has one too many characters, so we compute
+    the cost as if we’re deleting it and finding the lowest cost for the rest of the
+    strings (but charging one for this deletion); in the second case, we symmetrically
+    assume `t` has one too many; and in the third case, we assume one character got
+    replaced by another, so we charge one but consider the rest of both words (e.g.,
+    assume “s” was typed for “k” and continue with “itten” and “itting”). This uses
+    the following helper function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This algorithm will indeed pass all the tests we have written above, but with
+    a problem: the running time grows exponentially. That is because, each time we
+    find a mismatch, we recur on three subproblems. In principle, therefore, the algorithm
+    takes time proportional to three to the power of the length of the shorter word.
+    In practice, any prefix that matches causes no branching, so it is mismatches
+    that incur branching (thus, confirming that the distance of a word with itself
+    is zero only takes time linear in the size of the word).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe, however, that many of these subproblems are the same. For instance,
+    given “kitten” and “sitting”, the mismatch on the initial character will cause
+    the algorithm to compute the distance of “itten” from “itting” but also “itten”
+    from “sitting” and “kitten” from “itting”. Those latter two distance computations
+    will also involve matching “itten” against “itting”. Thus, again, we want the
+    computation tree to turn into a DAG of expressions that are actually evaluated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The solution, therefore, is naturally to memoize. First, we need a memoizer
+    that works over two arguments rather than one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Most of the code is unchanged, except that we store two arguments rather than
+    one, and correspondingly look up both.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this, we can redefine `levenshtein` to use memoization:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-memo> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: where the argument to `memoize-2` is precisely what we saw earlier as [<levenshtein-body>](#%28elem._levenshtein-body%29)
+    (and now you know why we defined `levenshtein` slightly oddly, not using `fun`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The complexity of this algorithm is still non-trivial. First, let’s introduce
+    the term suffix: the suffix of a string is the rest of the string starting from
+    any point in the string. (Thus “kitten”, “itten”, “ten”, “n”, and “” are all suffixes
+    of “kitten”.) Now, observe that in the worst case, starting with every suffix
+    in the first word, we may need to perform a comparison against every suffix in
+    the second word. Fortunately, for each of these suffixes we perform a constant
+    computation relative to the recursion. Therefore, the overall time complexity
+    of computing the distance between strings of length \(m\) and \(n\) is \(O([m,
+    n \rightarrow m \cdot n])\). (We will return to space consumption later [[Contrasting
+    Memoization and Dynamic Programming](#%28part._memo-vs-dp%29)].)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Modify the above algorithm to produce an actual (optimal) sequence of edit operations.
+    This is sometimes known as the traceback.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 22.3 Nature as a Fat-Fingered Typist[🔗](#(part._smith-waterman) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We have talked about how to address mistakes made by humans. However, humans
+    are not the only bad typists: nature is one, too!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When studying living matter we obtain sequences of amino acids and other such
+    chemicals that comprise molecules, such as DNA, that hold important and potentially
+    determinative information about the organism. These sequences consist of similar
+    fragments that we wish to identify because they represent relationships in the
+    organism’s behavior or evolution.This section may need to be skipped in [some
+    states and countries](http://en.wikipedia.org/wiki/Creation_and_evolution_in_public_education).
+    Unfortunately, these sequences are never identical: like all low-level programmers,
+    nature slips up and sometimes makes mistakes in copying (called—<wbr>wait for
+    it—<wbr>mutations). Therefore, looking for strict equality would rule out too
+    many sequences that are almost certainly equivalent. Instead, we must perform
+    an alignment step to find these equivalent sequences. As you might have guessed,
+    this process is very much a process of computing an edit distance, and using some
+    threshold to determine whether the edit is small enough.To be precise, we are
+    performing local [sequence alignment](http://en.wikipedia.org/wiki/Sequence_alignment).
+    This algorithm is named, after its creators, Smith-Waterman, and because it is
+    essentially identical, has the same complexity as the Levenshtein algorithm.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The only difference between traditional presentations of Levenshtein and Smith-Waterman
+    is something we alluded to earlier: why is every edit given a distance of one?
+    Instead, in the Smith-Waterman presentation, we assume that we have a function
+    that gives us the gap score, i.e., the value to assign every character’s alignment,
+    i.e., scores for both matches and edits, with scores driven by biological considerations.
+    Of course, as we have already noted, this need is not peculiar to biology; we
+    could just as well use a “gap score” to reflect the likelihood of a substitution
+    based on keyboard characteristics.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.4 Dynamic Programming[🔗](#(part._.Dynamic_.Programming) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We have used memoization as our canonical means of saving the values of past
+    computations to reuse later. There is another popular technique for doing this
+    called dynamic programming. This technique is closely related to memoization;
+    indeed, it can be viewed as the dual method for achieving the same end. First
+    we will see dynamic programming at work, then discuss how it differs from memoization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dynamic programming also proceeds by building up a memory of answers, and looking
+    them up instead of recomputing them. As such, it too is a process for turning
+    a computation’s shape from a tree to a DAG of actual calls. The key difference
+    is that instead of starting with the largest computation and recurring to smaller
+    ones, it starts with the smallest computations and builds outward to larger ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will revisit our previous examples in light of this approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.4.1 Catalan Numbers with Dynamic Programming[🔗](#(part._.Catalan_.Numbers_with_.Dynamic_.Programming)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: To begin with, we need to define a data structure to hold answers. Following
+    convention, we will use an array.What happens when we run out of space? We can
+    use the doubling technique we studied for [Halloween Analysis](amortized-analysis.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the `catalan` function simply looks up the answer in this array:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'But how do we fill the array? We initialize the one known value, and use the
+    formula to compute the rest in incremental order. Because we have multiple things
+    to do in the body, we use `block`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The resulting program obeys the tests in [<catalan-tests>](#%28elem._catalan-tests%29).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that we have had to undo the natural recursive definition—<wbr>which
+    proceeds from bigger values to smaller ones—<wbr>to instead use a loop that goes
+    from smaller values to larger ones. In principle, the program has the danger that
+    when we apply `catalan` to some value, that index of `answers` will have not yet
+    been initialized, resultingin an error. In fact, however, we know that because
+    we fill all smaller indices in `answers` before computing the next larger one,
+    we will never actually encounter this error. Note that this requires careful reasoning
+    about our program, which we did not need to perform when using memoization because
+    there we made precisely the recursive call we needed, which either looked up the
+    value or computed it afresh.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.4.2 Levenshtein Distance and Dynamic Programming[🔗](#(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now let’s take on rewriting the Levenshtein distance computation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will use a table representing the edit distance for each prefix of each word.
+    That is, we will have a two-dimensional table with as many rows as the length
+    of `s1` and as many columns as the length of `s2`. At each position, we will record
+    the edit distance for the prefixes of `s1` and `s2` up to the indices represented
+    by that position in the table.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that index arithmetic will be a constant burden: if a word is of length
+    \(n\), we have to record the edit distance to its \(n + 1\) positions, the extra
+    one corresponding to the empty word. This will hold for both words:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/1> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that by creating `answers` inside `levenshtein`, we can determine the
+    exact size it needs to be based on the inputs, rather than having to over-allocate
+    or dynamically grow the array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Define the functions
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: 'We have initialized the table with `none`, so we will get an error if we accidentally
+    try to use an uninitialized entry.Which proved to be necessary when writing and
+    debugging this code! It will therefore be convenient to create helper functions
+    that let us pretend the table contains only numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/2> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we have to populate the array. First, we initialize the row representing
+    the edit distances when `s2` is empty, and the column where `s1` is empty. At
+    \((0, 0)\), the edit distance is zero; at every position thereafter, it is the
+    distance of that position from zero, because that many characters must be added
+    to one or deleted from the other word for the two to coincide:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/3> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we finally get to the heart of the computation. We need to iterate over
+    every character in each word. these characters are at indices `0` to `s1-len -
+    1` and `s2-len - 1`, which are precisely the ranges of values produced by `range(0,
+    s1-len)` and `range(0, s2-len)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/4> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we’re building our way “out” from small cases to large ones, rather
+    than starting with the large input and working our way “down”, recursively, to
+    small ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Is this strictly true?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: No, it isn’t. We did first fill in values for the “borders” of the table. This
+    is because doing so in the midst of [<levenshtein-dp/compute-dist>](#%28elem._levenshtein-dp%2Fcompute-dist%29)
+    would be much more annoying. By initializing all the known values, we keep the
+    core computation cleaner. But it does mean the order in which we fill in the table
+    is fairly complex.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s return to computing the distance. For each pair of positions, we
+    want the edit distance between the pair of words up to and including those positions.
+    This distance is given by checking whether the characters at the pair of positions
+    are identical. If they are, then the distance is the same as it was for the previous
+    pair of prefixes; otherwise we have to try the three different kinds of edits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/compute-dist> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an aside, this sort of “off-by-one” coordinate arithmetic is traditional
+    when using tabular representations, because we write code in terms of elements
+    that are not inherently present, and therefore have to create a padded table to
+    hold values for the boundary conditions. The alternative would be to allow the
+    table to begin its addressing from `-1` so that the main computation looks traditional.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At any rate, when this computation is done, the entire table has been filled
+    with values. We still have to read out the answer, with lies at the end of the
+    table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/get-result> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Even putting aside the helper functions we wrote to satiate our paranoia about
+    using undefined values, we end up with:As of this writing, the [current version](http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&oldid=581406185#Iterative_with_full_matrix)
+    of the [Wikipedia page](http://en.wikipedia.org/wiki/Levenshtein_distance) on
+    the Levenshtein distance features a dynamic programming version that is very similar
+    to the code above. By writing in pseudocode, it avoids address arithmetic issues
+    (observe how the words are indexed starting from 1 instead of 0, which enables
+    the body of the code to look more “normal”), and by initializing all elements
+    to zero it permits subtle bugs because an uninitialized table element is indistinguishable
+    from a legitimate entry with edit distance of zero. The page also shows the [recursive](http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&oldid=581406185#Recursive)
+    solution and alludes to memoization, but does not show it in code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: which is worth contrasting with the memoized version ([<levenshtein-memo>](#%28elem._levenshtein-memo%29)).For
+    more examples of canonical dynamic programming problems, see [this page](http://people.csail.mit.edu/bdean/6.046/dp/)
+    and think about how each can be expressed as a direct recursion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.5 Contrasting Memoization and Dynamic Programming[🔗](#(part._memo-vs-dp)
+    "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now that we’ve seen two very different techniques for avoiding recomputation,
+    it’s worth contrasting them. The important thing to note is that memoization is
+    a much simpler technique: write the natural recursive definition; determine its
+    time complexity; decide whether this is problematic enough to warrant a space-time
+    trade-off; and if it is, apply memoization. The code remains clean, and subsequent
+    readers and maintainers will be grateful for that. In contrast, dynamic programming
+    requires a reorganization of the algorithm to work bottom-up, which can often
+    make the code harder to follow and full of subtle invariants about boundary conditions
+    and computation order.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: That said, the dynamic programming solution can sometimes be more computationally
+    efficient. For instance, in the Levenshtein case, observe that at each table element,
+    we (at most) only ever use the ones that are from the previous row and column.
+    That means we never need to store the entire table; we can retain just the fringe
+    of the table, which reduces space to being proportional to the sum, rather than
+    product, of the length of the words. In a computational biology setting (when
+    using Smith-Waterman), for instance, this saving can be substantial. This optimization
+    is essentially impossible for memoization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In more detail, here’s the contrast:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Memoization |  | Dynamic Programming |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Top-down |  | Bottom-up |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Depth-first |  | Breadth-first |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Black-box |  | Requires code reorganization |'
+  prefs: []
+  type: TYPE_TB
+- en: '| All stored calls are necessary |  | May do unnecessary computation |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Cannot easily get rid of unnecessary data |  | Can more easily get rid of
+    unnecessary data |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Can never accidentally use an uninitialized answer |  | Can accidentally
+    use an uninitialized answer |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Needs to check for the presence of an answer |  | Can be designed to not
+    need to check for the presence of an answer |'
+  prefs: []
+  type: TYPE_TB
+- en: As this table should make clear, these are essentialy dual approaches. What
+    is perhaps left unstated in most dynamic programming descriptions is that it,
+    too, is predicated on the computation always producing the same answer for a given
+    input—<wbr>i.e., being a pure function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From a software design perspective, there are two more considerations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, the performance of a memoized solution can trail that of dynamic programming
+    when the memoized solution uses a generic data structure to store the memo table,
+    whereas a dynamic programming solution will invariably use a custom data structure
+    (since the code needs to be rewritten against it anyway). Therefore, before switching
+    to dynamic programming for performance reasons, it makes sense to try to create
+    a custom memoizer for the problem: the same knowledge embodied in the dynamic
+    programming version can often be encoded in this custom memoizer (e.g., using
+    an array instead of list to improve access times). This way, the program can enjoy
+    speed comparable to that of dynamic programming while retaining readability and
+    maintainability.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Second, suppose space is an important consideration and the dynamic programming
+    version can make use of significantly less space. Then it does make sense to employ
+    dynamic programming instead. Does this mean the memoized version is useless?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What do you think? Do we still have use for the memoized version?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Yes, of course we do! It can serve as an oracle [[Oracles for Testing](testing.html#%28part._test-oracle%29)]
+    for the dynamic programming version, since the two are supposed to produce identical
+    answers anyway—<wbr>and the memoized version would be a much more efficient oracle
+    than the purely recursive implemenation, and can therefore be used to test the
+    dynamic programming version on much larger inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, always first produce the memoized version. If you need more performance,
+    consider customizing the memoizer’s data structure. If you need to also save space,
+    and can arrive at a more space-efficient dynamic programming solution, then keep
+    both versions around, using the former to test the latter (the person who inherits
+    your code and needs to alter it will thank you!).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'We have characterized the fundamental difference between memoization and dynamic
+    programming as that between top-down, depth-first and bottom-up, breadth-first
+    computation. This should naturally raise the question, what about:'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: top-down, breadth-first
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: bottom-up, depth-first
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: orders of computation. Do they also have special names that we just happen to
+    not know? Are they uninteresting? Or do they not get discussed for a reason?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 22.1 An Interesting Numeric Sequence[🔗](#(part._.An_.Interesting_.Numeric_.Sequence)
+    "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Suppose we want to create properly-parenthesized expressions, and ignore all
+    non-parenthetical symbols. How many ways are there of creating parenthesized expressions
+    given a certain number of opening (equivalently, closing) parentheses?
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we have zero opening parentheses, the only expression we can create is the
+    empty expression. If we have one opening parenthesis, the only one we can construct
+    is “()” (there must be a closing parenthesis since we’re interested only in properly-parenthesized
+    expressions). If we have two opening parentheses, we can construct “(())” and
+    “()()”. Given three, we can construct “((()))”, “(())()”, “()(())”, “()()()”,
+    and “(()())”, for a total of five. And so on. Observe that the solutions at each
+    level use all the possible solutions at one level lower, combined in all the possible
+    ways.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is actually a famous mathematical sequence that corresponds to the number
+    of such expressions, called the [Catalan sequence](http://en.wikipedia.org/wiki/Catalan_number).
+    It has the property of growing quite large very quickly: starting from the modest
+    origins above, the tenth Catalan number (i.e., tenth element of the Catalan sequence)
+    is 16796\. A simple recurrence formula gives us the Catalan number, which we can
+    turn into a simple program:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: This function’s tests look as follows—<wbr>
+  prefs: []
+  type: TYPE_NORMAL
+- en: <catalan-tests> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: but beware! When we time the function’s execution, we find that the first few
+    tests run very quickly, but somewhere between a value of `10` and `20`—<wbr>depending
+    on your machine and programming language implementation—<wbr>you ought to see
+    things start to slow down, first a little, then with extreme effect.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Check at what value you start to observe a significant slowdown on your machine.
+    Plot the graph of running time against input size. What does this suggest?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The reason the Catalan computation takes so long is precisely because of what
+    we alluded to earlier: at each level, we depend on computing the Catalan number
+    of all the smaller levels; this computation in turn needs the numbers of all of
+    its smaller levels; and so on down the road.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Map the subcomputations of `catalan` to see why the computation time explodes
+    as it does. What is the worst-case time complexity of this function?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Here is a graphical representation of all the sub-computations the Catalan
+    function does for input `3`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/79fbf0941364e29afa9e7ce828c8b1ec.png)'
+  prefs:
+  - PREF_BQ
+  type: TYPE_IMG
+- en: Observe the very symmetric computation, reflecting the formula.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.1 Using State to Remember Past Answers[🔗](#(part._.Using_.State_to_.Remember_.Past_.Answers)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Therefore, this is clearly a case where trading space for time is likely to
+    be of help. How do we do this? We need a notion of memory that records all previous
+    answers and, on subsequent attempts to compute them, checks whether they are already
+    known and, if so, just returns them instead of recomputing them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What critical assumption is this based on?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Naturally, this assumes that for a given input, the answer will always be the
+    same. As we have seen, functions with state violate this liberally, so typical
+    stateful functions cannot utilize this optimization. Ironically, we will use state
+    to implement this optimization, so we will have a stateful function that always
+    returns the same answer on a given input—<wbr>and thereby use state in a stateful
+    function to simulate a stateless one. Groovy, dude!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, then, we need some representation of memory. We can imagine several,
+    but here’s a simple one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now how does `catalan` need to change? We have to first look for whether the
+    value is already in `memory`; if it is, we return it without any further computation,
+    but if it isn’t, then we compute the result, store it in `memory`, and then return
+    it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: And that’s it! Now running our previous tests will reveal that the answer computes
+    much quicker, but in addition we can dare to run bigger computations such as `catalan(50)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Trace through a call of this revised function and see how many calls it makes.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Here is a revised visualization of computing for input `3`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/31c17fe6a16bbf3f25e501c178869546.png)'
+  prefs:
+  - PREF_BQ
+  type: TYPE_IMG
+- en: 'Observe the asymmetric computation: the early calls perform the computations,
+    while the latter calls simply look up the results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This process, of converting a function into a version that remembers its past
+    answers, is called memoization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.2 From a Tree of Computation to a DAG[🔗](#(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: What we have subtly done is to convert a tree of computation into a DAG over
+    the same computation, with equivalent calls being reused. Whereas previously each
+    call was generating lots of recursive calls, which induced still more recursive
+    calls, now we are reusing previous recursive calls—<wbr>i.e., sharing the results
+    computed earlier. This, in effect, points the recursive call to one that had occurred
+    earlier. Thus, the shape of computation converts from a tree to a DAG of calls.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This has an important complexity benefit. Whereas previously we were performing
+    a super-exponential number of calls, now we perform only one call per input and
+    share all previous calls—<wbr>thereby reducing `catalan(n)` to take a number of
+    fresh calls proportional to `n`. Looking up the result of a previous call takes
+    time proportional to the size of `memory` (because we’ve represented it as a list;
+    better representations would improve on that), but that only contributes another
+    linear multiplicative factor, reducing the overall complexity to quadratic in
+    the size of the input. This is a dramatic reduction in overall complexity. In
+    contrast, other uses of memoization may result in much less dramatic improvements,
+    turning the use of this technique into a true engineering trade-off.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.3 The Complexity of Numbers[🔗](#(part._numbers-not-constant) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: As we start to run larger computations, however, we may start to notice that
+    our computations are starting to take longer than linear growth. This is because
+    our numbers are growing arbitrarily large—<wbr>for instance, `catalan(100)` is
+    `896519947090131496687170070074100632420837521538745909320`—<wbr>and computations
+    on numbers can no longer be constant time, contrary to what we said earlier [[The
+    Size of the Input](predicting-growth.html#%28part._size-of-input%29)]. Indeed,
+    when working on cryptographic problems, the fact that operations on numbers do
+    not take constant time are absolutely critical to fundamental complexity results
+    (and, for instance, the presumed unbreakability of contemporary cryptography).
+    (See also [Factoring Numbers](factoring-numbers.html).)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.4 Abstracting Memoization[🔗](#(part._.Abstracting_.Memoization) "Link to
+    here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now we’ve achieved the desired complexity improvement, but there is still something
+    unsatisfactory about the structure of our revised definition of `catalan`: the
+    act of memoization is deeply intertwined with the definition of a Catalan number,
+    even though these should be intellectually distinct. Let’s do that next.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In effect, we want to separate our program into two parts. One part defines
+    a general notion of memoization, while the other defines `catalan` in terms of
+    this general notion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What does the former mean? We want to encapsulate the idea of “memory” (since
+    we presumably don’t want this stored in a variable that any old part of the program
+    can modify). This should result in a function that takes the input we want to
+    check; if it is found in the memory we return that answer, otherwise we compute
+    the answer, store it, and return it. To compute the answer, we need a function
+    that determines how to do so. Putting together these pieces:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use the name `memoize-1` to indicate that this is a memoizer for single-argument
+    functions. Observe that the code above is virtually identical to what we had before,
+    except where we had the logic of Catalan number computation, we now have the parameter
+    `f` determining what to do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this, we can now define `catalan` as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note several things about this definition:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We don’t write `fun catalan(...): ...;` because the procedure bound to `catalan`
+    is produced by `memoize-1`.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note carefully that the recursive calls to `catalan` have to be to the function
+    bound to the result of memoization, thereby behaving like an object. Failing to
+    refer to this same shared procedure means the recursive calls will not be memoized,
+    thereby losing the benefit of this process.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We need to use `rec` for reasons we saw earlier [[Streams From Functions](func-as-data.html#%28part._streams-from-funs%29)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Each invocation of `memoize-1` creates a new table of stored results. Therefore
+    the memoization of different functions will each get their own tables rather than
+    sharing tables, which is a bad idea!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Why is sharing memoization tables a bad idea? Be concrete.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 22.1.1 Using State to Remember Past Answers[🔗](#(part._.Using_.State_to_.Remember_.Past_.Answers)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Therefore, this is clearly a case where trading space for time is likely to
+    be of help. How do we do this? We need a notion of memory that records all previous
+    answers and, on subsequent attempts to compute them, checks whether they are already
+    known and, if so, just returns them instead of recomputing them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What critical assumption is this based on?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Naturally, this assumes that for a given input, the answer will always be the
+    same. As we have seen, functions with state violate this liberally, so typical
+    stateful functions cannot utilize this optimization. Ironically, we will use state
+    to implement this optimization, so we will have a stateful function that always
+    returns the same answer on a given input—<wbr>and thereby use state in a stateful
+    function to simulate a stateless one. Groovy, dude!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, then, we need some representation of memory. We can imagine several,
+    but here’s a simple one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now how does `catalan` need to change? We have to first look for whether the
+    value is already in `memory`; if it is, we return it without any further computation,
+    but if it isn’t, then we compute the result, store it in `memory`, and then return
+    it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: And that’s it! Now running our previous tests will reveal that the answer computes
+    much quicker, but in addition we can dare to run bigger computations such as `catalan(50)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Trace through a call of this revised function and see how many calls it makes.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Here is a revised visualization of computing for input `3`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/31c17fe6a16bbf3f25e501c178869546.png)'
+  prefs:
+  - PREF_BQ
+  type: TYPE_IMG
+- en: 'Observe the asymmetric computation: the early calls perform the computations,
+    while the latter calls simply look up the results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This process, of converting a function into a version that remembers its past
+    answers, is called memoization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.2 From a Tree of Computation to a DAG[🔗](#(part._.From_a_.Tree_of_.Computation_to_a_.D.A.G)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: What we have subtly done is to convert a tree of computation into a DAG over
+    the same computation, with equivalent calls being reused. Whereas previously each
+    call was generating lots of recursive calls, which induced still more recursive
+    calls, now we are reusing previous recursive calls—<wbr>i.e., sharing the results
+    computed earlier. This, in effect, points the recursive call to one that had occurred
+    earlier. Thus, the shape of computation converts from a tree to a DAG of calls.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This has an important complexity benefit. Whereas previously we were performing
+    a super-exponential number of calls, now we perform only one call per input and
+    share all previous calls—<wbr>thereby reducing `catalan(n)` to take a number of
+    fresh calls proportional to `n`. Looking up the result of a previous call takes
+    time proportional to the size of `memory` (because we’ve represented it as a list;
+    better representations would improve on that), but that only contributes another
+    linear multiplicative factor, reducing the overall complexity to quadratic in
+    the size of the input. This is a dramatic reduction in overall complexity. In
+    contrast, other uses of memoization may result in much less dramatic improvements,
+    turning the use of this technique into a true engineering trade-off.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.3 The Complexity of Numbers[🔗](#(part._numbers-not-constant) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: As we start to run larger computations, however, we may start to notice that
+    our computations are starting to take longer than linear growth. This is because
+    our numbers are growing arbitrarily large—<wbr>for instance, `catalan(100)` is
+    `896519947090131496687170070074100632420837521538745909320`—<wbr>and computations
+    on numbers can no longer be constant time, contrary to what we said earlier [[The
+    Size of the Input](predicting-growth.html#%28part._size-of-input%29)]. Indeed,
+    when working on cryptographic problems, the fact that operations on numbers do
+    not take constant time are absolutely critical to fundamental complexity results
+    (and, for instance, the presumed unbreakability of contemporary cryptography).
+    (See also [Factoring Numbers](factoring-numbers.html).)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.1.4 Abstracting Memoization[🔗](#(part._.Abstracting_.Memoization) "Link to
+    here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now we’ve achieved the desired complexity improvement, but there is still something
+    unsatisfactory about the structure of our revised definition of `catalan`: the
+    act of memoization is deeply intertwined with the definition of a Catalan number,
+    even though these should be intellectually distinct. Let’s do that next.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In effect, we want to separate our program into two parts. One part defines
+    a general notion of memoization, while the other defines `catalan` in terms of
+    this general notion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What does the former mean? We want to encapsulate the idea of “memory” (since
+    we presumably don’t want this stored in a variable that any old part of the program
+    can modify). This should result in a function that takes the input we want to
+    check; if it is found in the memory we return that answer, otherwise we compute
+    the answer, store it, and return it. To compute the answer, we need a function
+    that determines how to do so. Putting together these pieces:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use the name `memoize-1` to indicate that this is a memoizer for single-argument
+    functions. Observe that the code above is virtually identical to what we had before,
+    except where we had the logic of Catalan number computation, we now have the parameter
+    `f` determining what to do.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this, we can now define `catalan` as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note several things about this definition:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We don’t write `fun catalan(...): ...;` because the procedure bound to `catalan`
+    is produced by `memoize-1`.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Note carefully that the recursive calls to `catalan` have to be to the function
+    bound to the result of memoization, thereby behaving like an object. Failing to
+    refer to this same shared procedure means the recursive calls will not be memoized,
+    thereby losing the benefit of this process.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We need to use `rec` for reasons we saw earlier [[Streams From Functions](func-as-data.html#%28part._streams-from-funs%29)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Each invocation of `memoize-1` creates a new table of stored results. Therefore
+    the memoization of different functions will each get their own tables rather than
+    sharing tables, which is a bad idea!
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Why is sharing memoization tables a bad idea? Be concrete.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 22.2 Edit-Distance for Spelling Correction[🔗](#(part._levenshtein) "Link to
+    here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Text editors, word processors, mobile phones, and various other devices now
+    routinely implement spelling correction or offer suggestions on (mis-)spellings.
+    How do they do this? Doing so requires two capabilities: computing the distance
+    between words, and finding words that are nearby according to this metric. In
+    this section we will study the first of these questions. (For the purposes of
+    this discussion, we will not dwell on the exact definition of what a “word” is,
+    and just deal with strings instead. A real system would need to focus on this
+    definition in considerable detail.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Think about how you might define the “distance between two words”. Does it define
+    a [metric space](http://en.wikipedia.org/wiki/Metric_space)?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Will the definition we give below define a metric space over the set of words?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Though there may be several legitimate ways to define distances between words,
+    here we care about the distance in the very specific context of spelling mistakes.
+    Given the distance measure, one use might be to compute the distance of a given
+    word from all the words in a dictionary, and offer the closest word (i.e., the
+    one with the least distance) as a proposed correction.Obviously, we can’t compute
+    the distance to every word in a large dictionary on every single entered word.
+    Making this process efficient constitutes the other half of this problem. Briefly,
+    we need to quickly discard most words as unlikely to be close enough, for which
+    a representation such as a [bag-of-words](http://en.wikipedia.org/wiki/Bag-of-words_model)
+    (here, a bag of characters) can greatly help. Given such an intended use, we would
+    like at least the following to hold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: That the distance from a word to itself be zero.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That the distance from a word to any word other than itself be strictly positive.
+    (Otherwise, given a word that is already in the dictionary, the “correction” might
+    be a different dictionary word.)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: That the distance between two words be symmetric, i.e., it shouldn’t matter
+    in which order we pass arguments.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Observe that we have not included the triangle inequality relative to the properties
+    of a metric. Why not? If we don’t need the triangle inequality, does this let
+    us define more interesting distance functions that are not metrics?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Given a pair of words, the assumption is that we meant to type one but actually
+    typed the other. Here, too, there are several possible definitions, but a popular
+    one considers that there are three ways to be fat-fingered:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: we left out a character;
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: we typed a character twice; or,
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: we typed one character when we meant another.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In particular, we are interested in the fewest edits of these forms that need
+    to be performed to get from one word to the other. For natural reasons, this notion
+    of distance is called the edit distance or, in honor of its creator, the Levenshtein
+    distance.See more on [Wikipedia](http://en.wikipedia.org/wiki/Levenshtein_distance).
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are several variations of this definition possible. For now, we will consider
+    the simplest one, which assumes that each of these errors has equal cost. For
+    certain input devices, we may want to assign different costs to these mistakes;
+    we might also assign different costs depending on what wrong character was typed
+    (two characters adjacent on a keyboard are much more likely to be a legitimate
+    error than two that are far apart). We will return briefly to some of these considerations
+    later [[Nature as a Fat-Fingered Typist](#%28part._smith-waterman%29)].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Under this metric, the distance between “kitten” and “sitting” is 3 because
+    we have to replace “k” with “s”, replace “e” with “i”, and insert “g” (or symmetrically,
+    perform the opposite replacements and delete “g”). Here are more examples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-tests> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The basic algorithm is in fact very simple:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'where, because there are two list inputs, there are four cases, of which two
+    are symmetric:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-body> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If both inputs are empty, the answer is simple:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-both-empty> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When one is empty, then the edit distance corresponds to the length of the
+    other, which needs to inserted (or deleted) in its entirety (so we charge a cost
+    of one per character):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-one-empty> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If neither is empty, then each has a first character. If they are the same,
+    then there is no edit cost associated with this character (which we reflect by
+    recurring on the rest of the words without adding to the edit cost). If they are
+    not the same, however, we consider each of the possible edits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-neither-empty> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the first case, we assume `s` has one too many characters, so we compute
+    the cost as if we’re deleting it and finding the lowest cost for the rest of the
+    strings (but charging one for this deletion); in the second case, we symmetrically
+    assume `t` has one too many; and in the third case, we assume one character got
+    replaced by another, so we charge one but consider the rest of both words (e.g.,
+    assume “s” was typed for “k” and continue with “itten” and “itting”). This uses
+    the following helper function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This algorithm will indeed pass all the tests we have written above, but with
+    a problem: the running time grows exponentially. That is because, each time we
+    find a mismatch, we recur on three subproblems. In principle, therefore, the algorithm
+    takes time proportional to three to the power of the length of the shorter word.
+    In practice, any prefix that matches causes no branching, so it is mismatches
+    that incur branching (thus, confirming that the distance of a word with itself
+    is zero only takes time linear in the size of the word).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe, however, that many of these subproblems are the same. For instance,
+    given “kitten” and “sitting”, the mismatch on the initial character will cause
+    the algorithm to compute the distance of “itten” from “itting” but also “itten”
+    from “sitting” and “kitten” from “itting”. Those latter two distance computations
+    will also involve matching “itten” against “itting”. Thus, again, we want the
+    computation tree to turn into a DAG of expressions that are actually evaluated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The solution, therefore, is naturally to memoize. First, we need a memoizer
+    that works over two arguments rather than one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: Most of the code is unchanged, except that we store two arguments rather than
+    one, and correspondingly look up both.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this, we can redefine `levenshtein` to use memoization:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-memo> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: where the argument to `memoize-2` is precisely what we saw earlier as [<levenshtein-body>](#%28elem._levenshtein-body%29)
+    (and now you know why we defined `levenshtein` slightly oddly, not using `fun`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The complexity of this algorithm is still non-trivial. First, let’s introduce
+    the term suffix: the suffix of a string is the rest of the string starting from
+    any point in the string. (Thus “kitten”, “itten”, “ten”, “n”, and “” are all suffixes
+    of “kitten”.) Now, observe that in the worst case, starting with every suffix
+    in the first word, we may need to perform a comparison against every suffix in
+    the second word. Fortunately, for each of these suffixes we perform a constant
+    computation relative to the recursion. Therefore, the overall time complexity
+    of computing the distance between strings of length \(m\) and \(n\) is \(O([m,
+    n \rightarrow m \cdot n])\). (We will return to space consumption later [[Contrasting
+    Memoization and Dynamic Programming](#%28part._memo-vs-dp%29)].)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Modify the above algorithm to produce an actual (optimal) sequence of edit operations.
+    This is sometimes known as the traceback.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 22.3 Nature as a Fat-Fingered Typist[🔗](#(part._smith-waterman) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We have talked about how to address mistakes made by humans. However, humans
+    are not the only bad typists: nature is one, too!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When studying living matter we obtain sequences of amino acids and other such
+    chemicals that comprise molecules, such as DNA, that hold important and potentially
+    determinative information about the organism. These sequences consist of similar
+    fragments that we wish to identify because they represent relationships in the
+    organism’s behavior or evolution.This section may need to be skipped in [some
+    states and countries](http://en.wikipedia.org/wiki/Creation_and_evolution_in_public_education).
+    Unfortunately, these sequences are never identical: like all low-level programmers,
+    nature slips up and sometimes makes mistakes in copying (called—<wbr>wait for
+    it—<wbr>mutations). Therefore, looking for strict equality would rule out too
+    many sequences that are almost certainly equivalent. Instead, we must perform
+    an alignment step to find these equivalent sequences. As you might have guessed,
+    this process is very much a process of computing an edit distance, and using some
+    threshold to determine whether the edit is small enough.To be precise, we are
+    performing local [sequence alignment](http://en.wikipedia.org/wiki/Sequence_alignment).
+    This algorithm is named, after its creators, Smith-Waterman, and because it is
+    essentially identical, has the same complexity as the Levenshtein algorithm.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The only difference between traditional presentations of Levenshtein and Smith-Waterman
+    is something we alluded to earlier: why is every edit given a distance of one?
+    Instead, in the Smith-Waterman presentation, we assume that we have a function
+    that gives us the gap score, i.e., the value to assign every character’s alignment,
+    i.e., scores for both matches and edits, with scores driven by biological considerations.
+    Of course, as we have already noted, this need is not peculiar to biology; we
+    could just as well use a “gap score” to reflect the likelihood of a substitution
+    based on keyboard characteristics.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.4 Dynamic Programming[🔗](#(part._.Dynamic_.Programming) "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We have used memoization as our canonical means of saving the values of past
+    computations to reuse later. There is another popular technique for doing this
+    called dynamic programming. This technique is closely related to memoization;
+    indeed, it can be viewed as the dual method for achieving the same end. First
+    we will see dynamic programming at work, then discuss how it differs from memoization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dynamic programming also proceeds by building up a memory of answers, and looking
+    them up instead of recomputing them. As such, it too is a process for turning
+    a computation’s shape from a tree to a DAG of actual calls. The key difference
+    is that instead of starting with the largest computation and recurring to smaller
+    ones, it starts with the smallest computations and builds outward to larger ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will revisit our previous examples in light of this approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.4.1 Catalan Numbers with Dynamic Programming[🔗](#(part._.Catalan_.Numbers_with_.Dynamic_.Programming)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: To begin with, we need to define a data structure to hold answers. Following
+    convention, we will use an array.What happens when we run out of space? We can
+    use the doubling technique we studied for [Halloween Analysis](amortized-analysis.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the `catalan` function simply looks up the answer in this array:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'But how do we fill the array? We initialize the one known value, and use the
+    formula to compute the rest in incremental order. Because we have multiple things
+    to do in the body, we use `block`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: The resulting program obeys the tests in [<catalan-tests>](#%28elem._catalan-tests%29).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that we have had to undo the natural recursive definition—<wbr>which
+    proceeds from bigger values to smaller ones—<wbr>to instead use a loop that goes
+    from smaller values to larger ones. In principle, the program has the danger that
+    when we apply `catalan` to some value, that index of `answers` will have not yet
+    been initialized, resultingin an error. In fact, however, we know that because
+    we fill all smaller indices in `answers` before computing the next larger one,
+    we will never actually encounter this error. Note that this requires careful reasoning
+    about our program, which we did not need to perform when using memoization because
+    there we made precisely the recursive call we needed, which either looked up the
+    value or computed it afresh.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.4.2 Levenshtein Distance and Dynamic Programming[🔗](#(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now let’s take on rewriting the Levenshtein distance computation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will use a table representing the edit distance for each prefix of each word.
+    That is, we will have a two-dimensional table with as many rows as the length
+    of `s1` and as many columns as the length of `s2`. At each position, we will record
+    the edit distance for the prefixes of `s1` and `s2` up to the indices represented
+    by that position in the table.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that index arithmetic will be a constant burden: if a word is of length
+    \(n\), we have to record the edit distance to its \(n + 1\) positions, the extra
+    one corresponding to the empty word. This will hold for both words:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/1> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that by creating `answers` inside `levenshtein`, we can determine the
+    exact size it needs to be based on the inputs, rather than having to over-allocate
+    or dynamically grow the array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Define the functions
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: 'We have initialized the table with `none`, so we will get an error if we accidentally
+    try to use an uninitialized entry.Which proved to be necessary when writing and
+    debugging this code! It will therefore be convenient to create helper functions
+    that let us pretend the table contains only numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/2> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we have to populate the array. First, we initialize the row representing
+    the edit distances when `s2` is empty, and the column where `s1` is empty. At
+    \((0, 0)\), the edit distance is zero; at every position thereafter, it is the
+    distance of that position from zero, because that many characters must be added
+    to one or deleted from the other word for the two to coincide:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/3> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we finally get to the heart of the computation. We need to iterate over
+    every character in each word. these characters are at indices `0` to `s1-len -
+    1` and `s2-len - 1`, which are precisely the ranges of values produced by `range(0,
+    s1-len)` and `range(0, s2-len)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/4> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we’re building our way “out” from small cases to large ones, rather
+    than starting with the large input and working our way “down”, recursively, to
+    small ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Is this strictly true?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: No, it isn’t. We did first fill in values for the “borders” of the table. This
+    is because doing so in the midst of [<levenshtein-dp/compute-dist>](#%28elem._levenshtein-dp%2Fcompute-dist%29)
+    would be much more annoying. By initializing all the known values, we keep the
+    core computation cleaner. But it does mean the order in which we fill in the table
+    is fairly complex.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s return to computing the distance. For each pair of positions, we
+    want the edit distance between the pair of words up to and including those positions.
+    This distance is given by checking whether the characters at the pair of positions
+    are identical. If they are, then the distance is the same as it was for the previous
+    pair of prefixes; otherwise we have to try the three different kinds of edits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/compute-dist> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an aside, this sort of “off-by-one” coordinate arithmetic is traditional
+    when using tabular representations, because we write code in terms of elements
+    that are not inherently present, and therefore have to create a padded table to
+    hold values for the boundary conditions. The alternative would be to allow the
+    table to begin its addressing from `-1` so that the main computation looks traditional.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At any rate, when this computation is done, the entire table has been filled
+    with values. We still have to read out the answer, with lies at the end of the
+    table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/get-result> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: Even putting aside the helper functions we wrote to satiate our paranoia about
+    using undefined values, we end up with:As of this writing, the [current version](http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&oldid=581406185#Iterative_with_full_matrix)
+    of the [Wikipedia page](http://en.wikipedia.org/wiki/Levenshtein_distance) on
+    the Levenshtein distance features a dynamic programming version that is very similar
+    to the code above. By writing in pseudocode, it avoids address arithmetic issues
+    (observe how the words are indexed starting from 1 instead of 0, which enables
+    the body of the code to look more “normal”), and by initializing all elements
+    to zero it permits subtle bugs because an uninitialized table element is indistinguishable
+    from a legitimate entry with edit distance of zero. The page also shows the [recursive](http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&oldid=581406185#Recursive)
+    solution and alludes to memoization, but does not show it in code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: which is worth contrasting with the memoized version ([<levenshtein-memo>](#%28elem._levenshtein-memo%29)).For
+    more examples of canonical dynamic programming problems, see [this page](http://people.csail.mit.edu/bdean/6.046/dp/)
+    and think about how each can be expressed as a direct recursion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.4.1 Catalan Numbers with Dynamic Programming[🔗](#(part._.Catalan_.Numbers_with_.Dynamic_.Programming)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: To begin with, we need to define a data structure to hold answers. Following
+    convention, we will use an array.What happens when we run out of space? We can
+    use the doubling technique we studied for [Halloween Analysis](amortized-analysis.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the `catalan` function simply looks up the answer in this array:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'But how do we fill the array? We initialize the one known value, and use the
+    formula to compute the rest in incremental order. Because we have multiple things
+    to do in the body, we use `block`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: The resulting program obeys the tests in [<catalan-tests>](#%28elem._catalan-tests%29).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that we have had to undo the natural recursive definition—<wbr>which
+    proceeds from bigger values to smaller ones—<wbr>to instead use a loop that goes
+    from smaller values to larger ones. In principle, the program has the danger that
+    when we apply `catalan` to some value, that index of `answers` will have not yet
+    been initialized, resultingin an error. In fact, however, we know that because
+    we fill all smaller indices in `answers` before computing the next larger one,
+    we will never actually encounter this error. Note that this requires careful reasoning
+    about our program, which we did not need to perform when using memoization because
+    there we made precisely the recursive call we needed, which either looked up the
+    value or computed it afresh.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.4.2 Levenshtein Distance and Dynamic Programming[🔗](#(part._.Levenshtein_.Distance_and_.Dynamic_.Programming)
+    "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now let’s take on rewriting the Levenshtein distance computation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will use a table representing the edit distance for each prefix of each word.
+    That is, we will have a two-dimensional table with as many rows as the length
+    of `s1` and as many columns as the length of `s2`. At each position, we will record
+    the edit distance for the prefixes of `s1` and `s2` up to the indices represented
+    by that position in the table.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that index arithmetic will be a constant burden: if a word is of length
+    \(n\), we have to record the edit distance to its \(n + 1\) positions, the extra
+    one corresponding to the empty word. This will hold for both words:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/1> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that by creating `answers` inside `levenshtein`, we can determine the
+    exact size it needs to be based on the inputs, rather than having to over-allocate
+    or dynamically grow the array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Define the functions
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_PRE
+- en: 'We have initialized the table with `none`, so we will get an error if we accidentally
+    try to use an uninitialized entry.Which proved to be necessary when writing and
+    debugging this code! It will therefore be convenient to create helper functions
+    that let us pretend the table contains only numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/2> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we have to populate the array. First, we initialize the row representing
+    the edit distances when `s2` is empty, and the column where `s1` is empty. At
+    \((0, 0)\), the edit distance is zero; at every position thereafter, it is the
+    distance of that position from zero, because that many characters must be added
+    to one or deleted from the other word for the two to coincide:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/3> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we finally get to the heart of the computation. We need to iterate over
+    every character in each word. these characters are at indices `0` to `s1-len -
+    1` and `s2-len - 1`, which are precisely the ranges of values produced by `range(0,
+    s1-len)` and `range(0, s2-len)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/4> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we’re building our way “out” from small cases to large ones, rather
+    than starting with the large input and working our way “down”, recursively, to
+    small ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Is this strictly true?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: No, it isn’t. We did first fill in values for the “borders” of the table. This
+    is because doing so in the midst of [<levenshtein-dp/compute-dist>](#%28elem._levenshtein-dp%2Fcompute-dist%29)
+    would be much more annoying. By initializing all the known values, we keep the
+    core computation cleaner. But it does mean the order in which we fill in the table
+    is fairly complex.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let’s return to computing the distance. For each pair of positions, we
+    want the edit distance between the pair of words up to and including those positions.
+    This distance is given by checking whether the characters at the pair of positions
+    are identical. If they are, then the distance is the same as it was for the previous
+    pair of prefixes; otherwise we have to try the three different kinds of edits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/compute-dist> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an aside, this sort of “off-by-one” coordinate arithmetic is traditional
+    when using tabular representations, because we write code in terms of elements
+    that are not inherently present, and therefore have to create a padded table to
+    hold values for the boundary conditions. The alternative would be to allow the
+    table to begin its addressing from `-1` so that the main computation looks traditional.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At any rate, when this computation is done, the entire table has been filled
+    with values. We still have to read out the answer, with lies at the end of the
+    table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: <levenshtein-dp/get-result> ::=
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: Even putting aside the helper functions we wrote to satiate our paranoia about
+    using undefined values, we end up with:As of this writing, the [current version](http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&oldid=581406185#Iterative_with_full_matrix)
+    of the [Wikipedia page](http://en.wikipedia.org/wiki/Levenshtein_distance) on
+    the Levenshtein distance features a dynamic programming version that is very similar
+    to the code above. By writing in pseudocode, it avoids address arithmetic issues
+    (observe how the words are indexed starting from 1 instead of 0, which enables
+    the body of the code to look more “normal”), and by initializing all elements
+    to zero it permits subtle bugs because an uninitialized table element is indistinguishable
+    from a legitimate entry with edit distance of zero. The page also shows the [recursive](http://en.wikipedia.org/w/index.php?title=Levenshtein_distance&oldid=581406185#Recursive)
+    solution and alludes to memoization, but does not show it in code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: which is worth contrasting with the memoized version ([<levenshtein-memo>](#%28elem._levenshtein-memo%29)).For
+    more examples of canonical dynamic programming problems, see [this page](http://people.csail.mit.edu/bdean/6.046/dp/)
+    and think about how each can be expressed as a direct recursion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 22.5 Contrasting Memoization and Dynamic Programming[🔗](#(part._memo-vs-dp)
+    "Link to here")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now that we’ve seen two very different techniques for avoiding recomputation,
+    it’s worth contrasting them. The important thing to note is that memoization is
+    a much simpler technique: write the natural recursive definition; determine its
+    time complexity; decide whether this is problematic enough to warrant a space-time
+    trade-off; and if it is, apply memoization. The code remains clean, and subsequent
+    readers and maintainers will be grateful for that. In contrast, dynamic programming
+    requires a reorganization of the algorithm to work bottom-up, which can often
+    make the code harder to follow and full of subtle invariants about boundary conditions
+    and computation order.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: That said, the dynamic programming solution can sometimes be more computationally
+    efficient. For instance, in the Levenshtein case, observe that at each table element,
+    we (at most) only ever use the ones that are from the previous row and column.
+    That means we never need to store the entire table; we can retain just the fringe
+    of the table, which reduces space to being proportional to the sum, rather than
+    product, of the length of the words. In a computational biology setting (when
+    using Smith-Waterman), for instance, this saving can be substantial. This optimization
+    is essentially impossible for memoization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In more detail, here’s the contrast:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Memoization |  | Dynamic Programming |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Top-down |  | Bottom-up |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Depth-first |  | Breadth-first |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Black-box |  | Requires code reorganization |'
+  prefs: []
+  type: TYPE_TB
+- en: '| All stored calls are necessary |  | May do unnecessary computation |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Cannot easily get rid of unnecessary data |  | Can more easily get rid of
+    unnecessary data |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Can never accidentally use an uninitialized answer |  | Can accidentally
+    use an uninitialized answer |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Needs to check for the presence of an answer |  | Can be designed to not
+    need to check for the presence of an answer |'
+  prefs: []
+  type: TYPE_TB
+- en: As this table should make clear, these are essentialy dual approaches. What
+    is perhaps left unstated in most dynamic programming descriptions is that it,
+    too, is predicated on the computation always producing the same answer for a given
+    input—<wbr>i.e., being a pure function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From a software design perspective, there are two more considerations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, the performance of a memoized solution can trail that of dynamic programming
+    when the memoized solution uses a generic data structure to store the memo table,
+    whereas a dynamic programming solution will invariably use a custom data structure
+    (since the code needs to be rewritten against it anyway). Therefore, before switching
+    to dynamic programming for performance reasons, it makes sense to try to create
+    a custom memoizer for the problem: the same knowledge embodied in the dynamic
+    programming version can often be encoded in this custom memoizer (e.g., using
+    an array instead of list to improve access times). This way, the program can enjoy
+    speed comparable to that of dynamic programming while retaining readability and
+    maintainability.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Second, suppose space is an important consideration and the dynamic programming
+    version can make use of significantly less space. Then it does make sense to employ
+    dynamic programming instead. Does this mean the memoized version is useless?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What do you think? Do we still have use for the memoized version?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Yes, of course we do! It can serve as an oracle [[Oracles for Testing](testing.html#%28part._test-oracle%29)]
+    for the dynamic programming version, since the two are supposed to produce identical
+    answers anyway—<wbr>and the memoized version would be a much more efficient oracle
+    than the purely recursive implemenation, and can therefore be used to test the
+    dynamic programming version on much larger inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In short, always first produce the memoized version. If you need more performance,
+    consider customizing the memoizer’s data structure. If you need to also save space,
+    and can arrive at a more space-efficient dynamic programming solution, then keep
+    both versions around, using the former to test the latter (the person who inherits
+    your code and needs to alter it will thank you!).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'We have characterized the fundamental difference between memoization and dynamic
+    programming as that between top-down, depth-first and bottom-up, breadth-first
+    computation. This should naturally raise the question, what about:'
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: top-down, breadth-first
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: bottom-up, depth-first
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: orders of computation. Do they also have special names that we just happen to
+    not know? Are they uninteresting? Or do they not get discussed for a reason?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL

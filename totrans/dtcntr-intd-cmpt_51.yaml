@@ -1,0 +1,1043 @@
+- en: 17.1 Introducing Graphs🔗
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://dcic-world.org/2025-08-27/intro-graphs.html](https://dcic-world.org/2025-08-27/intro-graphs.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '|     [17.1.1 Understanding Graphs](#%28part._.Understanding_.Graphs%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [17.1.2 Representations](#%28part._.Representations%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [17.1.2.1 Links by Name](#%28part._string-keys%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [17.1.2.2 Links by Indices](#%28part._.Links_by_.Indices%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [17.1.2.3 A List of Edges](#%28part._.A_.List_of_.Edges%29) |'
+  prefs: []
+  type: TYPE_TB
+- en: '|       [17.1.2.4 Abstracting Representations](#%28part._.Abstracting_.Representations%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '|     [17.1.3 Measuring Complexity for Graphs](#%28part._complexity-of-graphs%29)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: 'In [From Acyclicity to Cycles](Sharing_and_Equality.html#%28part._acyc-to-cyc%29)
+    we introduced a special kind of sharing: when the data become cyclic, i.e., there
+    exist values such that traversing other reachable values from them eventually
+    gets you back to the value at which you began. Data that have this characteristic
+    are called graphs.Technically, a cycle is not necessary to be a graph; a tree
+    or a DAG is also regarded as a (degenerate) graph. In this section, however, we
+    are interested in graphs that have the potential for cycles.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lots of very important data are graphs. For instance, the people and connections
+    in social media form a graph: the people are nodes or vertices and the connections
+    (such as friendships) are links or edges. They form a graph because for many people,
+    if you follow their friends and then the friends of their friends, you will eventually
+    get back to the person you started with. (Most simply, this happens when two people
+    are each others’ friends.) The Web, similarly is a graph: the nodes are pages
+    and the edges are links between pages. The Internet is a graph: the nodes are
+    machines and the edges are links between machines. A transportation network is
+    a graph: e.g., cities are nodes and the edges are transportation links between
+    them. And so on. Therefore, it is essential to understand graphs to represent
+    and process a great deal of interesting real-world data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Graphs are important and interesting for not only practical but also principled
+    reasons. The property that a traversal can end up where it began means that traditional
+    methods of processing will no longer work: if it blindly processes every node
+    it visits, it could end up in an infinite loop. Therefore, we need better structural
+    recipes for our programs. In addition, graphs have a very rich structure, which
+    lends itself to several interesting computations over them. We will study both
+    these aspects of graphs below.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.1 Understanding Graphs[🔗](#(part._.Understanding_.Graphs) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Consider again the binary trees we saw earlier [[Re-Examining Equality](Sharing_and_Equality.html#%28part._identical-eq%29)].
+    Let’s now try to distort the definition of a “tree” by creating ones with cycles,
+    i.e., trees with nodes that point back to themselves (in the sense of `identical`).
+    As we saw earlier [[From Acyclicity to Cycles](Sharing_and_Equality.html#%28part._acyc-to-cyc%29)],
+    it is not completely straightforward to create such a structure, but what we saw
+    earlier [[Streams From Functions](func-as-data.html#%28part._streams-from-funs%29)]
+    can help us here, by letting us suspend the evaluation of the cyclic link. That
+    is, we have to not only use `rec`, we must also use a function to delay evaluation.
+    In turn, we have to update the annotations on the fields. Since these are not
+    going to be “trees” any more, we’ll use a name that is suggestive but not outright
+    incorrect:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now let’s try to construct some cyclic values. Here are a few examples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now let’s try to compute the size of a `BinT`. Here’s the obvious program:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: (We’ll see why we call it `sizeinf` in a moment.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What happens when we call `sizeinf(tr)`?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'It goes into an infinite loop: hence the `inf` in its name.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two very different meanings for “size”. One is, “How many times can
+    we traverse an edge?” The other is, “How many distinct nodes were constructed
+    as part of the data structure?” With trees, by definition, these two are the same.
+    With a DAG the former exceeds the latter but only by a finite amount. With a general
+    graph, the former can exceed the latter by an infinite amount. In the case of
+    a datum like `tr`, we can in fact traverse edges an infinite number of times.
+    But the total number of constructed nodes is only one! Let’s write this as test
+    cases in terms of a `size` function, to be defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It’s clear that we need to somehow remember what nodes we have visited previously:
+    that is, we need a computation with “memory”. In principle this is easy: we just
+    create an extra data structure that checks whether a node has already been counted.
+    As long as we update this data structure correctly, we should be all set. Here’s
+    an implementation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The extra parameter, `seen`, is called an accumulator, because it “accumulates”
+    the list of seen nodes.Note that this could just as well be a set; it doesn’t
+    have to be a list. The support function it needs checks whether a given node has
+    already been seen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: How does this do? Well, `sizect(tr)` is indeed `1`, but `sizect(t1)` is `3`
+    and `sizect(t2)` is `7`!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Explain why these answers came out as they did.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The fundamental problem is that we’re not doing a very good job of remembering!
+    Look at this pair of lines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The nodes seen while traversing the left branch are effectively forgotten,
+    because the only nodes we remember when traversing the right branch are those
+    in `ns`: namely, the current node and those visited “higher up”. As a result,
+    any nodes that “cross sides” are counted twice.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The remedy for this, therefore, is to remember every node we visit. Then, when
+    we have no more nodes to process, instead of returning only the size, we should
+    return all the nodes visited until now. This ensures that nodes that have multiple
+    paths to them are visited on only one path, not more than once. The logic for
+    this is to return two values from each traversal—<wbr>the size and all the visited
+    nodes—<wbr>and not just one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Sure enough, this function satisfies the above tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2 Representations[🔗](#(part._.Representations) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: The representation we’ve seen above for graphs is certainly a start towards
+    creating cyclic data, but it’s not very elegant. It’s both error-prone and inelegant
+    to have to write `lam` everywhere, and remember to apply functions to `()` to
+    obtain the actual values. Therefore, here we explore other representations of
+    graphs that are more conventional and also much simpler to manipulate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are numerous ways to represent graphs, and the choice of representation
+    depends on several factors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The structure of the graph, and in particular, its density. We will discuss
+    this further later [[Measuring Complexity for Graphs](#%28part._complexity-of-graphs%29)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The representation in which the data are provided by external sources. Sometimes
+    it may be easier to simply adapt to their representation; in particular, in some
+    cases there may not even be a choice.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The features provided by the programming language, which make some representations
+    much harder to use than others.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In [[Several Variations on Sets](part_sets.html)], we explore the idea of having
+    many different representations for one datatype. As we will see, this is very
+    true of graphs as well. Therefore, it would be best if we could arrive at a common
+    interface to process graphs, so that all later programs can be written in terms
+    of this interface, without overly depending on the underlying representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In terms of representations, there are three main things we need:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A way to construct graphs.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A way to identify (i.e., tell apart) nodes or vertices in a graph.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Given a way to identify nodes, a way to get that node’s neighbors in the graph.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Any interface that satisfies these properties will suffice. For simplicity,
+    we will focus on the second and third of these and not abstract over the process
+    of constructing a graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our running example will be a graph whose nodes are cities in the United States
+    and edges are direct flight connections between them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/149f40c8773898400ea9f6d76e084087.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 17.1.2.1 Links by Name[🔗](#(part._string-keys) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: 'Here’s our first representation. We will assume that every node has a unique
+    name (such a name, when used to look up information in a repository of data, is
+    sometimes called a key). A node is then a key, some information about that node,
+    and a list of keys that refer to other nodes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: (Here we’re assuming our keys are strings.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here’s a concrete instance of such a graph:The prefix `kn-` stands for “keyed
+    node”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Given a key, here’s how we look up its neighbor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Convert the comment in the function into an invariant about the datum. Express
+    this invariant as a refinement and add it to the declaration of graphs.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'With this support, we can look up neighbors easily:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When it comes to testing, some tests are easy to write. Others, however, might
+    require describing entire nodes, which can be unwieldy, so for the purpose of
+    checking our implementation it suffices to examine just a part of the result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 17.1.2.2 Links by Indices[🔗](#(part._.Links_by_.Indices) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: In some languages, it is common to use numbers as names. This is especially
+    useful when numbers can be used to get access to an element in a constant amount
+    of time (in return for having a bound on the number of elements that can be accessed).
+    Here, we use a list—<wbr>which does not provide constant-time access to arbitrary
+    elements—<wbr>to illustrate this concept. Most of this will look very similar
+    to what we had before; we’ll comment on a key difference at the end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, the datatype:The prefix `ix-` stands for “indexed”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our graph now looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'where we’re assuming indices begin at `0`. To find a node:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can then find neighbors almost as before:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, our tests also look similar:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Something deeper is going on here. The keyed nodes have intrinsic keys: the
+    key is part of the datum itself. Thus, given just a node, we can determine its
+    key. In contrast, the indexed nodes represent extrinsic keys: the keys are determined
+    outside the datum, and in particular by the position in some other data structure.
+    Given a node and not the entire graph, we cannot know for what its key is. Even
+    given the entire graph, we can only determine its key by using `identical`, which
+    is a rather unsatisfactory approach to recovering fundamental information. This
+    highlights a weakness of using extrinsically keyed representations of information.
+    (In return, extrinsically keyed representations are easier to reassemble into
+    new collections of data, because there is no danger of keys clashing: there are
+    no intrinsic keys to clash.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2.3 A List of Edges[🔗](#(part._.A_.List_of_.Edges) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: The representations we have seen until now have given priority to nodes, making
+    edges simply a part of the information in a node. We could, instead, use a representation
+    that makes edges primary, and nodes simply be the entities that lie at their ends:The
+    prefix `le-` stands for “list of edges”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, our flight network becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that in this representation, nodes that are not connected to other nodes
+    in the graph simply never show up! You’d therefore need an auxilliary data structure
+    to keep track of all the nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To obtain the set of neighbors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And to be sure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, this representation makes it difficult to store complex information
+    about a node without replicating it. Because nodes usually have rich information
+    while the information about edges tends to be weaker, we often prefer node-centric
+    representations. Of course, an alternative is to think of the node names as keys
+    into some other data structure from which we can retrieve rich information about
+    nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2.4 Abstracting Representations[🔗](#(part._.Abstracting_.Representations)
+    "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: We would like a general representation that lets us abstract over the specific
+    implementations. We will assume that broadly we have available a notion of `Node`
+    that has `content`, a notion of `Key`s (whether or not intrinsic), and a way to
+    obtain the neighbors—<wbr>a list of keys—<wbr>given a key and a graph. This is
+    sufficient for what follows. However, we still need to choose concrete keys to
+    write examples and tests. For simplicity, we’ll use string keys [[Links by Name](#%28part._string-keys%29)].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.3 Measuring Complexity for Graphs[🔗](#(part._complexity-of-graphs) "Link
+    to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Before we begin to define algorithms over graphs, we should consider how to
+    measure the size of a graph. A graph has two components: its nodes and its edges.
+    Some algorithms are going to focus on nodes (e.g., visiting each of them), while
+    others will focus on edges, and some will care about both. So which do we use
+    as the basis for counting operations: nodes or edges?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It would help if we can reduce these two measures to one. To see whether that’s
+    possible, suppose a graph has \(k\) nodes. Then its number of edges has a wide
+    range, with these two extremes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: No two nodes are connected. Then there are no edges at all.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Every two nodes is connected. Then there are essentially as many edges as the
+    number of pairs of nodes.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of nodes can thus be significantly less or even significantly more
+    than the number of edges. Were this difference a matter of constants, we could
+    have ignored it; but it’s not. As a graph tends towards the former extreme, the
+    ratio of nodes to edges approaches \(k\) (or even exceeds it, in the odd case
+    where there are no edges, but this graph is not very interesting); as it tends
+    towards the latter, it is the ratio of edges to nodes that approaches \(k^2\).
+    In other words, neither measure subsumes the other by a constant independent of
+    the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, when we want to speak of the complexity of algorithms over graphs,
+    we have to consider the sizes of both the number of nodes and edges. In a connected
+    graphA graph is connected if, from every node, we can traverse edges to get to
+    every other node., however, there must be at least as many edges as nodes, which
+    means the number of edges dominates the number of nodes. Since we are usually
+    processing connected graphs, or connected parts of graphs one at a time, we can
+    bound the number of nodes by the number of edges.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.1 Understanding Graphs[🔗](#(part._.Understanding_.Graphs) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Consider again the binary trees we saw earlier [[Re-Examining Equality](Sharing_and_Equality.html#%28part._identical-eq%29)].
+    Let’s now try to distort the definition of a “tree” by creating ones with cycles,
+    i.e., trees with nodes that point back to themselves (in the sense of `identical`).
+    As we saw earlier [[From Acyclicity to Cycles](Sharing_and_Equality.html#%28part._acyc-to-cyc%29)],
+    it is not completely straightforward to create such a structure, but what we saw
+    earlier [[Streams From Functions](func-as-data.html#%28part._streams-from-funs%29)]
+    can help us here, by letting us suspend the evaluation of the cyclic link. That
+    is, we have to not only use `rec`, we must also use a function to delay evaluation.
+    In turn, we have to update the annotations on the fields. Since these are not
+    going to be “trees” any more, we’ll use a name that is suggestive but not outright
+    incorrect:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now let’s try to construct some cyclic values. Here are a few examples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now let’s try to compute the size of a `BinT`. Here’s the obvious program:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: (We’ll see why we call it `sizeinf` in a moment.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: What happens when we call `sizeinf(tr)`?
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'It goes into an infinite loop: hence the `inf` in its name.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two very different meanings for “size”. One is, “How many times can
+    we traverse an edge?” The other is, “How many distinct nodes were constructed
+    as part of the data structure?” With trees, by definition, these two are the same.
+    With a DAG the former exceeds the latter but only by a finite amount. With a general
+    graph, the former can exceed the latter by an infinite amount. In the case of
+    a datum like `tr`, we can in fact traverse edges an infinite number of times.
+    But the total number of constructed nodes is only one! Let’s write this as test
+    cases in terms of a `size` function, to be defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It’s clear that we need to somehow remember what nodes we have visited previously:
+    that is, we need a computation with “memory”. In principle this is easy: we just
+    create an extra data structure that checks whether a node has already been counted.
+    As long as we update this data structure correctly, we should be all set. Here’s
+    an implementation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The extra parameter, `seen`, is called an accumulator, because it “accumulates”
+    the list of seen nodes.Note that this could just as well be a set; it doesn’t
+    have to be a list. The support function it needs checks whether a given node has
+    already been seen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: How does this do? Well, `sizect(tr)` is indeed `1`, but `sizect(t1)` is `3`
+    and `sizect(t2)` is `7`!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Do Now!
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Explain why these answers came out as they did.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The fundamental problem is that we’re not doing a very good job of remembering!
+    Look at this pair of lines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The nodes seen while traversing the left branch are effectively forgotten,
+    because the only nodes we remember when traversing the right branch are those
+    in `ns`: namely, the current node and those visited “higher up”. As a result,
+    any nodes that “cross sides” are counted twice.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The remedy for this, therefore, is to remember every node we visit. Then, when
+    we have no more nodes to process, instead of returning only the size, we should
+    return all the nodes visited until now. This ensures that nodes that have multiple
+    paths to them are visited on only one path, not more than once. The logic for
+    this is to return two values from each traversal—<wbr>the size and all the visited
+    nodes—<wbr>and not just one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Sure enough, this function satisfies the above tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2 Representations[🔗](#(part._.Representations) "Link to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: The representation we’ve seen above for graphs is certainly a start towards
+    creating cyclic data, but it’s not very elegant. It’s both error-prone and inelegant
+    to have to write `lam` everywhere, and remember to apply functions to `()` to
+    obtain the actual values. Therefore, here we explore other representations of
+    graphs that are more conventional and also much simpler to manipulate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are numerous ways to represent graphs, and the choice of representation
+    depends on several factors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The structure of the graph, and in particular, its density. We will discuss
+    this further later [[Measuring Complexity for Graphs](#%28part._complexity-of-graphs%29)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The representation in which the data are provided by external sources. Sometimes
+    it may be easier to simply adapt to their representation; in particular, in some
+    cases there may not even be a choice.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The features provided by the programming language, which make some representations
+    much harder to use than others.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In [[Several Variations on Sets](part_sets.html)], we explore the idea of having
+    many different representations for one datatype. As we will see, this is very
+    true of graphs as well. Therefore, it would be best if we could arrive at a common
+    interface to process graphs, so that all later programs can be written in terms
+    of this interface, without overly depending on the underlying representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In terms of representations, there are three main things we need:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A way to construct graphs.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A way to identify (i.e., tell apart) nodes or vertices in a graph.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Given a way to identify nodes, a way to get that node’s neighbors in the graph.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Any interface that satisfies these properties will suffice. For simplicity,
+    we will focus on the second and third of these and not abstract over the process
+    of constructing a graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our running example will be a graph whose nodes are cities in the United States
+    and edges are direct flight connections between them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/149f40c8773898400ea9f6d76e084087.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 17.1.2.1 Links by Name[🔗](#(part._string-keys) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: 'Here’s our first representation. We will assume that every node has a unique
+    name (such a name, when used to look up information in a repository of data, is
+    sometimes called a key). A node is then a key, some information about that node,
+    and a list of keys that refer to other nodes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: (Here we’re assuming our keys are strings.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here’s a concrete instance of such a graph:The prefix `kn-` stands for “keyed
+    node”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Given a key, here’s how we look up its neighbor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Convert the comment in the function into an invariant about the datum. Express
+    this invariant as a refinement and add it to the declaration of graphs.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'With this support, we can look up neighbors easily:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When it comes to testing, some tests are easy to write. Others, however, might
+    require describing entire nodes, which can be unwieldy, so for the purpose of
+    checking our implementation it suffices to examine just a part of the result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 17.1.2.2 Links by Indices[🔗](#(part._.Links_by_.Indices) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: In some languages, it is common to use numbers as names. This is especially
+    useful when numbers can be used to get access to an element in a constant amount
+    of time (in return for having a bound on the number of elements that can be accessed).
+    Here, we use a list—<wbr>which does not provide constant-time access to arbitrary
+    elements—<wbr>to illustrate this concept. Most of this will look very similar
+    to what we had before; we’ll comment on a key difference at the end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, the datatype:The prefix `ix-` stands for “indexed”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our graph now looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'where we’re assuming indices begin at `0`. To find a node:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can then find neighbors almost as before:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, our tests also look similar:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Something deeper is going on here. The keyed nodes have intrinsic keys: the
+    key is part of the datum itself. Thus, given just a node, we can determine its
+    key. In contrast, the indexed nodes represent extrinsic keys: the keys are determined
+    outside the datum, and in particular by the position in some other data structure.
+    Given a node and not the entire graph, we cannot know for what its key is. Even
+    given the entire graph, we can only determine its key by using `identical`, which
+    is a rather unsatisfactory approach to recovering fundamental information. This
+    highlights a weakness of using extrinsically keyed representations of information.
+    (In return, extrinsically keyed representations are easier to reassemble into
+    new collections of data, because there is no danger of keys clashing: there are
+    no intrinsic keys to clash.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2.3 A List of Edges[🔗](#(part._.A_.List_of_.Edges) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: The representations we have seen until now have given priority to nodes, making
+    edges simply a part of the information in a node. We could, instead, use a representation
+    that makes edges primary, and nodes simply be the entities that lie at their ends:The
+    prefix `le-` stands for “list of edges”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, our flight network becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that in this representation, nodes that are not connected to other nodes
+    in the graph simply never show up! You’d therefore need an auxilliary data structure
+    to keep track of all the nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To obtain the set of neighbors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And to be sure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, this representation makes it difficult to store complex information
+    about a node without replicating it. Because nodes usually have rich information
+    while the information about edges tends to be weaker, we often prefer node-centric
+    representations. Of course, an alternative is to think of the node names as keys
+    into some other data structure from which we can retrieve rich information about
+    nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2.4 Abstracting Representations[🔗](#(part._.Abstracting_.Representations)
+    "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: We would like a general representation that lets us abstract over the specific
+    implementations. We will assume that broadly we have available a notion of `Node`
+    that has `content`, a notion of `Key`s (whether or not intrinsic), and a way to
+    obtain the neighbors—<wbr>a list of keys—<wbr>given a key and a graph. This is
+    sufficient for what follows. However, we still need to choose concrete keys to
+    write examples and tests. For simplicity, we’ll use string keys [[Links by Name](#%28part._string-keys%29)].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2.1 Links by Name[🔗](#(part._string-keys) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: 'Here’s our first representation. We will assume that every node has a unique
+    name (such a name, when used to look up information in a repository of data, is
+    sometimes called a key). A node is then a key, some information about that node,
+    and a list of keys that refer to other nodes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: (Here we’re assuming our keys are strings.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here’s a concrete instance of such a graph:The prefix `kn-` stands for “keyed
+    node”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Given a key, here’s how we look up its neighbor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: Exercise
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Convert the comment in the function into an invariant about the datum. Express
+    this invariant as a refinement and add it to the declaration of graphs.
+  prefs:
+  - PREF_BQ
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'With this support, we can look up neighbors easily:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When it comes to testing, some tests are easy to write. Others, however, might
+    require describing entire nodes, which can be unwieldy, so for the purpose of
+    checking our implementation it suffices to examine just a part of the result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 17.1.2.2 Links by Indices[🔗](#(part._.Links_by_.Indices) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: In some languages, it is common to use numbers as names. This is especially
+    useful when numbers can be used to get access to an element in a constant amount
+    of time (in return for having a bound on the number of elements that can be accessed).
+    Here, we use a list—<wbr>which does not provide constant-time access to arbitrary
+    elements—<wbr>to illustrate this concept. Most of this will look very similar
+    to what we had before; we’ll comment on a key difference at the end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, the datatype:The prefix `ix-` stands for “indexed”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our graph now looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'where we’re assuming indices begin at `0`. To find a node:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can then find neighbors almost as before:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, our tests also look similar:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Something deeper is going on here. The keyed nodes have intrinsic keys: the
+    key is part of the datum itself. Thus, given just a node, we can determine its
+    key. In contrast, the indexed nodes represent extrinsic keys: the keys are determined
+    outside the datum, and in particular by the position in some other data structure.
+    Given a node and not the entire graph, we cannot know for what its key is. Even
+    given the entire graph, we can only determine its key by using `identical`, which
+    is a rather unsatisfactory approach to recovering fundamental information. This
+    highlights a weakness of using extrinsically keyed representations of information.
+    (In return, extrinsically keyed representations are easier to reassemble into
+    new collections of data, because there is no danger of keys clashing: there are
+    no intrinsic keys to clash.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2.3 A List of Edges[🔗](#(part._.A_.List_of_.Edges) "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: The representations we have seen until now have given priority to nodes, making
+    edges simply a part of the information in a node. We could, instead, use a representation
+    that makes edges primary, and nodes simply be the entities that lie at their ends:The
+    prefix `le-` stands for “list of edges”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, our flight network becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that in this representation, nodes that are not connected to other nodes
+    in the graph simply never show up! You’d therefore need an auxilliary data structure
+    to keep track of all the nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To obtain the set of neighbors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And to be sure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, this representation makes it difficult to store complex information
+    about a node without replicating it. Because nodes usually have rich information
+    while the information about edges tends to be weaker, we often prefer node-centric
+    representations. Of course, an alternative is to think of the node names as keys
+    into some other data structure from which we can retrieve rich information about
+    nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.2.4 Abstracting Representations[🔗](#(part._.Abstracting_.Representations)
+    "Link to here")
+  prefs:
+  - PREF_H5
+  type: TYPE_NORMAL
+- en: We would like a general representation that lets us abstract over the specific
+    implementations. We will assume that broadly we have available a notion of `Node`
+    that has `content`, a notion of `Key`s (whether or not intrinsic), and a way to
+    obtain the neighbors—<wbr>a list of keys—<wbr>given a key and a graph. This is
+    sufficient for what follows. However, we still need to choose concrete keys to
+    write examples and tests. For simplicity, we’ll use string keys [[Links by Name](#%28part._string-keys%29)].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 17.1.3 Measuring Complexity for Graphs[🔗](#(part._complexity-of-graphs) "Link
+    to here")
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Before we begin to define algorithms over graphs, we should consider how to
+    measure the size of a graph. A graph has two components: its nodes and its edges.
+    Some algorithms are going to focus on nodes (e.g., visiting each of them), while
+    others will focus on edges, and some will care about both. So which do we use
+    as the basis for counting operations: nodes or edges?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It would help if we can reduce these two measures to one. To see whether that’s
+    possible, suppose a graph has \(k\) nodes. Then its number of edges has a wide
+    range, with these two extremes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: No two nodes are connected. Then there are no edges at all.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Every two nodes is connected. Then there are essentially as many edges as the
+    number of pairs of nodes.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of nodes can thus be significantly less or even significantly more
+    than the number of edges. Were this difference a matter of constants, we could
+    have ignored it; but it’s not. As a graph tends towards the former extreme, the
+    ratio of nodes to edges approaches \(k\) (or even exceeds it, in the odd case
+    where there are no edges, but this graph is not very interesting); as it tends
+    towards the latter, it is the ratio of edges to nodes that approaches \(k^2\).
+    In other words, neither measure subsumes the other by a constant independent of
+    the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, when we want to speak of the complexity of algorithms over graphs,
+    we have to consider the sizes of both the number of nodes and edges. In a connected
+    graphA graph is connected if, from every node, we can traverse edges to get to
+    every other node., however, there must be at least as many edges as nodes, which
+    means the number of edges dominates the number of nodes. Since we are usually
+    processing connected graphs, or connected parts of graphs one at a time, we can
+    bound the number of nodes by the number of edges.
+  prefs: []
+  type: TYPE_NORMAL
