@@ -1,0 +1,100 @@
+- en: Precomputing Normal and Tangent Information
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://phys-sim-book.github.io/lec22.2-precompute.html](https://phys-sim-book.github.io/lec22.2-precompute.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  prefs: []
+  type: TYPE_NORMAL
+- en: To make the temporally discretized friction force integrable, we must explicitly
+    discretize certain normal and tangent information. This information only needs
+    to be calculated once at the beginning of each time step, as it will remain constant
+    during each optimization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we need to calculate λn for each point-edge pair using xn. Recall that
+    we used squared distances as input for the barrier functions, so λn should be
+    calculated using the chain rule as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: λa^,en​​=21​Aa^​(−∂dPE∂b(dsqPE​(xa^n​,e),d^2)​)=21​Aa^​(−∂dsqPE​∂b(dsqPE​(xa^n​,e),d^2)​∂dPE∂dsqPE​​)=21​Aa^​(−∂dsqPE​∂b(dsqPE​(xa^n​,e),d^2)​)2dPE.​
+  prefs: []
+  type: TYPE_NORMAL
+- en: According to the scaled barrier function taking squared distance as input (Equation
+    [(21.3.1)](lec21.3-barrier_and_derivatives.html#eq:lec21:scaled_barrier_func)),
+    we can derive
+  prefs: []
+  type: TYPE_NORMAL
+- en: ∂dsq​∂b(dsq​,d^2)​={8κ​d^(d^21​lnd^2dsq​​+dsq​1​(d^2dsq​​−1))0​if d<d^;if d≥d^.​
+  prefs: []
+  type: TYPE_NORMAL
+- en: '***Remark 22.2.1.*** The set of point-edge pairs for friction in our semi-implicit
+    friction setting is fixed in each time step and is different from the set of normal
+    contact pairs. The set for friction only contains those pairs with dPE(xa^n​,e)<d^,
+    and this does not change with the optimization variable xn+1 in the current time
+    step.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Now for the tangent information, the key is to keep the normal and the barycentric
+    coordinate of the closest point on the edge constant. For the k-th point-edge
+    pair, if we denote the node indices for the point and edge as p, e0​, and e1​,
+    then we can write the relative sliding velocity as
+  prefs: []
+  type: TYPE_NORMAL
+- en: vk​=(I−nnT)(vp​−((1−r)ve0​​+rve1​​)),
+  prefs: []
+  type: TYPE_NORMAL
+- en: where r=argminc​∥xp​−((1−c)xe0​​+cxe1​​)∥ is the barycentric coordinate and
+    n=(xp​−((1−r)xe0​​+rxe1​​))/∥xp​−((1−r)xe0​​+rxe1​​)∥ is the normal of the edge.
+    Here we see that r and n are both dependent on x, so directly integrating vk​
+    is nontrivial. By calculating n and r using xn, we obtain the semi-implicit relative
+    sliding velocity
+  prefs: []
+  type: TYPE_NORMAL
+- en: vˉk​=(I−nn(nn)T)(vp​−((1−rn)ve0​​+rnve1​​)),
+  prefs: []
+  type: TYPE_NORMAL
+- en: and now only the velocities are dependent on xn+1, which makes both integration
+    and differentiation straightforward. If we denote v^k​=vp​−((1−rn)ve0​​+rnve1​​),
+    we obtain
+  prefs: []
+  type: TYPE_NORMAL
+- en: ∂v^k​∂vˉk​​=(I−nn(nn)T)and∂[xpT​,xe0​T​,xe1​T​]T∂v^k​​=h^1​[I​(rn−1)I​−rnI​].
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Code](#code)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Next, let's look at the code. [Implementation 22.2.1](#imp:lec22:contact_point_and_normal)
+    calculates the barycentric coordinate of the closest point and the normal given
+    point-edge nodal positions. The idea is to orthogonally project xp​ onto the edge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 22.2.1 (Calculating contact point and normal, PointEdgeDistance.py).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, [Implementation 22.2.2](#imp:lec22:fric_precomp) traverses all non-incident
+    point-edge pairs with a distance smaller than d^, calculates λ, and calls the
+    above function to calculate n and r.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As in [Frictional Contact](./lec9-friction.html), these lines of code are executed
+    at the beginning of each time step in `time_integrator.py`, and the information
+    for each friction pair is stored and passed to the energy, gradient, and Hessian
+    computation functions that we will discuss next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 22.2.2 (Semi-implicit friction precomputation, BarrierEnergy.py).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE

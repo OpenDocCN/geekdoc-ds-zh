@@ -1,0 +1,140 @@
+- en: Continuum Mechanics-Based Constraints
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://phys-sim-book.github.io/lec32.5-pbd_continuum.html](https://phys-sim-book.github.io/lec32.5-pbd_continuum.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  prefs: []
+  type: TYPE_NORMAL
+- en: While simple geometric constraints such as distance and volume are effective
+    for many materials, a more physically rigorous and expressive simulation can be
+    achieved by deriving constraints directly from the principles of continuum mechanics.
+    This approach connects Position-Based Dynamics to the rich theoretical foundation
+    of established methods like the Finite Element Method (FEM), allowing for the
+    simulation of complex material behaviors including anisotropy, elastoplasticity,
+    and nonlinear elasticity. The core idea is to define constraints based on the
+    deformation gradient, a tensor that measures the local stretching and shearing
+    of the material.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This section will first review the necessary concepts of discretized [deformation
+    and strain](./lec12-kinematics.html). It will then detail two primary methods
+    for formulating continuum-based constraints: a holistic approach based on [strain
+    energy](./lec13-strain_energy.html) and a more granular method that constrains
+    individual components of the strain tensor directly.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[The Strain Energy Constraint](#the-strain-energy-constraint)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The most direct way to incorporate a standard hyperelastic material model into
+    PBD is to use its strain energy potential as a constraint function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In a discrete setting, such as a tetrahedral mesh, the deformation gradient
+    is assumed to be constant within each element. For a tetrahedron with material-space
+    vertices (P1​,P2​,P3​,P4​) and world-space vertices (p1​,p2​,p3​,p4​), we can
+    define a material-space shape matrix Dm​ and a world-space shape matrix Ds​ from
+    the edge vectors: Dm​Ds​​=[P1​−P4​,P2​−P4​,P3​−P4​]=[p1​−p4​,p2​−p4​,p3​−p4​]​
+    The deformation gradient for the tetrahedron is then given by F=Ds​Dm−1​. Note
+    that Dm−1​ is constant and can be precomputed.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From F, we can derive various strain measures. One of the most common is the
+    **Green-St. Venant strain tensor**, ε, which is independent of rigid-body rotations:
+    ε=21​(FTF−I)(33.5.1) The related **right Cauchy-Green deformation tensor**, S=FTF=2ε+I,
+    will be particularly useful for formulating direct strain constraints. If there
+    is no deformation, F=I, S=I, and ε=0.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By Hooke’s generalized law, we can relate stress to strain:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'S=Cε where C is the elasticity tensor of the material. Recall that the energy
+    of a deformed solid is defined by integrating the scalar strain energy density
+    field over the whole body Ω:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Es​=∫Ω​Ψs​dP where the strain energy density can be defined in terms of stress
+    and strain:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Ψs​=21​ε:S=21​tr(ε⊤S)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So the total strain energy for a single tetrahedral element is its rest volume
+    V0​ multiplied by the energy density. For an undeformed state, this energy is
+    zero. This naturally leads to the following constraint formulation: C(p1​,...,p4​)=Es​=V0​Ψs​(F(p1​,...,p4​))=0(33.5.2)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The PBD solver requires the gradient of the constraint with respect to the
+    positions of the vertices. This gradient has a deep physical meaning, as it is
+    directly related to the **first Piola-Kirchhoff stress tensor**, P, which relates
+    forces in the current configuration to areas in the reference configuration. The
+    stress tensor is a function of the deformation gradient, P(F). Using the chain
+    rule, the gradients of the energy for the first three vertices can be computed
+    in a compact matrix form: [∂p1​∂Es​​,∂p2​∂Es​​,∂p3​∂Es​​]=V0​P(F)Dm−T​(33.5.3)
+    The gradient for the fourth vertex is determined by the condition of translational
+    invariance (i.e., the net force on the element must be zero): ∂p4​∂Es​​=−i=1∑3​∂pi​∂Es​​(33.5.4)
+    This formulation extends naturally to surface meshes composed of triangles. For
+    a triangle with rest area A0​, the constraint is C(p)=A0​Ψs​(Ftri​). The gradients
+    are computed analogously: [∂p1​∂Es​​,∂p2​∂Es​​]=A0​P(Ftri​)Dm−T​and∂p3​∂Es​​=−i=1∑2​∂pi​∂Es​​(33.5.5)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '***Remark 33.5.1 (Handling Element Inversion).*** Standard constitutive models
+    are often not defined for degenerate or inverted elements (where det(F)≤0), which
+    can cause instabilities in a simulation. This is a critical practical issue. This
+    problem can be robustly addressed by augmenting the constitutive model with techniques
+    designed for inversion handling.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The elegance of this strain energy constraint lies in its generality. It is
+    not limited to a single material type, like the simple St. Venant-Kirchhoff model.
+    More complex and physically accurate models, such as the Neo-Hookean model for
+    rubber-like materials, can be readily supported by simply substituting the appropriate
+    energy density function Ψs​. This allows PBD to simulate complex physical effects
+    like lateral contraction (Poisson's effect), anisotropy, and elastoplasticity
+    with high fidelity and efficiency.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Direct Strain-Based Constraints](#direct-strain-based-constraints)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: For applications requiring more granular or intuitive control over material
+    properties, particularly for simulating anisotropy, it is advantageous to define
+    separate constraints for each mode of deformation. This approach operates on the
+    components of the right Cauchy-Green deformation tensor, S=FTF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Stretch Constraints](#stretch-constraints)'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The diagonal entries of S, Sii​, represent the squared stretch along the material''s
+    reference axes. In an undeformed state, Sii​=1. To ensure the constraint projection
+    is linear and converges in a single step, the stretch constraint is formulated
+    based on the stretch itself, rather than its square: Cstretch,i​(x)=Sii​​−1=0(33.5.6)
+    By defining one such constraint for each principal axis, one can assign independent
+    stiffness parameters, which is the key to modeling anisotropic stretch resistance.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Shear Constraints](#shear-constraints)'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The off-diagonal entries of S, Sij​=fi​⋅fj​ (where fk​ are the column vectors
+    of F), measure the shear between material axes. A naive constraint Sij​=0 problematically
+    couples shearing and stretching. To isolate the shearing deformation, the constraint
+    must be normalized, thus depending only on the angle between the deformed axes:
+    Cshear,ij​(x)=∣fi​∣∣fj​∣fi​⋅fj​​=0(33.5.7) This formulation ensures that the shear
+    constraints enforce orthogonality between the material axes without interfering
+    with the stretch constraints that control their length. This decoupling is critical
+    for intuitive and independent tuning of material behavior.'
+  prefs: []
+  type: TYPE_NORMAL

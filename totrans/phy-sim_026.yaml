@@ -1,0 +1,200 @@
+- en: GPU-Accelerated Simulation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://phys-sim-book.github.io/lec4.6-gpu_accel.html](https://phys-sim-book.github.io/lec4.6-gpu_accel.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Author of this section: [Zhaofeng Luo](https://roushelfy.github.io/), Carnegie
+    Mellon University*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now rewrite the 2D mass-spring simulator to leverage GPU acceleration. Instead
+    of directly writing [CUDA](https://developer.nvidia.com/cuda-toolkit), we resort
+    to [MUDA](https://github.com/MuGdxy/muda), a lightweight library that provides
+    a simple interface for GPU-accelerated computations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The architecture of the GPU-accelerated simulator is similar to the Python version.
+    All function and variable names are consistent with the Numpy version. However,
+    the implementation details are different due to the GPU architecture and programming
+    model. Before delving into the details, let's first get a feeling of the speedup
+    that GPU could bring us from the following gif ([Figure 4.6.1](#fig:lec4:cpu_vs_gpu)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/fbd53762482cd3796eb946c75f5c6562.png) ![](../Images/ac44bb5d43380bbdb6eebffdc5e83ef8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Figure 4.6.1.** An illustration of simulation speed of the Numpy CPU (left)
+    and the MUDA GPU (right) versions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Key Considerations for GPU Programming](#key-considerations-for-gpu-programming)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'To maximize resource utilization on the GPU, there are two important aspects
+    to consider:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Minimizing Data Transfer.** In most modern architectures, CPU and GPU have
+    separate memory spaces. Transferring data between these spaces can be expensive.
+    Therefore, it is essential to minimize data transfers between CPU and GPU.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Exploiting Parallelism.** GPUs excel at parallel computations. However, care
+    must be taken to avoid read-write conflicts that can arise when multiple threads
+    attempt to access the same memory locations simultaneously.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[Minimizing Data Transfer](#minimizing-data-transfer)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: To reduce data transfer between the CPU and GPU, we store the main energy values
+    and their derivatives on the GPU. Computations are then performed directly on
+    the GPU, and only the necessary position information is transferred back to the
+    CPU for control and rendering. A more efficient implementation could render directly
+    on the GPU, eliminating even this data transfer, but for simplicity and readability,
+    we have not implemented that here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To make the code more readable, the variables begin with `device_` are stored
+    in the GPU memory, and the variables begin with `host_` are stored in the CPU
+    memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 4.6.1 (Data structure, MassSpringEnergy.cu).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: As shown in the code above, the energy values and their derivatives, as well
+    as all the necessary parameters are stored in a `DeviceBuffer` object, which is
+    a wrapper of the CUDA device memory implemented by the MUDA library. This allows
+    us to perform computations directly on the GPU without the need for data transfer
+    between the CPU and GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Newton''s Method](#newtons-method)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The iterations of Newton''s method is a serial process and cannot be parallelized.
+    Therefore, we implement this part on the CPU:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 4.6.2 (Newton''s method, simulator.cu).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this function, `step_forward`, the projected Newton method with line search
+    is implemented, performing necessary computations on the GPU while controlling
+    the process on the CPU. Any variable begin with `device_` here is a `DeviceBuffer`
+    object on the GPU. To print the values in `DeviceBuffer` for debugging purposes,
+    the common practice is to transfer the data back to the CPU, or call the `display_vec`
+    function (which calls `printf` in parallel on the GPU) implemented in `uti.cu`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `update_x` function updates the positions of the nodes to all Energy classes
+    and transfers the updated positions back to the CPU for rendering:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 4.6.3 (Update positions, simulator.cu).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As the Energy classes has already updated its positions, the `IP_val` function
+    no loner needs to pass any parameters, avoiding unnecessary data transfer. In
+    fact, it only calls the `val` function of all energy classes and then sum the
+    results together:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 4.6.4 (Computing IP, simulator.cu).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Similarly for the `IP_grad` and `IP_hess` functions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 4.6.5 (Computing IP gradient and Hessian, simulator.cu).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that they utilize the parallel operations (`add_vector` and `add_triplet`,
+    which are implemented in `uti.cu`) on the GPU to perform the summation for gradients
+    and Hessians.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Parallel Computations](#parallel-computations)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In our implementation, parallel computation is primarily employed in the computation
+    of energy and its derivatives, as well as vector addition and subtraction. Let's
+    take the MassSpringEnergy computation as an example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Energy Computation](#energy-computation)'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: '**Implementation 4.6.6 (Computing energy, MassSpringEnergy.cu).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `ParallelFor` function distributes the computation across multiple GPU threads.
+    The captured variables in the lambda function allow access to the necessary data
+    structures within each thread.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Gradient Computation](#gradient-computation)'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: '**Implementation 4.6.7 (Computing gradients, MassSpringEnergy.cu).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `atomicAdd` function is crucial in the gradient computation to ensure safe
+    concurrent updates to shared data (different edges can update the gradient of
+    the same node), thus preventing race conditions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Hessian Computation](#hessian-computation)'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'We utilized the Sparse Matrix data structure to store the Hessian matrix. The
+    computation is parallelized across multiple threads, with each thread updating
+    a specific element of the Hessian matrix. The actual size of the Sparse Matrix
+    is calculated at the start of the simulation, allocating just enough memory for
+    non-zero entries. The main consideration here is to calculate the correct indices
+    for each element during simulation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 4.6.8 (Computing Hessians, MassSpringEnergy.cu).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE

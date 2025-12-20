@@ -1,0 +1,219 @@
+- en: Model Reduction for Nonlinear Systems
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://phys-sim-book.github.io/lec25.8-nonlinear_reductions.html](https://phys-sim-book.github.io/lec25.8-nonlinear_reductions.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  prefs: []
+  type: TYPE_NORMAL
+- en: Linear modal analysis is remarkably efficient, but its underlying assumption
+    of small deformations is a major limitation. For simulating visually rich phenomena
+    like buckling, large bending, or twisting, a linear model produces severe visual
+    artifacts. As shown in the previous section, a simple linear model fails to capture
+    the natural foreshortening that occurs when an object bends, resulting in an unrealistic
+    extension of length and volume. To correctly capture these essential nonlinear
+    effects, we must apply model reduction to the full nonlinear equations of motion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Projecting the Nonlinear Equations](#projecting-the-nonlinear-equations)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The equation of motion for a general hyperelastic object, including damping,
+    is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mu¨+Du˙+fint​(u)=fext​.(26.3.1)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, the linear elastic force Ku is replaced by a general **internal force
+    function** fint​(u), which can be a complex nonlinear function of the displacements
+    u. This nonlinearity can arise from the material model (stress-strain relationship)
+    or from the strain measure itself (geometric nonlinearity).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We follow the same projection-based procedure as in the linear case. We assume
+    the existence of a suitable basis matrix U∈R3n×r (where r≪3n)—more on the choice
+    of basis in the next section-and approximate the full-space displacements u using
+    the reduced coordinates q∈Rr:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: u(t)≈Uq(t).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Substituting this into [(26.3.1)](#eq:lec26:nonlinear_system) and pre-multiplying
+    by UT to project the dynamics onto the subspace yields the **reduced nonlinear
+    equation of motion**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: UTMUq¨​+UTDUq˙​+UTfint​(Uq)=UTfext​.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Assuming we have constructed a mass-orthonormal basis such that UTMU=I, this
+    simplifies to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: q¨​+D^q˙​+f^int​(q)=f^ext​,(26.3.2)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'where:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: D^=UTDU is the r×r reduced damping matrix.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: f^int​(q)=UTfint​(Uq) is the r×1 **reduced internal force** vector.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: f^ext​=UTfext​ is the r×1 reduced external force vector.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Unlike the linear case, the reduced system in [(26.3.2)](#eq:lec26:simplified_nonlinear)
+    is no longer a set of independent 1D oscillators. The reduced internal force f^int​(q)
+    is a nonlinear function that couples all the components of q. This introduces
+    two critical questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do we efficiently time-step this coupled, nonlinear system?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How do we choose an effective basis U that can represent nonlinear deformations?
+    (next section)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[Timestepping and the Evaluation Bottleneck](#timestepping-and-the-evaluation-bottleneck)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'To solve [(26.3.2)](#eq:lec26:simplified_nonlinear) we typically use an implicit
+    time integration scheme, which is necessary to handle the high-frequency stiffness
+    common in elastic systems. An implicit step requires solving a linear system involving
+    the derivative of the forces. For our reduced system, this means we need the **reduced
+    tangent stiffness matrix**, K^(q):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: K^(q)=Dq​f^int​(q).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using the chain rule, we can relate this to the full-space tangent stiffness
+    matrix K(u)=Du​fint​(u):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: K^(q)=Dq​(UTfint​(Uq))=UTDq​(fint​(Uq))=UT(Du​(fint​(u))​u=Uq​Dq​(Uq)),
+  prefs: []
+  type: TYPE_NORMAL
+- en: K^(q)=UTK(Uq)U.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At each time step, an implicit integrator will solve a dense r×r linear system
+    involving K^. Since r≪3n, this is a monumental improvement over solving the original
+    sparse 3n×3n system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, a major computational challenge emerges: how do we compute f^int​(q)
+    and K^(q) efficiently? The naive approach is to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Take the current reduced coordinates q.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**De-project** to find the full-space deformation: u=Uq.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Evaluate** the full-space forces fint​(u) and stiffness K(u) by looping over
+    all elements in the high-resolution mesh.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Project back** to the reduced space: f^int​=UTfint​ and K^=UTKU.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This process is extremely slow because step 3 still requires a full pass over
+    the high-resolution mesh, completely defeating the purpose of model reduction.
+    Even worse, computing the matrix products UTKU is both computation and memory
+    intensive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Accelerating Force Evaluation](#accelerating-force-evaluation)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: To make nonlinear model reduction practical, we need a way to evaluate the reduced
+    forces and stiffness matrices without ever forming their full-space counterparts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Polynomial Fitting (for specific materials)](#polynomial-fitting-for-specific-materials)'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: For certain material models, a highly efficient analytical approach is possible.
+    For instance, in a geometrically nonlinear but materially linear model (e.g.,
+    St. Venant-Kirchhoff), each component of the full-space internal force vector
+    fint​(u) is a cubic polynomial in the components of u.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since u=Uq, it follows that the reduced force f^int​(q)=UTfint​(Uq) is also
+    a cubic polynomial, but in the reduced coordinates q. We can precompute the coefficients
+    of this r-variate cubic polynomial. At runtime, evaluating f^int​(q) and its derivative
+    K^(q) simply involves evaluating these precomputed polynomials. The evaluation
+    cost is O(r4) for the forces and O(r3) for implicit integration, which is manageable
+    for small r (e.g., r<30) and completely independent of the mesh size n. Unfortunately,
+    this approach is limited to materials where forces are low-degree polynomials.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Cubature (for general materials)](#cubature-for-general-materials)'
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: A more general and powerful solution is **cubature** [[An et al. 2008]](bibliography.html#an2008optimizing).
+    The core insight is to re-examine how the reduced force is calculated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The reduced energy E^ is the full energy evaluated within the subspace: E^(q)=E(Uq)=∫Ω0​​Ψ(F(Uq,X))dV.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The reduced internal force f^int​ is the gradient of this reduced energy with
+    respect to the reduced coordinates q. By moving the derivative inside the integral,
+    we find:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: f^int​(q)=∇q​E=∫Ω0​​∇q​Ψ(F(Uq,X))dV. This shows that the reduced force is the
+    integral of the *reduced energy density gradient* over the object's volume. The
+    projection UT is implicitly included within the derivative ∇q​ via the chain rule.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of computing this integral exactly by summing contributions from all
+    finite elements, cubature approximates it with a weighted sum over a very small
+    number, T, of pre-selected sample points (or "quadrature points") Xj​∈Ω0​:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: f^int​(q)≈j=1∑T​wj​∇q​Ψ(F(Uq,X))​X=Xj​​.(26.3.3)
+  prefs: []
+  type: TYPE_NORMAL
+- en: The number of cubature points T can be surprisingly small (often on the order
+    of r) while still yielding a highly accurate approximation. The points Xj​ and
+    their non-negative weights wj​ are optimized in a precomputation step to best
+    match the true reduced forces over a set of representative "training" poses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At runtime, evaluating the reduced forces and stiffness only requires looping
+    over these T points. The cost becomes independent of the original mesh resolution
+    n, making fast simulation of complex, nonlinear materials feasible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can notice that it might be very important *how* we choose the basis U s.t.
+    we can most effecitvely represent the space of non-linear deformations. This will
+    be discussed in the following section!
+  prefs: []
+  type: TYPE_NORMAL

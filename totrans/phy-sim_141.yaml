@@ -1,0 +1,170 @@
+- en: Particle-Grid Transfers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://phys-sim-book.github.io/lec26.3-euler_lag_transfers.html](https://phys-sim-book.github.io/lec26.3-euler_lag_transfers.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  prefs: []
+  type: TYPE_NORMAL
+- en: In MPM, the material state is stored on **Lagrangian particles**, while the
+    [Governing Equations](./lec16-strong_and_weak_forms.html) (e.g., conservation
+    of momentum) are solved on a temporary **Eulerian grid**. Therefore, we must transfer
+    information between particles and grid nodes at each time step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This section discusses how **mass**, **momentum**, and **internal forces (stress)**
+    are transferred from particles to grid (P2G), and how updated velocities are transferred
+    back from grid to particles (G2P).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Particle-to-Grid (P2G) Transfers](#particle-to-grid-p2g-transfers)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '**Mass Transfer**: Let mp​ be the mass of particle p, and wip​=Ni​(xp​) be
+    the [interpolation weight](./lec26.2-interpolating_functions.html) between grid
+    node i and particle p. We transfer mass to grid node i by taking a weighted sum:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: mi​=p∑​wip​mp​.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Momentum Transfer**: Similarly, particle velocity vp​ is used to compute
+    nodal momentum:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: (mv)i​=p∑​wip​mp​vp​.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, the **nodal velocity** of each grid node is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: vi​=mi​(mv)i​​.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Internal Force (Stress) Transfer**: In MPM, forces are evaluated on grid
+    nodes where [Newton’s second law](./lec1.2-newton_2nd_law.html) is applied. For
+    hyperelastic materials, the internal elastic force can be derived either from
+    the [Weak Form](./lec16.3-weak_form.html) of the momentum equation or from the
+    gradient of the [Strain Energy](./lec13-strain_energy.html). The latter is often
+    preferred when a well-defined energy density function is available.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Assuming a deformation-gradient-based hyperelastic energy density Ψp​(Fp​)
+    at each particle p, the total potential energy of the system is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: E=p∑​Vp0​Ψp​(Fp​),
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'where Vp0​ is the rest volume of particle p. The elastic force acting on grid
+    node i is then computed as the negative gradient of the total energy with respect
+    to the nodal position xi​:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: fi​(x)=−∂xi​∂E​=−p∑​Vp0​∂F∂Ψp​​(Fp​(x))FpT​∇wip​.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the case of explicit time integration such as Symplectic Euler, the force
+    is evaluated at the current time step n:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: fin​=−p∑​Vp0​∂F∂Ψp​​(Fpn​)(Fpn​)T∇wipn​.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This formulation expresses the force on grid node i due to the elastic stress
+    contributions from nearby particles. It depends entirely on known particle attributes
+    and interpolation weights at the current time step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Grid Update](#grid-update)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'After collecting information from the particles, time integration is then performed
+    on the grid, where 1st-order schemes are usually used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: v^in+1​=vin​+mi​Δt​(fi​+fiext​). Here, we use v^in+1​ to represent velocity
+    after grid update, so that it differs from the grid velocity after P2G transfer
+    in the next time step, which is written as vin+1​.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Boundary treatments](./lec28-mpm_bc.html) are also enforced during this stage
+    and will be discussed in later lectures.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Grid-to-Particle (G2P) Transfers](#grid-to-particle-g2p-transfers)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Once the grid velocity v^in+1​ is updated, we need to transfer information back
+    to the particles. The main quantity to update during the G2P transfer is the particle
+    velocity vpn+1​, which will be used in the [advection](src/lec26.4-particle_state_update.html)
+    step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The simplest approach is to interpolate velocity directly from the grid:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: vpn+1​=i∑​wip​v^in+1​.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This straightforward scheme is part of the **Particle-In-Cell (PIC)** [[Harlow
+    1962]](bibliography.html#harlow1962particle) method, but it is highly dissipative.
+    In practice, we often adopt improved transfer schemes to better preserve velocity
+    modes and conserve angular momentum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Different Transfer Schemes](#different-transfer-schemes)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Transfer schemes define how **P2G** and **G2P** collaborate, balancing numerical
+    stability, energy conservation, and physical realism in different ways.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Example 27.3.1 (PIC, Particle-In-Cell).** **P2G**: Particle velocity vp​
+    is transferred to the grid using: (mv)i​=p∑​wip​mp​vp​. **G2P**: Particle velocity
+    is interpolated directly from the grid: vpn+1​=i∑​wip​v^in+1​. PIC is very stable
+    and conserves linear momentum, but suffers from high numerical dissipation, loss
+    of fine-scale motion, and does not conserve angular momentum.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '**Example 27.3.2 (FLIP, Fluid-Implicit-Particle).** **P2G**: Same as PIC. **G2P**:
+    In FLIP, the particle velocity is updated by blending the newly interpolated velocity
+    and the change in velocity between time steps: vpn+1​=i∑​wip​v^in+1​+α(vpn​−i∑​wip​vin​),
+    where α∈[0,1] is the **FLIP-PIC blending factor** (with α=1 recovering full FLIP
+    and α=0.99 often used). Since FLIP only interpolate the velocity change, numerical
+    dissipation is effectively mitigated. However, note that to ensure the embedding
+    relation between the particle and grid, particle positions still need to be updated
+    using PIC''s velocity: xpn+1​=xpn​+Δti∑​wip​v^in+1​. FLIP can preserve system
+    energy and fine-scale motion over long time scales, making it well-suited for
+    simulating fluids with detailed local features. However, due to its lack of inherent
+    smoothing, it can introduce noise, penetration, or even instability in solid simulations.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '**Example 27.3.3 (APIC, Affine Particle-in-Cell).** [[Jiang et al. 2015]](bibliography.html#jiang2015affine)
+    introduces **affine velocity fields** to more accurately model local particle
+    motion and preserve angular momentum. Each particle stores an affine velocity
+    matrix Cp​ in addition to its velocity vp​. The particle velocity field is written
+    as: vp​(x)=vp​+Cp​(x−xp​). **P2G**: The momentum transfer includes affine motion:
+    (mv)i​=p∑​wip​mp​(vp​+Cp​(xi​−xp​)). This enables particles to transfer both linear
+    and angular momentum to the grid. **G2P**: After the grid update, particle velocity
+    and affine matrix are reconstructed from grid values: vpn+1​=i∑​wip​v^in+1​, Bpn+1​=Dp−1​i∑​wip​v^in+1​(xi​−xp​)T.
+    Here, Dp​ is a second moment matrix defined as: Dp​=i∑​wip​(xi​−xp​)(xi​−xp​)T.
+    For common B-spline interpolation kernels (quadratic and cubic), Dp​ has a constant
+    value: **Quadratic B-spline**: Dp​=41​Δx2I. **Cubic B-spline**: Dp​=31​Δx2I. Thus,
+    Dp−1​ is simply a constant scaling factor and need not be recomputed per particle.
+    APIC significantly reduces dissipation compared to PIC by capturing local rotational
+    and shear effects through affine velocity fields, while also preserving angular
+    momentum. Although it requires storing an additional local matrix Cp​ per particle
+    and computing particle-to-grid moment contributions, the cost is modest in practice.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL

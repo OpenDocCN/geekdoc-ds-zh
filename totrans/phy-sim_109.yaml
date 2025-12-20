@@ -1,0 +1,91 @@
+- en: Continuous Collision Detection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://phys-sim-book.github.io/lec21.4-ccd.html](https://phys-sim-book.github.io/lec21.4-ccd.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we have all the ingredients to solve for the search direction in a simulation
+    with self-contact. After obtaining the search direction, we perform line search
+    filtering for the point-edge pairs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 21.4.1 (Line search filtering, BarrierEnergy.py).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, we perform an overlap check on the bounding boxes of the spans of the
+    point and edge first to narrow down the number of point-edge pairs for which we
+    need to compute the time of impact:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 21.4.2 (Bounding box overlap check, CCD.py).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: To calculate a sufficiently large conservative estimation of the time of impact
+    (TOI), we cannot directly calculate the TOI and take a proportion of it as we
+    did for point-ground contact in [Filter Line Search](./lec8-filter_line_search.html).
+    Directly calculating the TOI for contact primitive pairs requires solving quadratic
+    or cubic root-finding problems in 2D and 3D, which are prone to numerical errors,
+    especially when distances are tiny and configurations are numerically degenerate
+    (e.g., nearly parallel edge-edge pairs in 3D).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, we implement the additive CCD method (ACCD) [[Li et al. 2021]](bibliography.html#li2021codimensional),
+    which iteratively moves the contact pairs along the search direction until the
+    minimum separation distance is reached, to robustly estimate the TOI.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Taking a point-edge pair as an example, the key insight of ACCD is that, given
+    the current positions p, e0​, e1​ and search directions dp​, de0​, de1​, its TOI
+    can be calculated as
+  prefs: []
+  type: TYPE_NORMAL
+- en: αTOI​=∥dp​−((1−λ)de0​+λde1​)∥∥p−((1−λ)e0​+λe1​)∥​
+  prefs: []
+  type: TYPE_NORMAL
+- en: assuming (1−λ)e0​+λe1​ is the point on the edge that p will first collide with.
+    The issue is that we do not know λ a priori. However, we can derive a lower bound
+    for αTOI​ as
+  prefs: []
+  type: TYPE_NORMAL
+- en: αTOI​​≥∥dp​∥+∥(1−λ)de0​+λde1​∥minλ∈[0,1]​∥p−((1−λ)e0​+λe1​)∥​≥∥dp​∥+max(∥de0​∥,∥de1​∥)dPE(p,e0​,e1​)​=αl​​​
+  prefs: []
+  type: TYPE_NORMAL
+- en: By taking a step with this lower bound αl​, we are guaranteed to have no interpenetration
+    for this pair. However, although straightforward to compute, αl​ can be much smaller
+    than αTOI​. Therefore, we iteratively calculate αl​ and advance a copy of the
+    participating nodes by this amount, accumulating all αl​ to monotonically improve
+    the estimate of αTOI​ until the point-edge pair reaches a distance smaller than
+    the minimum separation, e.g., 0.1× the original distance. The implementation is
+    as follows, where we first remove the shared components of the search directions
+    so that they have smaller magnitudes to achieve earlier termination of the algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Implementation 21.4.3 (ACCD method implementation, CCD.py).**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The final simulation results are demonstrated in [Figure 21.4.1](#fig:lec21:compress_2_squares).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/4fc528d88153a0359b2bddfa6c2330f4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Figure 21.4.1.** Two squares dropped onto the ground and compressed by a
+    ceiling. The ground has friction coefficient 0.4 but there is no friction between
+    the squares so that the top square slides down to the ground without significantly
+    changing the position of the bottom one.'
+  prefs: []
+  type: TYPE_NORMAL

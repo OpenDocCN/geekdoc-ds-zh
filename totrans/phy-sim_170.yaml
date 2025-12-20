@@ -1,0 +1,119 @@
+- en: Collision Constraints
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://phys-sim-book.github.io/lec32.2-pbd_collisions_constraints.html](https://phys-sim-book.github.io/lec32.2-pbd_collisions_constraints.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  prefs: []
+  type: TYPE_NORMAL
+- en: In any physical simulation, preventing the interpenetration of objects is paramount
+    for achieving plausible results. Position-Based Dynamics provides a unified approach
+    to this challenge. Collisions are not treated as a separate post-processing step
+    involving impulses or penalty forces; instead, they are formulated as unilateral
+    inequality constraints, just like [IPC](./lec7-dist_barrier.html) [[Li et al.
+    2020]](bibliography.html#li2020incremental) and integrated directly into the core
+    PBD solver loop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Triangle Self-Collisions](#triangle-self-collisions)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: For thin-shell objects like cloth or other deformable surfaces, a primary challenge
+    is handling self-collision, where the object folds and interacts with itself.
+    The most common scenario is a vertex penetrating a triangle from another part
+    of the mesh. This interaction is modeled with a unilateral constraint involving
+    all four participating particles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider a vertex with position q and a triangle with vertices p1​,p2​,p3​.
+    A collision constraint can be formulated by defining a minimum separation distance,
+    or thickness h, from the triangle plane. The unilateral constraint function is:
+    C(q,p1​,p2​,p3​)=(q−p1​)⋅n−h≥0(33.2.1) where n=(p2,1​×p3,1​)/∥p2,1​×p3,1​∥ is
+    the unit normal of the triangle. In case of C<0, all four particles (q,p1​,p2​,p3​)
+    are involved, and their positions are corrected according to their respective
+    inverse masses to resolve the penetration while conserving momentum. It is also
+    essential to check the barycentric coordinates of the vertex''s projection onto
+    the triangle plane to ensure the contact point lies within the triangle''s boundaries
+    before applying the correction.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Particle-Environment Collisions](#particle-environment-collisions)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The simplest collision scenario involves a dynamic particle interacting with
+    a static, immovable piece of geometry, such as a floor plane or a convex container.
+    This geometry acts as a boundary for the simulation domain. For a particle at
+    position p interacting with a static plane, the non-penetration condition can
+    be formulated as a constraint on the particle's signed distance from the plane.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let the plane be defined such that nTp−drest​=0 for any point p on it, where
+    n is the unit normal and drest​ is an offset. A non-penetration constraint for
+    a particle p is then written as an inequality: C(p)=nTp−drest​≥0(33.2.2) When
+    a particle violates this constraint (i.e., C(p)<0), the PBD solver projects its
+    position back to the surface. Since only one particle is dynamic, its inverse
+    mass is effectively infinite compared to the static geometry, so it receives the
+    full position correction required to satisfy C(p)=0. The correction simply moves
+    the particle along the plane normal n to resolve the penetration. You can imagine
+    how this can be simply extended to more complex shapes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Particle-Particle Collisions](#particle-particle-collisions)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: For simulating systems composed of discrete elements, such as granular materials,
+    we have to consider direct particle-particle collision. This constraint prevents
+    any two particles from overlapping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For two particles at positions pi​ and pj​ with corresponding radii ri​ and
+    rj​, the non-penetration constraint is a simple inequality based on their center-to-center
+    distance: C(pi​,pj​)=∥pi​−pj​∥−(ri​+rj​)≥0(33.2.3) Unlike the linear plane constraint,
+    this function is non-linear. This can be solved similarly to the stretching constraints
+    considered in the previous section. The solver calculates a correction that pushes
+    the two particles apart along the vector connecting their centers, distributing
+    the correction based on their inverse masses to conserve linear momentum.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Frictional Effects at the Position Level](#frictional-effects-at-the-position-level)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Friction is a dissipative contact force that opposes relative tangential motion
+    between surfaces. To be more robust we can incorporate friction directly into
+    the position-level constraint solve. This method is applied after an interpenetration
+    constraint between two particles, i and j, has been resolved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let pi​ and pj​ be the particle positions at the start of the time step. Let
+    p∗i​ and p∗j​ be the current candidate positions, which have already been corrected
+    to resolve penetration. The core idea is to compute a frictional position correction
+    that opposes the tangential component of the particles' relative displacement
+    during the timestep.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we determine the relative displacement vector over the timestep, Δprel​:
+    Δprel​=(p∗i​−pi​)−(p∗j​−pj​) Next, we find the tangential component of this displacement,
+    Δpt​, by projecting it onto the contact plane defined by the contact normal n.
+    Δpt​=Δprel​−(Δprel​⋅n)n(33.2.4) The friction model determines the magnitude of
+    the correction based on a comparison between the tangential displacement ∥Δpt​∥
+    and the static friction threshold, which is proportional to the penetration depth
+    d and the coefficient of static friction μs​.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A position correction vector, Δpfriction​, is calculated to oppose Δpt​. This
+    correction is then distributed between the two particles. The correction for particle
+    i is given by: Δpi​=−wi​+wj​wi​​×{Δpt​Δpt​min(∥Δpt​∥μk​d​,1)​if ∥Δpt​∥≤μs​dotherwise​(Static Friction)(Kinetic Friction)​(33.2.5)
+    where wi​=1/mi​ is the inverse mass and μk​ is the coefficient of kinetic friction.
+    The negative sign is crucial, as friction must oppose the tangential displacement.
+    In the static case, the correction fully cancels out the relative tangential movement.
+    In the kinetic case, the correction is limited by the kinetic friction force (Coulomb''s
+    law).'
+  prefs: []
+  type: TYPE_NORMAL
