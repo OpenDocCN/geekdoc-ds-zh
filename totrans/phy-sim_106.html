@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Scene Setup and Boundary Element Collection</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Scene Setup and Boundary Element Collection</h1>
+<blockquote>原文：<a href="https://phys-sim-book.github.io/lec21.1-scene_setup.html">https://phys-sim-book.github.io/lec21.1-scene_setup.html</a></blockquote>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css"/>
+
+<p>To begin with, we set up a new scene with two squares falling onto the ground, compressed by the ceiling so that self-contact will occur between these squares.</p>
+<p><a name="imp:lec21:sim_setup"/>
+<strong>Implementation 21.1.1 (Simulation setup, simulator.py).</strong></p>
+<pre><code class="language-python"># simulation setup
+side_len = 0.45
+rho = 1000      # density of square
+E = 1e5         # Young's modulus
+nu = 0.4        # Poisson's ratio
+n_seg = 2       # num of segments per side of the square
+h = 0.01        # time step size in s
+DBC = [(n_seg + 1) * (n_seg + 1) * 2]   # dirichlet node index
+DBC_v = [np.array([0.0, -0.5])]         # dirichlet node velocity
+DBC_limit = [np.array([0.0, -0.7])]     # dirichlet node limit position
+ground_n = np.array([0.0, 1.0])         # normal of the slope
+ground_n /= np.linalg.norm(ground_n)    # normalize ground normal vector just in case
+ground_o = np.array([0.0, -1.0])        # a point on the slope  
+mu = 0.4        # friction coefficient of the slope
+
+# initialize simulation
+[x, e] = square_mesh.generate(side_len, n_seg)       # node positions and triangle node indices of the top square
+e = np.append(e, np.array(e) + [len(x)] * 3, axis=0) # add triangle node indices of the bottom square
+x = np.append(x, x + [side_len * 0.1, -side_len * 1.1], axis=0) # add node positions of the bottom square
+</code></pre>
+<p>In line 17, we adapt the DOF index of the ceiling from <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.06em;vertical-align:-0.31em;"/><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mord" style="margin-right:0.02778em;"><em/></span><span class="mord mathnormal">se</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mspace" style="margin-right:0.2222em;"/><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"/></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"/><span class="mord">1</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"/><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222em;"/></span><span class="base"><span class="strut" style="height:1.06em;vertical-align:-0.31em;"/><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mord" style="margin-right:0.02778em;"/><span class="mord mathnormal">se</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mspace" style="margin-right:0.2222em;"/><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"/></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"/><span class="mord">1</span><span class="mclose">)</span></span></span></span> to <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.06em;vertical-align:-0.31em;"/><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mord" style="margin-right:0.02778em;"><em/></span><span class="mord mathnormal">se</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mspace" style="margin-right:0.2222em;"/><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"/></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"/><span class="mord">1</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"/><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222em;"/></span><span class="base"><span class="strut" style="height:1.06em;vertical-align:-0.31em;"/><span class="mopen">(</span><span class="mord mathnormal">n</span><span class="mord" style="margin-right:0.02778em;"/><span class="mord mathnormal">se</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mspace" style="margin-right:0.2222em;"/><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"/></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"/><span class="mord">1</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"/><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222em;"/></span><span class="base"><span class="strut" style="height:0.6444em;"/><span class="mord">2</span></span></span></span>, as we now have two squares. Line 26 generates the first square on the top, while lines 27 and 28 generate the second square on the bottom by creating copies and offsets.</p>
+<p>The initial frame, as shown in <a href="#fig:lec21:initial_frame">Figure 21.1.1</a>, is now established. However, without handling self-contact, these two squares cannot interact with each other yet.</p>
+<figure>
+    <center>
+    <img src="../Images/72510f01c2f90ae7e3f433a71dfd3cf3.png" width="200" data-original-src="https://phys-sim-book.github.io/img/lec21/initial.png"/>
+    <figcaption><b><a name="fig:lec21:initial_frame"/>
+Figure 21.1.1.</b> The new scene setup with 2 squares to fall. </figcaption>
+    </center>
+</figure>
+<p>To handle contact, we first need to collect all boundary elements. In 2D, this involves identifying the nodes and edges on the boundary where contact forces will be applied to all close but non-incident point-edge pairs. The following function finds all boundary nodes and edges given a triangle mesh:</p>
+<p><a name="imp:lec21:find_boundary"/>
+<strong>Implementation 21.1.2 (Collect boundary elements, square_mesh.py).</strong></p>
+<pre><code class="language-python">def find_boundary(e):
+    # index all half-edges for fast query
+    edge_set = set()
+    for i in range(0, len(e)):
+        for j in range(0, 3):
+            edge_set.add((e[i][j], e[i][(j + 1) % 3]))
+
+    # find boundary points and edges
+    bp_set = set()
+    be = []
+    for eI in edge_set:
+        if (eI[1], eI[0]) not in edge_set:
+            # if the inverse edge of a half-edge does not exist,
+            # then it is a boundary edge
+            be.append([eI[0], eI[1]])
+            bp_set.add(eI[0])
+            bp_set.add(eI[1])
+    return [list(bp_set), be]
+</code></pre>
+<p>This function is called in <code>simulator.py</code>, and the boundary elements are then passed to the time integrator for energy, gradient, and Hessian evaluations, as well as line search filtering.</p>
+
+                        
+</body>
+</html>

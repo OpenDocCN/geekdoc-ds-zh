@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Case Study: ABD Square Drop*</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Case Study: ABD Square Drop*</h1>
+<blockquote>原文：<a href="https://phys-sim-book.github.io/lec25.4-dropping_block.html">https://phys-sim-book.github.io/lec25.4-dropping_block.html</a></blockquote>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css"/>
+
+<p>Let’s now implement Affine Body Dynamics (ABD) in 2D for a neo-Hookean version of the <a href="./lec8.3-square_drop.html">square drop</a> simulation. This requires only minor modifications to the standard IPC simulation code. The full implementation is available in the <code>9_reduced_DOF</code> folder of our <a href="https://github.com/phys-sim-book/solid-sim-tutorial">solid simulation tutorial</a>.</p>
+<p>We begin by introducing a function to compute the reduced basis. In ABD, we consider only affine deformations. Therefore, we use <code>method=1</code> (polynomial basis) and <code>order=1</code> (linear basis) to extract the linear basis:</p>
+<p><a name="imp:lec25:compute_reduced_basis"/>
+<strong>Implementation 25.4.1 (Compute reduced basis, utils.py).</strong></p>
+<pre><code class="language-python">def compute_reduced_basis(x, e, vol, IB, mu_lame, lam, method, order):
+    if method == 0: # full basis, no reduction
+        basis = np.zeros((len(x) * 2, len(x) * 2))
+        for i in range(len(x) * 2):
+            basis[i][i] = 1
+        return basis
+    elif method == 1: # polynomial basis
+        if order == 1: # linear basis, or affine basis
+            basis = np.zeros((len(x) * 2, 6)) # 1, x, y for both x- and y-displacements
+            for i in range(len(x)):
+                for d in range(2):
+                    basis[i * 2 + d][d * 3] = 1
+                    basis[i * 2 + d][d * 3 + 1] = x[i][0]
+                    basis[i * 2 + d][d * 3 + 2] = x[i][1]
+        elif order == 2: # quadratic polynomial basis 
+            basis = np.zeros((len(x) * 2, 12)) # 1, x, y, x^2, xy, y^2 for both x- and y-displacements
+            for i in range(len(x)):
+                for d in range(2):
+                    basis[i * 2 + d][d * 6] = 1
+                    basis[i * 2 + d][d * 6 + 1] = x[i][0]
+                    basis[i * 2 + d][d * 6 + 2] = x[i][1]
+                    basis[i * 2 + d][d * 6 + 3] = x[i][0] * x[i][0]
+                    basis[i * 2 + d][d * 6 + 4] = x[i][0] * x[i][1]
+                    basis[i * 2 + d][d * 6 + 5] = x[i][1] * x[i][1]
+        elif order == 3: # cubic polynomial basis
+            basis = np.zeros((len(x) * 2, 20)) # 1, x, y, x^2, xy, y^2, x^3, x^2y, xy^2, y^3 for both x- and y-displacements
+            for i in range(len(x)):
+                for d in range(2):
+                    basis[i * 2 + d][d * 10] = 1
+                    basis[i * 2 + d][d * 10 + 1] = x[i][0]
+                    basis[i * 2 + d][d * 10 + 2] = x[i][1]
+                    basis[i * 2 + d][d * 10 + 3] = x[i][0] * x[i][0]
+                    basis[i * 2 + d][d * 10 + 4] = x[i][0] * x[i][1]
+                    basis[i * 2 + d][d * 10 + 5] = x[i][1] * x[i][1]
+                    basis[i * 2 + d][d * 10 + 6] = x[i][0] * x[i][0] * x[i][0]
+                    basis[i * 2 + d][d * 10 + 7] = x[i][0] * x[i][0] * x[i][1]
+                    basis[i * 2 + d][d * 10 + 8] = x[i][0] * x[i][1] * x[i][1]
+                    basis[i * 2 + d][d * 10 + 9] = x[i][1] * x[i][1] * x[i][1]
+        else:
+            print("unsupported order of polynomial basis for reduced DOF")
+            exit()
+        return basis
+    else: # modal-order reduction
+        if order &lt;= 0 or order &gt;= len(x) * 2:
+            print("invalid number of target basis for modal reduction")
+            exit()
+        IJV = NeoHookeanEnergy.hess(x, e, vol, IB, mu_lame, lam, project_PSD=False)
+        H = sparse.coo_matrix((IJV[2], (IJV[0], IJV[1])), shape=(len(x) * 2, len(x) * 2)).tocsr()
+        eigenvalues, eigenvectors = eigsh(H, k=order, which='SM') # get 'order' eigenvectors with smallest eigenvalues 
+        return eigenvectors
+</code></pre>
+<p>Here, <code>method=0</code> refers to full-space simulation and returns immediately without computing a basis.<br/>
+<code>method=1</code> computes polynomial bases, including linear, quadratic, and cubic functions. For each basis vector, the displacement components at each node are expressed as polynomial functions of the node’s material-space coordinates.
+<code>method=2</code> computes bases via linear modal analysis, which solves the eigensystem of the elasticity Hessian and extracts displacement fields that correspond to the deformation modes that increases the least amount of energy. This will be discussed in more detail in <a href="./lec25.6-modal_reductions.html">the next lecture</a>.</p>
+<p>After computing the basis, we restrict the simulation to the corresponding subspace by projecting the Hessian matrix and the gradient vector. This projection follows the chain rule, as described in Equation <a href="lec25.3-affine_body_dynamics.html#eq:lec25:newton_chain_rules">(25.3.1)</a>. The relevant implementation is:</p>
+<p><a name="imp:lec25:search_dir"/>
+<strong>Implementation 25.4.2 (Compute reduced search direction, time_integrator.py).</strong></p>
+<pre><code class="language-python">def search_dir(x, e, x_tilde, m, vol, IB, mu_lame, lam, y_ground, contact_area, is_DBC, reduced_basis, h):
+    projected_hess = IP_hess(x, e, x_tilde, m, vol, IB, mu_lame, lam, y_ground, contact_area, h)
+    reshaped_grad = IP_grad(x, e, x_tilde, m, vol, IB, mu_lame, lam, y_ground, contact_area, h).reshape(len(x) * 2, 1)
+    # eliminate DOF by modifying gradient and Hessian for DBC:
+    for i, j in zip(*projected_hess.nonzero()):
+        if is_DBC[int(i / 2)] | is_DBC[int(j / 2)]: 
+            projected_hess[i, j] = (i == j)
+    for i in range(0, len(x)):
+        if is_DBC[i]:
+            reshaped_grad[i * 2] = reshaped_grad[i * 2 + 1] = 0.0
+    reduced_hess = reduced_basis.T.dot(projected_hess.dot(reduced_basis)) # applying chain rule
+    reduced_grad = reduced_basis.T.dot(reshaped_grad) # applying chain rule
+    return (reduced_basis.dot(spsolve(reduced_hess, -reduced_grad))).reshape(len(x), 2) # transform to full space after the solve
+</code></pre>
+<p>These changes enable us to run the ABD version of the square-drop simulation:</p>
+<figure>
+    <center>
+        <img src="../Images/12b5ff77c25680a147f38d6c8769cc5f.png" data-original-src="https://phys-sim-book.github.io/img/lec25/abd_sim.gif"/>
+        <figcaption><b><a name="fig:lec25:abd_sim"/>
+Figure 25.4.1.</b> ABD simulation of a square dropped onto the ground.</figcaption>
+    </center>
+</figure>
+<p>In this example, we reduce the stiffness parameter to make the body softer, emphasizing the difference between ABD and standard IPC. The blue mesh is the original mesh (also used for collision), while the red triangle visualizes the reduced degrees of freedom.</p>
+
+                        
+</body>
+</html>
