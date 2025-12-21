@@ -1,200 +1,296 @@
 - en: GPU-Accelerated Simulation
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: GPU加速模拟
 - en: 原文：[https://phys-sim-book.github.io/lec4.6-gpu_accel.html](https://phys-sim-book.github.io/lec4.6-gpu_accel.html)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://phys-sim-book.github.io/lec4.6-gpu_accel.html](https://phys-sim-book.github.io/lec4.6-gpu_accel.html)
 - en: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
 - en: '**Author of this section: [Zhaofeng Luo](https://roushelfy.github.io/), Carnegie
     Mellon University*'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: '**本节作者：[罗肇锋](https://roushelfy.github.io/)，卡内基梅隆大学**'
 - en: We now rewrite the 2D mass-spring simulator to leverage GPU acceleration. Instead
     of directly writing [CUDA](https://developer.nvidia.com/cuda-toolkit), we resort
     to [MUDA](https://github.com/MuGdxy/muda), a lightweight library that provides
     a simple interface for GPU-accelerated computations.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在重写2D质量-弹簧模拟器以利用GPU加速。我们不是直接编写[CUDA](https://developer.nvidia.com/cuda-toolkit)，而是求助于[MUDA](https://github.com/MuGdxy/muda)，这是一个轻量级的库，它提供了一个简单的接口用于GPU加速计算。
 - en: The architecture of the GPU-accelerated simulator is similar to the Python version.
     All function and variable names are consistent with the Numpy version. However,
     the implementation details are different due to the GPU architecture and programming
     model. Before delving into the details, let's first get a feeling of the speedup
     that GPU could bring us from the following gif ([Figure 4.6.1](#fig:lec4:cpu_vs_gpu)).
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: GPU加速模拟器的架构与Python版本类似。所有函数和变量名都与Numpy版本一致。然而，由于GPU架构和编程模型的不同，实现细节也不同。在深入细节之前，让我们先从以下gif（[图4.6.1](#fig:lec4:cpu_vs_gpu)）中感受GPU能为我们带来的加速效果。
 - en: '![](../Images/fbd53762482cd3796eb946c75f5c6562.png) ![](../Images/ac44bb5d43380bbdb6eebffdc5e83ef8.png)'
+  id: totrans-6
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/fbd53762482cd3796eb946c75f5c6562.png) ![](../Images/ac44bb5d43380bbdb6eebffdc5e83ef8.png)'
 - en: '**Figure 4.6.1.** An illustration of simulation speed of the Numpy CPU (left)
     and the MUDA GPU (right) versions.'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: '**图4.6.1**。Numpy CPU（左）和MUDA GPU（右）版本模拟速度的示意图。'
 - en: '[Key Considerations for GPU Programming](#key-considerations-for-gpu-programming)'
+  id: totrans-8
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '[GPU编程的关键考虑因素](#key-considerations-for-gpu-programming)'
 - en: 'To maximize resource utilization on the GPU, there are two important aspects
     to consider:'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了最大化GPU上的资源利用率，有两个重要的方面需要考虑：
 - en: '**Minimizing Data Transfer.** In most modern architectures, CPU and GPU have
     separate memory spaces. Transferring data between these spaces can be expensive.
     Therefore, it is essential to minimize data transfers between CPU and GPU.'
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**最小化数据传输**。在大多数现代架构中，CPU和GPU有独立的内存空间。在这些空间之间传输数据可能很昂贵。因此，最小化CPU和GPU之间的数据传输至关重要。'
 - en: '**Exploiting Parallelism.** GPUs excel at parallel computations. However, care
     must be taken to avoid read-write conflicts that can arise when multiple threads
     attempt to access the same memory locations simultaneously.'
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**利用并行性**。GPU在并行计算方面表现出色。然而，当多个线程同时尝试访问相同的内存位置时，必须小心避免读写冲突。'
 - en: '[Minimizing Data Transfer](#minimizing-data-transfer)'
+  id: totrans-12
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '[最小化数据传输](#minimizing-data-transfer)'
 - en: To reduce data transfer between the CPU and GPU, we store the main energy values
     and their derivatives on the GPU. Computations are then performed directly on
     the GPU, and only the necessary position information is transferred back to the
     CPU for control and rendering. A more efficient implementation could render directly
     on the GPU, eliminating even this data transfer, but for simplicity and readability,
     we have not implemented that here.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了减少CPU和GPU之间的数据传输，我们将主要能量值及其导数存储在GPU上。然后直接在GPU上执行计算，仅将必要的位置信息传输回CPU进行控制和渲染。更高效的实现可以在GPU上直接渲染，从而消除这种数据传输，但为了简单和可读性，我们在这里没有实现这一点。
 - en: To make the code more readable, the variables begin with `device_` are stored
     in the GPU memory, and the variables begin with `host_` are stored in the CPU
     memory.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了使代码更易读，以`device_`开头的变量存储在GPU内存中，以`host_`开头的变量存储在CPU内存中。
 - en: '**Implementation 4.6.1 (Data structure, MassSpringEnergy.cu).**'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: '**实现4.6.1（数据结构，MassSpringEnergy.cu）。**'
 - en: '[PRE0]'
+  id: totrans-16
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: As shown in the code above, the energy values and their derivatives, as well
     as all the necessary parameters are stored in a `DeviceBuffer` object, which is
     a wrapper of the CUDA device memory implemented by the MUDA library. This allows
     us to perform computations directly on the GPU without the need for data transfer
     between the CPU and GPU.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 如上代码所示，能量值及其导数以及所有必要的参数都存储在一个`DeviceBuffer`对象中，这是由MUDA库实现的CUDA设备内存的包装器。这使得我们能够在GPU上直接进行计算，而无需在CPU和GPU之间进行数据传输。
 - en: '[Newton''s Method](#newtons-method)'
+  id: totrans-18
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '[牛顿法](#newtons-method)'
 - en: 'The iterations of Newton''s method is a serial process and cannot be parallelized.
     Therefore, we implement this part on the CPU:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 牛顿法的迭代是一个串行过程，不能并行化。因此，我们将这部分实现在了 CPU 上：
 - en: '**Implementation 4.6.2 (Newton''s method, simulator.cu).**'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: '**实现 4.6.2（牛顿法，simulator.cu）。**'
 - en: '[PRE1]'
+  id: totrans-21
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: In this function, `step_forward`, the projected Newton method with line search
     is implemented, performing necessary computations on the GPU while controlling
     the process on the CPU. Any variable begin with `device_` here is a `DeviceBuffer`
     object on the GPU. To print the values in `DeviceBuffer` for debugging purposes,
     the common practice is to transfer the data back to the CPU, or call the `display_vec`
     function (which calls `printf` in parallel on the GPU) implemented in `uti.cu`.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个函数 `step_forward` 中，实现了带有线搜索的投影牛顿法，在 GPU 上执行必要的计算，同时在 CPU 上控制过程。这里以 `device_`
+    开头的任何变量都是 GPU 上的 `DeviceBuffer` 对象。为了调试目的打印 `DeviceBuffer` 中的值，常见的做法是将数据传输回 CPU，或者调用
+    `uti.cu` 中实现的 `display_vec` 函数（该函数在 GPU 上并行调用 `printf`）。
 - en: 'The `update_x` function updates the positions of the nodes to all Energy classes
     and transfers the updated positions back to the CPU for rendering:'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: '`update_x` 函数更新所有能量类别的节点位置，并将更新后的位置传输回 CPU 进行渲染：'
 - en: '**Implementation 4.6.3 (Update positions, simulator.cu).**'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: '**实现 4.6.3（更新位置，simulator.cu）。**'
 - en: '[PRE2]'
+  id: totrans-25
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'As the Energy classes has already updated its positions, the `IP_val` function
     no loner needs to pass any parameters, avoiding unnecessary data transfer. In
     fact, it only calls the `val` function of all energy classes and then sum the
     results together:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于能量类别已经更新了其位置，`IP_val` 函数不再需要传递任何参数，从而避免了不必要的资料传输。实际上，它只调用所有能量类别的 `val` 函数，然后将结果相加：
 - en: '**Implementation 4.6.4 (Computing IP, simulator.cu).**'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: '**实现 4.6.4（计算 IP，simulator.cu）。**'
 - en: '[PRE3]'
+  id: totrans-28
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Similarly for the `IP_grad` and `IP_hess` functions:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于 `IP_grad` 和 `IP_hess` 函数也是类似的：
 - en: '**Implementation 4.6.5 (Computing IP gradient and Hessian, simulator.cu).**'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: '**实现 4.6.5（计算 IP 梯度和海森矩阵，simulator.cu）。**'
 - en: '[PRE4]'
+  id: totrans-31
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: Notice that they utilize the parallel operations (`add_vector` and `add_triplet`,
     which are implemented in `uti.cu`) on the GPU to perform the summation for gradients
     and Hessians.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，它们利用了 GPU 上的并行操作（`add_vector` 和 `add_triplet`，这些操作在 `uti.cu` 中实现）来执行梯度和海森矩阵的求和。
 - en: '[Parallel Computations](#parallel-computations)'
+  id: totrans-33
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: '[并行计算](#parallel-computations)'
 - en: In our implementation, parallel computation is primarily employed in the computation
     of energy and its derivatives, as well as vector addition and subtraction. Let's
     take the MassSpringEnergy computation as an example.
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的实现中，并行计算主要用于能量及其导数的计算，以及向量的加法和减法。以质量弹簧能量计算为例。
 - en: '[Energy Computation](#energy-computation)'
+  id: totrans-35
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '[能量计算](#energy-computation)'
 - en: '**Implementation 4.6.6 (Computing energy, MassSpringEnergy.cu).**'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: '**实现 4.6.6（计算能量，MassSpringEnergy.cu）。**'
 - en: '[PRE5]'
+  id: totrans-37
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: The `ParallelFor` function distributes the computation across multiple GPU threads.
     The captured variables in the lambda function allow access to the necessary data
     structures within each thread.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: '`ParallelFor` 函数将计算分配到多个 GPU 线程。lambda 函数中捕获的变量允许在每个线程中访问必要的数据结构。'
 - en: '[Gradient Computation](#gradient-computation)'
+  id: totrans-39
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '[梯度计算](#gradient-computation)'
 - en: '**Implementation 4.6.7 (Computing gradients, MassSpringEnergy.cu).**'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: '**实现 4.6.7（计算梯度，MassSpringEnergy.cu）。**'
 - en: '[PRE6]'
+  id: totrans-41
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: The `atomicAdd` function is crucial in the gradient computation to ensure safe
     concurrent updates to shared data (different edges can update the gradient of
     the same node), thus preventing race conditions.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 在梯度计算中，`atomicAdd` 函数至关重要，它确保了对共享数据的并发更新是安全的（不同的边可以更新相同节点的梯度），从而防止了竞态条件。
 - en: '[Hessian Computation](#hessian-computation)'
+  id: totrans-43
   prefs:
   - PREF_H4
   type: TYPE_NORMAL
+  zh: '[海森矩阵计算](#hessian-computation)'
 - en: 'We utilized the Sparse Matrix data structure to store the Hessian matrix. The
     computation is parallelized across multiple threads, with each thread updating
     a specific element of the Hessian matrix. The actual size of the Sparse Matrix
     is calculated at the start of the simulation, allocating just enough memory for
     non-zero entries. The main consideration here is to calculate the correct indices
     for each element during simulation:'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们使用了稀疏矩阵数据结构来存储海森矩阵。计算在多个线程上并行化，每个线程更新海森矩阵的特定元素。稀疏矩阵的实际大小在模拟开始时计算，只为非零项分配足够的内存。这里的主要考虑是在模拟期间计算每个元素的正确索引：
 - en: '**Implementation 4.6.8 (Computing Hessians, MassSpringEnergy.cu).**'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: '**实现 4.6.8（计算海森矩阵，MassSpringEnergy.cu）。**'
 - en: '[PRE7]'
+  id: totrans-46
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
