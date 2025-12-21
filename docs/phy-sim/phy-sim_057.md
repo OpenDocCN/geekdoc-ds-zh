@@ -1,0 +1,15 @@
+# 移动边界条件*
+
+> 原文：[`phys-sim-book.github.io/lec11-mov_DBC.html`](https://phys-sim-book.github.io/lec11-mov_DBC.html)
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
+运动学碰撞对象（CO）和移动的 Dirichlet 边界条件（BC）在许多仿真场景中至关重要。一个 CO 可以被视为一组 BC 节点。
+
+在时间步长的开始，如果 BC 节点可以直接移动到指定的位置而不造成任何穿透，那就非常理想。这允许仿真使用自由度（DOF）消除法平稳进行，该方法确保约束始终可行。
+
+然而，在时间步长较大、速度较高或变形显著的情况下，直接指定 BC 节点往往会导致穿透或“隧道”效应，其中物体以不现实的方式穿过彼此。
+
+为了解决这些挑战，采用了罚函数法。这种方法逐步调整仿真，使其朝着满足 CO 和 BC 约束的可行集发展，并避免穿透。
+
+通过压缩正方形的仿真将展示这些原理的一个案例研究。

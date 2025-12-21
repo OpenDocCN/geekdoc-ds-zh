@@ -1,0 +1,7 @@
+# 运动学
+
+> 原文：[`phys-sim-book.github.io/lec23.1-kinematics.html`](https://phys-sim-book.github.io/lec23.1-kinematics.html)
+
+`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+
+与二维三角形元素类似，我们使用 β,γ,τ∈[0,1] 且 β+γ+τ≤1 来表示由顶点 X1、X2、X3 和 X4 定义的四面体元素中任意点 X 的材料空间坐标，如下所示：X(β,γ,τ)=X1+β(X2−X1)+γ(X3−X1)+τ(X4−X1)=(1−β−γ−τ)X1+βX2+γX3+τX4。在这里，X 是 (β,γ,τ) 的线性函数。使用线性形状函数，近似的世界空间坐标 x^ 也是 (β,γ,τ) 的线性函数：x(β,γ,τ)≈x^(β,γ,τ)=(1−β−γ−τ)x1+βx2+γx3+τx4，其中 x(Xi) 表示为 xi。这意味着形状函数为：N1(β,γ,τ)N2(β,γ,τ)N3(β,γ,τ)N4(β,γ,τ)=1−β−γ−τ=β=γ=τ。

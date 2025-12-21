@@ -1,0 +1,13 @@
+# 摘要
+
+> 原文：[`phys-sim-book.github.io/lec3.4-summary.html`](https://phys-sim-book.github.io/lec3.4-summary.html)
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
++   在检查了传统牛顿法在光滑凸能量上的收敛性问题之后，我们引入了一种回溯**线搜索**方案，以最小化隐式欧拉时间积分的增量势，确保全局收敛。
+
++   为了保证发现正步长，增量势 Hessian 被投影到一个附近的对称正定（SPD）矩阵上。这种**SPD 投影**通过消除每个非凸能量邻域的 Hessian 矩阵的负特征值来实现，涉及到的节点数量很少。
+
++   介绍了一个提供更直观和一致方法来设置容差**收敛标准**，该标准利用牛顿搜索方向。
+
+在下一讲中，我们将通过一个简单的二维案例研究，清晰地演示所有涵盖的主题。

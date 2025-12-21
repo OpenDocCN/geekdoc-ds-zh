@@ -1,0 +1,19 @@
+# 线性系统
+
+> 原文：[`phys-sim-book.github.io/lec33-linear_sys.html`](https://phys-sim-book.github.io/lec33-linear_sys.html)
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
+**本讲座作者：[谢天翼](https://xpandora.github.io/)，加州大学洛杉矶分校**
+
+在优化模拟的背景下，求解线性系统是牛顿型方法的基本步骤。在每次迭代（见算法 3.3.1）中，我们需要计算一个搜索方向 p，如下所示：
+
+p=−P−1∇E(x)，
+
+其中 P 通常为增量势能的 Hessian（或正定代理），∇E(x)是其在当前迭代处的梯度。在实践中，P 通常是一个大型的、稀疏的、对称正定（SPD）矩阵。这相当于求解形式为的线性系统：
+
+Ax=b，
+
+其中 A=P，x=p，b=−∇E(x)。
+
+高效求解这些线性系统对于优化时间积分器的性能至关重要。根据问题的大小和结构，通常使用直接和迭代求解器。以下章节介绍了这些线性系统的基本结构，并讨论了常见的解决方案。

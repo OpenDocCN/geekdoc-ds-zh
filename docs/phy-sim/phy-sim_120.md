@@ -1,0 +1,13 @@
+# 摘要
+
+> 原文：[`phys-sim-book.github.io/lec23.4-summary.html`](https://phys-sim-book.github.io/lec23.4-summary.html)
+
+`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+
+在本节中，我们深入探讨将我们的固体模拟器扩展以适应 3D 弹性动力学模拟的过程。
+
+这种增强涉及使用 3-简单形四面体元素对固体域进行离散化。因此，运动学、质量矩阵和弹性能量采用与 2D 相同的方法，但现在为每个元素参数空间、积分和变形梯度引入了一个额外的维度。
+
+为了保持无逆元素，线性搜索过滤操作类似，尽管现在它需要为每个元素求解三次方程。
+
+在下一节中，我们将探讨将摩擦接触组件扩展到 3D 场景的过程。

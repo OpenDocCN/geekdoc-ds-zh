@@ -1,0 +1,13 @@
+# 强形式和弱形式
+
+> 原文：[`phys-sim-book.github.io/lec16-strong_and_weak_forms.html`](https://phys-sim-book.github.io/lec16-strong_and_weak_forms.html)
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
+在固体模拟中使用的更新规则（参见图 (1.5.1)) 和相应的优化问题（参见图 (2.1.1)) 是通过对从其连续形式离散化守恒定律——我们的控制方程——来推导得到的。本章将探讨这些守恒定律的强形式和弱形式的推导。然后，我们将讨论它们的时间离散化和空间离散化方法，这对于构建我们旨在解决的离散问题至关重要。
+
+我们研究的核心基本控制方程是质量守恒和动量守恒（牛顿第二定律）。下面我们将概述这些方程，并在本讲后面提供详细的推导。
+
+> **定义 16.1（强形式）。** 设 V(X,t)=∂t∂ϕ(X,t)=∂t∂x(X,t) 为定义在 X 上的速度，方程为 [[Gonzalez & Stuart 2008]](bibliography.html#gonzalez2008first)：R(X,t)J(X,t)=R(X,0)R(X,0)∂t∂V(X,t)=∇X⋅P(X,t)+R(X,0)g，质量守恒，动量守恒，其中 X∈Ω0 和 t≥0。这里 R 是质量密度，J(X,t)=detF(X,t)，P 是第一 Piola-Kirchoff 应力，g 是常数重力加速度。注意 J(X,0)=1，质量守恒也可以写成 ∂t∂(R(X,t)J(X,t))=0。
+
+这些方程最初以强形式呈现。在本讲中，我们还将推导出力平衡方程（动量守恒）的等效弱形式。弱形式使用积分表达式重新表述守恒定律，这对于使用有限元方法推导方程的时间离散化和空间离散化至关重要。

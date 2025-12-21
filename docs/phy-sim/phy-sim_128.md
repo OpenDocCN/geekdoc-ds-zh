@@ -1,0 +1,35 @@
+# 子空间模拟
+
+> 原文：[`phys-sim-book.github.io/lec25.2-subspace_sim.html`](https://phys-sim-book.github.io/lec25.2-subspace_sim.html)
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
+在本小节中，我们使用子空间优化方法推导出刚体动力学方程的约束版本。这种公式将刚体动力学与增量势能接触（IPC）方法联系起来，这将在后续章节中进一步阐述。
+
+回想一下，在 IPC 中，模拟问题被表述为以下优化问题：xn+1where E(x)​=xargmin​E(x)=21​∥x−x~n∥+Δt2P(x).​​
+
+在这里，E(x)是增量势能，x 表示待求解的粒子位置。
+
+设 x 为刚体上的一个粒子位置，由刚体的旋转矩阵 Q 和平移量 q 参数化。刚体运动学强加约束 x=Qxˉ+q，其中 xˉ是粒子在局部坐标系中的位置。以堆叠形式表示，则为：
+
+x=xˉQ+Sˉq,
+
+其中，xˉ和 Sˉ是独立于 Q 和 q 的常数矩阵，因为它们只依赖于刚体局部坐标系中的局部粒子位置。
+
+将其代入 IPC 公式，我们得到以下约束优化问题：
+
+Qn+1,qn+1whereE(Q,q)​=Q,qargmin​E(Q,q)s.t.f(Q)=0,=21​​xˉQ+Sˉq−x~n​2+Δt2P(xˉQ+Sˉq),​​
+
+其中约束 f(Q)=0 强制每个刚体 i 的旋转矩阵 Qi 的刚性，即 QiT​Qi​−I3​=0。
+
+应用拉格朗日乘数法，我们引入拉格朗日量：
+
+G=E(Q,q)+λ⊤f(Q),
+
+并推导出驻定条件：∇q​G∇Q​G∇λ​G​=0,=0,=0.​​
+
+这导致以下约束刚体动力学方程：
+
+xˉ⊤M(xˉQ+Sˉq)+Δt2xˉ⊤∇P(xˉQ+Sˉq)+(∇f(Q))⊤λSˉ⊤M(xˉQ+Sˉq)+Δt2Sˉ⊤∇P(xˉQ+Sˉq)f(Q)​=0,=0,=0.​​(25.2.1)
+
+这些方程定义了在子空间约束动力学下的刚体运动，同时满足能量一致性和刚性约束。

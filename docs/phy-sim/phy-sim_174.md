@@ -1,0 +1,7 @@
+# 摘要
+
+> 原文：[`phys-sim-book.github.io/lec32-summary.html`](https://phys-sim-book.github.io/lec32-summary.html)
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
+我们通过各种约束类型探索了基于位置的动力框架的多样性，这些约束类型能够模拟多种物理系统。**距离约束**提供了布料拉伸和弯曲阻力，而**单边不等式约束**在位置级别处理接触和摩擦。**体积守恒约束**通过四面体和全局体积保持来维持不可压缩性，**密度约束**通过基于 SPH 的核来实现基于位置的流体模拟。最后，**基于连续介质力学的约束**通过应变能公式和直接应变分量控制将 PBD 与超弹性材料模型连接起来。总之，这些约束类型共同展示了 PBD 在单一、高效框架内模拟布料、流体、软体和接触现象的统一方法。

@@ -1,0 +1,7 @@
+# 应变能
+
+> 原文：[`phys-sim-book.github.io/lec13-strain_energy.html`](https://phys-sim-book.github.io/lec13-strain_energy.html)
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
+以变形梯度 F 作为局部变形的严格数学度量，我们可以基于 F 定义弹性势能，以更精确地捕捉固体的弹性行为。F 在固体域内的每个局部点都被测量。我们将对每个点进行局部弹性势能的测量，然后将这些测量在整个域内进行积分。这种方法与 2D 质量弹簧案例研究中使用的过程类似，在该研究中，每个弹簧的能量，通过一个估计的体积加权，在离散设置中被求和。在这里，F 也被称为**应变**，弹性势能 Pe，被称为**应变能**，是通过在固体域内的每个材料点对**应变能密度函数** Ψ(F):Rd×d→R 进行积分得到的：Pe=∫Ω0Ψ(F)dX。在本讲中，我们将探讨 Ψ(F) 的各种设计选择，并检查它们的一些性质。
