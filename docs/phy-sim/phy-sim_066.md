@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec13.1-rigid_null_rot_inv.html`](https://phys-sim-book.github.io/lec13.1-rigid_null_rot_inv.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 如前所述，对于仅经历平移和/或旋转运动的固体，不会储存弹性势能，因此不会产生弹性力。这意味着任何应变能密度函数 Ψ(F) 都具有**刚性零空间**，这意味着如果输入的变形梯度是任何旋转矩阵 R，则 Ψ(F) 应该保持为 0：Ψ(F)=0∀F=R。一个方阵 F 是旋转矩阵当且仅当：FT=F−1 且 J≡det(F)=1。从这个定义中，Ψ(F) 的一个直接公式出现，通过二次项惩罚 F 从旋转矩阵的任何偏差：Ψ(F)=4μ∥FTF−I∥F2+2λ(J−1)2.(13.1.1) 这里，μ 和 λ 是刚度参数，第一个项是从右乘 F 到 FT=F−1 的两边得到的。这个直观的公式与许多标准的应变能密度函数的构建方式紧密一致。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec21.1-scene_setup.html`](https://phys-sim-book.github.io/lec21.1-scene_setup.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 首先，我们设置一个新的场景，其中有两个正方形落在地面上，被天花板压缩，使得这些正方形之间将发生自接触。
 

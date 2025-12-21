@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.4-dropping_block.html`](https://phys-sim-book.github.io/lec25.4-dropping_block.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 现在我们来实现 2D 中的仿射体动力学（ABD），用于方形下落模拟的新胡克版本。这只需要对标准 IPC 模拟代码进行少量修改。完整的实现可以在我们的[固体模拟教程](https://github.com/phys-sim-book/solid-sim-tutorial)的`9_reduced_DOF`文件夹中找到。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec19-linear_FEM.html`](https://phys-sim-book.github.io/lec19-linear_FEM.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 从连续设置中的控制方程中，我们使用后向欧拉时间积分规则推导出离散化弱形式系统（nd 个方程）：
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec26.5-summary.html`](https://phys-sim-book.github.io/lec26.5-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 材料点法（MPM）的单个时间步长模拟过程如下：
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec21.3-barrier_and_derivatives.html`](https://phys-sim-book.github.io/lec21.3-barrier_and_derivatives.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 在实现了点-边距离函数之后，我们可以遍历所有点-边对来组装总的势垒能量及其导数。这些将被用于在时间步优化中求解搜索方向。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec1.6-summary.html`](https://phys-sim-book.github.io/lec1.6-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 对固体的模拟涉及预测它们随时间变化的位置和形状。要在计算机上实现这一点，几何形状和时间都必须以离散的形式表示。
 

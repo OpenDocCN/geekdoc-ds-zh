@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec4.6-gpu_accel.html`](https://phys-sim-book.github.io/lec4.6-gpu_accel.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 **本节作者：[罗肇锋](https://roushelfy.github.io/)，卡内基梅隆大学**
 

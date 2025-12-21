@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec32.5-pbd_continuum.html`](https://phys-sim-book.github.io/lec32.5-pbd_continuum.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 虽然简单的几何约束，如距离和体积，对许多材料是有效的，但通过直接从连续介质力学的原理推导约束，可以实现更物理严格和表达丰富的模拟。这种方法将基于位置的动力系统与有限元法（FEM）等已建立方法的丰富理论基础联系起来，允许模拟包括各向异性、弹塑性和非线性弹性在内的复杂材料行为。核心思想是基于变形梯度定义约束，这是一个测量材料局部拉伸和剪切的张量。
 

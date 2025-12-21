@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.2-subspace_sim.html`](https://phys-sim-book.github.io/lec25.2-subspace_sim.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本小节中，我们使用子空间优化方法推导出刚体动力学方程的约束版本。这种公式将刚体动力学与增量势能接触（IPC）方法联系起来，这将在后续章节中进一步阐述。
 

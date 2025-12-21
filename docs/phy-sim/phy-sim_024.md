@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec4.4-opt_time_integrator.html`](https://phys-sim-book.github.io/lec4.4-opt_time_integrator.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在建立了评估任意配置的增量势的能力之后，我们现在将注意力转向优化时间积分器的实现。这个积分器对于最小化增量势至关重要，进而更新节点位置和速度。此实现遵循 算法 3.3.1 中概述的方法：
 

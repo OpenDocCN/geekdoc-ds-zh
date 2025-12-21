@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec20-pw_linear_boundary.html`](https://phys-sim-book.github.io/lec20-pw_linear_boundary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本讲座中，我们将继续讨论线性有限元，重点关注分段线性边界上的边界条件和摩擦自接触。具体来说，我们将检查边界积分项的计算：
 

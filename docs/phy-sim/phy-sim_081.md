@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec16.1-mass_conserv.html`](https://phys-sim-book.github.io/lec16.1-mass_conserv.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们可以将质量密度 R(X,t) 视为在 Ω0 上自然定义的，即 R(X,t) = ϵ→+0lim 体积(Bϵt) / 质量(Bϵt) = ϵ→+0lim ∫Bϵt dx / 质量(Bϵt) ，(16.1.1) 其中 Bϵt 是 Bϵ0 的世界空间对应物（围绕 Ω0 中的任意 X∈Ω0 的半径为 ϵ 的球体）。这可以说是自然的定义，因为质量(Bϵt) 应该是一个可测量的量。质量守恒可以表示为 质量(Bϵt) = 质量(Bϵ0) ，∀ Bϵ0 ⊂ Ω0 且 t≥0。(16.1.2)
 

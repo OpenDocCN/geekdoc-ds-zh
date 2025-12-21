@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec4.3-mass_spring_energy.html`](https://phys-sim-book.github.io/lec4.3-mass_spring_energy.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 在本案例研究中，我们专注于将质量-弹簧弹性势能纳入我们的系统。质量-弹簧弹性的概念类似于将网格的每条边都视为一个弹簧。这种方法受到胡克定律的启发，使我们能够以下列方式对边 e 上的势能进行公式化：
 

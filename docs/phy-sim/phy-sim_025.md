@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec4.5-sim_with_vis.html`](https://phys-sim-book.github.io/lec4.5-sim_with_vis.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在收集了所有必要的 2D 质量-弹簧模拟器元素后，下一步是实现模拟器。此实现将以逐步方式进行，并包括可视化功能以增强理解和参与。
 

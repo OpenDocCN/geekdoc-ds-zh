@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.3-affine_body_dynamics.html`](https://phys-sim-book.github.io/lec25.3-affine_body_dynamics.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 之前，我们回顾了刚体动力学，并使用显式积分实现了一个简单的求解器。
 

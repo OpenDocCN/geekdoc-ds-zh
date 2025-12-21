@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec19.3-elasticity_term.html`](https://phys-sim-book.github.io/lec19.3-elasticity_term.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 对于离散弱形式系统中的弹性项 ∫Ω0​Na^,j​(X)Pi^j​(X,tn)dX，我们可以将其写成每个三角形 e 上的积分之和，以向量形式表示：
 

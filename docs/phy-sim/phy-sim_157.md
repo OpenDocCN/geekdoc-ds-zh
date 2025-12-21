@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec30.1-drucker_prager.html`](https://phys-sim-book.github.io/lec30.1-drucker_prager.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 **Drucker-Prager** 塑性模型被广泛用于模拟沙子和土壤等颗粒材料。它通过引入一个**摩擦角**来推广 von Mises 模型，该摩擦角决定了材料相对于正应力的剪切应力承受能力。从物理上讲，这对应于颗粒之间的库仑摩擦：当剪切应力超过基于压力的摩擦相关的界限时，材料发生屈服。
 

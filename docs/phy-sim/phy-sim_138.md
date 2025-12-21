@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec26-mpm_disc.html`](https://phys-sim-book.github.io/lec26-mpm_disc.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 **本讲作者：[张宇](https://changyu.io/)，加州大学洛杉矶分校**
 

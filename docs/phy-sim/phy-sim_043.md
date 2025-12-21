@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec8-filter_line_search.html`](https://phys-sim-book.github.io/lec8-filter_line_search.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 增量势接触（IPC）方法有效地在固体模拟中维持非穿透约束。这种方法模型化了一种本构关系，该关系直接将接触力与它们相应的距离相关联，从而将约束问题转化为无约束问题。通过使用适当的小时间步长，IPC 允许在基于优化的时间积分框架内进行稳健且准确的固体模拟，避免了障碍物穿透。
 

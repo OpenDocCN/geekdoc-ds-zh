@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec20.4-summary.html`](https://phys-sim-book.github.io/lec20.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们将离散弱形式（方程 (19.1)）与滤波线搜索中的实现连接起来，用于边界条件和接触。此外，我们还推导了二维离散表面的自接触，这将在下一节课中实现。
 

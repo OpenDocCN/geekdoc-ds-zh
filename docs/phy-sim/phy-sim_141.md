@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec26.3-euler_lag_transfers.html`](https://phys-sim-book.github.io/lec26.3-euler_lag_transfers.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 在 MPM 中，材料状态存储在 **拉格朗日粒子**上，而 控制方程（例如，动量守恒）在临时的 **欧拉网格**上求解。因此，我们必须在每个时间步之间在粒子和网格节点之间传递信息。
 

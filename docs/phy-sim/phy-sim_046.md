@@ -2,13 +2,13 @@
 
 > 原文：[`phys-sim-book.github.io/lec8.3-square_drop.html`](https://phys-sim-book.github.io/lec8.3-square_drop.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 为了总结，让我们考虑一个案例研究，其中我们模拟一个正方形落在固定的平面地面上。基于我们之前为弹性正方形建立的质点-弹簧模型，我们将其增量势能中加入势垒势，并应用滤波线搜索方案来管理正方形的自由度（DOFs）与地面之间的接触。
 
 本节的可执行 Python 项目可在 `3_contact` 文件夹下的 [`github.com/phys-sim-book/solid-sim-tutorial`](https://github.com/phys-sim-book/solid-sim-tutorial) 找到。[MUDA](https://github.com/MuGdxy/muda) GPU 实现可在 `simulators/3_contact` 文件夹下的 [`github.com/phys-sim-book/solid-sim-tutorial-gpu`](https://github.com/phys-sim-book/solid-sim-tutorial-gpu) 找到。
 
-如果我们进一步将平面地面限制为水平，例如在 \(y=y_0\) 处，其符号距离函数可以比方程 (7.1.1) 更简单：\(d(x)=xy-y_0\)，\(\nabla d(x)=[0 1]\)，\(\nabla²d(x)=0\)。（8.3.1）结合方程 (7.2.4) 和方程 (7.2.5)，我们可以方便地实现此水平地面的势垒势的梯度和 Hessian 计算：
+如果我们进一步将平面地面限制为水平，例如在 $ y=y_0 $ 处，其符号距离函数可以比方程 (7.1.1) 更简单：$ d(x)=xy-y_0 $，$ \nabla d(x)=[0 1] $，$ \nabla²d(x)=0 $。（8.3.1）结合方程 (7.2.4) 和方程 (7.2.5)，我们可以方便地实现此水平地面的势垒势的梯度和 Hessian 计算：
 
 **实现 8.3.1 (势垒能量值、梯度及 Hessian，BarrierEnergy.py)**。
 
@@ -50,7 +50,7 @@ def hess(x, y_ground, contact_area):
     return IJV 
 ```
 
-对于滤波线搜索，在上一迭代的位置 \(\mathbf{x}\) 和一个特定节点的搜索方向 \(\mathbf{p}\)，符号距离函数简单地是 \[ d(\mathbf{x} + \alpha \mathbf{p}) = \mathbf{x}_y + \alpha \mathbf{p}_y - y_0, \] 其中 \(\alpha\) 是步长，当 \(\mathbf{p}_y < 0\) 时（因为 \(\mathbf{x}_y > y_0\)，当前迭代没有穿透），存在唯一的正实根 \(\alpha = (y_0 - \mathbf{x}_y) / \mathbf{p}_y\)。对每个节点取正实根的最小值，然后给出方程 (8.2.1) 中定义的步长上限 \(\alpha_C\)：
+对于滤波线搜索，在上一迭代的位置 $ \mathbf{x} $ 和一个特定节点的搜索方向 $ \mathbf{p} $，符号距离函数简单地是 \[ d(\mathbf{x} + \alpha \mathbf{p}) = \mathbf{x}_y + \alpha \mathbf{p}_y - y_0, \] 其中 $ \alpha $ 是步长，当 $ \mathbf{p}_y < 0 $ 时（因为 $ \mathbf{x}_y > y_0 $，当前迭代没有穿透），存在唯一的正实根 $ \alpha = (y_0 - \mathbf{x}_y) / \mathbf{p}_y $。对每个节点取正实根的最小值，然后给出方程 (8.2.1) 中定义的步长上限 $ \alpha_C $：
 
 **实现 8.3.2 (地面 CCD，BarrierEnergy.py)**。
 
@@ -63,7 +63,7 @@ def init_step_size(x, y_ground, p):
     return alpha 
 ```
 
-这里我们将上限乘以 \(0.9\times\)，以避免精确接触配置 \(d=0\) 和 \(b = \infty\)（浮点数溢出）。
+这里我们将上限乘以 $ 0.9\times $，以避免精确接触配置 $ d=0 $ 和 $ b = \infty $（浮点数溢出）。
 
 然后一旦我们确保使用步长上限来初始化线搜索
 

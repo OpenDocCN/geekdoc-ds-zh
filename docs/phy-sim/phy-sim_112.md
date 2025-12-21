@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec22.1-disc_and_approx.html`](https://phys-sim-book.github.io/lec22.1-disc_and_approx.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 从方程 (18.4.2) 中，单位面积的摩擦力定义为
 

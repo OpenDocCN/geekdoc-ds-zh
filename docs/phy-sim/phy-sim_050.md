@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec9.2-semi_imp_fric.html`](https://phys-sim-book.github.io/lec9.2-semi_imp_fric.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 然而，将摩擦力纳入优化时间积分中仍然存在挑战。一个主要问题是摩擦力不是一个守恒力，没有定义良好的势能，使得取其梯度的相反数可以得到摩擦力。换句话说，隐式摩擦力是不可积的。没有势能，就无法进行回溯线搜索，因此优化稳定性和收敛性的保证将被破坏。
 

@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec19.1-linear_disp_field.html`](https://phys-sim-book.github.io/lec19.1-linear_disp_field.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 对于在固体域中的三角形元素，其顶点为 X1，X2 和 X3，我们可以使用空间离散化（参见方程(17.1.1)）来近似该元素中任意点 X 的世界空间坐标：
 

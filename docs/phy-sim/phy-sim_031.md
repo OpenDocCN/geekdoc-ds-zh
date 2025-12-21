@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec5.3-hanging_square.html`](https://phys-sim-book.github.io/lec5.3-hanging_square.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们用一个简单的案例研究来结束这堂课。基于前一小节开发的 质量-弹簧系统，我们实现了重力能量和粘性 Dirichlet 边界条件来模拟一个悬挂的方形。本节的可执行 Python 项目可以在 `https://github.com/phys-sim-book/solid-sim-tutorial` 下的 `2_dirichlet` 文件夹中找到。[MUDA](https://github.com/MuGdxy/muda) GPU 实现可以在 `https://github.com/phys-sim-book/solid-sim-tutorial-gpu` 下的 `simulators/2_dirichlet` 文件夹中找到。
 

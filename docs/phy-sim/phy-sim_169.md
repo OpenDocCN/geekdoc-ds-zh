@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec32.1-pbd_cloth_constraints.html`](https://phys-sim-book.github.io/lec32.1-pbd_cloth_constraints.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在基于位置的动力学（PBD）的背景下，布料的复杂机械行为，如其抗拉伸和弯曲能力，通过一组几何约束进行建模。PBD 框架不是累积力，而是直接通过迭代方式操作网格顶点的位置以满足这些约束。本节将详细阐述布料模拟的基本约束的公式。
 

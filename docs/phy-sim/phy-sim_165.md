@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec31.4-solver.html`](https://phys-sim-book.github.io/lec31.4-solver.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 PBD 算法的核心是约束求解器，它通过迭代地将预测的粒子位置投影以满足定义的约束。由于这种投影必须在物理上合理进行，理想情况下应保持系统的总线动量和角动量以适应内部约束，我们采用非线性 Gauss-Seidel 求解器。
 

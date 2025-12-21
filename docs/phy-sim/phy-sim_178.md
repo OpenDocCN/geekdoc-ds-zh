@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec33.3-conjugate_gradient.html`](https://phys-sim-book.github.io/lec33.3-conjugate_gradient.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 共轭梯度（CG）法是一种强大的迭代算法，用于求解形式为 Ax=b 的大型稀疏线性系统，其中 A 是对称正定（SPD）。与雅可比和高斯-赛德尔等通用迭代方法不同，CG 是专门为 SPD 矩阵设计的，并在科学计算和数值模拟中变得至关重要。
 

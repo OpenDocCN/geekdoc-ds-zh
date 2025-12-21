@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec31.5-stiffness_damping.html`](https://phys-sim-book.github.io/lec31.5-stiffness_damping.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 ### 刚度
 

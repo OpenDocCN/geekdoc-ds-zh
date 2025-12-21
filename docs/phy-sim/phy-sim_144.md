@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec27-mpm_plasticity.html`](https://phys-sim-book.github.io/lec27-mpm_plasticity.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 **本讲座作者：[张宇](https://changyu.io/), 加州大学洛杉矶分校**
 

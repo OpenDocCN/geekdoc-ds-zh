@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec12.3-summary.html`](https://phys-sim-book.github.io/lec12.3-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 定义将连续体从材料空间（初始配置）变换到世界空间（当前配置）的流动映射，我们引入了形状变化的数学描述——变形梯度 F∈Rd×d（d=2 或 3），这是流动映射相对于 X 的雅可比矩阵。
 

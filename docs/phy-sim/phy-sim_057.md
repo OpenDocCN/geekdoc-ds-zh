@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec11-mov_DBC.html`](https://phys-sim-book.github.io/lec11-mov_DBC.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 运动学碰撞对象（CO）和移动的 Dirichlet 边界条件（BC）在许多仿真场景中至关重要。一个 CO 可以被视为一组 BC 节点。
 

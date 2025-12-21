@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec20.2-obstacle_contact.html`](https://phys-sim-book.github.io/lec20.2-obstacle_contact.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 回想一下，我们使用保守力模型来近似接触牵引力 TC，允许它直接根据固体的当前配置进行评估。这导致了一个接触势能：
 

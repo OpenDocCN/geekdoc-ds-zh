@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec22.3-fric_and_derivatives.html`](https://phys-sim-book.github.io/lec22.3-fric_and_derivatives.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 对于每个摩擦点-边缘对，我们已经预先计算了λ、r 和 n，现在我们可以方便地计算摩擦势能的能量（实现 22.3.1）、梯度（实现 22.3.2）和 Hessian（实现 22.3.3），并将它们添加到优化中。
 

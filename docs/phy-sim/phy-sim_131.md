@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.5-summary.html`](https://phys-sim-book.github.io/lec25.5-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 本讲座探讨了如何利用子空间方法有效地将 IPC 框架扩展到刚体和近刚体模拟。关键思想是通过将高维可变形体动力学投影到仍然捕捉到基本行为的低维子空间来减少系统的自由度（DOFs）。
 

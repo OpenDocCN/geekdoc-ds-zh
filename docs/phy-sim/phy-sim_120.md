@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec23.4-summary.html`](https://phys-sim-book.github.io/lec23.4-summary.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 在本节中，我们深入探讨将我们的固体模拟器扩展以适应 3D 弹性动力学模拟的过程。
 

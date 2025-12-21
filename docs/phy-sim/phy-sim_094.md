@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec18.5-summary.html`](https://phys-sim-book.github.io/lec18.5-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们已经讨论了纽曼边界条件、狄利克雷边界条件以及在连续设置中的摩擦接触，以完成一个严格的问题表述。将所有内容以强形式结合，对于所有 t≥0：
 

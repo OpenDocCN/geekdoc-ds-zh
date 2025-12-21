@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec9.4-summary.html`](https://phys-sim-book.github.io/lec9.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们引入了库仑摩擦模型，该模型通过切向空间中的静摩擦力和动摩擦力非平滑地惩罚接触点的剪切运动。
 

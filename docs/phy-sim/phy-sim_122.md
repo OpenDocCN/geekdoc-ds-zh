@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec24.1-barrier_and_dist.html`](https://phys-sim-book.github.io/lec24.1-barrier_and_dist.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 使用三角形网格离散化，连续设置中的势垒势（方程(18.3.5)）可以近似为 ≈==∫ΓC21b(X2∈ΓC−N(X)min∥x(X,t)−x(X2,t)∥,d^)ds(X)∫ΓC21b(e∈T−I(X)minX2∈emin∥x(X,t)−x(X2,t)∥,d^)ds(X)∫ΓC21b(e∈T−I(X)mindPT(x(X,t),e),d^)ds(X)∫ΓC21e∈T−I(X)maxb(dPT(x(X,t),e),d^)ds(X)，(24.1.1) 其中 T 是所有表面三角形的集合，I(X)是包含点 X 的所有表面三角形的集合，dPT 是点-三角形距离。进一步用求和来近似最大运算符，并使用网格表面节点 a^作为求积点，我们有 ≈≈∫ΓC21e∈T−I(X)maxb(dPT(x(X,t),e),d^)ds(X)∫ΓC21e∈T−I(X)∑b(dPT(x(X,t),e),d^)ds(X)a^∑21wa^e∈T−I(Xa^)∑b(dPT(xa^,e),d^)，(24.1.2) 其中 wa^=d³¹∑j∈I(Xa^)Aj 是积分权重，Aj 是节点 a^的入射表面三角形 j 的面积。
 

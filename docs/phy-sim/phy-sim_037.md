@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec6.4-summary.html`](https://phys-sim-book.github.io/lec6.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 本节已证明，通过改变变量基，可以使用自由度（DOF）消除法有效地管理一般滑移 Dirichlet 边界条件（DBC），就像轴对齐的滑移 DBC 一样。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec33.4-summary.html`](https://phys-sim-book.github.io/lec33.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本节中，我们探讨了求解在基于优化的模拟中出现的形如 Ax=b 的大型稀疏线性系统的基本方法，特别是在计算牛顿型方法中的搜索方向时。
 

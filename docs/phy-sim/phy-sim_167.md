@@ -2,6 +2,6 @@
 
 > 原文：[`phys-sim-book.github.io/lec31.6-summary.html`](https://phys-sim-book.github.io/lec31.6-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 基于位置的动力学框架提供了一种稳健且高效的物理模拟方法。其核心是一个简单的时间步进循环，它预测新的粒子位置，然后使用高斯-赛德尔求解器迭代地纠正这些位置。这种纠正的数学基础是从线性化约束函数导出的投影，通过逆粒子质量加权以产生符合物理的移动。这种方法巧妙地避开了传统显式积分器的稳定性问题。通过定义不同的约束函数，相同的通用求解器可以用来模拟各种物理现象，从可变形固体到布料和流体。该框架还通过可调刚度和动量守恒阻尼等实用功能得到进一步增强，使其特别适合实时应用。

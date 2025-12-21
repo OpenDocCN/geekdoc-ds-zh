@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec12.1-continuum_motion.html`](https://phys-sim-book.github.io/lec12.1-continuum_motion.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 运动学是研究连续体材料内运动的研究，主要关注在不同坐标系中，局部或全局发生的形状或变形变化。目标是定性定量地描述运动，这对于推导动力学和机械响应的控制方程至关重要。值得注意的是，运动学通常可以在不引入诸如力、应力或甚至质量等概念的情况下进行描述。
 

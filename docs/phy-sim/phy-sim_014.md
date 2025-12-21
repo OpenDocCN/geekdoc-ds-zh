@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec2.5-summary.html`](https://phys-sim-book.github.io/lec2.5-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们到目前为止讨论的目标是设计一个可靠的解决方案来解决无条件的稳定隐式时间积分问题。我们旨在解决由截断误差引起的非收敛解的问题。我们通过将时间积分问题重新表述为最小化问题来解决这个问题。这种表述不仅允许我们应用成熟的优化技术，而且还为不同物理现象提供了一个一致建模框架。
 

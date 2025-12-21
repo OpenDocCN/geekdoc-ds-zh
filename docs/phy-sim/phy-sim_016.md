@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec3.1-conv_issue_Newton.html`](https://phys-sim-book.github.io/lec3.1-conv_issue_Newton.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在解决隐式欧拉时间积分（见方程(2.1.1)）提出的最小化问题时，采用牛顿法（见算法 1.5.1）是解决非线性方程组的一个可行策略。这涉及到将增量势能的梯度设为零：
 

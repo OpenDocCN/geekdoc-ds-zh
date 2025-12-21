@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec26.4-particle_state_update.html`](https://phys-sim-book.github.io/lec26.4-particle_state_update.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在 MPM 中，每个粒子携带一个变形梯度 Fp​，它追踪粒子附着的局部材料体积随时间拉伸、旋转或剪切的情况。它在基于本构模型计算应力中起着核心作用。
 

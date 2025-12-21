@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.10-summary.html`](https://phys-sim-book.github.io/lec25.10-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本讲座中，我们讨论了模态缩减技术，这些技术通过将高维系统投影到精心选择的低维子空间，显著加速了基于物理的模拟。
 

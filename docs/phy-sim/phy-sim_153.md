@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec29.1-simulation_setup.html`](https://phys-sim-book.github.io/lec29.1-simulation_setup.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本节中，我们定义了实现二维**两个碰撞弹性块的最小 MPM 模拟**所需的物理和数值设置。我们介绍了模拟属性的定义、粒子位置和速度的初始化以及整个模拟中使用的数据结构。
 

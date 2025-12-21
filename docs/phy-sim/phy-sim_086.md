@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec17.1-discrete_space.html`](https://phys-sim-book.github.io/lec17.1-discrete_space.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 为了使弱形式中的积分能够进行数值评估，第一步是将光滑向量场 x 和 Q 进行离散化。这使得它们可以通过有限个样本以及适当的插值函数来表示。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec7.4-summary.html`](https://phys-sim-book.github.io/lec7.4-summary.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 在模拟固体与障碍物之间的接触时，我们主要关注确保固体自由度（DOFs）与障碍物之间的有符号距离的非负性，同时最小化增量势能。
 

@@ -2,8 +2,8 @@
 
 > 原文：[`phys-sim-book.github.io/lec6.1-axis_aligned.html`](https://phys-sim-book.github.io/lec6.1-axis_aligned.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 轴对齐滑移 Dirichlet 边界条件（DBC）独特地限制了某些节点的运动，使其仅限于与坐标轴对齐的线性子空间。例如，这些约束可能将运动限制在平行于 x 轴的线上或平行于 yz 平面的平面上。轴对齐滑移 DBC 的一个优点是它们的约束雅可比矩阵与粘性 DBC 的相似。因此，它们可以使用相同的自由度消除方法有效地管理。
 
-> **示例 6.1.1（轴对齐滑移 DBC）**。考虑之前提到的二维空间中的两个节点系统，如滑移 DBC 示例中引用的（示例 5.1.2）。为了应用一个约束第一个节点（由坐标 \((x_{11}, x_{12})\) 表示）只能沿 \(y = 3\) 线移动的滑移 DBC，我们将此约束表示为一个线性等式：[0 1 0 0] x11 x12 x21 x22 = 3。然后类似于粘性 DBC，在一个时间步长中，当这个滑移 DBC 已经满足时，假设我们有一个 H= \(\begin{pmatrix} 4 & -1 & -1 & -1 \\ -1 & 4 & -1 & -1 \\ -1 & -1 & 4 & -1 \\ -1 & -1 & -1 & 4 \end{pmatrix}\) 和 g= \(\begin{pmatrix} 1 \\ 2 \\ 3 \\ 4 \end{pmatrix}\)，我们可以求解系统 \(\begin{pmatrix} 4 & -1 & -1 & 0 \\ 0 & 1 & 0 & 0 \\ -1 & 0 & 1 & 0 \\ 0 & 0 & -1 & 4 \end{pmatrix} \Delta x_{11} \Delta x_{12} \Delta x_{21} \Delta x_{22} = \begin{pmatrix} -1 \\ 0 \\ -3 \\ -4 \end{pmatrix}\) 以找到搜索方向，使得 \(\Delta x_{12} = 0\)，并且第一个节点将保持在 \(y=3\) 线上，对于任意步长，因为其 \(y\) 坐标将不会变化。
+> **示例 6.1.1（轴对齐滑移 DBC）**。考虑之前提到的二维空间中的两个节点系统，如滑移 DBC 示例中引用的（示例 5.1.2）。为了应用一个约束第一个节点（由坐标 $ (x_{11}, x_{12}) $ 表示）只能沿 $ y = 3 $ 线移动的滑移 DBC，我们将此约束表示为一个线性等式：[0 1 0 0] x11 x12 x21 x22 = 3。然后类似于粘性 DBC，在一个时间步长中，当这个滑移 DBC 已经满足时，假设我们有一个 H= $ \begin{pmatrix} 4 & -1 & -1 & -1 \\ -1 & 4 & -1 & -1 \\ -1 & -1 & 4 & -1 \\ -1 & -1 & -1 & 4 \end{pmatrix} $ 和 g= $ \begin{pmatrix} 1 \\ 2 \\ 3 \\ 4 \end{pmatrix} $，我们可以求解系统 $ \begin{pmatrix} 4 & -1 & -1 & 0 \\ 0 & 1 & 0 & 0 \\ -1 & 0 & 1 & 0 \\ 0 & 0 & -1 & 4 \end{pmatrix} \Delta x_{11} \Delta x_{12} \Delta x_{21} \Delta x_{22} = \begin{pmatrix} -1 \\ 0 \\ -3 \\ -4 \end{pmatrix} $ 以找到搜索方向，使得 $ \Delta x_{12} = 0 $，并且第一个节点将保持在 $ y=3 $ 线上，对于任意步长，因为其 $ y $ 坐标将不会变化。

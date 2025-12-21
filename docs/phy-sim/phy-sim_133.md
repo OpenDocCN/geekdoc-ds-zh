@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.7-linear_modal_analysis.html`](https://phys-sim-book.github.io/lec25.7-linear_modal_analysis.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们从最简单的情况开始探索模型降阶：线性弹性 (13.1.4)。虽然仅限于小变形，但这个背景提供了一个清晰直观的介绍，帮助我们理解子空间模拟的核心概念。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec16.4-summary.html`](https://phys-sim-book.github.io/lec16.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本讲座中，我们推导了控制方程的强形式——质量守恒和动量守恒——重点关注模拟域内的一个无穷小区域。动量守恒方程通过散度定理从表面积分转换为体积积分。
 

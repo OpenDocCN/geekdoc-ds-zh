@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec27.2-yield_criterion.html`](https://phys-sim-book.github.io/lec27.2-yield_criterion.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 为了在离散的时间和空间中实施屈服条件和流动规则，我们应用一种称为**返回映射**的程序。这是一个基于投影的算法，它修改弹性变形梯度，使得产生的应力满足屈服条件。
 

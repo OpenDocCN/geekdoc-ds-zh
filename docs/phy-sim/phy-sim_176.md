@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec33.1-direct_solver.html`](https://phys-sim-book.github.io/lec33.1-direct_solver.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 直接求解器是一类算法，旨在通过有限步骤计算线性系统的精确解，直到数值精度。在优化和模拟的上下文中，系数矩阵 A 通常是对称正定（SPD），这使得直接求解器对于中等规模的问题既稳健又高效。
 

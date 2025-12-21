@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.8-nonlinear_reductions.html`](https://phys-sim-book.github.io/lec25.8-nonlinear_reductions.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 线性模态分析非常高效，但其基于小变形的假设是一个主要的限制。对于模拟如屈曲、大弯曲或扭转等视觉丰富的现象，线性模型会产生严重的视觉伪影。如前节所示，一个简单的线性模型无法捕捉到物体弯曲时发生的自然缩短，导致长度和体积的不现实扩展。为了正确捕捉这些基本非线性效应，我们必须将模型降阶应用于完整的非线性运动方程。
 

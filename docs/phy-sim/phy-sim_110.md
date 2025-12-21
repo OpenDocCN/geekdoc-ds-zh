@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec21.5-summary.html`](https://phys-sim-book.github.io/lec21.5-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们通过将势垒能量离散化到边界上的非碰撞点-边缘对，实现了 2D 有限元模拟中的无摩擦自接触，并保证了非相交性。
 

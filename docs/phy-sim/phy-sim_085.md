@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec17-disc_weak_form.html`](https://phys-sim-book.github.io/lec17-disc_weak_form.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本讲座中，我们将对动量守恒方程的弱形式（暂时忽略体力）在空间和时间上进行离散化，以达到离散形式——在第一讲中引入的方程组。
 

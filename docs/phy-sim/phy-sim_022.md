@@ -2,9 +2,9 @@
 
 > 原文：[`phys-sim-book.github.io/lec4.2-inertia.html`](https://phys-sim-book.github.io/lec4.2-inertia.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
 
-对于惯性项，给定 \(\tilde{x}^n = x^n + h v^n\)，我们有 \[ E_I(x) = \frac{1}{2}\|x - \tilde{x}^n \|_M², \quad \nabla E_I(x) = M(x - \tilde{x}^n), \quad \text{and} \quad \nabla² E_I(x) = M, \] 这一点易于实现：
+
+对于惯性项，给定 $ \tilde{x}^n = x^n + h v^n $，我们有 \[ E_I(x) = \frac{1}{2}\|x - \tilde{x}^n \|_M², \quad \nabla E_I(x) = M(x - \tilde{x}^n), \quad \text{and} \quad \nabla² E_I(x) = M, \] 这一点易于实现：
 
 **实现 4.2.1 (InertiaEnergy.py)**。
 

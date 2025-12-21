@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec18.3-barrier_potential.html`](https://phys-sim-book.github.io/lec18.3-barrier_potential.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 如非穿透距离障碍中所述，固体到障碍物接触的 IPC 原则是使用障碍函数确保任何节点自由度（DOFs）和障碍物之间的有符号距离在整个模拟过程中保持正值。为了处理自接触，可能对于同维对象，这个想法被扩展以确保任何边界点和边界之间的无符号距离在整个模拟过程中保持非零。
 

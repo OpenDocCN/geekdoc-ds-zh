@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec30-mpm_sand_case_study.html`](https://phys-sim-book.github.io/lec30-mpm_sand_case_study.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 **作者：[杨昌宇](https://changyu.io/), 加州大学洛杉矶分校**
 

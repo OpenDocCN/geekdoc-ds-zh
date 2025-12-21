@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec24.3-friction.html`](https://phys-sim-book.github.io/lec24.3-friction.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 3D 摩擦与其 2D 对应物非常相似，主要区别在于涉及的接触对类型。在 3D 中，这些接触对是点-三角形和边-边对。因此，最近点的重心坐标现在是二维的，由定义 24.1.1 和定义 24.1.2 中提供的β1 和β2 的最佳值表示。
 

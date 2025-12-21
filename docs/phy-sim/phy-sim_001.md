@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/preface.html`](https://phys-sim-book.github.io/preface.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 这本免费在线书籍标志着我们致力于使基于物理的模拟的理论和算法对每个人可访问。
 

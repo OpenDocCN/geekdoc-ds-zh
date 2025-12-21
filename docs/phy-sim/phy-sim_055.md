@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec10.2-slope_fric.html`](https://phys-sim-book.github.io/lec10.2-slope_fric.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 现在为了实现斜坡的摩擦力，我们首先根据方程(9.2.2)，方程(9.2.5)和方程(9.2.6)分别实现函数 f0(∥vˉk∥h^)，f1(∥vˉk∥)/∥vˉk∥和(f1′(∥vˉk∥)∥vˉk∥−f1(∥vˉk∥))/∥vˉk∥²。
 

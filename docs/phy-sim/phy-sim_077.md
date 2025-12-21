@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec15.2-energy_grad_hess.html`](https://phys-sim-book.github.io/lec15.2-energy_grad_hess.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们首先遵循应变能和应力和其导数这两节，实现计算Ψ(F)，P=∂F/∂Ψ，以及 SPD 投影的∂F/∂P：
 

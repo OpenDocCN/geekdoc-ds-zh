@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec17.3-summary.html`](https://phys-sim-book.github.io/lec17.3-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本讲座中，我们在空间和时间上对动量守恒的弱形式进行了离散化，得到了在第一讲中引入的向后 Euler 时间积分的方程组。
 

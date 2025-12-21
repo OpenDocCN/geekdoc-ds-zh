@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec18.2-normal_contact.html`](https://phys-sim-book.github.io/lec18.2-normal_contact.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 为了防止在模拟过程中发生自穿透，强制一个条件确保变形映射ϕ(⋅,t):Ω0→Ωt 对于任何 t≥0 都是双射的至关重要。这种双射由作用于接触表面区域对的边界力维持，称为ΓC。我们可以将这些力视为另一组诺伊曼边界条件，仅在必要时对ΓC 施加额外的力以防止穿透。因此，我们可以将弱形式中的边界积分项扩展如下：
 

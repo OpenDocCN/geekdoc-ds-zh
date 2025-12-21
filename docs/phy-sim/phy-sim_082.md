@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec16.2-momentum_conserv.html`](https://phys-sim-book.github.io/lec16.2-momentum_conserv.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在连续设置中，力被分为体积力（也称为外力，例如重力）和表面力（或内力，通常是基于应力的，如由弹性引起的那些）。我们通过牵引场定义基于应力的力，其存在是假设的。牵引，或单位面积上的力，由场 T(⋅,N,t):Ω0→Rd 表示，并由以下方程定义：力 S(Bϵ0)=∫∂Bϵ0T(X,N(X))ds(X)，其中 N 表示在材料空间中的指向外的法线方向。在这里，力 S(Bϵ0)表示从 ∂Bϵ0 外的材料对 Bϵ0 内的材料通过它们的界面施加的净力。函数 T(X,N,t) 量化了 N+ 侧的材料在 X 点对 N− 侧材料的单位面积（d=3）或长度（d=2）上的力。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec5.4-summary.html`](https://phys-sim-book.github.io/lec5.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本节中，我们探讨了 Dirichlet 边界条件（DBC），这是优化时间积分器的重要组成部分，并将它们作为简单的线性等式约束来呈现。存在两种类型的 DBC：**粘性**和**滑动**。粘性 DBC 使某些节点固定，从而固定其位置，而滑动 DBC 则限制节点在平面或直线内的移动。
 

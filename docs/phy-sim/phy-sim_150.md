@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec28.2-contact_on_particles.html`](https://phys-sim-book.github.io/lec28.2-contact_on_particles.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 之前，我们讨论了直接在欧拉网格节点上应用边界条件。虽然这种方法由于网格节点是真正的自由度（DOFs）且牛顿第二定律在这些节点上得到实施，因此是自然的，但它存在几个固有的问题：
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec26.1-material_particles.html`](https://phys-sim-book.github.io/lec26.1-material_particles.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在材料点法（MPM）中，我们将固体离散成有限数量的材料点（也称为粒子），这些点在整个模拟过程中携带材料的完整状态。这些材料点作为物理量的拉格朗日载体，包括：
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec9.1-smooth_fric.html`](https://phys-sim-book.github.io/lec9.1-smooth_fric.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 为了模拟摩擦接触，可以为每个活动的接触点对 k 添加局部摩擦力 Fk。对于这样的每一对 k，在当前状态{x,v}下，可以构建一个一致方向的滑动基 Tk(x)∈Rdm×d，其中 m 是模拟节点的总数，d 是空间维度，使得 vk=Tk(x)Tv∈Rd 提供了与法向梯度在法线方向上的距离正交的局部相对滑动速度。
 

@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec4.1-discretizations.html`](https://phys-sim-book.github.io/lec4.1-discretizations.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在表示实体几何时，我们采用网格结构。我们可以通过连接网格上的节点与边来进一步简化表示。为了便于这个过程，特别是对于正方形这样的几何形状，我们可以编写一个网格生成器。这个生成器允许指定正方形的边长和网格的期望分辨率。
 
@@ -45,4 +45,4 @@ def generate(side_length, n_seg):
 
 **图 4.1.1.** 由上方定义的 `generate(1.0, 4)` 调用生成的 4×4 正方形网格。
 
-对于时间离散化，我们的方法是隐式欧拉法。需要在时间步长 \(n\) 中最小化的增量势能，表示如下：E(x)=21∥x−(xn+hvn)∥M2+h2P(x).(4.1.1) 接下来，我们的焦点转向实现能量值、梯度以及 Hessian 的计算，这包括惯性项和势能 \(P(x)\)。
+对于时间离散化，我们的方法是隐式欧拉法。需要在时间步长 $ n $ 中最小化的增量势能，表示如下：E(x)=21∥x−(xn+hvn)∥M2+h2P(x).(4.1.1) 接下来，我们的焦点转向实现能量值、梯度以及 Hessian 的计算，这包括惯性项和势能 $ P(x) $。

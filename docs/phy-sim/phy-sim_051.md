@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec9.3-fixed_point_iter.html`](https://phys-sim-book.github.io/lec9.3-fixed_point_iter.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 要获得完全隐式摩擦的解，我们可以迭代地在非线性优化（固定 λ 和 T）和摩擦更新之间交替，直到收敛 (算法 9.3.1)。
 

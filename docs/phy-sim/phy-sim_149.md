@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec28.1-grid_bc.html`](https://phys-sim-book.github.io/lec28.1-grid_bc.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在材料点方法中，**边界条件（BCs）**是在背景欧拉网格上施加的，因为控制方程——以弱形式离散化——是在网格节点上表述的，这些节点是系统的真正自由度（DOFs）。这些节点必须满足牛顿第二定律。因此，所有外部约束，包括静态墙壁、移动边界或接触力，都必须在 P2G 之后和 G2P 之前直接应用于网格。
 

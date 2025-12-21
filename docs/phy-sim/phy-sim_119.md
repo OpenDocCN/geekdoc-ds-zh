@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec23.3-elasticity.html`](https://phys-sim-book.github.io/lec23.3-elasticity.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 对于弹性，类似于二维情况，变形梯度 F 在每个四面体内也是常数，我们可以将其计算为 F=≈=∂(β,γ,τ)/∂x(∂(β,γ,τ)/∂X)−1∂(β,γ,τ)/∂x^(∂(β,γ,τ)/∂X)−1[x2−x1,x3−x1,x4−x1][X2−X1,X3−X1,X4−X1]−1. 对于力和 Hessian 的计算，所需的∂F/∂x 可以使用∇XN1(X)=∂X/∂(1−β−γ−τ)=(∂(β,γ,τ)/∂(1−β−γ−τ)(∂(β,γ,τ)/∂X)−1)^T=([−1,−1,−1][X2−X1,X3−X1,X4−X1]−1)^T 和类似地∇XN2(X)∇XN3(X)∇XN3(X)=∂X/∂β=([1,0,0][X2−X1,X3−X1,X4−X1]−1)^T,=∂X/∂γ=([0,1,0][X2−X1,X3−X1,X4−X1]−1)^T,=∂X/∂τ=([0,0,1][X2−X1,X3−X1,X4−X1]−1)^T. 使用 F，应变能Ψ、应力 P 和应力导数∂P/∂F 的计算都可以在应变能和应力和其导数中找到，力的计算和 Hessian 矩阵的计算遵循与二维相同的精神。
 

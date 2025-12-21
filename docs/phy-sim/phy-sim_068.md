@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec13.3-simp_model_inversion.html`](https://phys-sim-book.github.io/lec13.3-simp_model_inversion.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 > ****定义 13.3.1（协变线性弹性）**** 为了使线性弹性具有旋转感知性同时保持其简单性，我们可以引入一个基本旋转 Rn 并构建一个能量密度函数ΨLC(F)=Ψlin((Rn)TF)，惩罚 F 与这个固定 Rn 之间的任何偏差。这被称为协变线性弹性。
 

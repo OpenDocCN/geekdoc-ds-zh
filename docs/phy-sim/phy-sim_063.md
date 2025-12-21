@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec12.2-deformation.html`](https://phys-sim-book.github.io/lec12.2-deformation.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们有 X 和 x 分别作为材料坐标和世界坐标，每个都与 Ω0 和 Ωt 相关的域相关联。对于 Ω0 内的任何点 X，映射函数 ϕ 在特定时间 t 将其传输到 Ωt，表示为 x=ϕ(X,t)。
 

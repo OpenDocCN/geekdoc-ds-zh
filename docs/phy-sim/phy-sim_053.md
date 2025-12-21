@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec10-square_on_slope.html`](https://phys-sim-book.github.io/lec10-square_on_slope.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 在本节中，基于我们从摩擦接触中学到的知识，我们在优化时间积分框架内实现了斜坡的摩擦接触。我们首先将用于方形下降案例研究中水平地面的接触模型扩展，以适应任意方向和位置的斜坡。
 

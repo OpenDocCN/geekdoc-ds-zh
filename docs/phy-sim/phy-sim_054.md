@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec10.1-ground_to_slope.html`](https://phys-sim-book.github.io/lec10.1-ground_to_slope.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在水平地面情况下的方形坠落案例研究中，实现的结果与一般半空间（方程(7.1.1)）相比，简化了距离和距离梯度（方程(8.3.1))：d(x)=nT(x−o),∇d(x)=n, 和 ∇2d(x)=0。(10.1.1) 这就是实现斜率所需的所有内容。定义一个法线方向和一个位于斜率上的点
 

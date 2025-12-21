@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec16.3-weak_form.html`](https://phys-sim-book.github.io/lec16.3-weak_form.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 首先，由于外力项 R(X,0)Aext(X,t) 与左侧动量的时间导数非常相似，我们将忽略它以简化推导。然后，对于任意测试函数 Q(⋅,t):Ω0→Rd，让我们计算方程 (16.2.3) 两边的点积，并在 Ω0 上积分以生成弱形式：=∫Ω0 R(X,0)Q(X,t)⋅A(X,t)dX/∫Ω0 Q(X,t)⋅(∇X⋅P(X,t))dX，对于所有 Q(⋅,t):Ω0→Rd 和 t≥0。(16.3.1) 这里我们表示 A(X,t)=∂t/∂V(X,t)。不深入有限元素分析的具体细节，我们声称弱形式与强形式足够等价，因为方程 (16.3.1) 必须对任意 Q(⋅,t) 成立，并且求解弱形式为我们提供了一个对原始问题“足够好”的解。
 

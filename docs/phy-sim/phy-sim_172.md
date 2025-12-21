@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec32.4-position_based_fluids.html`](https://phys-sim-book.github.io/lec32.4-position_based_fluids.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 位置基动力学框架可以从固体优雅地扩展到模拟不可压缩流体。这种方法被称为位置基流体（PBF）[[Macklin & Muller 2013]](bibliography.html#macklin2013position)，它用一组几何约束替换了传统光滑粒子流体动力学（SPH）[[Koschier et al. 2020]](bibliography.html#koschier2020smoothed)中的复杂压力求解。这种方法继承了 PBD 的稳定性和效率，允许使用适合实时应用的大时间步长，同时有效地执行表征不可压缩流的恒定密度条件。
 

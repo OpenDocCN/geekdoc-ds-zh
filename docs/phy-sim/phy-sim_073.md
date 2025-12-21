@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec14.3-compute_stress_deriv.html`](https://phys-sim-book.github.io/lec14.3-compute_stress_deriv.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 要计算 P 对 F 的导数，我们利用之前讨论的 P 的旋转不变性属性。考虑两个任意的旋转矩阵 R 和 Q。从 P 的旋转属性中，我们有：
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec26.2-interpolating_functions.html`](https://phys-sim-book.github.io/lec26.2-interpolating_functions.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在材料点法（MPM）的每个时间步中，粒子将质量动量转移到背景网格，然后从网格检索更新的速度以执行对流。这两个转移都依赖于**插值函数**来确定每个粒子与附近网格节点的交互方式。
 

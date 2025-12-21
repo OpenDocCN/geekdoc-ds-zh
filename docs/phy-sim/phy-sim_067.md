@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec13.2-polar_svd.html`](https://phys-sim-book.github.io/lec13.2-polar_svd.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 当讨论一般滑移边界条件时，我们介绍了奇异值分解（SVD）的应用。在这里，我们应用了一种称为**极分解奇异值分解**（算法 13.2.1）的变体来分解 F：F=UΣVT，其中 U 和 V 都是 d×d 的旋转矩阵，Σ是一个 d×d 的对角矩阵。与标准奇异值分解不同，标准奇异值分解确保Σii 非负，可能以 det(U)=−1 或 det(V)=−1 为代价，极分解奇异值分解保持 det(U)=1 和 det(V)=1，允许Σii 在必要时为负。
 

@@ -12,6 +12,7 @@
 +   [GPU 编程：何时、为何以及如何？](docs/gpu-prog-wwh/README.md)
 +   [数据科学简介](docs/intro-ds/README.md)
 +   [TouchDesigner 入门指南](docs/intro-tchdsn/README.md)
++   [基于物理的模拟](docs/phy-sim/README.md)
 +   [SeaseIO 博客中文翻译](docs/seaseio-blog/README.md)
 +   [SciPy 秘籍](docs/sp-cb-fix1/README.md)
 +   [理解模型-视图-控制器](docs/udstd-mvc/README.md)

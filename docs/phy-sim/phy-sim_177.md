@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec33.2-basic_iterative_methods.html`](https://phys-sim-book.github.io/lec33.2-basic_iterative_methods.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 对于大型或高度稀疏的线性系统，由于内存或计算限制，直接求解器可能变得不切实际。在这种情况下，迭代方法通过生成一系列近似解（理想情况下）收敛到真实解，提供了一种替代方案。本节介绍了两种最基本迭代方法：雅可比法和高斯-赛德尔法。
 

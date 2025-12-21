@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec31.1-pbd_preliminaries.html`](https://phys-sim-book.github.io/lec31.1-pbd_preliminaries.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 要充分理解 PBD 方法，首先理解其灵感来源的经典拉格朗日动力学公式是至关重要的。由 N 个粒子组成的动态系统的状态由它们的个体质量 mi，位置 pi∈R3 和速度 vi∈R3 描述。该系统的演化由从牛顿第二定律导出的两个一阶常微分方程控制：v˙i=mi1​fi（32.1.1）p˙i=vi（32.1.2）其中 fi 是粒子 i 上所有力的总和。
 

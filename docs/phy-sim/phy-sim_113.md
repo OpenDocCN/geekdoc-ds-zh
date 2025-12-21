@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec22.2-precompute.html`](https://phys-sim-book.github.io/lec22.2-precompute.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 为了使时间离散化的摩擦力可积，我们必须显式地离散化某些法向和切向信息。这些信息只需要在每个时间步长的开始计算一次，因为它们将在每次优化过程中保持不变。
 

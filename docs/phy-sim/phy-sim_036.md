@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec6.3-general_slip_DBC.html`](https://phys-sim-book.github.io/lec6.3-general_slip_DBC.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 幸运的是，对于像滑移 DBC 这样的节点解耦约束，奇异值分解简单地得到分块对角矩阵 U 和 V，这可以通过程序以高效的方式构建。节点 i 的 3D 平面滑移 DBC 可以表示为 niT(xi−xi′)=0，其中 ni 是节点 i 滑移的平面的法线，xi′ 是该平面上的任意一点。如方程 (5.1.2) 所讨论的，如果在时间步的初始时刻节点 i 已经在平面上，则约束简化为 niTΔxi=0。然后对行向量 niT 进行奇异值分解，我们得到 niT=UiSiViT=1[1 0 0]niTmiTliT，(6.3.1) 其中单位向量 ni、mi 和 li 一起在 3D 中形成一个正交归一基。
 

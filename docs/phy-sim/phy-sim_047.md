@@ -2,7 +2,7 @@
 
 > [原文链接](https://phys-sim-book.github.io/lec8.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 为了减轻在大型时间步长下进行固体模拟时隧穿问题，在整个运动轨迹中强制执行固体与障碍物之间符号距离的非负约束至关重要，而不仅仅是最终解。
 

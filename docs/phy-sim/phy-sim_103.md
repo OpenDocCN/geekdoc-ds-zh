@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec20.3-self_contact.html`](https://phys-sim-book.github.io/lec20.3-self_contact.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 使用三角形离散化，域的边界被近似为由一组边形成的折线。让我们将这个边界边的集合表示为 E，势垒势能变为：
 

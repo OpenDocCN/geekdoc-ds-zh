@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec30.2-sphere_sdf.html`](https://phys-sim-book.github.io/lec30.2-sphere_sdf.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在有符号距离部分，我们介绍了固体几何形状的**解析表示**——其中像球体、盒子和半空间这样的形状是通过它们坐标上的数学表达式定义的。在那里引入的一个强大抽象是**有符号距离函数（SDF）**。此函数评估空间中任意一点的几何表面有符号距离：负值表示点在物体内部，正值表示外部，零表示正好在表面上。
 

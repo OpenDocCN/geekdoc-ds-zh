@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec22.4-summary.html`](https://phys-sim-book.github.io/lec22.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们在二维空间中基于点-边对的无符号距离平方实现了半隐式摩擦，并将其纳入时间步优化中。
 

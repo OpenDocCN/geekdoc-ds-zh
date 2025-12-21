@@ -2,6 +2,6 @@
 
 > 原文：[`phys-sim-book.github.io/lec9-friction.html`](https://phys-sim-book.github.io/lec9-friction.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在宏观视角下，接触力不仅包括防止相互穿透的法向力，还包括在界面处阻尼剪切运动的切向摩擦力。大多数表面在微观观察下并不完全光滑，而是由锯齿状边缘组成。摩擦本质上是由防止这些锯齿状边缘之间非穿透的力引起的。在本讲座中，我们介绍了库仑摩擦模型，并引入了使其与优化时间积分器兼容的近似。

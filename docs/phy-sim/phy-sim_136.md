@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.9-basis_choice.html`](https://phys-sim-book.github.io/lec25.9-basis_choice.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 简化模型的质量取决于时间不变的基矩阵 U∈R3n×r 的选择，我们在前面的章节中假设了其存在。这个基经过预处理以成为质量正交归一（UTMU=I），必须有效地覆盖预期非线性变形的空间。
 

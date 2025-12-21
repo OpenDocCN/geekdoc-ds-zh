@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.7.2-linear_demo.html`](https://phys-sim-book.github.io/lec25.7.2-linear_demo.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们为二维悬臂梁实现了线性模态分析过程，代码位于[solid-sim-tutorial/9_reduced_DOF/linear.py](https://github.com/phys-sim-book/solid-sim-tutorial/blob/main/9_reduced_DOF/linear.py)。
 

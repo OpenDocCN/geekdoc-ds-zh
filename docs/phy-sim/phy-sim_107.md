@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec21.2-point_edge_dist.html`](https://phys-sim-book.github.io/lec21.2-point_edge_dist.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 接下来，我们计算点-边距离及其导数。这些将被用于求解接触力。对于一个节点 p 和一个边 e0e1，它们的平方距离定义为
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec22-2d_self_fric.html`](https://phys-sim-book.github.io/lec22-2d_self_fric.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本讲座中，我们基于我们在 案例研究：2D 自接触 中的 2D 自接触实现来实现 2D 摩擦。本部分的可执行 Python 项目可以在 [`github.com/phys-sim-book/solid-sim-tutorial`](https://github.com/phys-sim-book/solid-sim-tutorial) 找到。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec11.1-penalty_method.html`](https://phys-sim-book.github.io/lec11.1-penalty_method.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在每个时间步长向时间 n+1 开始时，我们根据每个 BC 节点 k 的预定运动评估每个 BC 节点的节点位置 x^kn+1。在每次牛顿迭代 i 中，对于迭代 xi，我们定义一个速度残差来评估每个 BC 节点接近其目标的情况：rBC,ki=h1∥xki−x^kn+1∥。当 rBC,ki 对于任何 BC 节点 k 低于特定的容差ϵ时，我们可以将节点固定在其当前位置 xki≈x^kn+1，并在后续迭代中应用自由度消除法。这在只有静态 BC 的场景中尤其简单，其中直接应用自由度消除法。
 

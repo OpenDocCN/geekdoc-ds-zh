@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec23.2-mass_matrix.html`](https://phys-sim-book.github.io/lec23.2-mass_matrix.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 回想一下，质量矩阵可以计算为 Mab = ∑∫Ω e∈T R(X,0)Na(X)Nb(X)dX，其中 Ωe0 表示四面体 e 的材料空间。将积分变量从 X 变换为 (β,γ,τ) 得到 = ∫Ωe0 R(X,0)Na(X)Nb(X)dX ∫0¹ ∫0^(1−τ) ∫0^(1−β−τ) R(β,γ,τ,0)Na(β,γ,τ)Nb(β,γ,τ) det(∂(β,γ,τ)/∂X) dγdβdτ。
 

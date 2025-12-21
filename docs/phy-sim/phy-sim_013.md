@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec2.4-friction.html`](https://phys-sim-book.github.io/lec2.4-friction.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 摩擦力是涉及运动的物理相互作用中的关键要素，通常对模拟结果有显著影响。因此，其精确建模对于现实和可靠的模拟至关重要。请参见右侧的图 2.3.1，以演示需要精确表示摩擦力的场景。
 

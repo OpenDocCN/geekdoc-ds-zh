@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec1-discrete_space_time.html`](https://phys-sim-book.github.io/lec1-discrete_space_time.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在这次讲座中，我们探讨了对可变形固体的模拟，目的是开发一个离散的、可计算的问题。主要目标是介绍这个问题内在的抽象代数概念。我们采用自顶向下的架构视图来处理弹性模拟，将数学建模置于首位。
 

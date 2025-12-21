@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec24.4-summary.html`](https://phys-sim-book.github.io/lec24.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在本节中，我们讨论了基于隐式接触预测（IPC）实现三维接触处理方法的主要技术细节。
 

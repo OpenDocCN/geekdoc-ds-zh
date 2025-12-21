@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec18.1-incorporate_BC.html`](https://phys-sim-book.github.io/lec18.1-incorporate_BC.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在我们推导的弱形式（见方程 (16.3.6)）中，有一个边界项 ∫∂Ω0 Qi(X,t)Ti(X,t)ds(X)，它描述了从外部对固体边界的力作用。
 

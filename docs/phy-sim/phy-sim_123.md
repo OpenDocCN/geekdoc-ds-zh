@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec24.2-collision_detection.html`](https://phys-sim-book.github.io/lec24.2-collision_detection.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 3D 中的碰撞检测可能比 2D 更为计算密集，因为涉及到的表面原语数量更多。幸运的是，像空间哈希和边界体积层次结构（BVH）这样的空间数据结构有助于有效地减少候选原语对的数量，使得连续碰撞检测（CCD）更加可管理。
 

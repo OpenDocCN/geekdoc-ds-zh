@@ -2,7 +2,7 @@
 
 > [`phys-sim-book.github.io/lec28.3-summary.html`](https://phys-sim-book.github.io/lec28.3-summary.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 在本讲中，我们讨论了对于准确和稳定的 MPM 模拟至关重要的各种边界处理策略。最初，我们强调边界条件（BCs）必须直接应用于网格节点，因为它们作为满足牛顿第二定律的真实自由度。我们介绍了几种常见的网格级别边界条件，包括粘性、滑动和分离（单向）条件，以及通过使用符号距离函数（SDFs）使用库仑摩擦约束引入摩擦接触的实用方法。
 

@@ -2,7 +2,7 @@
 
 > [原文：https://phys-sim-book.github.io/lec17.2-discrete_time.html](https://phys-sim-book.github.io/lec17.2-discrete_time.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 时间离散化将 A 与我们的自由度（DOF）x 相联系。在连续设置中，A(X,t)=∂t2/∂2x(X,t)。现在，让我们将时间划分为小的区间，t0,t2,…,tn,…，正如第一章所讨论的。使用有限差分公式，我们可以方便地用 x 来近似 A。
 

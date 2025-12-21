@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.1-rigid_body_dynamics.html`](https://phys-sim-book.github.io/lec25.1-rigid_body_dynamics.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在深入研究 ABD 之前，让我们回顾一下模拟刚体动力学传统方法。
 

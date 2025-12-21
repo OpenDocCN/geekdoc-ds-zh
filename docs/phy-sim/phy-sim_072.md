@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec14.2-compute_P.html`](https://phys-sim-book.github.io/lec14.2-compute_P.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 让我们从计算 P 开始。对于各向同性材料，第一 Piola-Kirchhoff 应力张量可以按以下方式计算：PwhereF​=UP^VT=UΣVT,Ψ(F)=Ψ^(Σ),andP^ij​=∂σi​∂Ψ^​δij​.​(14.2.1) 这种公式利用了 P 与 F 共享相同的 SVD 空间的性质，从而简化了推导和计算过程。
 

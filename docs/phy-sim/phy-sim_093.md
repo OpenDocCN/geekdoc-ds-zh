@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec18.4-friction_force.html`](https://phys-sim-book.github.io/lec18.4-friction_force.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 类似于摩擦接触，在库仑约束下最大化耗散率，定义了单位面积变化的摩擦力：
 

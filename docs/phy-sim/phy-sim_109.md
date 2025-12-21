@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec21.4-ccd.html`](https://phys-sim-book.github.io/lec21.4-ccd.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 现在，我们有了解决具有自接触的模拟中搜索方向的所有要素。在获得搜索方向后，我们对点-边对执行线搜索过滤。
 

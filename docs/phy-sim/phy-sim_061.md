@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec12-kinematics.html`](https://phys-sim-book.github.io/lec12-kinematics.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在之前的案例研究中，我们依靠质量-弹簧模型来模拟固体的弹性行为。该模型通过在不同方向上连接多个弹簧来近似 2D 和 3D 弹性，每个弹簧只对拉伸和压缩做出反应。然而，这种简单的近似往往无法捕捉现实世界现象的复杂性。从这次讲座开始，我们将深入研究变形的数学描述，并介绍一种更严格的方法来模拟连续介质的弹性。
 

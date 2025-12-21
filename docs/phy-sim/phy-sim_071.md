@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec14.1-stress.html`](https://phys-sim-book.github.io/lec14.1-stress.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 压力是一个张量场，类似于变形梯度 F，它在整个固体材料的域上定义。它量化了材料物体所经历的内部压力和张力。压力与应变（或 F）之间的关系是通过所谓的**本构关系**建立的。这种关系概述了材料如何响应各种变形。
 

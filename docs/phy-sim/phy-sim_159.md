@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec30.3-apic_transfer.html`](https://phys-sim-book.github.io/lec30.3-apic_transfer.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们根据模拟设置定义了材料点数据，并添加了两个额外的项：用于 APIC 转换方案的仿射速度场 Cp 和用于体积校正的标量 `log_J_diff`，如 Drucker-Prager 弹塑性中所述。
 

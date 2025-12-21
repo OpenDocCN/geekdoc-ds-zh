@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec32.2-pbd_collisions_constraints.html`](https://phys-sim-book.github.io/lec32.2-pbd_collisions_constraints.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在任何物理模拟中，防止物体相互穿透是获得合理结果的关键。基于位置的动力学提供了一种统一的解决方案来应对这一挑战。碰撞不是作为一个涉及冲量或惩罚力的单独后处理步骤来处理；相反，它们被表述为单边不等式约束，就像 IPC [[Li et al. 2020]](bibliography.html#li2020incremental) 一样，并直接集成到核心 PBD 求解器循环中。
 

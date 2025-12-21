@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec16-strong_and_weak_forms.html`](https://phys-sim-book.github.io/lec16-strong_and_weak_forms.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在固体模拟中使用的更新规则（参见图 (1.5.1)) 和相应的优化问题（参见图 (2.1.1)) 是通过对从其连续形式离散化守恒定律——我们的控制方程——来推导得到的。本章将探讨这些守恒定律的强形式和弱形式的推导。然后，我们将讨论它们的时间离散化和空间离散化方法，这对于构建我们旨在解决的离散问题至关重要。
 

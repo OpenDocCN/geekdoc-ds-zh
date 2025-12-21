@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec25.6-modal_reductions.html`](https://phys-sim-book.github.io/lec25.6-modal_reductions.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 *本讲座作者：[Žiga Kovačič](https://zzigak.github.io/)，康奈尔大学。本讲座中介绍的技术主要基于[[Sifakis & Barbic 2012]](bibliography.html#sifakis2012finite)。*
 

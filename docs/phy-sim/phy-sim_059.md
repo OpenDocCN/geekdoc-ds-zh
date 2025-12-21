@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec11.2-compress_square.html`](https://phys-sim-book.github.io/lec11.2-compress_square.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 我们使用天花板模拟压缩弹性正方形。本节的可执行 Python 项目可以在 `5_mov_dirichlet` 文件夹下的 [`github.com/phys-sim-book/solid-sim-tutorial`](https://github.com/phys-sim-book/solid-sim-tutorial) 找到。[MUDA](https://github.com/MuGdxy/muda) GPU 实现可以在 `simulators/5_mov_dirichlet` 文件夹下的 [`github.com/phys-sim-book/solid-sim-tutorial-gpu`](https://github.com/phys-sim-book/solid-sim-tutorial-gpu) 找到。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec15.4-summary.html`](https://phys-sim-book.github.io/lec15.4-summary.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 我们已经成功实现了一个无反演的 2D 弹性模拟，通过使用线性三角形元素对 Neo-Hookean 模型进行离散化。
 

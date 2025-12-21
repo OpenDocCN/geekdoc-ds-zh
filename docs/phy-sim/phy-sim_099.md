@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec19.4-summary.html`](https://phys-sim-book.github.io/lec19.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 基于时间和空间离散化的弱形式，我们探讨了在线性有限元设置下计算质量矩阵、变形梯度和弹性力的方法，所有这些都与我们在第无逆弹性节中的实现相一致。
 

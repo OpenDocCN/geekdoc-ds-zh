@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec3.4-summary.html`](https://phys-sim-book.github.io/lec3.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 +   在检查了传统牛顿法在光滑凸能量上的收敛性问题之后，我们引入了一种回溯**线搜索**方案，以最小化隐式欧拉时间积分的增量势，确保全局收敛。
 

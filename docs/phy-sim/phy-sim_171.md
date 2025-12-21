@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec32.3-pbd_volume_constraints.html`](https://phys-sim-book.github.io/lec32.3-pbd_volume_constraints.html)
 
-`<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">`
+``
 
 在计算机图形学的许多应用中，不可压缩或近似不可压缩材料的模拟至关重要。在一个基于力的框架中，不可压缩性通常需要求解一个复杂的泊松方程来求解压力。PBD 通过通过几何约束强制执行体积或密度守恒提供了一种更直接且通常更简单的方法。本节将探讨几种此类约束，从定义在离散网格元素（如四面体）上的约束开始，扩展到封闭表面的全局体积约束。
 

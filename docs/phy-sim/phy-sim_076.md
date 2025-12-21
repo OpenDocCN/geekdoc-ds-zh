@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec15.1-linear_tri_elem.html`](https://phys-sim-book.github.io/lec15.1-linear_tri_elem.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在之前的讨论中，我们学习了如何计算 Ψ 及其对 F 的导数。然而，对于模拟，我们需要 ∂x/∂Ψ 和 ∂x2/∂2Ψ。这需要我们清楚地理解 F(x)，因为它允许我们使用链式法则有效地推导出这些关于 x 的导数。
 

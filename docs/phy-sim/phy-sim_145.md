@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec27.1-disc_plastic_flow.html`](https://phys-sim-book.github.io/lec27.1-disc_plastic_flow.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 通过**乘性分解**将变形梯度 F 分解为弹性和塑性部分，将塑性引入到 MPM 中：
 

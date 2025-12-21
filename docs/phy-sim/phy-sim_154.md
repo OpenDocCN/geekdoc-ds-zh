@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec29.2-pic_transfer.html`](https://phys-sim-book.github.io/lec29.2-pic_transfer.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 在每个模拟步骤的开始，在累积新的粒子到网格转移之前，必须清除网格。
 

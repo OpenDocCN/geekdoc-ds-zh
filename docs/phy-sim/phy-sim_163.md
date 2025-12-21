@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec31.2-core_framework.html`](https://phys-sim-book.github.io/lec31.2-core_framework.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 PBD 框架通过将物理对象离散化为一组 N 个粒子，并通过 M 个几何约束（关系）定义其行为来模拟物理对象。核心思想是将系统视为一组粒子和约束。在每个时间步，首先使用显式积分方案预测粒子位置，然后迭代求解器调整这些预测位置以满足所有几何约束。我们可以正式定义这样一个系统如下：
 

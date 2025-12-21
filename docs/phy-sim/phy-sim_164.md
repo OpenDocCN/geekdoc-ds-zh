@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec31.3-formulation.html`](https://phys-sim-book.github.io/lec31.3-formulation.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 前一章中描述的主循环依赖于解算器来纠正预测的粒子位置 p，使其满足所有定义的约束。我们首先将问题表述为一个大型非线性方程和不等式系统。然后，我们将推导出解决这个系统的核心数学工具，这涉及到线性化约束函数并应用 Gauss-Seidel 类型的迭代方案。推导将展示如何在考虑粒子质量的同时计算单个约束的位置修正。
 

@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec14.4-summary.html`](https://phys-sim-book.github.io/lec14.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 压力是量化作用在材料物体上的压力或张力的张量场。在超弹性材料的背景下，**第一 Piola-Kirchhoff 应力张量** P 起着至关重要的作用。它被定义为应变能密度函数 Ψ相对于变形梯度 F 的导数，建立了应力与应变之间的**本构关系**。
 

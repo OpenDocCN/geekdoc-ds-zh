@@ -2,7 +2,7 @@
 
 > 原文：[`phys-sim-book.github.io/lec13.4-summary.html`](https://phys-sim-book.github.io/lec13.4-summary.html)
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
 
 **弹性势能** Pe 是在固体域中每个局部点的 **应变能密度函数** Ψ(F) 的积分。从 **刚体零空间** 中，我们推导出了应变能密度函数的直观公式，其结构与标准模型如 **纽马克** 类似。非线性弹性模型也是 **旋转不变** 的，这意味着在变形 F 之后应用的任何旋转都不会改变 Ψ。
 
