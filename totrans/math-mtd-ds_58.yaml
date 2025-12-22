@@ -1,0 +1,2082 @@
+- en: '7.6\. Further applications: Gibbs sampling and generating images#'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://mmids-textbook.github.io/chap07_rwmc/06_gibbs/roch-mmids-rwmc-gibbs.html](https://mmids-textbook.github.io/chap07_rwmc/06_gibbs/roch-mmids-rwmc-gibbs.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In this section, we derive an important application of Markov chains known as
+    Markov Chain Monte Carlo (MCMC). We specialize it to Gibbs sampling and apply
+    it to the generation of handwritten digits using a Restricted Boltzmann Machine
+    (RBM).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.6.1\. Markov chain Monte Carlo (MCMC)[#](#markov-chain-monte-carlo-mcmc "Link
+    to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Suppose we are interested in generating samples from a target distribution
+    \(\bpi = (\pi_i)_{i \in \S}\) over a set \(\S\). We have done this before. For
+    instance, we generated samples from a mixture of Gaussians to test \(k\)-means
+    clustering in different dimensions. There are many more applications. A canonical
+    one is to estimate the mean of a function \(f\) under \(\bpi\): generate \(n\)
+    independent samples \(Z_1,\ldots,Z_n\), all distributed according to \(\pi\),
+    then compute'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{1}{n} \sum_{i=1}^n f(Z_i), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: which is approximately \(\E[f(Z_1)]\) by the law of large numbers, provided
+    \(n\) is sufficiently large. Furthermore, this type of problem plays an important
+    role in [Bayesian inference](https://en.wikipedia.org/wiki/Bayesian_inference).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sampling from simple distributions** When \(\bpi\) is a standard distribution
+    or \(\S\) is relatively small, this can be done efficiently by using a random
+    number generator, as we have done previously.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** Recall how this works. We first initialize the random
+    number generator and use a `seed` for reproducibility.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: To generate, say \(1000\), samples from a multivariate normal, say with mean
+    \((0, 0)\) and covariance \(\begin{pmatrix}5 & 0\\0 & 1\end{pmatrix}\), we use
+    [`numpy.random.Generator.multivariate_normal`](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.multivariate_normal.html#numpy.random.Generator.multivariate_normal)
+    as follows. The `.T` below transposes the output to separate the \(x\) and \(y\)
+    coordinates into individual arrays.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`rng.multivariate_normal(mean, cov, 1000)` returns a `(1000, 2)` array where
+    each row is one sample:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `.T` transposes this to `(2, 1000)`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now `x, y = ...` unpacks the two rows, giving you:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`x = [x1, x2, x3, ..., x1000]` (all x-coordinates)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`y = [y1, y2, y3, ..., y1000]` (all y-coordinates)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Computing the mean of each component we get:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is somewhat close to the expected answer: \((0,0)\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a larger number of samples, say \(10,000\), gives a better result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sampling from an arbitrary distribution on a finite set is also straightforward
+    – as long as the set is not too big. This can be done using [`numpy.random.Generator.choice`](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.choice.html).
+    Borrowing the example from the documentation, the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: generates \(5\) samples from the set \(\S = \{\tt{pooh}, \tt{rabbit}, \tt{piglet},
+    \tt{christopher}\}\) with respective probabilities \(0.5, 0.1, 0.1, 0.3\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: But this may not be practical when the state space \(\S\) is very large. As
+    an example, later in this section, we will learn a “realistic” distribution of
+    handwritten digits. We will do so using the [MNIST dataset](https://en.wikipedia.org/wiki/MNIST_database).
+  prefs: []
+  type: TYPE_NORMAL
+- en: <details class="hide above-input"><summary aria-label="Toggle hidden content">Show
+    code cell source Hide code cell source</summary>
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]</details>'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each image is \(28 \times 28\), so the total number of (black and white) pixels
+    is \(784\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: To specify a distribution over all possible black and white images of this size,
+    we need in principle to assign a probability to a very large number of states.
+    Our space here is \(\S = \{0,1\}^{784}\), imagining that \(0\) encodes white and
+    \(1\) encodes black and that we have ordered the pixels in some arbitrary way.
+    How big is this space?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer: \(2^{784}\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Or in base \(10\), we compute \(\log_{10}(2^{784})\), which is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: So a little more than \(10^{236}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is much too large to naively plug into `rng.choice`!
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: So how to proceed? Instead we’ll use a Markov chain, as detailed next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**General setting** The idea behind MCMC\(\idx{Markov chain Monte Carlo}\xdi\)
+    is simple. To generate samples from \(\bpi\), use a Markov chain \((X_t)_{t \geq
+    0}\) for which *it is the stationary distribution*. Indeed, we know from the *Convergence
+    to Equilibrium Theorem* that if the chain is irreducible and aperiodic, then the
+    distribution at time \(t\) is close to \(\bpi\) when \(t\) is large enough; and
+    this holds for any initial dsitribution. Repeating this multiple times produces
+    many independent, approximate samples from \(\bpi\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The question is now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to construct a transition matrix \(P\) whose stationary distribution is
+    given target distribution \(\bpi\)?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How to ensure that this Markov chain is relatively easy to simulate?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Regarding the first question, we have seen how to compute the stationary distribution
+    of a transition matrix (provided it exists and is unique). How do we invert the
+    process? Note one difficulty: many transition matrices can have the same stationary
+    distribution. This is in fact a blessing, as it gives room for designing a “good”
+    Markov chain.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Construct two distinct transition matrices on \(2\) states
+    whose stationary distribution is uniform. \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regarding the second question, note that an obvious chain answering the first
+    question is one that ignores the current state and chooses the next state according
+    to \(\bpi\). We have already seen that this can be a problematic choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Show that this chain has the desired stationary distribution.
+    \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Metropolis-Hastings** We develop one standard technique that helps answer
+    these two questions. It is known as the [Metropolis-Hastings algorithm](https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm)\(\idx{Metropolis-Hastings}\xdi\).
+    It consists in two steps. We assume that \(\bpi > 0\), that is, \(\pi_i > 0, \forall
+    i \in \S\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proposal distribution:* We first define a proposal chain, that is, a transition
+    matrix \(Q\) on the space \(\S\). This chain *does not* need to have stationary
+    distribution \(\bpi\). But it is typically a chain that is easy to simulate. A
+    different way to think of this chain is that, for each state \(x \in \S\), we
+    have a proposal distribution \(Q(x,\,\cdot\,)\) for the next state.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, on the space of \(28 \times 28\) black-and-white images, we might
+    pick a pixel uniformly at random and flip its value with probability \(1/2\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** In the previous example, what is the stationary distribution?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) All-white with probability \(1/2\), all-black with probability \(1/2\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) Uniform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) Too complex to compute.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) What is a stationary distribution?
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\checkmark\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Hastings correction:*\(\idx{Hastings correction}\xdi\) At each step, we first
+    pick a state according to \(Q\), given the current state. Then we accept or reject
+    this move according to a specially defined probability that depends on \(Q\) as
+    well as \(\bpi\). This is where the target distribution \(\bpi\) enters the picture,
+    and the rejection probability is chosen to ensure that the new chain has the right
+    stationary distribution, as we will see later. But first we define the full algorithm.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Formally, the algorithm goes as follows. Let \(x_0 \in \S\) be an arbitrary
+    starting point and set \(X_0 := x_0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At each time \(t \geq 1\):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1- Pick a state \(Y\) according to the distribution \(Q(X_{t-1}, \,\cdot\,)\),
+    that is, row \(X_{t-1}\) of \(Q\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2- With probability
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \min\left\{1, \frac{\pi_{Y}}{\pi_{X_{t-1}}} \frac{Q(Y, X_{t-1})}{Q(X_{t-1},
+    Y)} \right\} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: we set \(X_{t} := Y\) (i.e., we accept the move), and otherwise we set \(X_{t}
+    := X_{t-1}\) (i.e., we reject the move).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Should we worry about the denominator \(\pi_{X_{t-1}}
+    Q(X_{t-1}, Y)\) being \(0\)? \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We make three observations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Taking a minimum with \(1\) ensures that acceptance probability is indeed between
+    \(0\) and \(1\).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We only need to know \(\bpi\) *up to a scaling factor* since the chain depends
+    only on the ratio \(\frac{\pi_{Y}}{\pi_{X_{t-1}}}\). The scaling factor cancels
+    out. This turns out to be critical in many applications of MCMC. We will see an
+    example in the next subsection.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If \(Q\) is symmetric, that is, \(Q(x,y) = Q(y,x)\) for all \(x, y \in \S\),
+    then the ratio \(\frac{Q(Y, X_{t-1})}{Q(X_{t-1}, Y)}\) is just \(1\), leading
+    to a simpler formula for the acceptance probability. In particular, in that case,
+    moving to a state with a larger probability under \(\bpi\) is *always* accepted.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** Suppose \(\S = \{1,\cdots, n\} = [n]\) for some positive
+    integer \(n\) and \(\bpi\) is proportional to a Poisson distribution with mean
+    \(\lambda > 0\). That is,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \pi_i = C e^{-\lambda} \frac{\lambda^i}{i!}, \quad \forall i \in \S \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for some constant \(C\) chosen so that \(\sum_{i=1}^{n} \pi_i = 1\). Recall
+    that we do not need to determine \(C\) as it is enough to know the target distribution
+    up to a scaling factor by the previous remark.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To apply Metropolis-Hastings, we need a proposal chain. Consider the following
+    choice. For each \(1 < i < n\), move to \(i+1\) or \(i-1\) with probability \(1/2\)
+    each. For \(i=1\) (respectively \(i = n\)), move to \(2\) (respectively \(n-1\))
+    with probability \(1/2\), otherwise stay where you are. For instance, if \(n =
+    4\), then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} Q = \begin{pmatrix} 1/2 & 1/2 & 0 & 0\\ 1/2 & 0 & 1/2 & 0\\
+    0 & 1/2 & 0 & 1/2\\ 0 & 0 & 1/2 & 1/2 \end{pmatrix}, \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: which is indeed a stochastic matrix. It is also symmetric, so it does not enter
+    into the acceptance probability by the previous remark.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To compute the acceptance probability, we only need to consider pairs of adjacent
+    integers as they are the only one that have non-zero probability under \(Q\).
+    Consider state \(1 < i < n\). Observe that
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{\pi_{i+1}}{\pi_{i}} = \frac{C e^{-\lambda} \lambda^{i+1}/(i+1)!}{C
+    e^{-\lambda} \lambda^{i}/i!} = \frac{\lambda}{i+1} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: so a move to \(i+1\) happens with probability
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{1}{2} \min\left\{1, \frac{\lambda}{i+1}\right\}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where the \(1/2\) factor from the proposal distribution. Similarly, it can be
+    checked (try it!) that a move to \(i-1\) occurs with probability
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{1}{2} \min\left\{1, \frac{i}{\lambda}\right\}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: And we stay at \(i\) with probability \(1 - \frac{1}{2} \min\left\{1, \frac{\lambda}{i+1}\right\}
+    - \frac{1}{2} \min\left\{1, \frac{i}{\lambda}\right\}\). (Why is this guaranteed
+    to be a probability?)
+  prefs: []
+  type: TYPE_NORMAL
+- en: A similar formula applies to \(i = 1, n\). (Try it!)
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are ready to apply Metropolis-Hastings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Take \(\lambda = 1\) and \(n = 6\). We get the following transition matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**TRY IT!** Rewrite the function `mh_transition_poisson` without an explicit
+    loop by using [broadcasting and vectorization](https://numpy.org/doc/stable/user/basics.broadcasting.html).
+    ([Open in Colab](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_prob_notebook.ipynb))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use our simulator from a previous section. We start from the uniform distribution
+    and take \(100\) steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our sample is the final state of the trajectory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: We repeat \(1000\) times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: We plot the frequencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: <details class="hide above-input"><summary aria-label="Toggle hidden content">Show
+    code cell source Hide code cell source</summary>
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]</details> ![../../_images/d6e38b4f33052e917d7a2b6a03db11bd9c511daf60b88e2534f0a8be833345b9.png](../Images/4cb2314254f27c2be1f23bd733b95e2d.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we increase the parameter \(\lambda\) (which is not quite the mean; why?),
+    what would you expect will happen to the sampled distribution?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**TRY IT!** Redo the simulations, but this time implement a general Metropolis-Hastings
+    algorithm rather than specifying the transition matrix directly. That is, implement
+    the algorithm for an arbitrary \(\bpi\) and \(Q\). Assume the state space is \([n]\).
+    ([Open in Colab](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_prob_notebook.ipynb))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: It remains to prove that \(\bpi\) is needed the stationary distribution of the
+    Metropolis-Hastings algorithm. We restrict ourselves to the symmetric case, that
+    is, \(Q(x,y) = Q(y,x)\) for all \(x,y\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**THEOREM** **(Correctness of Metropolis-Hastings)** \(\idx{correctness of
+    Metropolis-Hastings}\xdi\) Consider the Metropolis-Hastings algorithm with target
+    distribution \(\bpi\) over finite state space \(\S\) and symmetric proposal chain
+    \(Q\). Assume further that \(\bpi\) is strictly positive and \(Q\) is irreducible
+    over \(\S\). The resulting Markov chain is irreducible and reversible with respect
+    to \(\bpi\). \(\sharp\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* It is just a matter of writing down the resulting transition
+    matrix \(P\) and checking the detailed balance conditions. Because of the minimum
+    in the acceptance probability, one has to consider two cases each time.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* Let \(P\) denote the transition matrix of the resulting Markov chain.
+    Our first task is to compute \(P\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let \(x, y \in \S\) be a pair of distinct states such that \(Q(x, y) = Q(y,
+    x) = 0\). Then, from \(x\) (respectively \(y\)), the proposal chain never picks
+    \(y\) (respectively \(x\)) as the possible next state. Hence \(P(x,y) = P(y, x)
+    = 0\) in that case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So let \(x, y \in \S\) be a pair of distinct states such that \(Q(x, y) = Q(y,
+    x) > 0\). Applying the Hastings correction, we get that the overall probability
+    of moving to \(y\) from current state \(x\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ P(x, y) = Q(x, y) \left(1 \land \frac{\pi_{y}}{\pi_{x}}\right) > 0, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the symmetry of \(Q\) and the notation \(a \land b = \min\{a,b\}\).
+    Similarly,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ P(y, x) = Q(y, x) \left(1 \land \frac{\pi_{x}}{\pi_{y}}\right) > 0. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since \(P(x,y)\) is strictly positive exactly when \(Q(x,y)\) is strictly positive
+    (for distinct \(x,y\)), the chain \(P\) has the same transition graph as the chain
+    \(Q\). Hence, because \(Q\) is irreducible, so is \(P\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: It remains to check the detailed balance conditions. There are two cases. Without
+    loss of generality, say \(\pi_x \leq \pi_y\). Then the previous formulas for \(P\)
+    simplify to
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ P(x, y) = Q(x, y) \quad\text{and}\quad P(y, x) = Q(y, x) \frac{\pi_{x}}{\pi_{y}}.
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hence,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \pi_x P(x,y) = \pi_x Q(x,y) = \pi_x Q(y,x) = \pi_x \frac{\pi_y}{\pi_y} Q(y,x)
+    = \pi_y P(y,x), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the symmetry of \(Q\) to obtain the second equality. That establishes
+    the reversibility of \(P\) and concludes the proof. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** The Metropolis-Hastings algorithm can be used for Bayesian
+    inference. Ask your favorite AI chatbot to explain how MCMC methods are used in
+    Bayesian inference and to provide an example of using the Metropolis-Hastings
+    algorithm for parameter estimation in a simple Bayesian model. \(\ddagger\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.6.2\. Gibbs sampling[#](#gibbs-sampling "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have seen that one challenge of the Metropolis-Hastings approach is to choose
+    a good proposal chain. Gibbs sampling\(\idx{Gibbs sampling}\xdi\) is a canonical
+    way of addressing this issue that has many applications. It applies in cases where
+    the states are vectors, typically with a large number of coordinates, and where
+    the target distribution has the kind of conditional independence properties we
+    have encountered previously in the previous chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**General setting** Here we will assume that \(\S = \Z^d\) where \(\Z\) is
+    a finite set and \(d\) is the dimension. To emphasize that states are vectors,
+    we will boldface letters, e.g., \(\bx = (x_i)_{i=1}^d\), \(\by = (y_i)_{i=1}^d\),
+    etc., to denote them.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will need the following special notation. For a vector \(\bx \in \Z^d\) and
+    an index \(i \in [d]\), we write
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bx_{-i} = (x_1, \ldots,x_{i-1}, x_{i+1}, \ldots, x_d) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for the vector \(\bx\) where the coordinate \(x_i\) is dropped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If \(\boldsymbol{\pi}\) is the target distribution, we let \(\pi_i(x_i|\bx_{-i})\)
+    be the conditional probability that \(X_i = x_i\) given that \(\bX_{-i} = \bx_{-i}\)
+    under the distribution \(\boldsymbol{\pi}\), i.e., \(\bX = (X_1,\ldots,X_d) \sim
+    \boldsymbol{\pi}\). We assume that \(\pi_{\bx} > 0\) for all \(\bx \in \Z^d\).
+    As a result, \(\pi_i(x_i|\bx_{-i}) > 0\) as well (prove it!).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A basic version of the Gibbs sampler generates a sequence of vectors \(\bX_0,
+    \bX_1, \ldots, \bX_t, \ldots\) in \(\Z^d\) as follows. We denote the coordinates
+    of \(\bX_t\) by \((X_{t,1}, \ldots, X_{t,d})\). We denote the vector of all coordinates
+    of \(\bX_t\) except \(i\) by \(\bX_{t,-i}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pick \(\bX_0\) according to an arbitrary initial distribution \(\boldsymbol{\mu}\)
+    over \(\Z^d\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At each time \(t \geq 1\):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1- Pick a coordinate \(i\) uniformly at random in \([d]\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2- Update coordinate \(X_{t,i}\) according to \(\pi_i(\,\cdot\,|\bX_{t-1,-i})\)
+    while leaving all other coordinates unchanged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will implement it in a special case in the next subsection. But first we
+    argue that it has the desired stationary distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It suffices to establish that the Gibbs sampler is a special case of the Metropolis-Hastings
+    algorithm. For this, we must identify the appropriate proposal chain \(Q\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We claim that the following choice works: for \(\bx \neq \by\),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} Q(\bx, \by) = \begin{cases} \frac{1}{d} \pi_i(y_i|\bx_{-i})
+    & \text{if $\by_{-i} = \bx_{-i}$ for some $i \in [d]$}\\ 0 & \text{o.w.} \end{cases}
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The condition “\(\by_{-i} = \bx_{-i}\) for some \(i \in [d]\)” ensures that
+    we only consider moves that affect a single coordinate \(i\). The factor \(1/d\)
+    means that we pick that coordinate uniformly at random among all coordinates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For each \(\bx\), we stay put with the remaining probability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Write down explicitly the staying probability \(Q(\bx,
+    \bx)\) and check it is indeed in \([0,1]\). \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, this \(Q\) is not symmetric. For \(\bx \neq \by\) with \(Q(\bx,
+    \by) > 0\) where \(i\) is the non-matching coordinate, the acceptance probability
+    is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \min\left\{1, \frac{\pi_{\by}}{\pi_{\bx}} \frac{Q(\by, \bx)}{Q(\bx,
+    \by)} \right\} &= \min\left\{1, \frac{\pi_{\by}}{\pi_{\bx}} \frac{\frac{1}{d}
+    \pi_i(x_i|\by_{-i})}{\frac{1}{d} \pi_i(y_i|\bx_{-i})} \right\}\\ &= \min\left\{1,
+    \frac{\pi_{\by}}{\pi_{\bx}} \frac{\pi_i(x_i|\bx_{-i})}{\pi_i(y_i|\bx_{-i})} \right\},
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used that \(\bx_{-i} = \by_{-i}\) in the second equality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Recall the definition of the conditional probability as a ratio: \(\P[A|B]
+    = \P[A\cap B]/\P[B]\). Applying that definition, both conditional probabilities
+    \(\pi_i(x_i|\bx_{-i})\) and \(\pi_i(y_i|\bx_{-i})\) have the *same denominator*.
+    Their respective numerators on the other hand are \(\pi_{\bx}\) and \(\pi_{\by}\).
+    Hence,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \min\left\{1, \frac{\pi_{\by}}{\pi_{\bx}} \frac{\pi_i(x_i|\bx_{-i})}{\pi_i(y_i|\bx_{-i})}
+    \right\} = \min\left\{1, \frac{\pi_{\by}}{\pi_{\bx}} \frac{\pi_{\bx}}{\pi_{\by}}
+    \right\} = 1. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, the proposed move is always accepted! Therefore \(P = Q\), which
+    is indeed the Gibbs sampler. It also establishes by *Correctness of Metropolis-Hastings*
+    that \(P\) is reversible with respect to \(\pi\). It is also irreducible (Why?).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here we picked a coordinate at random. It turns out that other choices are possible.
+    For example, one could update each coordinate in some deterministic order, or
+    one could update blocks of coordinates at a time. Under some conditions, these
+    schemes can still produce an algorithm simulating the desired distribution. We
+    will not detail this here, but our implementation below does use a block scheme.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**An example: restricted Boltzmann machines (RBM)** We implement the Gibbs
+    sampler on a specific probabilistic model, a so-called restricted Boltzmann machine
+    (RBM)\(\idx{restricted Boltzmann machine}\xdi\), and apply it to the generation
+    of random images from a “realistic” distribution. For more on Boltzmann machines,
+    including their restricted and deep versions, see [here](https://en.wikipedia.org/wiki/Boltzmann_machine).
+    We will not describe them in great details here, but only use them as an example
+    of a complex distribution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Probabilistic model:* An RBM has \(m\) visible units (i.e., observed variables)
+    and \(n\) hidden units (i.e., hidden variables). It is represented by a complete
+    bipartite graph between the two.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![An RBM (with help from ChatGPT; code converted and adapted from Source)](../Images/4fb58292c78ce9956928cadb68b7af09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Visible unit \(i\) is associated a variable \(v_i\) and hidden unit \(j\) is
+    associated a variable \(h_j\). We define the corresponding vectors \(\bv = (v_1,\ldots,v_m)\)
+    and \(\bh = (h_1,\ldots,h_n)\). For our purposes, it will suffice to assume that
+    \(\bv \in \{0,1\}^m\) and \(\bh \in \{0,1\}^n\). These are referred to as binary
+    units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The probabilistic model has a number of parameters. Each visible unit \(i\)
+    has an offset \(b_i \in \mathbb{R}\) and each hidden unit \(j\) has an offset
+    \(c_j \in \mathbb{R}\). We write \(\bb = (b_1,\ldots,b_m)\) and \(\bc = (c_1,\ldots,c_n)\)
+    for the offset vectors. For each pair \((i,j)\) of visible and hidden units (or,
+    put differently, for each edge in the complete bipartite graph), there is a weight
+    \(w_{i,j} \in \mathbb{R}\). We write \(W = (w_{i,j})_{i,j=1}^{m,n}\) for the weight
+    matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To define the probability distribution, we need the so-called [energy](https://en.wikipedia.org/wiki/Energy-based_model)\(\idx{energy-based
+    model}\xdi\) (as you may have guessed, this terminology comes from related models
+    in [physics](https://en.wikipedia.org/wiki/Boltzmann_distribution)): for \(\bv
+    \in \{0,1\}^m\) and \(\bh \in \{0,1\}^n\),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \cE(\bv, \bh) &= - \bv^T W \bh - \bb^T \bv - \bc^T \bh\\ &=
+    - \sum_{i=1}^m \sum_{j=1}^n w_{i,j} v_i h_j - \sum_{i=1}^m b_i v_i - \sum_{j=1}^n
+    c_j h_j. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The joint distribution of \(\bv\) and \(\bh\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \boldsymbol{\pi}(\bv, \bh) = \frac{1}{Z} \exp\left(- \cE(\bv, \bh)\right),
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where \(Z\), the [partition function](https://en.wikipedia.org/wiki/Partition_function_%28statistical_mechanics%29)\(\idx{partition
+    function}\xdi\) (a function of \(W,\bb,\bc\)), ensures that \(\boldsymbol{\pi}\)
+    indeed sums to \(1\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will be interested in sampling from the marginal over visible units, that
+    is,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \rho(\bv) = \sum_{\bh \in \{0,1\}^n} \boldsymbol{\pi}(\bv, \bh). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: When \(m\) and/or \(n\) are large, computing \(\rho\) or \(\boldsymbol{\pi}\)
+    explicitly – or even numerically – is impractical.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We develop the Gibbs sampler for this model next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Gibbs sampling:* We sample from the joint distribution \(\boldsymbol{\pi}\)
+    and observe only \(\bv\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need to compute the conditional probabilities given every other variable.
+    The sigmoid function, \(\sigma(x)\), will once again make an appearance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Fix a visible unit \(i \in [m]\). For a pair \((\bv, \bh)\), we denote by \((\bv_{[i]},
+    \bh)\) the same pair where coordinate \(i\) of \(\bv\) is flipped. Given every
+    other variable, i.e., \((\bv_{-i},\bh)\), and using a superscript \(\text{v}\)
+    to indicate the probability of a visible unit, the conditional probability of
+    \(v_i\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \pi^{\text{v}}_i(v_i|\bv_{-i},\bh) &= \frac{\boldsymbol{\pi}(\bv,
+    \bh)}{\boldsymbol{\pi}(\bv, \bh) + \boldsymbol{\pi}(\bv_{[i]}, \bh)}\\ &= \frac{\frac{1}{Z}
+    \exp\left(- \cE(\bv, \bh)\right)}{\frac{1}{Z} \exp\left(- \cE(\bv, \bh)\right)
+    + \frac{1}{Z} \exp\left(- \cE(\bv_{[i]}, \bh)\right)}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this last ratio, the partition functions (the \(Z\)’s) cancel out. Moreover,
+    all the terms in the exponentials *not depending* on the \(i\)-th visible unit
+    actually factor out and cancel out as well – they are identical in all three exponentials.
+    Similarly, the terms in the exponentials *depending only on \(\bh\)* also factor
+    out and cancel out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What we are left with is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\pi^{\text{v}}_i(v_i|\bv_{-i},\bh)\\ &= \frac{\exp\left(\sum_{j=1}^n
+    w_{i,j} v_i h_j + b_i v_i\right)} {\exp\left(\sum_{j=1}^n w_{i,j} v_i h_j + b_i
+    v_i\right) + \exp\left(\sum_{j=1}^n w_{i,j} (1-v_i) h_j + b_i (1-v_i)\right)},
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the fact that flipping \(v_i \in \{0,1\}\) is the same as setting
+    it to \(1 - v_i\), a transformation which indeed sends \(0\) to \(1\) and \(1\)
+    to \(0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This expression does not depend on \(\bv_{-i}\). In other words, the \(i\)-th
+    visible unit is conditionally independent of all other visible units given the
+    hidden units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We simplify the expression
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\pi^{\text{v}}_i(v_i|\bv_{-i},\bh)\\ &= \frac{1} {1 + \exp\left(\sum_{j=1}^n
+    w_{i,j} (1-2 v_i) h_j + b_i (1- 2v_i)\right)}\\ &= \sigma\left(\sum_{j=1}^n w_{i,j}
+    (2 v_i-1) h_j + b_i (2v_i-1)\right). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In particular, the conditional mean of the \(i\)-th visible unit given everything
+    else is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} 0 \cdot \pi^{\text{v}}_i(0|\bv_{-i},\bh) + 1 \cdot \pi^{\text{v}}_i(1|\bv_{-i},\bh)
+    &= \pi^{\text{v}}_i(1|\bv_{-i},\bh)\\ &= \sigma\left(\sum_{j=1}^n w_{i,j} h_j
+    + b_i \right)\\ &= \sigma\left((W \bh + \bb)_i \right) \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly for the conditional probability of the \(j\)-th hidden unit given
+    everything else, we have
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\pi^{\text{h}}_j(h_j|\bv,\bh_{-j})\\ &= \sigma\left(\sum_{i=1}^m
+    w_{i,j} v_i (2h_j -1) + c_j (2h_j -1)\right). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The conditional mean given everything else is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} 0 \cdot \pi^{\text{h}}_j(0|\bv,\bh_{-j}) + 1 \cdot \pi^{\text{h}}_j(1|\bv,\bh_{-j})
+    &= \pi^{\text{h}}_j(1|\bv,\bh_{-j}) = \sigma\left((W^T \bv + \bc)_j \right). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: And the \(j\)-th hidden unit is conditionally independent of all other hidden
+    units given the visible units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We implement the Gibbs sampler for an RBM. Rather than updating the units at
+    random, we use a block approach. Specifically, we update all hidden units independently,
+    given the visible units; then we update all visible units independently, given
+    the hidden units. In each case, this is warranted by the conditional independence
+    structure revealed above.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first implement the conditional means using the formulas previously derived.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: We next implement one step of the sampler, which consists in updating all hidden
+    units, followed by updating all visible units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, we repeat these steps `k` times. We only return the visible units `v`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here `v_0` is the initial visible unit states. We do not need to initialize
+    the hidden ones as this is done automatically in the first update step. In the
+    next subsection, we will take the initial distribution of \(\bv\) to be independent
+    Bernoullis with success probability \(1/2\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We apply our Gibbs sampler to generating images. As mentioned
+    previously, we use the MNIST dataset to learn a “realistic” distribution of handwritten
+    digit images. Here the images are encoded by the visible units of an RBM. Then
+    we sample from this model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first need to train the model on the data. We will not show how this is done
+    here, but instead use [`sklearn.neural_network.BernoulliRBM`](https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.BernoulliRBM.html).
+    (Some details of how this training is done is provided [here](https://scikit-learn.org/stable/modules/neural_networks_unsupervised.html#stochastic-maximum-likelihood-learning).)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: To simplify the analysis and speed up the training, we only keep digits \(0\),
+    \(1\) and \(5\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: We flatten the images (which have already been “rounded” to black-and-white;
+    see the first subsection).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now fit the model. Choosing the hyperparameters of the training algorithm
+    is tricky. The following seem to work reasonably well. (For a more systematic
+    approach to tuning hyperparameters, see [here](https://scikit-learn.org/stable/modules/grid_search.html).)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**In a Jupyter environment, please rerun this cell to show the HTML representation
+    or trust the notebook.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On GitHub, the HTML representation is unable to render, please try loading this
+    page with nbviewer.org.**
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are ready to sample from the trained RBM. We extract the learned parameters
+    from `rbm`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: To generate \(25\) samples, we first generate \(25\) independent initial states.
+    We stack them into a matrix, where each row is a different flattened random noise
+    image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: To process all samples simultaneously, we make a small change to the code. We
+    use `numpy.newaxis` to make the offsets into column vectors, which are then automatically
+    added to all columns of the resulting weighted sum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: For plotting, we use a script [adapted from here](https://scikit-learn.org/stable/auto_examples/neural_networks/plot_rbm_logistic_classification.html)
+    (with help from ChatGPT).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are now ready to run our Gibbs sampler. The outcome depends on the number
+    of steps we take. After \(100\) steps, the outcome is somewhat realistic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/aab5b59b73dc84d3b82547a838a8eadc75c8099fe134e50728fbf2920a04f55e.png](../Images/2abf435d81044deb01535f2ccdd32d63.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** The RBM can be stacked to form a [deep belief network (DBN)](#(https://en.wikipedia.org/wiki/Boltzmann_machine#Deep_Boltzmann_machine)).
+    Ask your favorite AI chatbot about the process of greedy layer-wise pretraining
+    of a DBN using RBMs. Discuss how this can be used for initializing the weights
+    of a deep neural network and compare the performance with random initialization.
+    \(\ddagger\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '***Self-assessment quiz*** *(with help from Claude, Gemini, and ChatGPT)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**1** In the context of Markov Chain Monte Carlo (MCMC), what is the primary
+    goal?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) To find the maximum likelihood estimate of a parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) To generate samples from a complex target distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) To optimize a loss function using gradient descent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) To cluster data points based on similarity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2** In the Metropolis-Hastings algorithm, what is the role of the proposal
+    chain \(Q\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It determines the stationary distribution of the resulting Markov chain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It is used to compute the acceptance probability for the proposed moves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It generates the candidate states for the next move in the Markov chain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It ensures that the resulting Markov chain is irreducible and aperiodic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3** What is the purpose of the Hastings correction in the Metropolis-Hastings
+    algorithm?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) To ensure that the proposal chain is symmetric.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) To make the resulting Markov chain irreducible and aperiodic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) To ensure that the resulting Markov chain has the desired stationary distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) To improve the mixing time of the resulting Markov chain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**4** What is the role of the energy function \(\mathcal{E}(\mathbf{v},\mathbf{h})\)
+    in a Restricted Boltzmann Machine (RBM)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It determines the acceptance probability in the Metropolis-Hastings algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It defines the joint probability distribution of the visible and hidden units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It represents the cost function to be minimized during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It controls the learning rate of the RBM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**5** What is the partition function \(Z\) used for in the RBM’s joint probability
+    distribution \(\boldsymbol{\pi}(\mathbf{v}, \mathbf{h})\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It normalizes the energy function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It scales the weights matrix \(W\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It ensures that the probability distribution sums to one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It adjusts the biases \(\mathbf{b}\) and \(\mathbf{c}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 1: b. Justification: The text states that “The idea behind MCMC
+    is simple. To generate samples from \(\boldsymbol{\pi}\), use a Markov chain for
+    which it is the stationary distribution.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 2: c. Justification: The text describes the proposal chain as follows:
+    “We first define a proposal chain, that is, a transition matrix \(Q\) on the space
+    \(\mathcal{S}\). This chain does not need to have stationary distribution \(\boldsymbol{\pi}\).
+    But it is typically a chain that is easy to simulate.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 3: c. Justification: The text states that the Hastings correction
+    is “where the target distribution \(\boldsymbol{\pi}\) enters the picture, and
+    the rejection probability is chosen to ensure that the new chain has the right
+    stationary distribution, as we will see later.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 4: b. Justification: The text defines the joint distribution of
+    \(v\) and \(h\) as \(\boldsymbol{\pi}(\mathbf{v},\mathbf{h}) = \frac{1}{Z} \exp(-\mathcal{E}(\mathbf{v},\mathbf{h}))\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 5: c. Justification: The text explains that \(Z\), the partition
+    function, “ensures that \(\boldsymbol{\pi}\) indeed sums to 1.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.6.1\. Markov chain Monte Carlo (MCMC)[#](#markov-chain-monte-carlo-mcmc "Link
+    to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Suppose we are interested in generating samples from a target distribution
+    \(\bpi = (\pi_i)_{i \in \S}\) over a set \(\S\). We have done this before. For
+    instance, we generated samples from a mixture of Gaussians to test \(k\)-means
+    clustering in different dimensions. There are many more applications. A canonical
+    one is to estimate the mean of a function \(f\) under \(\bpi\): generate \(n\)
+    independent samples \(Z_1,\ldots,Z_n\), all distributed according to \(\pi\),
+    then compute'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{1}{n} \sum_{i=1}^n f(Z_i), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: which is approximately \(\E[f(Z_1)]\) by the law of large numbers, provided
+    \(n\) is sufficiently large. Furthermore, this type of problem plays an important
+    role in [Bayesian inference](https://en.wikipedia.org/wiki/Bayesian_inference).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sampling from simple distributions** When \(\bpi\) is a standard distribution
+    or \(\S\) is relatively small, this can be done efficiently by using a random
+    number generator, as we have done previously.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** Recall how this works. We first initialize the random
+    number generator and use a `seed` for reproducibility.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: To generate, say \(1000\), samples from a multivariate normal, say with mean
+    \((0, 0)\) and covariance \(\begin{pmatrix}5 & 0\\0 & 1\end{pmatrix}\), we use
+    [`numpy.random.Generator.multivariate_normal`](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.multivariate_normal.html#numpy.random.Generator.multivariate_normal)
+    as follows. The `.T` below transposes the output to separate the \(x\) and \(y\)
+    coordinates into individual arrays.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`rng.multivariate_normal(mean, cov, 1000)` returns a `(1000, 2)` array where
+    each row is one sample:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `.T` transposes this to `(2, 1000)`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now `x, y = ...` unpacks the two rows, giving you:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`x = [x1, x2, x3, ..., x1000]` (all x-coordinates)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`y = [y1, y2, y3, ..., y1000]` (all y-coordinates)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Computing the mean of each component we get:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is somewhat close to the expected answer: \((0,0)\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a larger number of samples, say \(10,000\), gives a better result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sampling from an arbitrary distribution on a finite set is also straightforward
+    – as long as the set is not too big. This can be done using [`numpy.random.Generator.choice`](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.choice.html).
+    Borrowing the example from the documentation, the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: generates \(5\) samples from the set \(\S = \{\tt{pooh}, \tt{rabbit}, \tt{piglet},
+    \tt{christopher}\}\) with respective probabilities \(0.5, 0.1, 0.1, 0.3\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: But this may not be practical when the state space \(\S\) is very large. As
+    an example, later in this section, we will learn a “realistic” distribution of
+    handwritten digits. We will do so using the [MNIST dataset](https://en.wikipedia.org/wiki/MNIST_database).
+  prefs: []
+  type: TYPE_NORMAL
+- en: <details class="hide above-input"><summary aria-label="Toggle hidden content">Show
+    code cell source Hide code cell source</summary>
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]</details>'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each image is \(28 \times 28\), so the total number of (black and white) pixels
+    is \(784\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: To specify a distribution over all possible black and white images of this size,
+    we need in principle to assign a probability to a very large number of states.
+    Our space here is \(\S = \{0,1\}^{784}\), imagining that \(0\) encodes white and
+    \(1\) encodes black and that we have ordered the pixels in some arbitrary way.
+    How big is this space?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer: \(2^{784}\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Or in base \(10\), we compute \(\log_{10}(2^{784})\), which is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: So a little more than \(10^{236}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is much too large to naively plug into `rng.choice`!
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: So how to proceed? Instead we’ll use a Markov chain, as detailed next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**General setting** The idea behind MCMC\(\idx{Markov chain Monte Carlo}\xdi\)
+    is simple. To generate samples from \(\bpi\), use a Markov chain \((X_t)_{t \geq
+    0}\) for which *it is the stationary distribution*. Indeed, we know from the *Convergence
+    to Equilibrium Theorem* that if the chain is irreducible and aperiodic, then the
+    distribution at time \(t\) is close to \(\bpi\) when \(t\) is large enough; and
+    this holds for any initial dsitribution. Repeating this multiple times produces
+    many independent, approximate samples from \(\bpi\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The question is now:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to construct a transition matrix \(P\) whose stationary distribution is
+    given target distribution \(\bpi\)?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How to ensure that this Markov chain is relatively easy to simulate?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Regarding the first question, we have seen how to compute the stationary distribution
+    of a transition matrix (provided it exists and is unique). How do we invert the
+    process? Note one difficulty: many transition matrices can have the same stationary
+    distribution. This is in fact a blessing, as it gives room for designing a “good”
+    Markov chain.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Construct two distinct transition matrices on \(2\) states
+    whose stationary distribution is uniform. \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regarding the second question, note that an obvious chain answering the first
+    question is one that ignores the current state and chooses the next state according
+    to \(\bpi\). We have already seen that this can be a problematic choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Show that this chain has the desired stationary distribution.
+    \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Metropolis-Hastings** We develop one standard technique that helps answer
+    these two questions. It is known as the [Metropolis-Hastings algorithm](https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm)\(\idx{Metropolis-Hastings}\xdi\).
+    It consists in two steps. We assume that \(\bpi > 0\), that is, \(\pi_i > 0, \forall
+    i \in \S\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proposal distribution:* We first define a proposal chain, that is, a transition
+    matrix \(Q\) on the space \(\S\). This chain *does not* need to have stationary
+    distribution \(\bpi\). But it is typically a chain that is easy to simulate. A
+    different way to think of this chain is that, for each state \(x \in \S\), we
+    have a proposal distribution \(Q(x,\,\cdot\,)\) for the next state.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, on the space of \(28 \times 28\) black-and-white images, we might
+    pick a pixel uniformly at random and flip its value with probability \(1/2\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** In the previous example, what is the stationary distribution?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) All-white with probability \(1/2\), all-black with probability \(1/2\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) Uniform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) Too complex to compute.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) What is a stationary distribution?
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\checkmark\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Hastings correction:*\(\idx{Hastings correction}\xdi\) At each step, we first
+    pick a state according to \(Q\), given the current state. Then we accept or reject
+    this move according to a specially defined probability that depends on \(Q\) as
+    well as \(\bpi\). This is where the target distribution \(\bpi\) enters the picture,
+    and the rejection probability is chosen to ensure that the new chain has the right
+    stationary distribution, as we will see later. But first we define the full algorithm.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Formally, the algorithm goes as follows. Let \(x_0 \in \S\) be an arbitrary
+    starting point and set \(X_0 := x_0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At each time \(t \geq 1\):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1- Pick a state \(Y\) according to the distribution \(Q(X_{t-1}, \,\cdot\,)\),
+    that is, row \(X_{t-1}\) of \(Q\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2- With probability
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \min\left\{1, \frac{\pi_{Y}}{\pi_{X_{t-1}}} \frac{Q(Y, X_{t-1})}{Q(X_{t-1},
+    Y)} \right\} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: we set \(X_{t} := Y\) (i.e., we accept the move), and otherwise we set \(X_{t}
+    := X_{t-1}\) (i.e., we reject the move).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Should we worry about the denominator \(\pi_{X_{t-1}}
+    Q(X_{t-1}, Y)\) being \(0\)? \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We make three observations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Taking a minimum with \(1\) ensures that acceptance probability is indeed between
+    \(0\) and \(1\).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We only need to know \(\bpi\) *up to a scaling factor* since the chain depends
+    only on the ratio \(\frac{\pi_{Y}}{\pi_{X_{t-1}}}\). The scaling factor cancels
+    out. This turns out to be critical in many applications of MCMC. We will see an
+    example in the next subsection.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If \(Q\) is symmetric, that is, \(Q(x,y) = Q(y,x)\) for all \(x, y \in \S\),
+    then the ratio \(\frac{Q(Y, X_{t-1})}{Q(X_{t-1}, Y)}\) is just \(1\), leading
+    to a simpler formula for the acceptance probability. In particular, in that case,
+    moving to a state with a larger probability under \(\bpi\) is *always* accepted.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** Suppose \(\S = \{1,\cdots, n\} = [n]\) for some positive
+    integer \(n\) and \(\bpi\) is proportional to a Poisson distribution with mean
+    \(\lambda > 0\). That is,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \pi_i = C e^{-\lambda} \frac{\lambda^i}{i!}, \quad \forall i \in \S \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for some constant \(C\) chosen so that \(\sum_{i=1}^{n} \pi_i = 1\). Recall
+    that we do not need to determine \(C\) as it is enough to know the target distribution
+    up to a scaling factor by the previous remark.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To apply Metropolis-Hastings, we need a proposal chain. Consider the following
+    choice. For each \(1 < i < n\), move to \(i+1\) or \(i-1\) with probability \(1/2\)
+    each. For \(i=1\) (respectively \(i = n\)), move to \(2\) (respectively \(n-1\))
+    with probability \(1/2\), otherwise stay where you are. For instance, if \(n =
+    4\), then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} Q = \begin{pmatrix} 1/2 & 1/2 & 0 & 0\\ 1/2 & 0 & 1/2 & 0\\
+    0 & 1/2 & 0 & 1/2\\ 0 & 0 & 1/2 & 1/2 \end{pmatrix}, \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: which is indeed a stochastic matrix. It is also symmetric, so it does not enter
+    into the acceptance probability by the previous remark.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To compute the acceptance probability, we only need to consider pairs of adjacent
+    integers as they are the only one that have non-zero probability under \(Q\).
+    Consider state \(1 < i < n\). Observe that
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{\pi_{i+1}}{\pi_{i}} = \frac{C e^{-\lambda} \lambda^{i+1}/(i+1)!}{C
+    e^{-\lambda} \lambda^{i}/i!} = \frac{\lambda}{i+1} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: so a move to \(i+1\) happens with probability
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{1}{2} \min\left\{1, \frac{\lambda}{i+1}\right\}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where the \(1/2\) factor from the proposal distribution. Similarly, it can be
+    checked (try it!) that a move to \(i-1\) occurs with probability
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{1}{2} \min\left\{1, \frac{i}{\lambda}\right\}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: And we stay at \(i\) with probability \(1 - \frac{1}{2} \min\left\{1, \frac{\lambda}{i+1}\right\}
+    - \frac{1}{2} \min\left\{1, \frac{i}{\lambda}\right\}\). (Why is this guaranteed
+    to be a probability?)
+  prefs: []
+  type: TYPE_NORMAL
+- en: A similar formula applies to \(i = 1, n\). (Try it!)
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are ready to apply Metropolis-Hastings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: Take \(\lambda = 1\) and \(n = 6\). We get the following transition matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**TRY IT!** Rewrite the function `mh_transition_poisson` without an explicit
+    loop by using [broadcasting and vectorization](https://numpy.org/doc/stable/user/basics.broadcasting.html).
+    ([Open in Colab](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_prob_notebook.ipynb))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use our simulator from a previous section. We start from the uniform distribution
+    and take \(100\) steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our sample is the final state of the trajectory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: We repeat \(1000\) times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: We plot the frequencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: <details class="hide above-input"><summary aria-label="Toggle hidden content">Show
+    code cell source Hide code cell source</summary>
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE75]</details> ![../../_images/d6e38b4f33052e917d7a2b6a03db11bd9c511daf60b88e2534f0a8be833345b9.png](../Images/4cb2314254f27c2be1f23bd733b95e2d.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we increase the parameter \(\lambda\) (which is not quite the mean; why?),
+    what would you expect will happen to the sampled distribution?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**TRY IT!** Redo the simulations, but this time implement a general Metropolis-Hastings
+    algorithm rather than specifying the transition matrix directly. That is, implement
+    the algorithm for an arbitrary \(\bpi\) and \(Q\). Assume the state space is \([n]\).
+    ([Open in Colab](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_prob_notebook.ipynb))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: It remains to prove that \(\bpi\) is needed the stationary distribution of the
+    Metropolis-Hastings algorithm. We restrict ourselves to the symmetric case, that
+    is, \(Q(x,y) = Q(y,x)\) for all \(x,y\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**THEOREM** **(Correctness of Metropolis-Hastings)** \(\idx{correctness of
+    Metropolis-Hastings}\xdi\) Consider the Metropolis-Hastings algorithm with target
+    distribution \(\bpi\) over finite state space \(\S\) and symmetric proposal chain
+    \(Q\). Assume further that \(\bpi\) is strictly positive and \(Q\) is irreducible
+    over \(\S\). The resulting Markov chain is irreducible and reversible with respect
+    to \(\bpi\). \(\sharp\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* It is just a matter of writing down the resulting transition
+    matrix \(P\) and checking the detailed balance conditions. Because of the minimum
+    in the acceptance probability, one has to consider two cases each time.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* Let \(P\) denote the transition matrix of the resulting Markov chain.
+    Our first task is to compute \(P\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let \(x, y \in \S\) be a pair of distinct states such that \(Q(x, y) = Q(y,
+    x) = 0\). Then, from \(x\) (respectively \(y\)), the proposal chain never picks
+    \(y\) (respectively \(x\)) as the possible next state. Hence \(P(x,y) = P(y, x)
+    = 0\) in that case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So let \(x, y \in \S\) be a pair of distinct states such that \(Q(x, y) = Q(y,
+    x) > 0\). Applying the Hastings correction, we get that the overall probability
+    of moving to \(y\) from current state \(x\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ P(x, y) = Q(x, y) \left(1 \land \frac{\pi_{y}}{\pi_{x}}\right) > 0, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the symmetry of \(Q\) and the notation \(a \land b = \min\{a,b\}\).
+    Similarly,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ P(y, x) = Q(y, x) \left(1 \land \frac{\pi_{x}}{\pi_{y}}\right) > 0. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since \(P(x,y)\) is strictly positive exactly when \(Q(x,y)\) is strictly positive
+    (for distinct \(x,y\)), the chain \(P\) has the same transition graph as the chain
+    \(Q\). Hence, because \(Q\) is irreducible, so is \(P\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: It remains to check the detailed balance conditions. There are two cases. Without
+    loss of generality, say \(\pi_x \leq \pi_y\). Then the previous formulas for \(P\)
+    simplify to
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ P(x, y) = Q(x, y) \quad\text{and}\quad P(y, x) = Q(y, x) \frac{\pi_{x}}{\pi_{y}}.
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hence,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \pi_x P(x,y) = \pi_x Q(x,y) = \pi_x Q(y,x) = \pi_x \frac{\pi_y}{\pi_y} Q(y,x)
+    = \pi_y P(y,x), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the symmetry of \(Q\) to obtain the second equality. That establishes
+    the reversibility of \(P\) and concludes the proof. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** The Metropolis-Hastings algorithm can be used for Bayesian
+    inference. Ask your favorite AI chatbot to explain how MCMC methods are used in
+    Bayesian inference and to provide an example of using the Metropolis-Hastings
+    algorithm for parameter estimation in a simple Bayesian model. \(\ddagger\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.6.2\. Gibbs sampling[#](#gibbs-sampling "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have seen that one challenge of the Metropolis-Hastings approach is to choose
+    a good proposal chain. Gibbs sampling\(\idx{Gibbs sampling}\xdi\) is a canonical
+    way of addressing this issue that has many applications. It applies in cases where
+    the states are vectors, typically with a large number of coordinates, and where
+    the target distribution has the kind of conditional independence properties we
+    have encountered previously in the previous chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**General setting** Here we will assume that \(\S = \Z^d\) where \(\Z\) is
+    a finite set and \(d\) is the dimension. To emphasize that states are vectors,
+    we will boldface letters, e.g., \(\bx = (x_i)_{i=1}^d\), \(\by = (y_i)_{i=1}^d\),
+    etc., to denote them.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will need the following special notation. For a vector \(\bx \in \Z^d\) and
+    an index \(i \in [d]\), we write
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bx_{-i} = (x_1, \ldots,x_{i-1}, x_{i+1}, \ldots, x_d) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for the vector \(\bx\) where the coordinate \(x_i\) is dropped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If \(\boldsymbol{\pi}\) is the target distribution, we let \(\pi_i(x_i|\bx_{-i})\)
+    be the conditional probability that \(X_i = x_i\) given that \(\bX_{-i} = \bx_{-i}\)
+    under the distribution \(\boldsymbol{\pi}\), i.e., \(\bX = (X_1,\ldots,X_d) \sim
+    \boldsymbol{\pi}\). We assume that \(\pi_{\bx} > 0\) for all \(\bx \in \Z^d\).
+    As a result, \(\pi_i(x_i|\bx_{-i}) > 0\) as well (prove it!).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A basic version of the Gibbs sampler generates a sequence of vectors \(\bX_0,
+    \bX_1, \ldots, \bX_t, \ldots\) in \(\Z^d\) as follows. We denote the coordinates
+    of \(\bX_t\) by \((X_{t,1}, \ldots, X_{t,d})\). We denote the vector of all coordinates
+    of \(\bX_t\) except \(i\) by \(\bX_{t,-i}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pick \(\bX_0\) according to an arbitrary initial distribution \(\boldsymbol{\mu}\)
+    over \(\Z^d\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At each time \(t \geq 1\):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1- Pick a coordinate \(i\) uniformly at random in \([d]\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 2- Update coordinate \(X_{t,i}\) according to \(\pi_i(\,\cdot\,|\bX_{t-1,-i})\)
+    while leaving all other coordinates unchanged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will implement it in a special case in the next subsection. But first we
+    argue that it has the desired stationary distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It suffices to establish that the Gibbs sampler is a special case of the Metropolis-Hastings
+    algorithm. For this, we must identify the appropriate proposal chain \(Q\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We claim that the following choice works: for \(\bx \neq \by\),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} Q(\bx, \by) = \begin{cases} \frac{1}{d} \pi_i(y_i|\bx_{-i})
+    & \text{if $\by_{-i} = \bx_{-i}$ for some $i \in [d]$}\\ 0 & \text{o.w.} \end{cases}
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The condition “\(\by_{-i} = \bx_{-i}\) for some \(i \in [d]\)” ensures that
+    we only consider moves that affect a single coordinate \(i\). The factor \(1/d\)
+    means that we pick that coordinate uniformly at random among all coordinates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For each \(\bx\), we stay put with the remaining probability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Write down explicitly the staying probability \(Q(\bx,
+    \bx)\) and check it is indeed in \([0,1]\). \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, this \(Q\) is not symmetric. For \(\bx \neq \by\) with \(Q(\bx,
+    \by) > 0\) where \(i\) is the non-matching coordinate, the acceptance probability
+    is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \min\left\{1, \frac{\pi_{\by}}{\pi_{\bx}} \frac{Q(\by, \bx)}{Q(\bx,
+    \by)} \right\} &= \min\left\{1, \frac{\pi_{\by}}{\pi_{\bx}} \frac{\frac{1}{d}
+    \pi_i(x_i|\by_{-i})}{\frac{1}{d} \pi_i(y_i|\bx_{-i})} \right\}\\ &= \min\left\{1,
+    \frac{\pi_{\by}}{\pi_{\bx}} \frac{\pi_i(x_i|\bx_{-i})}{\pi_i(y_i|\bx_{-i})} \right\},
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used that \(\bx_{-i} = \by_{-i}\) in the second equality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Recall the definition of the conditional probability as a ratio: \(\P[A|B]
+    = \P[A\cap B]/\P[B]\). Applying that definition, both conditional probabilities
+    \(\pi_i(x_i|\bx_{-i})\) and \(\pi_i(y_i|\bx_{-i})\) have the *same denominator*.
+    Their respective numerators on the other hand are \(\pi_{\bx}\) and \(\pi_{\by}\).
+    Hence,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \min\left\{1, \frac{\pi_{\by}}{\pi_{\bx}} \frac{\pi_i(x_i|\bx_{-i})}{\pi_i(y_i|\bx_{-i})}
+    \right\} = \min\left\{1, \frac{\pi_{\by}}{\pi_{\bx}} \frac{\pi_{\bx}}{\pi_{\by}}
+    \right\} = 1. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, the proposed move is always accepted! Therefore \(P = Q\), which
+    is indeed the Gibbs sampler. It also establishes by *Correctness of Metropolis-Hastings*
+    that \(P\) is reversible with respect to \(\pi\). It is also irreducible (Why?).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here we picked a coordinate at random. It turns out that other choices are possible.
+    For example, one could update each coordinate in some deterministic order, or
+    one could update blocks of coordinates at a time. Under some conditions, these
+    schemes can still produce an algorithm simulating the desired distribution. We
+    will not detail this here, but our implementation below does use a block scheme.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**An example: restricted Boltzmann machines (RBM)** We implement the Gibbs
+    sampler on a specific probabilistic model, a so-called restricted Boltzmann machine
+    (RBM)\(\idx{restricted Boltzmann machine}\xdi\), and apply it to the generation
+    of random images from a “realistic” distribution. For more on Boltzmann machines,
+    including their restricted and deep versions, see [here](https://en.wikipedia.org/wiki/Boltzmann_machine).
+    We will not describe them in great details here, but only use them as an example
+    of a complex distribution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Probabilistic model:* An RBM has \(m\) visible units (i.e., observed variables)
+    and \(n\) hidden units (i.e., hidden variables). It is represented by a complete
+    bipartite graph between the two.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![An RBM (with help from ChatGPT; code converted and adapted from Source)](../Images/4fb58292c78ce9956928cadb68b7af09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Visible unit \(i\) is associated a variable \(v_i\) and hidden unit \(j\) is
+    associated a variable \(h_j\). We define the corresponding vectors \(\bv = (v_1,\ldots,v_m)\)
+    and \(\bh = (h_1,\ldots,h_n)\). For our purposes, it will suffice to assume that
+    \(\bv \in \{0,1\}^m\) and \(\bh \in \{0,1\}^n\). These are referred to as binary
+    units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The probabilistic model has a number of parameters. Each visible unit \(i\)
+    has an offset \(b_i \in \mathbb{R}\) and each hidden unit \(j\) has an offset
+    \(c_j \in \mathbb{R}\). We write \(\bb = (b_1,\ldots,b_m)\) and \(\bc = (c_1,\ldots,c_n)\)
+    for the offset vectors. For each pair \((i,j)\) of visible and hidden units (or,
+    put differently, for each edge in the complete bipartite graph), there is a weight
+    \(w_{i,j} \in \mathbb{R}\). We write \(W = (w_{i,j})_{i,j=1}^{m,n}\) for the weight
+    matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To define the probability distribution, we need the so-called [energy](https://en.wikipedia.org/wiki/Energy-based_model)\(\idx{energy-based
+    model}\xdi\) (as you may have guessed, this terminology comes from related models
+    in [physics](https://en.wikipedia.org/wiki/Boltzmann_distribution)): for \(\bv
+    \in \{0,1\}^m\) and \(\bh \in \{0,1\}^n\),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \cE(\bv, \bh) &= - \bv^T W \bh - \bb^T \bv - \bc^T \bh\\ &=
+    - \sum_{i=1}^m \sum_{j=1}^n w_{i,j} v_i h_j - \sum_{i=1}^m b_i v_i - \sum_{j=1}^n
+    c_j h_j. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The joint distribution of \(\bv\) and \(\bh\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \boldsymbol{\pi}(\bv, \bh) = \frac{1}{Z} \exp\left(- \cE(\bv, \bh)\right),
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where \(Z\), the [partition function](https://en.wikipedia.org/wiki/Partition_function_%28statistical_mechanics%29)\(\idx{partition
+    function}\xdi\) (a function of \(W,\bb,\bc\)), ensures that \(\boldsymbol{\pi}\)
+    indeed sums to \(1\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will be interested in sampling from the marginal over visible units, that
+    is,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \rho(\bv) = \sum_{\bh \in \{0,1\}^n} \boldsymbol{\pi}(\bv, \bh). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: When \(m\) and/or \(n\) are large, computing \(\rho\) or \(\boldsymbol{\pi}\)
+    explicitly – or even numerically – is impractical.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We develop the Gibbs sampler for this model next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Gibbs sampling:* We sample from the joint distribution \(\boldsymbol{\pi}\)
+    and observe only \(\bv\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We need to compute the conditional probabilities given every other variable.
+    The sigmoid function, \(\sigma(x)\), will once again make an appearance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: Fix a visible unit \(i \in [m]\). For a pair \((\bv, \bh)\), we denote by \((\bv_{[i]},
+    \bh)\) the same pair where coordinate \(i\) of \(\bv\) is flipped. Given every
+    other variable, i.e., \((\bv_{-i},\bh)\), and using a superscript \(\text{v}\)
+    to indicate the probability of a visible unit, the conditional probability of
+    \(v_i\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \pi^{\text{v}}_i(v_i|\bv_{-i},\bh) &= \frac{\boldsymbol{\pi}(\bv,
+    \bh)}{\boldsymbol{\pi}(\bv, \bh) + \boldsymbol{\pi}(\bv_{[i]}, \bh)}\\ &= \frac{\frac{1}{Z}
+    \exp\left(- \cE(\bv, \bh)\right)}{\frac{1}{Z} \exp\left(- \cE(\bv, \bh)\right)
+    + \frac{1}{Z} \exp\left(- \cE(\bv_{[i]}, \bh)\right)}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this last ratio, the partition functions (the \(Z\)’s) cancel out. Moreover,
+    all the terms in the exponentials *not depending* on the \(i\)-th visible unit
+    actually factor out and cancel out as well – they are identical in all three exponentials.
+    Similarly, the terms in the exponentials *depending only on \(\bh\)* also factor
+    out and cancel out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What we are left with is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\pi^{\text{v}}_i(v_i|\bv_{-i},\bh)\\ &= \frac{\exp\left(\sum_{j=1}^n
+    w_{i,j} v_i h_j + b_i v_i\right)} {\exp\left(\sum_{j=1}^n w_{i,j} v_i h_j + b_i
+    v_i\right) + \exp\left(\sum_{j=1}^n w_{i,j} (1-v_i) h_j + b_i (1-v_i)\right)},
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the fact that flipping \(v_i \in \{0,1\}\) is the same as setting
+    it to \(1 - v_i\), a transformation which indeed sends \(0\) to \(1\) and \(1\)
+    to \(0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This expression does not depend on \(\bv_{-i}\). In other words, the \(i\)-th
+    visible unit is conditionally independent of all other visible units given the
+    hidden units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We simplify the expression
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\pi^{\text{v}}_i(v_i|\bv_{-i},\bh)\\ &= \frac{1} {1 + \exp\left(\sum_{j=1}^n
+    w_{i,j} (1-2 v_i) h_j + b_i (1- 2v_i)\right)}\\ &= \sigma\left(\sum_{j=1}^n w_{i,j}
+    (2 v_i-1) h_j + b_i (2v_i-1)\right). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In particular, the conditional mean of the \(i\)-th visible unit given everything
+    else is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} 0 \cdot \pi^{\text{v}}_i(0|\bv_{-i},\bh) + 1 \cdot \pi^{\text{v}}_i(1|\bv_{-i},\bh)
+    &= \pi^{\text{v}}_i(1|\bv_{-i},\bh)\\ &= \sigma\left(\sum_{j=1}^n w_{i,j} h_j
+    + b_i \right)\\ &= \sigma\left((W \bh + \bb)_i \right) \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly for the conditional probability of the \(j\)-th hidden unit given
+    everything else, we have
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\pi^{\text{h}}_j(h_j|\bv,\bh_{-j})\\ &= \sigma\left(\sum_{i=1}^m
+    w_{i,j} v_i (2h_j -1) + c_j (2h_j -1)\right). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The conditional mean given everything else is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} 0 \cdot \pi^{\text{h}}_j(0|\bv,\bh_{-j}) + 1 \cdot \pi^{\text{h}}_j(1|\bv,\bh_{-j})
+    &= \pi^{\text{h}}_j(1|\bv,\bh_{-j}) = \sigma\left((W^T \bv + \bc)_j \right). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: And the \(j\)-th hidden unit is conditionally independent of all other hidden
+    units given the visible units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We implement the Gibbs sampler for an RBM. Rather than updating the units at
+    random, we use a block approach. Specifically, we update all hidden units independently,
+    given the visible units; then we update all visible units independently, given
+    the hidden units. In each case, this is warranted by the conditional independence
+    structure revealed above.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first implement the conditional means using the formulas previously derived.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: We next implement one step of the sampler, which consists in updating all hidden
+    units, followed by updating all visible units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, we repeat these steps `k` times. We only return the visible units `v`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here `v_0` is the initial visible unit states. We do not need to initialize
+    the hidden ones as this is done automatically in the first update step. In the
+    next subsection, we will take the initial distribution of \(\bv\) to be independent
+    Bernoullis with success probability \(1/2\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We apply our Gibbs sampler to generating images. As mentioned
+    previously, we use the MNIST dataset to learn a “realistic” distribution of handwritten
+    digit images. Here the images are encoded by the visible units of an RBM. Then
+    we sample from this model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first need to train the model on the data. We will not show how this is done
+    here, but instead use [`sklearn.neural_network.BernoulliRBM`](https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.BernoulliRBM.html).
+    (Some details of how this training is done is provided [here](https://scikit-learn.org/stable/modules/neural_networks_unsupervised.html#stochastic-maximum-likelihood-learning).)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: To simplify the analysis and speed up the training, we only keep digits \(0\),
+    \(1\) and \(5\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: We flatten the images (which have already been “rounded” to black-and-white;
+    see the first subsection).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now fit the model. Choosing the hyperparameters of the training algorithm
+    is tricky. The following seem to work reasonably well. (For a more systematic
+    approach to tuning hyperparameters, see [here](https://scikit-learn.org/stable/modules/grid_search.html).)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**In a Jupyter environment, please rerun this cell to show the HTML representation
+    or trust the notebook.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On GitHub, the HTML representation is unable to render, please try loading this
+    page with nbviewer.org.**
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are ready to sample from the trained RBM. We extract the learned parameters
+    from `rbm`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE87]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE88]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE89]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE90]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE91]'
+  prefs: []
+  type: TYPE_PRE
+- en: To generate \(25\) samples, we first generate \(25\) independent initial states.
+    We stack them into a matrix, where each row is a different flattened random noise
+    image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE92]'
+  prefs: []
+  type: TYPE_PRE
+- en: To process all samples simultaneously, we make a small change to the code. We
+    use `numpy.newaxis` to make the offsets into column vectors, which are then automatically
+    added to all columns of the resulting weighted sum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE93]'
+  prefs: []
+  type: TYPE_PRE
+- en: For plotting, we use a script [adapted from here](https://scikit-learn.org/stable/auto_examples/neural_networks/plot_rbm_logistic_classification.html)
+    (with help from ChatGPT).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE94]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are now ready to run our Gibbs sampler. The outcome depends on the number
+    of steps we take. After \(100\) steps, the outcome is somewhat realistic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE95]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/aab5b59b73dc84d3b82547a838a8eadc75c8099fe134e50728fbf2920a04f55e.png](../Images/2abf435d81044deb01535f2ccdd32d63.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** The RBM can be stacked to form a [deep belief network (DBN)](#(https://en.wikipedia.org/wiki/Boltzmann_machine#Deep_Boltzmann_machine)).
+    Ask your favorite AI chatbot about the process of greedy layer-wise pretraining
+    of a DBN using RBMs. Discuss how this can be used for initializing the weights
+    of a deep neural network and compare the performance with random initialization.
+    \(\ddagger\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '***Self-assessment quiz*** *(with help from Claude, Gemini, and ChatGPT)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**1** In the context of Markov Chain Monte Carlo (MCMC), what is the primary
+    goal?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) To find the maximum likelihood estimate of a parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) To generate samples from a complex target distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) To optimize a loss function using gradient descent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) To cluster data points based on similarity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2** In the Metropolis-Hastings algorithm, what is the role of the proposal
+    chain \(Q\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It determines the stationary distribution of the resulting Markov chain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It is used to compute the acceptance probability for the proposed moves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It generates the candidate states for the next move in the Markov chain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It ensures that the resulting Markov chain is irreducible and aperiodic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3** What is the purpose of the Hastings correction in the Metropolis-Hastings
+    algorithm?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) To ensure that the proposal chain is symmetric.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) To make the resulting Markov chain irreducible and aperiodic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) To ensure that the resulting Markov chain has the desired stationary distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) To improve the mixing time of the resulting Markov chain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**4** What is the role of the energy function \(\mathcal{E}(\mathbf{v},\mathbf{h})\)
+    in a Restricted Boltzmann Machine (RBM)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It determines the acceptance probability in the Metropolis-Hastings algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It defines the joint probability distribution of the visible and hidden units.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It represents the cost function to be minimized during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It controls the learning rate of the RBM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**5** What is the partition function \(Z\) used for in the RBM’s joint probability
+    distribution \(\boldsymbol{\pi}(\mathbf{v}, \mathbf{h})\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It normalizes the energy function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It scales the weights matrix \(W\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It ensures that the probability distribution sums to one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It adjusts the biases \(\mathbf{b}\) and \(\mathbf{c}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 1: b. Justification: The text states that “The idea behind MCMC
+    is simple. To generate samples from \(\boldsymbol{\pi}\), use a Markov chain for
+    which it is the stationary distribution.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 2: c. Justification: The text describes the proposal chain as follows:
+    “We first define a proposal chain, that is, a transition matrix \(Q\) on the space
+    \(\mathcal{S}\). This chain does not need to have stationary distribution \(\boldsymbol{\pi}\).
+    But it is typically a chain that is easy to simulate.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 3: c. Justification: The text states that the Hastings correction
+    is “where the target distribution \(\boldsymbol{\pi}\) enters the picture, and
+    the rejection probability is chosen to ensure that the new chain has the right
+    stationary distribution, as we will see later.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 4: b. Justification: The text defines the joint distribution of
+    \(v\) and \(h\) as \(\boldsymbol{\pi}(\mathbf{v},\mathbf{h}) = \frac{1}{Z} \exp(-\mathcal{E}(\mathbf{v},\mathbf{h}))\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 5: c. Justification: The text explains that \(Z\), the partition
+    function, “ensures that \(\boldsymbol{\pi}\) indeed sums to 1.”'
+  prefs: []
+  type: TYPE_NORMAL

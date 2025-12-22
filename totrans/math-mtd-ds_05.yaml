@@ -1,0 +1,2882 @@
+- en: '1.3\. Clustering: an objective, an algorithm and a guarantee#'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://mmids-textbook.github.io/chap01_intro/03_clustering/roch-mmids-intro-clustering.html](https://mmids-textbook.github.io/chap01_intro/03_clustering/roch-mmids-intro-clustering.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Consider the following fundamental problem in data science.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The input:* We are given \(n\) vectors \(\mathbf{x}_1,\ldots,\mathbf{x}_n\)
+    in \(\mathbb{R}^d\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our goal is to find a good clustering\(\idx{clustering}\xdi\): loosely speaking,
+    we want to partition these data points into \(k\) disjoint subsets – or clusters
+    – with small pairwise distances within clusters and large pairwise distances across
+    clusters. To make this rather vague problem more precise, we consider a specific
+    objective function known as the \(k\)-means objective. Our approach here will
+    be typical of how one might approach a mathematical data science problem. We will
+    first formulate the problem as an optimization problem, then derive an algorithm
+    to solve it, and finally provide some rigorous guarantees about the output.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Figure:** Data points forming three clusters ([Source](https://commons.wikimedia.org/wiki/File:Cluster-2.svg))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Data points forming three clusters](../Images/c4d356b8ecee59d522f94bb3d77cd0e9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: \(\bowtie\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The output:* But first, we need to define precisely what we are trying to
+    extract from the data. What is the mathematical structure of the solution sought?
+    Fix a number of clusters \(k\). Formally, we define a clustering as a partition.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**DEFINITION** **(Partition)** \(\idx{partition}\xdi\) A partition of \([n]
+    = \{1,\ldots,n\}\) of size \(k\) is a collection of non-empty subsets \(C_1,\ldots,C_k
+    \subseteq [n]\) that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: are pairwise disjoint, i.e., \(C_i \cap C_j = \emptyset\), \(\forall i \neq
+    j\)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: cover all of \([n]\), i.e., \(\cup_{i=1}^k C_i = [n]\).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: \(\natural\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** Suppose we are given \(8\) data points in \(\mathbb{R}^2\) as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\mathbf{x}_1 = \begin{pmatrix}1\\0\end{pmatrix}, \mathbf{x}_2
+    = \begin{pmatrix}-2\\0\end{pmatrix}, \mathbf{x}_3 = \begin{pmatrix}-2\\1\end{pmatrix},
+    \mathbf{x}_4 = \begin{pmatrix}1\\-3\end{pmatrix},\\ &\mathbf{x}_5 = \begin{pmatrix}-10\\10\end{pmatrix},
+    \mathbf{x}_6 = \begin{pmatrix}2\\-2\end{pmatrix}, \mathbf{x}_7 = \begin{pmatrix}-3\\1\end{pmatrix},
+    \mathbf{x}_8 = \begin{pmatrix}3\\-1\end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So here \(n=8\) and \(d = 2\). Assume we look for \(k = 3\) clusters. Then
+    a valid clustering would be for instance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: which corresponds to assigning data points \(\mathbf{x}_1, \mathbf{x}_4, \mathbf{x}_6,
+    \mathbf{x}_8\) to the first cluster, data points \(\mathbf{x}_2, \mathbf{x}_3,
+    \mathbf{x}_7\) to the second cluster and data point \(\mathbf{x}_5\) to the third
+    cluster. Note in particular that the sets \(C_1, C_2, C_3\) satisfy the conditions
+    of a partition, i.e., they are disjoint and cover all of \([8] = \{1,2,\ldots,8\}\).
+    Or put differently, each data point is assigned to one and exactly one cluster.
+    \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: We number the clusters \(C_1,\ldots,C_k\) for notational convenience, but their
+    order is meaningless. Two partitions are the same if they are the same family
+    of subsets. E.g., in the previous example, \(C_1 = \{1, 4, 6, 8\}, C_2 = \{2,
+    3, 7\}, C_3 = \{5\}\) and \(C_1 = \{5\}, C_2 = \{1, 4, 6, 8\}, C_3 = \{2, 3, 7\}\)
+    are equivalent clusterings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1.3.1\. The k-means objective[#](#the-k-means-objective "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Under the \(k\)-means objective\(\idx{k-means objective}\xdi\), the “cost” of
+    \(C_1,\ldots,C_k\) is defined as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{G}(C_1,\ldots,C_k) = \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k
+    \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2.
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here \(\boldsymbol{\mu}_i \in \mathbb{R}^d\) is the representative – or center
+    – of cluster \(C_i\). Note that \(\boldsymbol{\mu}_i\) need not be one of the
+    \(\mathbf{x}_j\)’s.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our goal is to find a partition \(C_1,\ldots,C_k\) that minimizes \(\mathcal{G}(C_1,\ldots,C_k)\),
+    i.e., solves the problem
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \min_{C_1,\ldots,C_k} \mathcal{G}(C_1,\ldots,C_k) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: over all partitions of \([n]\) of size \(k\). This is a finite optimization
+    problem, as there are only a finite number of such partitions. Note, however,
+    that the objective function itself is an optimization problem over \(\mathbb{R}^d
+    \times \cdots \times \mathbb{R}^{d}\), that is, \(k\) copies of \(\mathbb{R}^d\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To quote [Wikipedia](https://en.wikipedia.org/wiki/Cluster_analysis#Centroid-based_clustering):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In centroid-based clustering, clusters are represented by a central vector,
+    which may not necessarily be a member of the data set. When the number of clusters
+    is fixed to k, k-means clustering gives a formal definition as an optimization
+    problem: find the k cluster centers and assign the objects to the nearest cluster
+    center, such that the squared distances from the cluster are minimized.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Is it possible for a global solution of the \(k\)-means
+    clustering problem to contain an empty cluster? \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In general, the problem is [NP-hard](https://en.wikipedia.org/wiki/NP-hardness)\(\idx{NP-hardness}\xdi\),
+    that is, roughly speaking no “fast” algorithm is expected to exist to solve it.
+    Lloyd’s algorithm (also referred to as the \(k\)-means algorithm) is a popular
+    heuristic. It is based on the idea that the following two sub-problems are easy
+    to solve:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: finding the optimal representatives for a fixed partition;
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: finding the optimal partition for a fixed set of representatives.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: One then alternates between the two (perhaps until progress falls below a tolerance).
+    This is reasonable since our goal, as we pointed out above, is to solve the minimization
+    problem
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \min_{C_1,\ldots,C_k} \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k
+    \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where \(C_1,\ldots,C_k\) ranges over all partitions of \([n]\) of size \(k\).
+    Fixing partition \(C_1,\ldots,C_k\) and miniminizing over \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k
+    \in \mathbb{R}^d\) corresponds to solving the first problem above, while fixing
+    \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d\) and miniminizing
+    over partitions \(C_1,\ldots,C_k\) corresponds to solving the second problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** Ask your favorite AI chatbot about the differences between
+    \(k\)-means, \(k\)-medians, and \(k\)-medoids clustering. \(\ddagger\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Some useful optimization results** To analyze the Lloyd’s algorithm, we will
+    rely on a few basic observations.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Minimizing a quadratic function:* To elaborate on the first step above, we
+    review an elementary fact about [quadratic functions](https://en.wikipedia.org/wiki/Quadratic_function).Consider
+    the function'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ q(x) = a x^2 + b x + c. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: When \(a > 0\), \(q\) has a unique minimum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Minimum of a Quadratic Function)** \(\idx{minimum of a quadratic
+    function}\xdi\) Let \(q(x) = a x^2 + b x + c\) where \(a > 0\) and \(x \in \mathbb{R}\).
+    The unique global minimum of \(q\) is attained at'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ x^* = -\frac{b}{2a}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\flat\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* By the *First-Order Necessary Optimality Condition*, a global minimizer
+    of \(q\) (which is necessarily a local minimizer) satisfies the condition'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{\mathrm{d}}{\mathrm{d}x} q(x) = 2 a x + b = 0, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: whose unique solution is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ x^*= -\frac{b}{2a}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: To see that \(x^*\) is indeed a global minimizer, we re-write \(q\) as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} q(x) &= a \left(x^2 + 2 \left[\frac{b}{2a}\right] x\right)
+    + c\\ &= a \left(x^2 + 2 \left[\frac{b}{2a}\right] x + \left[\frac{b}{2a}\right]^2\right)
+    - a \left[\frac{b}{2a}\right]^2 + c\\ &= a (x - x^*)^2 + \left[c - \frac{b^2}{4a}\right].
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clearly, any other \(x\) gives a higher value for \(q\). The step on the second
+    line above is called [*Completing the Square*](https://en.wikipedia.org/wiki/Completing_the_square).
+    \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** Here’s a numerical example. We first define a quadratic
+    function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We plot it for different values of the coefficients. Note that the \(x\) and
+    \(y\) axes are on different scales.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/61bc7fdbb91557152ddeef0b81d381a6bfd002c537f7992efa581d8504d503a5.png](../Images/eae4bc2fb4c7aab683b47a1a195867e9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Optimizing an additively separable function:* Functions that can be written
+    as the sum of disjoint sets of coordinates arise commonly in optimization and
+    have convenient “separability” properties.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For vectors \(\mathbf{x}_i \in \mathbb{R}^{d_i}\), \(i \in [\ell]\), with \(\sum_{i=1}^\ell
+    d_i = d\), their concatenation is denoted as \((\mathbf{x}_1, \ldots, \mathbf{x}_\ell)
+    \in \mathbb{R}^d\). That is the vector obtained by concatenating the coordinates
+    of \(\mathbf{x}_1, \ldots, \mathbf{x}_\ell\) into a single vector. A different
+    way to see this is that \((\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\) is a block
+    vector with blocks \(\mathbf{x}_1, \ldots, \mathbf{x}_\ell\). For example, if
+    \(\mathbf{x}_1 = (1, 2)\) and \(\mathbf{x}_2 = (-1, -3, -5)\), then \((\mathbf{x}_1,\mathbf{x}_2)
+    = (1, 2, -1, -3, -5)\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Optimizing a Separable Function)** \(\idx{optimizing a separable
+    function lemma}\xdi\) Assume that \(\mathbf{z} \in \mathbb{R}^d\) can be broken
+    up into subvectors \(\mathbf{x}_i \in \mathbb{R}^{d_i}\), \(i \in [\ell]\), with
+    \(\sum_{i=1}^\ell d_i = d\) as follows \(\mathbf{z} = (\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\).
+    Suppose that the real-valued function \(h : \mathbb{R}^d \to \mathbb{R}\) can
+    be written in the additively separable form'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ h(\mathbf{z}) = f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'for a collection of functions \(f_i : \mathbb{R}^{d_i} \to \mathbb{R}\), \(i
+    \in [\ell]\). If, for each \(i \in [\ell]\), \(\mathbf{x}_i^*\) is a global minimum
+    of \(f_i\), then \(\mathbf{z}^* = (\mathbf{x}_1^*, \ldots, \mathbf{x}_\ell^*)\)
+    is a global minimum of \(h\). \(\flat\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* Each term in the sum defining \(h\) depends on a separate set
+    of coordinates and therefore is unaffected by the choices made in other terms.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* Let \(\mathbf{z} = (\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\). Since
+    \(\mathbf{x}_i^*\) is a global minimum of \(f_i\), it holds that \(f_i(\mathbf{x}_i^*)
+    \leq f_i(\mathbf{x}_i)\), for all \(i\). Hence,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ h(\mathbf{z}^*) = f_1(\mathbf{x}_1^*) + \cdots + f_\ell(\mathbf{x}_\ell^*)
+    \leq f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell) = h(\mathbf{z}). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since \(\mathbf{z}\) is arbitrary, we have proved the claim. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Composing with a non-decreasing function:* Recall that a real-valued function
+    \(f\) of a single variable is non-decreasing if'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ x \leq y \implies f(x) \leq f(y). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Composing with a Non-Decreasing Function)** \(\idx{composing with
+    a non-decreasing function lemma}\xdi\) Let \(f : \mathbb{R} \to \mathbb{R}\) be
+    non-decreasing, let \(g : \mathbb{R}^d \to \mathbb{R}\), and define \(h(\mathbf{x})
+    = f(g(\mathbf{x}))\). If \(\mathbf{x}^*\) is a global minimum of \(g\), then it
+    is also a global minimum of \(h\). \(\flat\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* This just follows from applying the definitions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* Let \(\mathbf{x} \in \mathbb{R}^d\). Because \(\mathbf{x}^*\) is a
+    global minimum of \(g\), \(g(\mathbf{x}^*) \leq g(\mathbf{x})\). Further, since
+    \(f\) is non-decreasing,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ h(\mathbf{x}^*) = f(g(\mathbf{x}^*)) \leq f(g(\mathbf{x})) = h(\mathbf{x}).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since \(\mathbf{x}\) is arbitrary, we have proved the claim. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sub-problem 1: finding the optimal representatives** We denote by \(|C_i|\)
+    the number of elements in \(C_i\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing the example above, the sizes of the
+    clusters are respectively \(|C_1| = 4, |C_2| = 3, |C_3| = 1\). Note in particulat
+    that \(|C_1| + |C_2| + |C_3| = 8 = n\), as follows from the fact that \(C_1, C_2,
+    C_3\) is a partition. \(\lhd\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Optimal Representatives)** \(\idx{optimal representatives lemma}\xdi\)
+    Fix a partition \(C_1,\ldots,C_k\). The optimal representatives under the objective'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k
+    \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: are the [centroids](https://en.wikipedia.org/wiki/Centroid)\(\idx{centroid}\xdi\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \boldsymbol{\mu}_i^* = \frac{1}{|C_i|} \sum_{j\in C_i} \mathbf{x}_j. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\flat\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* The objective \(G\) can be written as a sum, where each term
+    is a quadratic function in one component of one of the \(\boldsymbol{\mu}_i\)’s.
+    Each of these terms is minimized by the average of the corresponding components
+    of the \(\mathbf{x}_j\)’s belonging \(C_i\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing with the previous example, we compute
+    the optimal representatives for the fixed partition \(C_1, C_2, C_3\) above. We
+    get'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \boldsymbol{\mu}_1^* &= \frac{1}{4}[\mathbf{x}_1 + \mathbf{x}_4
+    + \mathbf{x}_6 + \mathbf{x}_8]\\ &= \frac{1}{4}\left[\begin{pmatrix}1\\0\end{pmatrix}
+    + \begin{pmatrix}1\\-3\end{pmatrix} + \begin{pmatrix}2\\-2\end{pmatrix} + \begin{pmatrix}3\\-1\end{pmatrix}
+    \right] = \begin{pmatrix}7/4\\-3/2\end{pmatrix},\\ \boldsymbol{\mu}_2^* &= \frac{1}{3}[\mathbf{x}_2
+    + \mathbf{x}_3 + \mathbf{x}_7]\\ &= \frac{1}{3}\left[\begin{pmatrix}-2\\0\end{pmatrix}+
+    \begin{pmatrix}-2\\1\end{pmatrix}+ \begin{pmatrix}-3\\1\end{pmatrix} \right] =
+    \begin{pmatrix}-7/3\\2/3\end{pmatrix},\\ \boldsymbol{\mu}_3^* &= \frac{1}{1}[\mathbf{x}_5]
+    = \begin{pmatrix}-10\\10\end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* *(Optimal Representatives)* Using the notation \(\mathbf{x}_j = (x_{j1},\ldots,x_{jd})\)
+    and similarly for \(\boldsymbol{\mu}_i\), note that we can expand the \(k\)-means
+    objective as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2
+    &= \sum_{i=1}^k \sum_{j \in C_i} \sum_{m=1}^d (x_{jm} - \mu_{im})^2\\ &= \sum_{i=1}^k
+    \sum_{m=1}^d \left[\sum_{j \in C_i} (x_{jm} - \mu_{im})^2\right]. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The expression in square brackets is a quadratic function in \(\mu_{im}\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} q_{im}(\mu_{im}) &= \sum_{j \in C_i} (x_{jm} - \mu_{im})^2\\
+    &= \left\{\sum_{j \in C_i} x_{jm}^2\right\} + \left\{- 2 \sum_{j \in C_i} x_{jm}\right\}
+    \mu_{im} + \left\{|C_i| \right\} \mu_{im}^2. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, by the formula for the *Minimum of a Quadratic Function*, is minimized
+    at
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mu_{im}^* = - \frac{- 2 \sum_{j \in C_i} x_{jm}}{2 |C_i|} = \frac{1}{|C_i|}
+    \sum_{j \in C_i} x_{jm}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since each term \(q_{im}(\mu_{im})\) in the sum over \(i, m\) making up the
+    objective function \(G\) is minimized at \(\boldsymbol{\mu}_1^*,\ldots, \boldsymbol{\mu}_k^*\),
+    so is \(G\) by *Optimizing a Separable Function*. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: That the squared norm decomposes into a sum over the coordinates (which the
+    norm itself doesn’t because of the square root) is one reason why it is convenient
+    to use here, as was hopefully apparent in this last proof.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sub-problem 2: finding the optimal partition** Given \(n\) vectors \(\mathbf{x}_1,\ldots,\mathbf{x}_n\)
+    in \(\mathbb{R}^d\) and a partition \(C_1, \ldots, C_k \subseteq [n]\), it will
+    be useful to have some notation for the corresponding cluster assignment: we define
+    \(c(j) = i\) if \(j \in C_i\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing the example above, the clusters \(C_1
+    = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}\) correspond to the assignment'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ c(1) = 1, c(2) = 2, c(3) = 2, c(4) = 1, c(5) = 3, c(6) = 1, c(7) = (2), c(8)
+    = 1\. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Optimal Clustering)** \(\idx{optimal clustering lemma}\xdi\) Fix
+    the representatives \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k\). An optimal
+    partition under the objective'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k
+    \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: is obtained as follows. For each \(j\), find the \(\boldsymbol{\mu}_i\) that
+    minimizes \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|\) (picking one arbitrarily in
+    the case of ties) and assign \(\mathbf{x}_j\) to \(C_i\) (i.e., add \(j\) to \(C_i\)).
+    \(\flat\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* If \(c\) is the cluster assignment associated to \(C_1,\ldots,C_k\),
+    then we can re-write the objective as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2 = \sum_{j=1}^n
+    \|\mathbf{x}_j - \boldsymbol{\mu}_{c(j)}\|^2, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: By definition, when the \(\boldsymbol{\mu}_i\)’s are fixed, each term in the
+    sum on the right-hand side is minimized separately by the assignment in the statement.
+    Hence so is the sum itself by the *Optimizing a Separable Function Lemma*. Note
+    that we used the fact that the square root (and the square) is non-decreasing
+    to conclude that minimizing \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2\) or its
+    square root \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|\) are equivalent by the *Composing
+    with a Non-Decreasing Function Lemma*. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing the example above, suppose that we
+    choose representatives'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2
+    = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}.
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then we find the cluster assignment of \(\mathbf{x}_1\) by computing its squared
+    distance to each representative:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_1\| = \left\|\begin{pmatrix}1\\0\end{pmatrix}
+    - \begin{pmatrix}-2\\1\end{pmatrix}\right\| = \sqrt{(1-(-2))^2 + (0-1)^2} = \sqrt{10},
+    \end{split}\]\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_2\| = \left\|\begin{pmatrix}1\\0\end{pmatrix}
+    - \begin{pmatrix}2\\-1\end{pmatrix}\right\| = \sqrt{(1-2)^2 + (0-(-1))^2} = \sqrt{2},
+    \end{split}\]\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_3\| = \left\|\begin{pmatrix}1\\0\end{pmatrix}
+    - \begin{pmatrix}-10\\10\end{pmatrix}\right\| = \sqrt{(1-(-10))^2 + (0-10)^2}
+    = \sqrt{221}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The minimum is achieved for \(\boldsymbol{\mu}_2\) so we assign \(\mathbf{x}_1\)
+    to \(C_2\), i.e., \(1 \in C_2\) and \(c(1) = 2\). \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1.3.2\. Lloyd’s algorithm and its analysis[#](#lloyds-algorithm-and-its-analysis
+    "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We are now ready to describe Lloyd’s algorithm\(\idx{Lloyd's algorithm}\xdi\).
+    We start from a random assignment of clusters. (An alternative [initialization
+    strategy](https://en.wikipedia.org/wiki/K-means_clustering#Initialization_methods)
+    is to choose \(k\) representatives at random among the data points.) We then alternate
+    between the optimal choices in the lemmas. In lieu of pseudo-code, we write out
+    the algorithm in Python. We will use this approach throughout the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The input `X` is assumed to be a collection of \(n\) vectors \(\mathbf{x}_1,
+    \ldots, \mathbf{x}_n \in \mathbb{R}^d\) stacked into a matrix, with one row for
+    each data point. The other input, `k`, is the desired number of clusters. There
+    is an optional input `maxiter` for the maximum number of iterations, which is
+    set to \(5\) by default.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first define separate functions for the two main steps. To find the minimum
+    of an array, we use the function [`numpy.argmin`](https://numpy.org/doc/stable/reference/generated/numpy.argmin.html).
+    We also use [`numpy.linalg.norm`](https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html)
+    to compute the Euclidean distance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The main function follows. Below, `rng.integers(0,k,n)` is an array of `n` uniformly
+    chosen integers between `0` and `k-1` (inclusive). See [random.Generator.integers](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.integers.html)
+    for details. Recall that throughout, when defining a function that uses a random
+    number generator (RNG), we initialize the RNG outside the function and pass the
+    RNG to it. It allows us to maintain control over the random number generation
+    process at a higher level and ensures consistent results across multiple runs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**NUMERICAL CORNER:** We apply our implementation of \(k\)-means to the example
+    above. We fix `k` to \(3\). Here the data matrix `X` is the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We vizualize the output by coloring the points according to their cluster assignment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/cde50ddf06949815c7068a094c7184fa364e644fe65b83769400c3925c47ee23.png](../Images/27a0e5cd18c1654cf2e8093cd3d127f6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can compute the final representatives (optimal for the final assignment)
+    by using the subroutine `opt_reps`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Each row is the center of the corresponding cluster. Note these match with the
+    ones we previously computed. Indeed, the clustering is the same (although not
+    necessarily in the same order).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**TRY IT!** Modify `kmeans` to take a tolerance `tol` as input and stop when
+    the improvement in objective value `G` falls below the tolerance. ([Open in Colab](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_intro_notebook.ipynb))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Evolution of the assignment for -means clustering on data generated by a
+    mixture of spherical Gaussians with variance  and respective means  and . The
+    crosses show the cluster representatives. The objective value is shown as . (With
+    help from Claude; inspired by (Source).)](../Images/2c9ccfca527fcd49962e30d8a67f4fdb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**KNOWLEDGE CHECK:** Suppose we have infinite computational resources and run
+    Lloyd’s algorithm forever, do you think it will necessarily converge to a global
+    minimum? If your answer is no, can you think of an alternative algorithm that
+    is guaranteed to output a global minimum provided enough computational resources?
+    \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lloyd’s algorithm is only a heuristic. In particular, it is not guaranteed to
+    find the global minimum of the \(k\)-means objective. However, it is guaranteed
+    to improve the objective at every iteration, or more precisely, not to make it
+    worse.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**THEOREM** **(Convergence of \(k\)-means cost)** \(\idx{convergence of k-means
+    cost theorem}\xdi\) The sequence of objective function values produced by the
+    \(k\)-means algorithm is non-increasing. \(\sharp\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* By the *Optimal Representatives Lemma* and the *Optimal Clustering
+    Lemma*, each step does not increase the objective.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* Let \(C_1'',\ldots,C_k''\) be the current clusters, with representatives
+    \(\boldsymbol{\mu}_1'',\ldots,\boldsymbol{\mu}_k''\). After Step 1, the new representatives
+    are \(\boldsymbol{\mu}_1'''',\ldots,\boldsymbol{\mu}_k''''\). By the *Optimal
+    Representatives Lemma*, they satisfy'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|^2
+    \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|^2.
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: After Step 2, the new clusters are \(C_1'',\ldots,C_k''\). By the *Optimal Clustering
+    Lemma*, they satisfy
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|^2
+    \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|^2.
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combining these two inequalities gives
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|^2
+    \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|^2,
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: as claimed. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: The sequence of objective values is monotone and bounded from below by \(0\).
+    [Hence it converges](https://en.wikipedia.org/wiki/Monotone_convergence_theorem#Convergence_of_a_monotone_sequence_of_real_numbers).
+    Note that the limit depends on the starting point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** AI chatbots can serve as great personal tutors, especially
+    when it comes to coding which they often excel at. In particular, they can provide
+    additional information about the code in this book. Just copy-paste a piece of
+    code and ask “What is this code doing?” Don’t hesitate to ask follow-up questions.
+    [Here is an example using ChatGPT](https://chat.openai.com/share/66f9e704-c8e8-4489-9ab6-8e57740cab3b).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Warning:* As you probably know, AI chatbots can be wrong so assess what they
+    tell you with a critical mind and/or double-check with other sources (e.g., package
+    documentation).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Prompt engineering:* [Finding the right prompt](https://en.wikipedia.org/wiki/Prompt_engineering),
+    or series of prompts, can make a big difference. It can also be used to produce
+    more interesting answers. Here is an explanation of the \(k\)-means algorithm
+    in the style of Shakespeare via ChatGPT:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Scene: The Realm of Numerica, in the Enchanted Forest of Analysis**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Enter LORD VECTOR, LADY PARTITION, and an assembly of WHISPERING WINDS*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR (a majestic entity):'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Hearken, Whispering Winds, scattered far and wide,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: I am Lord Vector, your anchor and your guide.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In clusters, you must settle, by my call and by my side,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: To me, you’ll draw nigh, in unity, abide.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LADY PARTITION (a sage enchantress):'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: And I, Lady Partition, with vision clear and keen,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Determine where amongst the clusters each of you shall lean.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: With Lord Vector, a ballet we compose, with steps so fine,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: To sort, to gather, to align, under a sign divine.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'WHISPERING WIND 1:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: But how, noble Vector, wilt thou find thy rightful stead?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In this expanse diverse, how set thy bed?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Through cycles and through wisdom, I seek my sacred ground,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Where the sum of all distances to me is least found.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: From your essence, I emerge, an average pure and sound,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: A beacon most true, by which I am crowned.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'WHISPERING WIND 2:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: And Lady Partition, how do we seek our kin,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In this multitude, how does our journey begin?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LADY PARTITION:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: By measure and affinity, to your closest Lord Vector, you’ll gravitate,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: To him, your allegiance, you’ll consecrate.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In groups, you’ll assemble, by likeness you’re drawn,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: A collective symphony, from dusk till dawn.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*LORD VECTOR and LADY PARTITION assume their roles, guiding the WHISPERING
+    WINDS to move and regroup.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Observe now how I traverse, as your allegiances refine,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: A center more apt, in this spell of mine.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LADY PARTITION:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: And as you drift, dear winds, to your Lords true,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: A closer union we construe, a balance anew.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*The WHISPERING WINDS shuffle and align, moving from one cluster to another,
+    as LORD VECTOR adjusts his position with grace.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'WHISPERING WIND 3:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: At length, I perceive, where I am to dwell,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: With peers akin, in cluster well.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: So we dance and weave, ‘til stillness we achieve,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: When each wind has settled, and we, in relief.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LADY PARTITION:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Thus, optimal clusters come forth, vivid and serene,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: With centers well placed, a sight unseen.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*The WHISPERING WINDS now rest peacefully in clusters around their LORD VECTORS,
+    the Enchanted Forest of Analysis a testament to their orderly ballet.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR & LADY PARTITION (together):'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Our task here concludes, with harmony and grace,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The K-means enchantment, a solution embraced.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Exeunt omnes, as the WHISPERING WINDS repose in unity around their LORD VECTORS,
+    the realm of Numerica reflecting their harmonious dance.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '**End of Scene**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: \(\ddagger\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We will test our implementation of \(k\)-means on the
+    penguins dataset introduced earlier in the chapter. We first extract the columns
+    and combine them into a data matrix `X`. As we did previously, we also remove
+    the rows with missing values.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Figure:** Which penguin species? (*Credit:* Made with [Midjourney](https://www.midjourney.com/))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Penguins on a glacier](../Images/bb7e8602c95a01b1185de572b4c55ec8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: \(\bowtie\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: We visualize a two-dimensional slice of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/024d26811e4631ac8dcb5acb1d23f5c577193d3217b2493260af97e706f2b329.png](../Images/e75683392ec1e758370886f76273bfb6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Observe that the features have quite different scales (tens versus thousands
+    in the plot above). In such a case, it is common to standardize the data so that
+    each feature has roughly the same scale. For each column of `X`, we subtract its
+    empirical mean and divide by its empirical standard deviation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we run Lloyd’s algorithm with \(k=2\) clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: We vizualize the output as we did before, but this time coloring the data points
+    by their cluster assignment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/c8ce542a010e33ab2c018c7c7624c391c5b57fa97d97a1146013f2c8d77068de.png](../Images/828f36ddad8cd4ead1a7000754909d59.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This clustering looks quite good. Nevertheless recall that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: in this plot we are looking at only two of the four variables while \(k\)-means
+    uses all of them,
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: we are not guaranteed to find the best solution,
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: our objective function is somewhat arbitrary, and
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: it is not clear what the right choice of \(k\) is.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In fact, the original dataset contained the correct answer, as provided by biologists.
+    Despite what the figure above may lead us to believe, there are in reality three
+    separate species. So let us try with \(k=3\) clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: The output does not seem quite right.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/7383cabd085a8a7eba9545c89a27d27d31401b0dc50cd001fbe5cfc405e9131c.png](../Images/0cf53aabbe4e2f47806ce1ae1b6cde65.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: But, remembering the warnings mentioned previously, let us look at a different
+    two-dimensional slice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/62dde40d80824421548718832e220f969d2f9a28a560918552424440517b225e.png](../Images/9702034e7031f67493cefa19852b584d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Let us load up the truth and compare. We only keep those samples that were not
+    removed because of missing values (see [`pandas.DataFrame.iloc`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.iloc.html)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|  | species |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 5 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: 'The species are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: To plot the outcome, we color the species blue-green-red using a [dictionary](https://docs.python.org/3/tutorial/datastructures.html#dictionaries).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, we can compare the output to the truth. The match is quite good – but
+    certainly not perfect.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/00f2abf0740c5bf6a562d8f607ab3a6d116d7ba0e1b03f9e035f875e36954e86.png](../Images/1de9d394fa9649dc467bc539e8b0de94.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Determining the appropriate number of clusters is not a straighforward problem.
+    To quote [Wikipedia](https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The correct choice of \(k\) is often ambiguous, with interpretations depending
+    on the shape and scale of the distribution of points in a data set and the desired
+    clustering resolution of the user. In addition, increasing \(k\) without penalty
+    will always reduce the amount of error in the resulting clustering, to the extreme
+    case of zero error if each data point is considered its own cluster (i.e., when
+    \(k\) equals the number of data points, \(n\)). Intuitively then, the optimal
+    choice of \(k\) will strike a balance between maximum compression of the data
+    using a single cluster, and maximum accuracy by assigning each data point to its
+    own cluster. If an appropriate value of \(k\) is not apparent from prior knowledge
+    of the properties of the data set, it must be chosen somehow. There are several
+    categories of methods for making this decision.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In practice, [several heuristics](https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set)
+    are in use. Other approaches to clustering, e.g. [DBSCAN](https://en.wikipedia.org/wiki/DBSCAN)
+    and [hierarchical clustering](https://en.wikipedia.org/wiki/Hierarchical_clustering),
+    do not require a number of clusters as input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**TRY IT!** Run the analysis again, but this time *without the standardization
+    step*. What do you observe? Is one feature more influential on the final output
+    than the others? Why do you think that is? ([Open in Colab](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_intro_notebook.ipynb))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1.3.3\. Matrix form of k-means clustering[#](#matrix-form-of-k-means-clustering
+    "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we show that the \(k\)-means clustering objective can be written
+    in matrix form. We start with some notation and definitions that will be useful
+    throughout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we indicated before, for a collection of \(n\) data vectors \(\mathbf{x}_1,
+    \ldots, \mathbf{x}_n\) in \(\mathbb{R}^d\), it is often convenient to stack them
+    up into a matrix
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} X = \begin{bmatrix} \mathbf{x}_1^T \\ \mathbf{x}_2^T \\ \vdots
+    \\ \mathbf{x}_n^T \\ \end{bmatrix} = \begin{bmatrix} x_{11} & x_{12} & \cdots
+    & x_{1d} \\ x_{21} & x_{22} & \cdots & x_{2d} \\ \vdots & \vdots & \ddots & \vdots
+    \\ x_{n1} & x_{n2} & \cdots & x_{nd} \\ \end{bmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can do the same with cluster representatives. Given \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k\)
+    also in \(\mathbb{R}^d\), we form the matrix
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} U = \begin{bmatrix} \boldsymbol{\mu}_1^T \\ \boldsymbol{\mu}_2^T
+    \\ \vdots \\ \boldsymbol{\mu}_k^T \\ \end{bmatrix} = \begin{bmatrix} \mu_{11}
+    & \mu_{12} & \cdots & \mu_{1d} \\ \mu_{21} & \mu_{22} & \cdots & \mu_{2d} \\ \vdots
+    & \vdots & \ddots & \vdots \\ \mu_{k1} & \mu_{k2} & \cdots & \mu_{kd} \\ \end{bmatrix}.
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Perhaps less obviously, cluster assignments can also be encoded in matrix form.
+    Recall that, given a partition \(C_1,\ldots,C_k\) of \([n]\), we define \(c(j)
+    = i\) if \(j \in C_i\). For \(j=1,\ldots,n\) and \(\ell=1,\ldots,k\), set \(Z_{j\ell}
+    = 1\) if \(c(j) = \ell\) and \(0\) otherwise, and let \(Z\) be the \(n \times
+    k\) matrix with entries \(Z = [Z_{j\ell}]_{j,\ell}\). That is, row \(j\) has exactly
+    one entry with value \(1\), corresponding to the assigned cluster \(c(j)\) of
+    data point \(\mathbf{x}_j\), and all other entries \(0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this notation, the representative of the cluster assigned to data point
+    \(\mathbf{x}_j\) is obtained through a matrix product
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \boldsymbol{\mu}_{c(j)}^T = \sum_{\ell = 1}^k Z_{j\ell} \boldsymbol{\mu}_{\ell}^T
+    = \sum_{\ell = 1}^k Z_{j\ell} U_{\ell,\cdot} = \left(Z U\right)_{j,\cdot} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used that the \(j\)-th row of a matrix product is a linear combination
+    of the rows of the second matrix, where the coefficients are the entries on the
+    \(j\)-th row of the first one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing with our previous example, the clusters
+    \(C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}\) are encoded as the matrix'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 &
+    0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Suppose again that the representatives are
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2
+    = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}.
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The corresponding matrix \(U\) is then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} U = \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix}.
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hence multiplying \(Z\) and \(U\) produces a matrix where each row is the representative
+    of the assigned cluster of the corresponding data point
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} ZU = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 &
+    0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix} \, \begin{bmatrix}
+    -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix} = \begin{bmatrix} -2 & 1\\ 2 & -1\\ 2
+    & -1\\ -2 & 1\\ -10 & 10\\ -2 & 1\\ 2 & -1\\ -2 & 1 \end{bmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recall that the Frobenius norm of an \(n \times m\) matrix \(A \in \mathbb{R}^{n
+    \times m}\) is defined as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \|A\|_F = \sqrt{\sum_{i=1}^n \sum_{j=1}^m A_{ij}^2}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using row notation, it can be written as the sum of the squared Euclidean norms
+    of the rows
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \|A\|_F^2 = \sum_{i=1}^n \|A_{i,\cdot}\|^2. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: For two matrices \(A, B \in \mathbb{R}^{n \times m}\), the Frobenius norm of
+    their difference \(\|A - B\|_F\) can be interpreted as a distance between \(A\)
+    and \(B\), that is, a measure of how dissimilar they are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we return to the \(k\)-means objective. Using the notation introduced
+    in this section and the equivalent formula for the objective \(G\) derived in
+    the proof of the *Optimal Clustering Lemma*, we note that
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k)
+    &= \sum_{i=1}^n \|\mathbf{x}_i - \boldsymbol{\mu}_{c(i)}\|^2\\ &= \sum_{i=1}^n
+    \sum_{\ell=1}^d \left(x_{i\ell} - (Z U)_{i\ell}\right)^2\\ &= \|X - Z U \|^2_F,
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the definition of the Frobenius norm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, minimizing the \(k\)-means objective is equivalent to finding
+    a matrix factorization of the form \(ZU\) that is a good fit to the data matrix
+    \(X\) in Frobenius norm. This formulation expresses in a more compact form the
+    idea of representing \(X\) as a combination of a small number of representatives.
+    Matrix factorization will come back repeatedly in this course.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '***Self-assessment quiz*** *(with help from Claude, Gemini, and ChatGPT)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**1** Which of these is NOT a property of a valid partition \(C_1, \ldots,
+    C_k\) in the context of \(k\)-means?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The subsets are pairwise disjoint
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The subsets cover all data points
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) Each subset is non-empty
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) Each subset contains an equal number of points
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2** In the \(k\)-means objective function, what does the variable \(\boldsymbol{\mu}_i\)
+    represent?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The centroid of cluster \(i\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The number of points in cluster \(i\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) The distance between clusters \(i\) and \(j\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) The assignment of point \(j\) to a cluster
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3** The \(k\)-means objective function is a measure of what?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The total number of clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The average distance between data points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) The sum of squared distances between each data point and its assigned cluster
+    center.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) The maximum distance between any two cluster centers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**4** What is a key property of the sequence of objective function values produced
+    by the \(k\)-means algorithm?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It is strictly decreasing
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It is non-increasing
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It is strictly increasing
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It alternates between two values
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**5** What is the interpretation of the matrix \(Z\) in the matrix formulation
+    of \(k\)-means?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It represents the cluster centers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It represents the distances between data points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It encodes the cluster assignments of each data point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It represents the covariance matrix of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 1: d. Justification: “Formally, we define a clustering as a partition.
+    A partition of \([n] = {1,\ldots,n}\) of size \(k\) is a collection of non-empty
+    subsets \(C_1,\ldots,C_k \subseteq [n]\) that: are pairwise disjoint, i.e., \(C_i
+    \cap C_j = \emptyset\), \(\forall i \neq j\); cover all of \([n]\), i.e., \(\cup_{i=1}^k
+    C_i = [n]\).” No requirement for equal-sized subsets is mentioned.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 2: a. Justification: “Here \(\boldsymbol{\mu}_i \in \mathbb{R}^d\)
+    is the representative – or center – of cluster \(C_i\).”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 3: c. Justification: The \(k\)-means objective is defined in the
+    text as minimizing the sum of squared distances between data points and their
+    assigned cluster centers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 4: b. Justification: “The sequence of objective function values
+    produced by the \(k\)-means algorithm is non-increasing.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 5: c. Justification: The text defines \(Z\) as a matrix where “each
+    row has exactly one entry with value 1, corresponding to the assigned cluster
+    of data point.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1.3.1\. The k-means objective[#](#the-k-means-objective "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Under the \(k\)-means objective\(\idx{k-means objective}\xdi\), the “cost” of
+    \(C_1,\ldots,C_k\) is defined as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{G}(C_1,\ldots,C_k) = \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k
+    \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2.
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here \(\boldsymbol{\mu}_i \in \mathbb{R}^d\) is the representative – or center
+    – of cluster \(C_i\). Note that \(\boldsymbol{\mu}_i\) need not be one of the
+    \(\mathbf{x}_j\)’s.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our goal is to find a partition \(C_1,\ldots,C_k\) that minimizes \(\mathcal{G}(C_1,\ldots,C_k)\),
+    i.e., solves the problem
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \min_{C_1,\ldots,C_k} \mathcal{G}(C_1,\ldots,C_k) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: over all partitions of \([n]\) of size \(k\). This is a finite optimization
+    problem, as there are only a finite number of such partitions. Note, however,
+    that the objective function itself is an optimization problem over \(\mathbb{R}^d
+    \times \cdots \times \mathbb{R}^{d}\), that is, \(k\) copies of \(\mathbb{R}^d\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To quote [Wikipedia](https://en.wikipedia.org/wiki/Cluster_analysis#Centroid-based_clustering):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In centroid-based clustering, clusters are represented by a central vector,
+    which may not necessarily be a member of the data set. When the number of clusters
+    is fixed to k, k-means clustering gives a formal definition as an optimization
+    problem: find the k cluster centers and assign the objects to the nearest cluster
+    center, such that the squared distances from the cluster are minimized.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Is it possible for a global solution of the \(k\)-means
+    clustering problem to contain an empty cluster? \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In general, the problem is [NP-hard](https://en.wikipedia.org/wiki/NP-hardness)\(\idx{NP-hardness}\xdi\),
+    that is, roughly speaking no “fast” algorithm is expected to exist to solve it.
+    Lloyd’s algorithm (also referred to as the \(k\)-means algorithm) is a popular
+    heuristic. It is based on the idea that the following two sub-problems are easy
+    to solve:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: finding the optimal representatives for a fixed partition;
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: finding the optimal partition for a fixed set of representatives.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: One then alternates between the two (perhaps until progress falls below a tolerance).
+    This is reasonable since our goal, as we pointed out above, is to solve the minimization
+    problem
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \min_{C_1,\ldots,C_k} \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k
+    \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where \(C_1,\ldots,C_k\) ranges over all partitions of \([n]\) of size \(k\).
+    Fixing partition \(C_1,\ldots,C_k\) and miniminizing over \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k
+    \in \mathbb{R}^d\) corresponds to solving the first problem above, while fixing
+    \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d\) and miniminizing
+    over partitions \(C_1,\ldots,C_k\) corresponds to solving the second problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** Ask your favorite AI chatbot about the differences between
+    \(k\)-means, \(k\)-medians, and \(k\)-medoids clustering. \(\ddagger\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Some useful optimization results** To analyze the Lloyd’s algorithm, we will
+    rely on a few basic observations.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Minimizing a quadratic function:* To elaborate on the first step above, we
+    review an elementary fact about [quadratic functions](https://en.wikipedia.org/wiki/Quadratic_function).Consider
+    the function'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ q(x) = a x^2 + b x + c. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: When \(a > 0\), \(q\) has a unique minimum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Minimum of a Quadratic Function)** \(\idx{minimum of a quadratic
+    function}\xdi\) Let \(q(x) = a x^2 + b x + c\) where \(a > 0\) and \(x \in \mathbb{R}\).
+    The unique global minimum of \(q\) is attained at'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ x^* = -\frac{b}{2a}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\flat\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* By the *First-Order Necessary Optimality Condition*, a global minimizer
+    of \(q\) (which is necessarily a local minimizer) satisfies the condition'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \frac{\mathrm{d}}{\mathrm{d}x} q(x) = 2 a x + b = 0, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: whose unique solution is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ x^*= -\frac{b}{2a}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: To see that \(x^*\) is indeed a global minimizer, we re-write \(q\) as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} q(x) &= a \left(x^2 + 2 \left[\frac{b}{2a}\right] x\right)
+    + c\\ &= a \left(x^2 + 2 \left[\frac{b}{2a}\right] x + \left[\frac{b}{2a}\right]^2\right)
+    - a \left[\frac{b}{2a}\right]^2 + c\\ &= a (x - x^*)^2 + \left[c - \frac{b^2}{4a}\right].
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clearly, any other \(x\) gives a higher value for \(q\). The step on the second
+    line above is called [*Completing the Square*](https://en.wikipedia.org/wiki/Completing_the_square).
+    \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** Here’s a numerical example. We first define a quadratic
+    function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: We plot it for different values of the coefficients. Note that the \(x\) and
+    \(y\) axes are on different scales.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/61bc7fdbb91557152ddeef0b81d381a6bfd002c537f7992efa581d8504d503a5.png](../Images/eae4bc2fb4c7aab683b47a1a195867e9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Optimizing an additively separable function:* Functions that can be written
+    as the sum of disjoint sets of coordinates arise commonly in optimization and
+    have convenient “separability” properties.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For vectors \(\mathbf{x}_i \in \mathbb{R}^{d_i}\), \(i \in [\ell]\), with \(\sum_{i=1}^\ell
+    d_i = d\), their concatenation is denoted as \((\mathbf{x}_1, \ldots, \mathbf{x}_\ell)
+    \in \mathbb{R}^d\). That is the vector obtained by concatenating the coordinates
+    of \(\mathbf{x}_1, \ldots, \mathbf{x}_\ell\) into a single vector. A different
+    way to see this is that \((\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\) is a block
+    vector with blocks \(\mathbf{x}_1, \ldots, \mathbf{x}_\ell\). For example, if
+    \(\mathbf{x}_1 = (1, 2)\) and \(\mathbf{x}_2 = (-1, -3, -5)\), then \((\mathbf{x}_1,\mathbf{x}_2)
+    = (1, 2, -1, -3, -5)\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Optimizing a Separable Function)** \(\idx{optimizing a separable
+    function lemma}\xdi\) Assume that \(\mathbf{z} \in \mathbb{R}^d\) can be broken
+    up into subvectors \(\mathbf{x}_i \in \mathbb{R}^{d_i}\), \(i \in [\ell]\), with
+    \(\sum_{i=1}^\ell d_i = d\) as follows \(\mathbf{z} = (\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\).
+    Suppose that the real-valued function \(h : \mathbb{R}^d \to \mathbb{R}\) can
+    be written in the additively separable form'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ h(\mathbf{z}) = f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'for a collection of functions \(f_i : \mathbb{R}^{d_i} \to \mathbb{R}\), \(i
+    \in [\ell]\). If, for each \(i \in [\ell]\), \(\mathbf{x}_i^*\) is a global minimum
+    of \(f_i\), then \(\mathbf{z}^* = (\mathbf{x}_1^*, \ldots, \mathbf{x}_\ell^*)\)
+    is a global minimum of \(h\). \(\flat\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* Each term in the sum defining \(h\) depends on a separate set
+    of coordinates and therefore is unaffected by the choices made in other terms.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* Let \(\mathbf{z} = (\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\). Since
+    \(\mathbf{x}_i^*\) is a global minimum of \(f_i\), it holds that \(f_i(\mathbf{x}_i^*)
+    \leq f_i(\mathbf{x}_i)\), for all \(i\). Hence,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ h(\mathbf{z}^*) = f_1(\mathbf{x}_1^*) + \cdots + f_\ell(\mathbf{x}_\ell^*)
+    \leq f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell) = h(\mathbf{z}). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since \(\mathbf{z}\) is arbitrary, we have proved the claim. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Composing with a non-decreasing function:* Recall that a real-valued function
+    \(f\) of a single variable is non-decreasing if'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ x \leq y \implies f(x) \leq f(y). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Composing with a Non-Decreasing Function)** \(\idx{composing with
+    a non-decreasing function lemma}\xdi\) Let \(f : \mathbb{R} \to \mathbb{R}\) be
+    non-decreasing, let \(g : \mathbb{R}^d \to \mathbb{R}\), and define \(h(\mathbf{x})
+    = f(g(\mathbf{x}))\). If \(\mathbf{x}^*\) is a global minimum of \(g\), then it
+    is also a global minimum of \(h\). \(\flat\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* This just follows from applying the definitions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* Let \(\mathbf{x} \in \mathbb{R}^d\). Because \(\mathbf{x}^*\) is a
+    global minimum of \(g\), \(g(\mathbf{x}^*) \leq g(\mathbf{x})\). Further, since
+    \(f\) is non-decreasing,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ h(\mathbf{x}^*) = f(g(\mathbf{x}^*)) \leq f(g(\mathbf{x})) = h(\mathbf{x}).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since \(\mathbf{x}\) is arbitrary, we have proved the claim. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sub-problem 1: finding the optimal representatives** We denote by \(|C_i|\)
+    the number of elements in \(C_i\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing the example above, the sizes of the
+    clusters are respectively \(|C_1| = 4, |C_2| = 3, |C_3| = 1\). Note in particulat
+    that \(|C_1| + |C_2| + |C_3| = 8 = n\), as follows from the fact that \(C_1, C_2,
+    C_3\) is a partition. \(\lhd\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Optimal Representatives)** \(\idx{optimal representatives lemma}\xdi\)
+    Fix a partition \(C_1,\ldots,C_k\). The optimal representatives under the objective'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k
+    \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: are the [centroids](https://en.wikipedia.org/wiki/Centroid)\(\idx{centroid}\xdi\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \boldsymbol{\mu}_i^* = \frac{1}{|C_i|} \sum_{j\in C_i} \mathbf{x}_j. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\flat\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* The objective \(G\) can be written as a sum, where each term
+    is a quadratic function in one component of one of the \(\boldsymbol{\mu}_i\)’s.
+    Each of these terms is minimized by the average of the corresponding components
+    of the \(\mathbf{x}_j\)’s belonging \(C_i\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing with the previous example, we compute
+    the optimal representatives for the fixed partition \(C_1, C_2, C_3\) above. We
+    get'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \boldsymbol{\mu}_1^* &= \frac{1}{4}[\mathbf{x}_1 + \mathbf{x}_4
+    + \mathbf{x}_6 + \mathbf{x}_8]\\ &= \frac{1}{4}\left[\begin{pmatrix}1\\0\end{pmatrix}
+    + \begin{pmatrix}1\\-3\end{pmatrix} + \begin{pmatrix}2\\-2\end{pmatrix} + \begin{pmatrix}3\\-1\end{pmatrix}
+    \right] = \begin{pmatrix}7/4\\-3/2\end{pmatrix},\\ \boldsymbol{\mu}_2^* &= \frac{1}{3}[\mathbf{x}_2
+    + \mathbf{x}_3 + \mathbf{x}_7]\\ &= \frac{1}{3}\left[\begin{pmatrix}-2\\0\end{pmatrix}+
+    \begin{pmatrix}-2\\1\end{pmatrix}+ \begin{pmatrix}-3\\1\end{pmatrix} \right] =
+    \begin{pmatrix}-7/3\\2/3\end{pmatrix},\\ \boldsymbol{\mu}_3^* &= \frac{1}{1}[\mathbf{x}_5]
+    = \begin{pmatrix}-10\\10\end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* *(Optimal Representatives)* Using the notation \(\mathbf{x}_j = (x_{j1},\ldots,x_{jd})\)
+    and similarly for \(\boldsymbol{\mu}_i\), note that we can expand the \(k\)-means
+    objective as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2
+    &= \sum_{i=1}^k \sum_{j \in C_i} \sum_{m=1}^d (x_{jm} - \mu_{im})^2\\ &= \sum_{i=1}^k
+    \sum_{m=1}^d \left[\sum_{j \in C_i} (x_{jm} - \mu_{im})^2\right]. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The expression in square brackets is a quadratic function in \(\mu_{im}\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} q_{im}(\mu_{im}) &= \sum_{j \in C_i} (x_{jm} - \mu_{im})^2\\
+    &= \left\{\sum_{j \in C_i} x_{jm}^2\right\} + \left\{- 2 \sum_{j \in C_i} x_{jm}\right\}
+    \mu_{im} + \left\{|C_i| \right\} \mu_{im}^2. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, by the formula for the *Minimum of a Quadratic Function*, is minimized
+    at
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mu_{im}^* = - \frac{- 2 \sum_{j \in C_i} x_{jm}}{2 |C_i|} = \frac{1}{|C_i|}
+    \sum_{j \in C_i} x_{jm}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since each term \(q_{im}(\mu_{im})\) in the sum over \(i, m\) making up the
+    objective function \(G\) is minimized at \(\boldsymbol{\mu}_1^*,\ldots, \boldsymbol{\mu}_k^*\),
+    so is \(G\) by *Optimizing a Separable Function*. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: That the squared norm decomposes into a sum over the coordinates (which the
+    norm itself doesn’t because of the square root) is one reason why it is convenient
+    to use here, as was hopefully apparent in this last proof.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sub-problem 2: finding the optimal partition** Given \(n\) vectors \(\mathbf{x}_1,\ldots,\mathbf{x}_n\)
+    in \(\mathbb{R}^d\) and a partition \(C_1, \ldots, C_k \subseteq [n]\), it will
+    be useful to have some notation for the corresponding cluster assignment: we define
+    \(c(j) = i\) if \(j \in C_i\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing the example above, the clusters \(C_1
+    = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}\) correspond to the assignment'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ c(1) = 1, c(2) = 2, c(3) = 2, c(4) = 1, c(5) = 3, c(6) = 1, c(7) = (2), c(8)
+    = 1\. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**LEMMA** **(Optimal Clustering)** \(\idx{optimal clustering lemma}\xdi\) Fix
+    the representatives \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k\). An optimal
+    partition under the objective'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k
+    \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: is obtained as follows. For each \(j\), find the \(\boldsymbol{\mu}_i\) that
+    minimizes \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|\) (picking one arbitrarily in
+    the case of ties) and assign \(\mathbf{x}_j\) to \(C_i\) (i.e., add \(j\) to \(C_i\)).
+    \(\flat\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* If \(c\) is the cluster assignment associated to \(C_1,\ldots,C_k\),
+    then we can re-write the objective as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2 = \sum_{j=1}^n
+    \|\mathbf{x}_j - \boldsymbol{\mu}_{c(j)}\|^2, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: By definition, when the \(\boldsymbol{\mu}_i\)’s are fixed, each term in the
+    sum on the right-hand side is minimized separately by the assignment in the statement.
+    Hence so is the sum itself by the *Optimizing a Separable Function Lemma*. Note
+    that we used the fact that the square root (and the square) is non-decreasing
+    to conclude that minimizing \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|^2\) or its
+    square root \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|\) are equivalent by the *Composing
+    with a Non-Decreasing Function Lemma*. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing the example above, suppose that we
+    choose representatives'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2
+    = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}.
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then we find the cluster assignment of \(\mathbf{x}_1\) by computing its squared
+    distance to each representative:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_1\| = \left\|\begin{pmatrix}1\\0\end{pmatrix}
+    - \begin{pmatrix}-2\\1\end{pmatrix}\right\| = \sqrt{(1-(-2))^2 + (0-1)^2} = \sqrt{10},
+    \end{split}\]\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_2\| = \left\|\begin{pmatrix}1\\0\end{pmatrix}
+    - \begin{pmatrix}2\\-1\end{pmatrix}\right\| = \sqrt{(1-2)^2 + (0-(-1))^2} = \sqrt{2},
+    \end{split}\]\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_3\| = \left\|\begin{pmatrix}1\\0\end{pmatrix}
+    - \begin{pmatrix}-10\\10\end{pmatrix}\right\| = \sqrt{(1-(-10))^2 + (0-10)^2}
+    = \sqrt{221}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The minimum is achieved for \(\boldsymbol{\mu}_2\) so we assign \(\mathbf{x}_1\)
+    to \(C_2\), i.e., \(1 \in C_2\) and \(c(1) = 2\). \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1.3.2\. Lloyd’s algorithm and its analysis[#](#lloyds-algorithm-and-its-analysis
+    "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We are now ready to describe Lloyd’s algorithm\(\idx{Lloyd's algorithm}\xdi\).
+    We start from a random assignment of clusters. (An alternative [initialization
+    strategy](https://en.wikipedia.org/wiki/K-means_clustering#Initialization_methods)
+    is to choose \(k\) representatives at random among the data points.) We then alternate
+    between the optimal choices in the lemmas. In lieu of pseudo-code, we write out
+    the algorithm in Python. We will use this approach throughout the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The input `X` is assumed to be a collection of \(n\) vectors \(\mathbf{x}_1,
+    \ldots, \mathbf{x}_n \in \mathbb{R}^d\) stacked into a matrix, with one row for
+    each data point. The other input, `k`, is the desired number of clusters. There
+    is an optional input `maxiter` for the maximum number of iterations, which is
+    set to \(5\) by default.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first define separate functions for the two main steps. To find the minimum
+    of an array, we use the function [`numpy.argmin`](https://numpy.org/doc/stable/reference/generated/numpy.argmin.html).
+    We also use [`numpy.linalg.norm`](https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html)
+    to compute the Euclidean distance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: The main function follows. Below, `rng.integers(0,k,n)` is an array of `n` uniformly
+    chosen integers between `0` and `k-1` (inclusive). See [random.Generator.integers](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.integers.html)
+    for details. Recall that throughout, when defining a function that uses a random
+    number generator (RNG), we initialize the RNG outside the function and pass the
+    RNG to it. It allows us to maintain control over the random number generation
+    process at a higher level and ensures consistent results across multiple runs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**NUMERICAL CORNER:** We apply our implementation of \(k\)-means to the example
+    above. We fix `k` to \(3\). Here the data matrix `X` is the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: We vizualize the output by coloring the points according to their cluster assignment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/cde50ddf06949815c7068a094c7184fa364e644fe65b83769400c3925c47ee23.png](../Images/27a0e5cd18c1654cf2e8093cd3d127f6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can compute the final representatives (optimal for the final assignment)
+    by using the subroutine `opt_reps`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Each row is the center of the corresponding cluster. Note these match with the
+    ones we previously computed. Indeed, the clustering is the same (although not
+    necessarily in the same order).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**TRY IT!** Modify `kmeans` to take a tolerance `tol` as input and stop when
+    the improvement in objective value `G` falls below the tolerance. ([Open in Colab](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_intro_notebook.ipynb))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Evolution of the assignment for -means clustering on data generated by a
+    mixture of spherical Gaussians with variance  and respective means  and . The
+    crosses show the cluster representatives. The objective value is shown as . (With
+    help from Claude; inspired by (Source).)](../Images/2c9ccfca527fcd49962e30d8a67f4fdb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**KNOWLEDGE CHECK:** Suppose we have infinite computational resources and run
+    Lloyd’s algorithm forever, do you think it will necessarily converge to a global
+    minimum? If your answer is no, can you think of an alternative algorithm that
+    is guaranteed to output a global minimum provided enough computational resources?
+    \(\checkmark\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lloyd’s algorithm is only a heuristic. In particular, it is not guaranteed to
+    find the global minimum of the \(k\)-means objective. However, it is guaranteed
+    to improve the objective at every iteration, or more precisely, not to make it
+    worse.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**THEOREM** **(Convergence of \(k\)-means cost)** \(\idx{convergence of k-means
+    cost theorem}\xdi\) The sequence of objective function values produced by the
+    \(k\)-means algorithm is non-increasing. \(\sharp\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof idea:* By the *Optimal Representatives Lemma* and the *Optimal Clustering
+    Lemma*, each step does not increase the objective.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Proof:* Let \(C_1'',\ldots,C_k''\) be the current clusters, with representatives
+    \(\boldsymbol{\mu}_1'',\ldots,\boldsymbol{\mu}_k''\). After Step 1, the new representatives
+    are \(\boldsymbol{\mu}_1'''',\ldots,\boldsymbol{\mu}_k''''\). By the *Optimal
+    Representatives Lemma*, they satisfy'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|^2
+    \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|^2.
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: After Step 2, the new clusters are \(C_1'',\ldots,C_k''\). By the *Optimal Clustering
+    Lemma*, they satisfy
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|^2
+    \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|^2.
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combining these two inequalities gives
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|^2
+    \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|^2,
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: as claimed. \(\square\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: The sequence of objective values is monotone and bounded from below by \(0\).
+    [Hence it converges](https://en.wikipedia.org/wiki/Monotone_convergence_theorem#Convergence_of_a_monotone_sequence_of_real_numbers).
+    Note that the limit depends on the starting point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** AI chatbots can serve as great personal tutors, especially
+    when it comes to coding which they often excel at. In particular, they can provide
+    additional information about the code in this book. Just copy-paste a piece of
+    code and ask “What is this code doing?” Don’t hesitate to ask follow-up questions.
+    [Here is an example using ChatGPT](https://chat.openai.com/share/66f9e704-c8e8-4489-9ab6-8e57740cab3b).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Warning:* As you probably know, AI chatbots can be wrong so assess what they
+    tell you with a critical mind and/or double-check with other sources (e.g., package
+    documentation).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Prompt engineering:* [Finding the right prompt](https://en.wikipedia.org/wiki/Prompt_engineering),
+    or series of prompts, can make a big difference. It can also be used to produce
+    more interesting answers. Here is an explanation of the \(k\)-means algorithm
+    in the style of Shakespeare via ChatGPT:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Scene: The Realm of Numerica, in the Enchanted Forest of Analysis**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Enter LORD VECTOR, LADY PARTITION, and an assembly of WHISPERING WINDS*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR (a majestic entity):'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Hearken, Whispering Winds, scattered far and wide,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: I am Lord Vector, your anchor and your guide.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In clusters, you must settle, by my call and by my side,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: To me, you’ll draw nigh, in unity, abide.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LADY PARTITION (a sage enchantress):'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: And I, Lady Partition, with vision clear and keen,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Determine where amongst the clusters each of you shall lean.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: With Lord Vector, a ballet we compose, with steps so fine,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: To sort, to gather, to align, under a sign divine.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'WHISPERING WIND 1:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: But how, noble Vector, wilt thou find thy rightful stead?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In this expanse diverse, how set thy bed?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Through cycles and through wisdom, I seek my sacred ground,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Where the sum of all distances to me is least found.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: From your essence, I emerge, an average pure and sound,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: A beacon most true, by which I am crowned.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'WHISPERING WIND 2:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: And Lady Partition, how do we seek our kin,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In this multitude, how does our journey begin?
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LADY PARTITION:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: By measure and affinity, to your closest Lord Vector, you’ll gravitate,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: To him, your allegiance, you’ll consecrate.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In groups, you’ll assemble, by likeness you’re drawn,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: A collective symphony, from dusk till dawn.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*LORD VECTOR and LADY PARTITION assume their roles, guiding the WHISPERING
+    WINDS to move and regroup.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Observe now how I traverse, as your allegiances refine,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: A center more apt, in this spell of mine.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LADY PARTITION:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: And as you drift, dear winds, to your Lords true,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: A closer union we construe, a balance anew.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*The WHISPERING WINDS shuffle and align, moving from one cluster to another,
+    as LORD VECTOR adjusts his position with grace.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'WHISPERING WIND 3:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: At length, I perceive, where I am to dwell,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: With peers akin, in cluster well.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: So we dance and weave, ‘til stillness we achieve,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: When each wind has settled, and we, in relief.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LADY PARTITION:'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Thus, optimal clusters come forth, vivid and serene,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: With centers well placed, a sight unseen.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*The WHISPERING WINDS now rest peacefully in clusters around their LORD VECTORS,
+    the Enchanted Forest of Analysis a testament to their orderly ballet.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'LORD VECTOR & LADY PARTITION (together):'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Our task here concludes, with harmony and grace,
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The K-means enchantment, a solution embraced.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Exeunt omnes, as the WHISPERING WINDS repose in unity around their LORD VECTORS,
+    the realm of Numerica reflecting their harmonious dance.*'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '**End of Scene**'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: \(\ddagger\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We will test our implementation of \(k\)-means on the
+    penguins dataset introduced earlier in the chapter. We first extract the columns
+    and combine them into a data matrix `X`. As we did previously, we also remove
+    the rows with missing values.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Figure:** Which penguin species? (*Credit:* Made with [Midjourney](https://www.midjourney.com/))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Penguins on a glacier](../Images/bb7e8602c95a01b1185de572b4c55ec8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: \(\bowtie\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: We visualize a two-dimensional slice of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/024d26811e4631ac8dcb5acb1d23f5c577193d3217b2493260af97e706f2b329.png](../Images/e75683392ec1e758370886f76273bfb6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Observe that the features have quite different scales (tens versus thousands
+    in the plot above). In such a case, it is common to standardize the data so that
+    each feature has roughly the same scale. For each column of `X`, we subtract its
+    empirical mean and divide by its empirical standard deviation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we run Lloyd’s algorithm with \(k=2\) clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: We vizualize the output as we did before, but this time coloring the data points
+    by their cluster assignment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/c8ce542a010e33ab2c018c7c7624c391c5b57fa97d97a1146013f2c8d77068de.png](../Images/828f36ddad8cd4ead1a7000754909d59.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This clustering looks quite good. Nevertheless recall that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: in this plot we are looking at only two of the four variables while \(k\)-means
+    uses all of them,
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: we are not guaranteed to find the best solution,
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: our objective function is somewhat arbitrary, and
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: it is not clear what the right choice of \(k\) is.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In fact, the original dataset contained the correct answer, as provided by biologists.
+    Despite what the figure above may lead us to believe, there are in reality three
+    separate species. So let us try with \(k=3\) clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: The output does not seem quite right.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/7383cabd085a8a7eba9545c89a27d27d31401b0dc50cd001fbe5cfc405e9131c.png](../Images/0cf53aabbe4e2f47806ce1ae1b6cde65.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: But, remembering the warnings mentioned previously, let us look at a different
+    two-dimensional slice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/62dde40d80824421548718832e220f969d2f9a28a560918552424440517b225e.png](../Images/9702034e7031f67493cefa19852b584d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Let us load up the truth and compare. We only keep those samples that were not
+    removed because of missing values (see [`pandas.DataFrame.iloc`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.iloc.html)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|  | species |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 5 | Adelie |'
+  prefs: []
+  type: TYPE_TB
+- en: 'The species are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: To plot the outcome, we color the species blue-green-red using a [dictionary](https://docs.python.org/3/tutorial/datastructures.html#dictionaries).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: Finally, we can compare the output to the truth. The match is quite good – but
+    certainly not perfect.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![../../_images/00f2abf0740c5bf6a562d8f607ab3a6d116d7ba0e1b03f9e035f875e36954e86.png](../Images/1de9d394fa9649dc467bc539e8b0de94.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Determining the appropriate number of clusters is not a straighforward problem.
+    To quote [Wikipedia](https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The correct choice of \(k\) is often ambiguous, with interpretations depending
+    on the shape and scale of the distribution of points in a data set and the desired
+    clustering resolution of the user. In addition, increasing \(k\) without penalty
+    will always reduce the amount of error in the resulting clustering, to the extreme
+    case of zero error if each data point is considered its own cluster (i.e., when
+    \(k\) equals the number of data points, \(n\)). Intuitively then, the optimal
+    choice of \(k\) will strike a balance between maximum compression of the data
+    using a single cluster, and maximum accuracy by assigning each data point to its
+    own cluster. If an appropriate value of \(k\) is not apparent from prior knowledge
+    of the properties of the data set, it must be chosen somehow. There are several
+    categories of methods for making this decision.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In practice, [several heuristics](https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set)
+    are in use. Other approaches to clustering, e.g. [DBSCAN](https://en.wikipedia.org/wiki/DBSCAN)
+    and [hierarchical clustering](https://en.wikipedia.org/wiki/Hierarchical_clustering),
+    do not require a number of clusters as input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**TRY IT!** Run the analysis again, but this time *without the standardization
+    step*. What do you observe? Is one feature more influential on the final output
+    than the others? Why do you think that is? ([Open in Colab](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_intro_notebook.ipynb))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 1.3.3\. Matrix form of k-means clustering[#](#matrix-form-of-k-means-clustering
+    "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this section, we show that the \(k\)-means clustering objective can be written
+    in matrix form. We start with some notation and definitions that will be useful
+    throughout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we indicated before, for a collection of \(n\) data vectors \(\mathbf{x}_1,
+    \ldots, \mathbf{x}_n\) in \(\mathbb{R}^d\), it is often convenient to stack them
+    up into a matrix
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} X = \begin{bmatrix} \mathbf{x}_1^T \\ \mathbf{x}_2^T \\ \vdots
+    \\ \mathbf{x}_n^T \\ \end{bmatrix} = \begin{bmatrix} x_{11} & x_{12} & \cdots
+    & x_{1d} \\ x_{21} & x_{22} & \cdots & x_{2d} \\ \vdots & \vdots & \ddots & \vdots
+    \\ x_{n1} & x_{n2} & \cdots & x_{nd} \\ \end{bmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can do the same with cluster representatives. Given \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k\)
+    also in \(\mathbb{R}^d\), we form the matrix
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} U = \begin{bmatrix} \boldsymbol{\mu}_1^T \\ \boldsymbol{\mu}_2^T
+    \\ \vdots \\ \boldsymbol{\mu}_k^T \\ \end{bmatrix} = \begin{bmatrix} \mu_{11}
+    & \mu_{12} & \cdots & \mu_{1d} \\ \mu_{21} & \mu_{22} & \cdots & \mu_{2d} \\ \vdots
+    & \vdots & \ddots & \vdots \\ \mu_{k1} & \mu_{k2} & \cdots & \mu_{kd} \\ \end{bmatrix}.
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Perhaps less obviously, cluster assignments can also be encoded in matrix form.
+    Recall that, given a partition \(C_1,\ldots,C_k\) of \([n]\), we define \(c(j)
+    = i\) if \(j \in C_i\). For \(j=1,\ldots,n\) and \(\ell=1,\ldots,k\), set \(Z_{j\ell}
+    = 1\) if \(c(j) = \ell\) and \(0\) otherwise, and let \(Z\) be the \(n \times
+    k\) matrix with entries \(Z = [Z_{j\ell}]_{j,\ell}\). That is, row \(j\) has exactly
+    one entry with value \(1\), corresponding to the assigned cluster \(c(j)\) of
+    data point \(\mathbf{x}_j\), and all other entries \(0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this notation, the representative of the cluster assigned to data point
+    \(\mathbf{x}_j\) is obtained through a matrix product
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \boldsymbol{\mu}_{c(j)}^T = \sum_{\ell = 1}^k Z_{j\ell} \boldsymbol{\mu}_{\ell}^T
+    = \sum_{\ell = 1}^k Z_{j\ell} U_{\ell,\cdot} = \left(Z U\right)_{j,\cdot} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used that the \(j\)-th row of a matrix product is a linear combination
+    of the rows of the second matrix, where the coefficients are the entries on the
+    \(j\)-th row of the first one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** Continuing with our previous example, the clusters
+    \(C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}\) are encoded as the matrix'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 &
+    0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Suppose again that the representatives are
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2
+    = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}.
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The corresponding matrix \(U\) is then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} U = \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix}.
+    \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hence multiplying \(Z\) and \(U\) produces a matrix where each row is the representative
+    of the assigned cluster of the corresponding data point
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} ZU = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 &
+    0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix} \, \begin{bmatrix}
+    -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix} = \begin{bmatrix} -2 & 1\\ 2 & -1\\ 2
+    & -1\\ -2 & 1\\ -10 & 10\\ -2 & 1\\ 2 & -1\\ -2 & 1 \end{bmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recall that the Frobenius norm of an \(n \times m\) matrix \(A \in \mathbb{R}^{n
+    \times m}\) is defined as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \|A\|_F = \sqrt{\sum_{i=1}^n \sum_{j=1}^m A_{ij}^2}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using row notation, it can be written as the sum of the squared Euclidean norms
+    of the rows
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \|A\|_F^2 = \sum_{i=1}^n \|A_{i,\cdot}\|^2. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: For two matrices \(A, B \in \mathbb{R}^{n \times m}\), the Frobenius norm of
+    their difference \(\|A - B\|_F\) can be interpreted as a distance between \(A\)
+    and \(B\), that is, a measure of how dissimilar they are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we return to the \(k\)-means objective. Using the notation introduced
+    in this section and the equivalent formula for the objective \(G\) derived in
+    the proof of the *Optimal Clustering Lemma*, we note that
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k)
+    &= \sum_{i=1}^n \|\mathbf{x}_i - \boldsymbol{\mu}_{c(i)}\|^2\\ &= \sum_{i=1}^n
+    \sum_{\ell=1}^d \left(x_{i\ell} - (Z U)_{i\ell}\right)^2\\ &= \|X - Z U \|^2_F,
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the definition of the Frobenius norm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, minimizing the \(k\)-means objective is equivalent to finding
+    a matrix factorization of the form \(ZU\) that is a good fit to the data matrix
+    \(X\) in Frobenius norm. This formulation expresses in a more compact form the
+    idea of representing \(X\) as a combination of a small number of representatives.
+    Matrix factorization will come back repeatedly in this course.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '***Self-assessment quiz*** *(with help from Claude, Gemini, and ChatGPT)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**1** Which of these is NOT a property of a valid partition \(C_1, \ldots,
+    C_k\) in the context of \(k\)-means?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The subsets are pairwise disjoint
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The subsets cover all data points
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) Each subset is non-empty
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) Each subset contains an equal number of points
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2** In the \(k\)-means objective function, what does the variable \(\boldsymbol{\mu}_i\)
+    represent?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The centroid of cluster \(i\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The number of points in cluster \(i\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) The distance between clusters \(i\) and \(j\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) The assignment of point \(j\) to a cluster
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3** The \(k\)-means objective function is a measure of what?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The total number of clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The average distance between data points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) The sum of squared distances between each data point and its assigned cluster
+    center.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) The maximum distance between any two cluster centers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**4** What is a key property of the sequence of objective function values produced
+    by the \(k\)-means algorithm?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It is strictly decreasing
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It is non-increasing
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It is strictly increasing
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It alternates between two values
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**5** What is the interpretation of the matrix \(Z\) in the matrix formulation
+    of \(k\)-means?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) It represents the cluster centers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) It represents the distances between data points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) It encodes the cluster assignments of each data point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) It represents the covariance matrix of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 1: d. Justification: “Formally, we define a clustering as a partition.
+    A partition of \([n] = {1,\ldots,n}\) of size \(k\) is a collection of non-empty
+    subsets \(C_1,\ldots,C_k \subseteq [n]\) that: are pairwise disjoint, i.e., \(C_i
+    \cap C_j = \emptyset\), \(\forall i \neq j\); cover all of \([n]\), i.e., \(\cup_{i=1}^k
+    C_i = [n]\).” No requirement for equal-sized subsets is mentioned.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 2: a. Justification: “Here \(\boldsymbol{\mu}_i \in \mathbb{R}^d\)
+    is the representative – or center – of cluster \(C_i\).”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 3: c. Justification: The \(k\)-means objective is defined in the
+    text as minimizing the sum of squared distances between data points and their
+    assigned cluster centers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 4: b. Justification: “The sequence of objective function values
+    produced by the \(k\)-means algorithm is non-increasing.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 5: c. Justification: The text defines \(Z\) as a matrix where “each
+    row has exactly one entry with value 1, corresponding to the assigned cluster
+    of data point.”'
+  prefs: []
+  type: TYPE_NORMAL

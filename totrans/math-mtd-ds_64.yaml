@@ -1,0 +1,2867 @@
+- en: '8.3\. Building blocks of AI 1: backpropagation#'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://mmids-textbook.github.io/chap08_nn/03_backprop/roch-mmids-nn-backprop.html](https://mmids-textbook.github.io/chap08_nn/03_backprop/roch-mmids-nn-backprop.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'We develop the basic mathematical foundations of automatic differentiation.
+    We restrict ourselves to a special setting: multi-layer progressive functions.
+    Many important classifiers take the form of a sequence of compositions where parameters
+    are specific to each layer of composition. We show how to systematically apply
+    the *Chain Rule* to such functions. We also give a few examples.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.3.1\. Forward v. backward[#](#forward-v-backward "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We begin with a fixed-parameter example to illustrate the issues. Suppose \(f
+    : \mathbb{R}^d \to \mathbb{R}\) can be expressed as a composition of \(L+1\) vector-valued
+    functions \(\bfg_i : \mathbb{R}^{n_i} \to \mathbb{R}^{n_{i+1}}\) and a real-valued
+    function \(\ell : \mathbb{R}^{n_{L+1}} \to \mathbb{R}\) as follows'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ f(\mathbf{x}) = \ell \circ \bfg_{L} \circ \bfg_{L-1} \circ \cdots \circ \bfg_1
+    \circ \bfg_0(\mathbf{x}) = \ell(\bfg_{L}(\bfg_{L-1}(\cdots \bfg_1(\bfg_0(\mathbf{x}))\cdots))).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here \(n_0 = d\) is the input dimension. We also let \(n_{L+1} = K\) be the
+    output dimension. Think of
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ h(\mathbf{x}) = \bfg_{L}(\bfg_{L-1}(\cdots \bfg_1(\bfg_0(\mathbf{x}))\cdots))
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: as a prediction function (i.e., a regression or classification function) and
+    think of \(\ell\) as a loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Observe first that the function \(f\) itself is straighforward to compute recursively
+    *starting from the inside* as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_0 &:= \mathbf{x}\\ \mathbf{z}_1 &:= \bfg_0(\mathbf{z}_0)\\
+    \mathbf{z}_2 &:= \bfg_1(\mathbf{z}_1)\\ \vdots\\ \mathbf{z}_L &:= \bfg_{L-1}(\mathbf{z}_{L-1})\\
+    \hat{\mathbf{y}} := \mathbf{z}_{L+1} &:= \bfg_{L}(\mathbf{z}_{L})\\ f(\mathbf{x})
+    &:= \ell(\hat{\mathbf{y}}). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anticipating the setting of neural networks, our main application of interest,
+    we refer to \(\mathbf{z}_0 = \mathbf{x}\) as the “input layer”, \(\hat{\mathbf{y}}
+    = \mathbf{z}_{L+1} = \bfg_{L}(\mathbf{z}_{L})\) as the “output layer”, and \(\mathbf{z}_{1}
+    = \bfg_0(\mathbf{z}_0), \ldots, \mathbf{z}_L = \bfg_{L-1}(\mathbf{z}_{L-1})\)
+    as the “hidden layers”. In particular, \(L\) is the number of hidden layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** We will use the following running example throughout this subsection.
+    We assume that each \(\bfg_i\) is a linear map, that is, \(\bfg_i(\mathbf{z}_i)
+    = \mathcal{W}_{i} \mathbf{z}_i\) where \(\mathcal{W}_{i} \in \mathbb{R}^{n_{i+1}
+    \times n_i}\) is a fixed, known matrix. Assume also that \(\ell : \mathbb{R}^K
+    \to \mathbb{R}\) is defined as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \ell(\hat{\mathbf{y}}) = \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2,
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for a fixed, known vector \(\mathbf{y} \in \mathbb{R}^{K}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computing \(f\) recursively *starting from the inside* as above gives here
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_0 &:= \mathbf{x}\\ \mathbf{z}_1 &:= \mathcal{W}_{0}
+    \mathbf{z}_0 = \mathcal{W}_{0} \mathbf{x}\\ \mathbf{z}_2 &:= \mathcal{W}_{1} \mathbf{z}_1
+    = \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\ \vdots\\ \mathbf{z}_L &:= \mathcal{W}_{L-1}
+    \mathbf{z}_{L-1} = \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\
+    \hat{\mathbf{y}} := \mathbf{z}_{L+1} &:= \mathcal{W}_{L} \mathbf{z}_{L} = \mathcal{W}_{L}
+    \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\ f(\mathbf{x})
+    &:= \ell(\hat{\mathbf{y}}) = \frac{1}{2}\|\mathbf{y} - \hat{\mathbf{y}}\|^2 =
+    \frac{1}{2}\left\|\mathbf{y} - \mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1}
+    \mathcal{W}_{0} \mathbf{x}\right\|^2. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In essence, we are comparing an observed outcome \(\mathbf{y}\) to a prediction
+    \(\mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\)
+    based on input \(\mathbf{x}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we look into computing the gradient with respect to \(\mathbf{x}\).
+    (In reality, we will be more interested in taking the gradient with respect to
+    the parameters, i.e., the entries of the matrices \(\mathcal{W}_{0}, \ldots, \mathcal{W}_{L}\),
+    a task to which we will come back later in this section. We will also be interested
+    in more complex – in particular, non-linear – prediction functions.) \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** To make things more concrete, we consider a specific
+    example. We will use [`torch.linalg.vector_norm`](https://pytorch.org/docs/stable/generated/torch.linalg.vector_norm.html)
+    to compute the Euclidean norm in PyTorch. Suppose \(d=3\), \(L=1\), \(n_1 = 2\),
+    and \(K = 2\) with the following choices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Forward mode** \(\idx{forward mode}\xdi\) We are ready to apply the *Chain
+    Rule*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla f(\mathbf{x})^T = J_{f}(\mathbf{x}) = J_{\ell}(\mathbf{z}_{L+1}) J_{\bfg_L}(\mathbf{z}_L)
+    J_{\bfg_{L-1}}(\mathbf{z}_{L-1}) \cdots J_{\bfg_1}(\mathbf{z}_1) J_{\bfg_0}(\mathbf{x})
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where the \(\mathbf{z}_{i}\)s are as above and we used that \(\mathbf{z}_0 =
+    \mathbf{x}\). The matrix product here is well-defined. Indeed, the size of \(J_{g_i}(\mathbf{z}_i)\)
+    is \(n_{i+1} \times n_{i}\) (i.e., number of outputs by number of inputs) while
+    the size of \(J_{g_{i-1}}(\mathbf{z}_{i-1})\) is \(n_{i} \times n_{i-1}\) – so
+    the dimensions are compatible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So it is straighforward to compute \(\nabla f(\mathbf{x})^T\) recursively as
+    we did for \(f\) itself. In fact, we can compute both simultaneously. This is
+    called the forward mode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_0 &:= \mathbf{x}\\ \mathbf{z}_1 &:= \bfg_0(\mathbf{z}_0),
+    \quad F_0 := J_{\bfg_0}(\mathbf{z}_0)\\ \mathbf{z}_2 &:= \bfg_1(\mathbf{z}_1),
+    \quad F_1 := J_{\bfg_1}(\mathbf{z}_1)\, F_0\\ \vdots\\ \mathbf{z}_L &:= \bfg_{L-1}(\mathbf{z}_{L-1}),
+    \quad F_{L-1} := J_{\bfg_{L-1}}(\mathbf{z}_{L-1})\, F_{L-2}\\ \hat{\mathbf{y}}
+    := \mathbf{z}_{L+1} &:= \bfg_{L}(\mathbf{z}_{L}), \quad F_{L} := J_{\bfg_{L}}(\mathbf{z}_{L})\,
+    F_{L-1}\\ f(\mathbf{x}) &:= \ell(\hat{\mathbf{y}}), \quad \nabla f(\mathbf{x})^T
+    := J_{\ell}(\hat{\mathbf{y}}) F_L. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** We apply this procedure to the running example.
+    The Jacobian of the linear map \(\bfg_i(\mathbf{z}_i) = \mathcal{W}_{i} \mathbf{z}_i\)
+    is the matrix \(\mathcal{W}_{i}\), as we have seen in a previous example. That
+    is, \(J_{\bfg_i}(\mathbf{z}_i) = \mathcal{W}_{i}\) for any \(\mathbf{z}_i\). To
+    compute the Jacobian of \(\ell\), we rewrite it as a quadratic function'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \ell(\hat{\mathbf{y}}) &= \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2\\
+    &= \frac{1}{2} \mathbf{y}^T\mathbf{y} - \frac{1}{2} 2 \mathbf{y}^T\hat{\mathbf{y}}
+    + \frac{1}{2}\hat{\mathbf{y}}^T \hat{\mathbf{y}}\\ &= \frac{1}{2} \hat{\mathbf{y}}^T
+    I_{n_{L+1} \times n_{L+1}}\hat{\mathbf{y}} + (-\mathbf{y})^T\hat{\mathbf{y}} +
+    \frac{1}{2} \mathbf{y}^T\mathbf{y}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: From a previous example,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_\ell(\hat{\mathbf{y}})^T = \nabla \ell(\hat{\mathbf{y}}) = \frac{1}{2}\left[I_{n_{L+1}
+    \times n_{L+1}} + I_{n_{L+1} \times n_{L+1}}^T\right]\, \hat{\mathbf{y}} + (-\mathbf{y})
+    = \hat{\mathbf{y}} - \mathbf{y}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Putting it all together, we get
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} F_0 &:= J_{\bfg_0}(\mathbf{z}_0) = \mathcal{W}_{0}\\ F_1 &:=
+    J_{\bfg_1}(\mathbf{z}_1)\, F_0 = \mathcal{W}_{1} F_0 = \mathcal{W}_{1} \mathcal{W}_{0}\\
+    \vdots\\ F_{L-1} &:= J_{\bfg_{L-1}}(\mathbf{z}_{L-1})\, F_{L-2} = \mathcal{W}_{L-1}
+    F_{L-2}= \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}\\ F_{L} &:=
+    J_{\bfg_{L}}(\mathbf{z}_{L})\, F_{L-1} = \mathcal{W}_{L} F_{L-1} = \mathcal{W}_{L}
+    \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}\\ \nabla f(\mathbf{x})^T
+    &:= J_{\ell}(\hat{\mathbf{y}}) F_L = (\hat{\mathbf{y}} - \mathbf{y})^T F_L = (\hat{\mathbf{y}}
+    - \mathbf{y})^T \mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}\\
+    &= (\mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}
+    - \mathbf{y})^T \mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}.
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We return to our concrete example. Using `.T` to convert
+    a column vector into a row vector throws an error in PyTorch, as it is meant to
+    be used only on 2D tensors. Instead, one can use [`torch.unsqueeze`](https://pytorch.org/docs/stable/generated/torch.unsqueeze.html).
+    Below, `(z2 - y).unsqueeze(0)` adds a dimension to `z2 - y`, making it a 2D tensor
+    with shape \((1, 2)\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can check that we get the same outcome using AD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Obtain that last expression directly by taking the gradient
+    of'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ f(\mathbf{x}) = \frac{1}{2}\|\mathbf{y} - \mathcal{W}_{L} \mathcal{W}_{L-1}
+    \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\|^2. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\checkmark\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Reverse mode** \(\idx{reverse mode}\xdi\) What we just described corresponds
+    to performing the matrix products in the *Chain Rule* formula'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla f(\mathbf{x})^T = J_{f}(\mathbf{x}) = J_{\ell}(\hat{\mathbf{y}}) J_{\bfg_L}(\mathbf{z}_L)
+    J_{\bfg_{L-1}}(\mathbf{z}_{L-1}) \cdots J_{\bfg_1}(\mathbf{z}_1) J_{\bfg_0}(\mathbf{x}).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*from right to left*. But there is another way to do this – from left to right!
+    This is called reverse mode. First we compute \(f\) recursively as we did previously,
+    in particular we compute the \(\mathbf{z}_i\)s, then going backwards we compute'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} G_{L+1} &:= J_{\ell}(\hat{\mathbf{y}})\\ G_{L} &:= G_{L+1}\,J_{g_{L}}(\mathbf{z}_{L})\\
+    &\vdots\\ G_1 &:= G_2 \, J_{\bfg_1}(\mathbf{z}_1)\\ \nabla f(\mathbf{x})^T &:=
+    G_1 \, J_{\bfg_0}(\mathbf{z}_0) \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This may seem like a rather minor modification to our previous algorithm. It
+    is not – it is much faster! To see this, we need to count the number of elementary
+    operations involved in implementing each mode.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First a simple calcultion: How many elementary operations (i.e., additions
+    and multiplications) does it take to multiply an \(n \times m\) matrix \(A = (a_{ij})_{i,j}\)
+    and an \(m \times \ell\) matrix \(B= (b_{ij})_{i,j}\)? Let’s ask ChatGPT. Here’s
+    the answer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: “To calculate the number of elementary operations required to multiply an \(n
+    \times m\) matrix by an \(m \times \ell\) matrix, consider the computation involved
+    for each element of the resulting \(n \times \ell\) matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each element of the resulting matrix is the dot product of a row from the first
+    matrix and a column from the second matrix. If the first matrix is denoted as
+    \(A\) and the second matrix as \(B\), then the element at position \(i, j\) in
+    the resulting matrix \(C\) is calculated as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ c_{ij} = a_{i1}b_{1j} + a_{i2}b_{2j} + \ldots + a_{im}b_{mj} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This computation involves \(m\) multiplications and \(m - 1\) additions, making
+    a total of \(m + (m - 1) = 2m - 1\) elementary operations for each element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since matrix \(C\) has \(n \times \ell\) elements, the total number of elementary
+    operations required for the entire matrix \(C\) is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ (n \ell)(2m - 1) = 2nm\ell - n\ell \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, multiplying an \(n \times m\) matrix by an \(m \times \ell\) matrix takes
+    \(2nm\ell - n\ell\) elementary operations.”
+  prefs: []
+  type: TYPE_NORMAL
+- en: Returning to computing the gradient, we count the number of elementary operations
+    needed for each mode. To simplify the calculation, we assume that \(n_0 = d\)
+    and \(n_1 = n_2 = \cdots = n_{L} = m\) and \(n_{L+1} = K\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Forward:* The matrix \(F_0 = J_{\bfg_0}(\mathbf{z}_0)\) has dimensions \(m
+    \times d\). The matrix \(F_1\), as a product of \(J_{\bfg_1}(\mathbf{z}_1) \in
+    \mathbb{R}^{m \times m}\) and \(F_0 \in \mathbb{R}^{m \times d}\) has dimensions
+    \(m \times d\); it therefore takes \(m (2m-1) d\) operations to compute. The same
+    holds for \(F_2, \ldots, F_{L-1}\) (check it!). By similar considerations, the
+    matrix \(F_L\) has dimensions \(K \times d\) and takes \(K (2m-1) d\) operations
+    to compute. Finally, \(\nabla f(\mathbf{x})^T = J_{\ell}(\mathbf{z}_{L+1}) F_L
+    \in \mathbb{R}^{1 \times d}\) and takes \((2K-1) d\) operations to compute. Overall
+    the number of operations is'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ (L-1) m (2m-1) d + K (2m-1) d + (2K-1) d. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is approximately \(2 L m^2 d\) if we think of \(K\) as a small constant
+    and ignore the smaller order terms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Reverse:* The matrix \(G_{L+1} = J_{\ell}(\mathbf{z}_{L+1})\) has dimensions
+    \(1 \times K\). The matrix \(G_{L}\), as a product of \(G_{L+1} \in \mathbb{R}^{1
+    \times K}\) and \(J_{g_{L}}(\mathbf{z}_{L}) \in \mathbb{R}^{K \times m}\) has
+    dimensions \(1 \times m\); it therefore takes \((2K-1) m\) operations to compute.
+    The matrix \(G_{L-1}\), as a product of \(G_{L} \in \mathbb{R}^{1 \times m}\)
+    and \(J_{g_{L-1}}(\mathbf{z}_{L-1}) \in \mathbb{R}^{m \times m}\) has dimensions
+    \(1 \times m\); it therefore takes \((2m-1) m\) operations to compute. The same
+    holds for \(G_{L-2}, \ldots, G_{1}\) (check it!). By similar considerations, \(\nabla
+    f(\mathbf{x})^T = G_1 \, J_{\bfg_0}(\mathbf{z}_0) \in \mathbb{R}^{1 \times d}\)
+    and takes \((2m-1) d\) operations to compute. Overall the number of operations
+    is'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ (2K-1) m + (L-1) (2m-1) m + (2m-1) d. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is approximately \(2 L m^2 + 2 m d\) – which can be much smaller than \(2
+    L m^2 d\)! In other words, the reverse mode approach can be much faster. Note
+    in particular that all computations in the reverse mode are matrix-vector products
+    (or more precisely row vector-matrix products) rather than matrix-matrix products.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** We apply the reverse mode approach to our previous
+    example. We get'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} G_{L+1} &:= J_{\ell}(\hat{\mathbf{y}}) = (\hat{\mathbf{y}}
+    - \mathbf{y})^T\\ G_{L} &:= G_{L+1}\,J_{g_{L}}(\mathbf{z}_{L}) = G_{L+1} \mathcal{W}_{L}
+    = (\hat{\mathbf{y}} - \mathbf{y})^T \mathcal{W}_{L} \\ \vdots\\ G_1 &:= G_2 \,
+    J_{\bfg_1}(\mathbf{z}_1) = G_2 \mathcal{W}_{1} = [(\hat{\mathbf{y}} - \mathbf{y})^T
+    \mathcal{W}_{L} \cdots \mathcal{W}_{2}] \mathcal{W}_{1} \\ \nabla f(\mathbf{x})^T
+    &:= G_1 \, J_{\bfg_0}(\mathbf{z}_0) = [(\hat{\mathbf{y}} - \mathbf{y})^T \mathcal{W}_{L}
+    \cdots \mathcal{W}_{2}\mathcal{W}_{1}] \mathcal{W}_{0}\\ &= (\mathcal{W}_{L} \mathcal{W}_{L-1}
+    \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x} - \mathbf{y})^T \mathcal{W}_{L}
+    \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}, \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: which matches our previous calculation. Note that all computations involve multiplying
+    a row vector by a matrix. \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We try our specific example.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: We indeed obtain the same answer yet again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To provide a little more insight in the savings obtained through the reverse
+    mode, consider the following simple calculations. Let \(A, B \in \mathbb{R}^{n
+    \times n}\) and \(\mathbf{v} \in \mathbb{R}^n\). Suppose we seek to compute \(\mathbf{v}^T
+    B A\). By [associativity](https://en.wikipedia.org/wiki/Associative_property)
+    of matrix multiplication, there are two ways of doing this: compute \(\mathbf{v}^{T}(BA)\)
+    (i.e., first compute \(BA\) then multiply by \(\mathbf{v}^T\); or compute \((\mathbf{v}^T
+    B) A\). The first approach requires \(n^2(2n-1) + n(2n-1)\) operations, while
+    the second only requires \(2n(2n-1)\). The latter is much smaller since \(2 n^3\)
+    (the leading term in the first approach) grows much faster than \(4 n^2\) (the
+    leading term in the second approach) when \(n\) is large.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why is this happening? One way to understand this is to think of the output
+    \(\mathbf{v}^T B A\) as a *linear combination of the rows of \(A\)* – a very specific
+    linear combination in fact. In the first approach, we compute \(BA\) which gives
+    us \(n\) different linear combinations of the rows of \(A\) – none being the one
+    we want – and then we compute the desired linear combination by multiplying by
+    \(\mathbf{v}^T\). This is wasteful. In the second approach, we immediately compute
+    the coefficients of the specific linear combination we seek – \(\mathbf{v}^T B\)
+    – and then we compute that linear combination by multiplying to the right by \(A\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the setting we examined in this subsection is illuminating, it is not
+    exactly what we want. In the machine learning context, each “layer” \(\bfg_i\)
+    has parameters (in our running example, there were the entries of \(\mathcal{W}_{i}\))
+    and we seek to optimize with respect to those parameters. For this, we need the
+    gradient with respect to the parameters, not the input \(\mathbf{x}\). In the
+    next subsection, we consider a generalization of the current setting, progressive
+    functions, which will allow us to do this. The notation gets more complicated,
+    but the basic idea remains the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.3.2\. Progressive functions[#](#progressive-functions "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As mentioned previously, while it may seem natural to define a prediction function
+    \(h\) (e.g., a classifier) as a function of the input data \(\mathbf{x}\in \mathbb{R}^{d}\),
+    when fitting data we are ultimately interested in thinking of \(h\) as a function
+    of the parameters \(\mathbf{w} \in \mathbb{R}^r\) that need to be adjusted – over
+    a fixed dataset. Hence, in this section, the input \(\mathbf{x}\) is fixed while
+    the vector of parameters \(\mathbf{w}\) is now variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**A first example** We use the example from the previous subsection to illustrate
+    the main ideas. That is, suppose \(d=3\), \(L=1\), \(n_1 = 2\), and \(K = 2\).
+    Fix a data sample \(\mathbf{x} = (x_1,x_2,x_3) \in \mathbb{R}^3, \mathbf{y} =
+    (y_1, y_2) \in \mathbb{R}^2\). For \(i=0, 1\), we use the notation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \mathcal{W}_{0} = \begin{pmatrix} w_0 & w_1 & w_2\\ w_3 & w_4
+    & w_5 \end{pmatrix} \quad \text{and} \quad \mathcal{W}_{1} = \begin{pmatrix} w_6
+    & w_7\\ w_8 & w_9 \end{pmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and let
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \ell(\hat{\mathbf{y}}) = \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2
+    = \frac{1}{2}(y_1 - \hat{y}_1)^2 + \frac{1}{2}(y_2 - \hat{y}_2)^2. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We change the notation for the “layer” function \(\bfg_i\) to reflect the fact
+    that it is now a function of two (concatenated) vectors: the input \(\mathbf{z}_i
+    = (z_{i,1},\ldots,z_{i,n_i})\) from the previous layer and a layer-specific set
+    of parameters \(\mathbf{w}_i\). That is,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \bfg_i(\mathbf{z}_i, \mathbf{w}_i) = \mathcal{W}_{i} \mathbf{z}_i
+    = \begin{pmatrix} (\mathbf{w}_i^{(1)})^T\\ (\mathbf{w}_i^{(2)})^T \end{pmatrix}
+    \mathbf{z}_i \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: with \(\mathbf{w}_i = (\mathbf{w}_i^{(1)}, \mathbf{w}_i^{(2)})\), the concatenation
+    of the rows of \(\mathcal{W}_{i}\) (as column vectors). A different way to put
+    this is that
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{w}_i = \mathrm{vec}(\mathcal{W}_{i}^T), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we took the transpose to turn the rows into columns. More specifically,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bfg_0(\mathbf{z}_0, \mathbf{w}_0) = \mathcal{W}_{0} \mathbf{z}_{0} \quad\text{with}\quad
+    \mathbf{w}_0 = (w_0, w_1, w_2, w_3, w_4, w_5) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: (i.e., \(\mathbf{w}_0^{(1)} = (w_0, w_1, w_2)\) and \(\mathbf{w}_0^{(2)} = (w_3,
+    w_4, w_5)\)) and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bfg_1(\mathbf{z}_1, \mathbf{w}_1) = \mathcal{W}_{1} \mathbf{z}_{1} \quad\text{with}\quad
+    \mathbf{w}_1 = (w_6, w_7, w_8, w_9) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: (i.e., \(\mathbf{w}_1^{(1)} = (w_6, w_7)\) and \(\mathbf{w}_1^{(2)} = (w_8,
+    w_9)\)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We seek to compute the gradient of
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} f(\mathbf{w}) &= \ell(\bfg_1(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1))\\
+    &= \frac{1}{2} \|\mathbf{y} - \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\|^2\\
+    &= \frac{1}{2}\left(y_1 - w_6(w_0 x_1 + w_1 x_2 + w_2 x_3) - w_7(w_3 x_1 + w_4
+    x_2 + w_5 x_3)\right)^2\\ & \qquad + \frac{1}{2}\left(y_2 - w_8(w_0 x_1 + w_1
+    x_2 + w_2 x_3) - w_9(w_3 x_1 + w_4 x_2 + w_5 x_3)\right)^2. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: by applying the *Chain Rule* backwards, as we justified in the previous subsection
+    – but this time we take the gradient with respect to the parameters
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{w} := (\mathbf{w}_0, \mathbf{w}_1) = (w_0,w_1,\ldots,w_9). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Notice a key change in the notation: we now accordingly think of \(f\) *as
+    a function of \(\mathbf{w}\)*; the role of \(\mathbf{x}\) is implicit.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, it may seem counter-intuitive that we now think of \(\bfg_i\)
+    as a function of *both* its own parameters and its inputs from the previous layer
+    when we just stated that we only care about the gradient with respect to the former.
+    But, as we will see, it turns out that we need the Jacobians with respect to both
+    as the input from the previous layer *actually depends on the parameters of the
+    previous layers*. For instance, \(\bfg_1(\mathbf{z}_1, \mathbf{w}_1) = \mathcal{W}_{1}
+    \mathbf{z}_{1}\) where \(\mathbf{z}_{1} = \bfg_0(\mathbf{z}_0, \mathbf{w}_0) =
+    \mathcal{W}_{0} \mathbf{z}_{0}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recall that we have already computed the requisite Jacobians \(J_{\bfg_0}\)
+    and \(J_{\bfg_1}\) in a previous example. We have also computed the Jacobian \(J_{\ell}\)
+    of \(\ell\). At this point, it is tempting to apply the *Chain Rule* and deduce
+    that the gradient of \(f\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\ell}(\bfg_1(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1)) \,J_{\bfg_1}(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1)
+    \,J_{\bfg_0}(\mathbf{x}, \mathbf{w}_0). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: But this is not correct. For one, the dimensions do not match! For instance,
+    \(J_{\bfg_0} \in \mathbb{R}^{2 \times 9}\) since \(\bfg_0\) has \(2\) outputs
+    and \(9\) inputs (i.e., \(z_{0,1}, z_{0,2}, z_{0,3}, w_0, w_1, w_2, w_3, w_4,
+    w_5\)) while \(J_{\bfg_1} \in \mathbb{R}^{2 \times 6}\) since \(\bfg_1\) has \(2\)
+    outputs and \(6\) inputs (i.e., \(z_{1,1}, z_{1,2}, w_6, w_7, w_8, w_9\)). So
+    what went wrong?
+  prefs: []
+  type: TYPE_NORMAL
+- en: The function \(f\) is *not* in fact a straight composition of the functions
+    \(\ell\), \(\bfg_1\), and \(\bfg_0\). Indeed the parameters to differentiate with
+    respect to are introduced progressively, each layer injecting its own additional
+    parameters which are not obtained from the previous layers. Hence we cannot write
+    the gradient of \(f\) as a simple product the Jacobians, unlike what happend in
+    the previous subsection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But not all is lost. We show below that we can still apply the *Chain Rule*
+    step-by-step in a way that accounts for the additional parameters on each layer.
+    Taking a hint from the previous subsection, we proceed forward first to compute
+    \(f\) and the Jacobians, and then go backwards to compute the gradient \(\nabla
+    f\). We use the notation \(\mathbb{A}_{n}[\mathbf{x}]\) and \(\mathbb{B}_{n}[\mathbf{z}]\)
+    from the background section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the forward phase, we compute \(f\) itself and the requisite Jacobians:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\mathbf{z}_0 := \mathbf{x}\\ & = (x_1, x_2, x_3)\\ &\mathbf{z}_1
+    := \bfg_0(\mathbf{z}_0, \mathbf{w}_0) = \mathcal{W}_{0} \mathbf{z}_{0}\\ &= \begin{pmatrix}
+    (\mathbf{w}_0^{(1)})^T\mathbf{x}\\ (\mathbf{w}_0^{(2)})^T\mathbf{x}\end{pmatrix}
+    = \begin{pmatrix} w_0 x_1 + w_1 x_2 + w_2 x_3\\ w_3 x_1 + w_4 x_2 + w_5 x_3 \end{pmatrix}\\
+    &J_{\bfg_0}(\mathbf{z}_0, \mathbf{w}_0) := \begin{pmatrix} \mathbb{A}_{2}[\mathbf{w}_0]
+    & \mathbb{B}_{2}[\mathbf{z}_0] \end{pmatrix} = \begin{pmatrix} \mathcal{W}_{0}
+    & I_{2\times 2} \otimes \mathbf{z}_0^T \end{pmatrix}\\ &= \begin{pmatrix} w_0
+    & w_1 & w_2 & x_1 & x_2 & x_3 & 0 & 0 & 0\\ w_3 & w_4 & w_5 & 0 & 0 & 0 & x_1
+    & x_2 & x_3 \end{pmatrix} \end{align*}\]\[\begin{align*} &\hat{\mathbf{y}} :=
+    \mathbf{z}_2 := \bfg_1(\mathbf{z}_1, \mathbf{w}_1) = \mathcal{W}_{1} \mathbf{z}_{1}\\
+    &= \begin{pmatrix} w_6 z_{1,1} + w_7 z_{1,2}\\ w_8 z_{1,1} + w_9 z_{1,2} \end{pmatrix}\\
+    &= \begin{pmatrix} w_6 (\mathbf{w}_0^{(1)})^T\mathbf{x} + w_7 (\mathbf{w}_0^{(2)})^T\mathbf{x}\\
+    w_8 (\mathbf{w}_0^{(1)})^T\mathbf{x} + w_9 (\mathbf{w}_0^{(2)})^T\mathbf{x} \end{pmatrix}\\
+    &= \begin{pmatrix} w_6(w_0 x_1 + w_1 x_2 + w_2 x_3) + w_7(w_3 x_1 + w_4 x_2 +
+    w_5 x_3)\\ w_8(w_0 x_1 + w_1 x_2 + w_2 x_3) + w_9(w_3 x_1 + w_4 x_2 + w_5 x_3)
+    \end{pmatrix}\\ &J_{\bfg_1}(\mathbf{z}_1, \mathbf{w}_1):= \begin{pmatrix} \mathbb{A}_{2}[\mathbf{w}_1]
+    & \mathbb{B}_{2}[\mathbf{z}_1] \end{pmatrix} = \begin{pmatrix} \mathcal{W}_{1}
+    & I_{2\times 2} \otimes \mathbf{z}_1^T \end{pmatrix}\\ &= \begin{pmatrix} w_6
+    & w_7 & z_{1,1} & z_{1,2} & 0 & 0\\ w_8 & w_9 & 0 & 0 & z_{1,1} & z_{1,2} \end{pmatrix}\\
+    &= \begin{pmatrix} w_6 & w_7 & (\mathbf{w}_0^{(1)})^T\mathbf{x} & (\mathbf{w}_0^{(2)})^T\mathbf{x}
+    & 0 & 0\\ w_8 & w_9 & 0 & 0 & (\mathbf{w}_0^{(1)})^T\mathbf{x} & (\mathbf{w}_0^{(2)})^T\mathbf{x}
+    \end{pmatrix} \end{align*}\]\[\begin{align*} &f(\mathbf{x}) := \ell(\hat{\mathbf{y}})
+    = \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2\\ &= \frac{1}{2}\left(y_1 -
+    w_6(w_0 x_1 + w_1 x_2 + w_2 x_3) - w_7(w_3 x_1 + w_4 x_2 + w_5 x_3)\right)^2\\
+    & \qquad + \frac{1}{2}\left(y_2 - w_8(w_0 x_1 + w_1 x_2 + w_2 x_3) - w_9(w_3 x_1
+    + w_4 x_2 + w_5 x_3)\right)^2\\ &J_{\ell}(\hat{\mathbf{y}}) = (\hat{\mathbf{y}}
+    - \mathbf{y})^T\\ &= \begin{pmatrix} w_6 (\mathbf{w}_0^{(1)})^T\mathbf{x} + w_7
+    (\mathbf{w}_0^{(2)})^T\mathbf{x} - y_1 & w_8 (\mathbf{w}_0^{(1)})^T\mathbf{x}
+    + w_9 (\mathbf{w}_0^{(2)})^T\mathbf{x} - y_2 \end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now compute the gradient of \(f\) with respect to \(\mathbf{w}\). We start
+    with \(\mathbf{w}_1 = (w_6, w_7, w_8, w_9)\). For this step, we think of \(f\)
+    as the composition \(\ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))\). Here \(\mathbf{z}_1\)
+    does not depend on \(\mathbf{w}_1\) and therefore can be considered fixed for
+    this calculation. By the *Chain Rule*
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial w_6} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial w_6} = \frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1, \mathbf{w}_1)}{\partial w_6} +
+    \frac{\partial \ell(\hat{\mathbf{y}})}{\partial \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_6} = (\hat{y}_1 - y_1) z_{1,1} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the fact that \(g_{1,2}(\mathbf{z}_1, \mathbf{w}_1) = w_8 z_{1,1}
+    + w_9 z_{1,2}\) does not depend on \(w_6\) and therefore \(\frac{\partial g_{1,2}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_6} = 0\). Similarly
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial w_7} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial w_7} =\frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1, \mathbf{w}_1)}{\partial w_7} +
+    \frac{\partial \ell(\hat{\mathbf{y}})}{\partial \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_7} = (\hat{y}_1 - y_1) z_{1,2}\\ \frac{\partial f(\mathbf{w})}{\partial
+    w_8} &= \frac{\partial \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial w_8}
+    =\frac{\partial \ell(\hat{\mathbf{y}})}{\partial \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_8} + \frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1, \mathbf{w}_1)}{\partial w_8} =
+    (\hat{y}_2 - y_2) z_{1,1}\\ \frac{\partial f(\mathbf{w})}{\partial w_9} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial w_9} =\frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1, \mathbf{w}_1)}{\partial w_9} +
+    \frac{\partial \ell(\hat{\mathbf{y}})}{\partial \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_9} = (\hat{y}_2 - y_2) z_{1,2}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In matrix form, this is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\begin{pmatrix}\frac{\partial f(\mathbf{w})}{\partial w_6}
+    & \frac{\partial f(\mathbf{w})}{\partial w_7} & \frac{\partial f(\mathbf{w})}{\partial
+    w_8} & \frac{\partial f(\mathbf{w})}{\partial w_9} \end{pmatrix}\\ &= J_{\ell}(\hat{\mathbf{y}})
+    \,\mathbb{B}_{2}[\mathbf{z}_1]\\ &= (\hat{\mathbf{y}} - \mathbf{y})^T (I_{2\times
+    2} \otimes \mathbf{z}_1^T)\\ &= (\hat{\mathbf{y}} - \mathbf{y})^T \otimes \mathbf{z}_1^T\\
+    &= \begin{pmatrix} (\hat{y}_1 - y_1) z_{1,1} & (\hat{y}_1 - y_1) z_{1,2} & (\hat{y}_2
+    - y_2) z_{1,1} & (\hat{y}_2 - y_2) z_{1,2} \end{pmatrix} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used *Properties of the Kronecker Product (f)* on the second to last
+    line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To compute the partial derivatives with respect to \(\mathbf{w}_0 = (w_0, w_1,
+    \ldots, w_5)\), we first need to compute partial derivatives with respect to \(\mathbf{z}_1
+    = (z_{1,1}, z_{1,2})\) since \(f\) depends on \(\mathbf{w}_0\) through it. For
+    this calculation, we think again of \(f\) as the composition \(\ell(\bfg_1(\mathbf{z}_1,
+    \mathbf{w}_1))\), but this time our focus is on the variables \(\mathbf{z}_1\).
+    We obtain
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial z_{1,1}} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial z_{1,1}}\\ &= \frac{\partial
+    \ell(\hat{\mathbf{y}})}{\partial \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial z_{1,1}} + \frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1, \mathbf{w}_1)}{\partial z_{1,1}}\\
+    &= (\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8 \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial z_{1,2}} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial z_{1,2}}\\ &= \frac{\partial
+    \ell(\hat{\mathbf{y}})}{\partial \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial z_{1,2}} + \frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1, \mathbf{w}_1)}{\partial z_{1,2}}\\
+    &= (\hat{y}_1 - y_1) w_7 + (\hat{y}_2 - y_2) w_9. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In matrix form, this is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\begin{pmatrix}\frac{\partial f(\mathbf{w})}{\partial z_{1,1}}
+    & \frac{\partial f(\mathbf{w})}{\partial z_{1,2}} \end{pmatrix}\\ &= J_{\ell}(\hat{\mathbf{y}})
+    \,\mathbb{A}_{2}[\mathbf{w}_1]\\ &= (\hat{\mathbf{y}} - \mathbf{y})^T \mathcal{W}_1\\
+    &= \begin{pmatrix} (\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8 & (\hat{y}_1
+    - y_1) w_7 + (\hat{y}_2 - y_2) w_9 \end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The vector \(\left(\frac{\partial f(\mathbf{w})}{\partial z_{1,1}}, \frac{\partial
+    f(\mathbf{w})}{\partial z_{1,2}}\right)\) is called an adjoint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now compute the gradient of \(f\) with respect to \(\mathbf{w}_0 = (w_0,
+    w_1, \ldots, w_5)\). For this step, we think of \(f\) as the composition of \(\ell(\bfg_1(\mathbf{z}_1,
+    \mathbf{w}_1))\) as a function of \(\mathbf{z}_1\) and \(\bfg_0(\mathbf{z}_0,
+    \mathbf{w}_0)\) as a function of \(\mathbf{w}_0\). Here \(\mathbf{z}_0\) does
+    not depend on \(\mathbf{w}_0\) and therefore can be considered fixed for this
+    calculation. By the *Chain Rule*
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial w_0} &= \frac{\partial
+    \ell(\bfg_1(\bfg_0(\mathbf{z}_0, \mathbf{w}_0), \mathbf{w}_1))}{\partial w_0}\\
+    &= \frac{\partial \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial z_{1,1}}
+    \frac{\partial g_{0,1}(\mathbf{z}_0, \mathbf{w}_0)}{\partial w_0} + \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial z_{1,2}} \frac{\partial g_{0,2}(\mathbf{z}_0,
+    \mathbf{w}_0)}{\partial w_0}\\ &= ((\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8)
+    z_{0,1}\\ &= ((\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8) x_{1}, \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the fact that \(g_{0,2}(\mathbf{z}_0, \mathbf{w}_0) = w_3 z_{0,1}
+    + w_4 z_{0,2} + w_5 z_{0,3}\) does not depend on \(w_0\) and therefore \(\frac{\partial
+    g_{0,2}(\mathbf{z}_0, \mathbf{w}_0)}{\partial w_0} = 0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly (check it!)
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial w_1} &= ((\hat{y}_1
+    - y_1) w_6 + (\hat{y}_2 - y_2) w_8) x_{2}\\ \frac{\partial f(\mathbf{w})}{\partial
+    w_2} &= ((\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8) x_{3}\\ \frac{\partial
+    f(\mathbf{w})}{\partial w_3} &= ((\hat{y}_1 - y_1) w_7 + (\hat{y}_2 - y_2) w_9)
+    x_{1}\\ \frac{\partial f(\mathbf{w})}{\partial w_4} &= ((\hat{y}_1 - y_1) w_7
+    + (\hat{y}_2 - y_2) w_9) x_{2}\\ \frac{\partial f(\mathbf{w})}{\partial w_5} &=
+    ((\hat{y}_1 - y_1) w_7 + (\hat{y}_2 - y_2) w_9) x_{3}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In matrix form, this is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\begin{pmatrix}\frac{\partial f(\mathbf{w})}{\partial w_0}
+    & \frac{\partial f(\mathbf{w})}{\partial w_1} & \frac{\partial f(\mathbf{w})}{\partial
+    w_2} & \frac{\partial f(\mathbf{w})}{\partial w_3} & \frac{\partial f(\mathbf{w})}{\partial
+    w_4} & \frac{\partial f(\mathbf{w})}{\partial w_5} \end{pmatrix}\\ &= J_{\ell}(\hat{\mathbf{y}})
+    \,\mathbb{A}_{2}[\mathbf{w}_1] \,\mathbb{B}_{2}[\mathbf{z}_0]\\ &= (\hat{\mathbf{y}}
+    - \mathbf{y})^T \mathcal{W}_1 (I_{2\times 2} \otimes \mathbf{z}_0^T)\\ &= ((\hat{\mathbf{y}}
+    - \mathbf{y})^T \mathcal{W}_1) \otimes \mathbf{x}^T\\ &= \begin{pmatrix} ((\hat{y}_1
+    - y_1) w_6 + (\hat{y}_2 - y_2) w_8) x_{1} & \cdots & ((\hat{y}_1 - y_1) w_7 +
+    (\hat{y}_2 - y_2) w_9) x_{3} \end{pmatrix} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used *Properties of the Kronecker Product (f)* on the second to last
+    line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To sum up,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla f (\mathbf{w})^T = \begin{pmatrix} (\hat{\mathbf{y}} - \mathbf{y})^T
+    \otimes (\mathcal{W}_{0} \mathbf{x})^T & ((\hat{\mathbf{y}} - \mathbf{y})^T \mathcal{W}_1)
+    \otimes \mathbf{x}^T \end{pmatrix}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We return to the concrete example from the previous subsection.
+    This time the matrices `W0` and `W1` require partial derivatives.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: We compute the gradient \(\nabla f(\mathbf{w})\) using AD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: These are written in the form of matrix derivatives
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \frac{\partial f}{\partial \mathcal{W}_0} = \begin{pmatrix}
+    \frac{\partial f}{\partial w_0} & \frac{\partial f}{\partial w_1} & \frac{\partial
+    f}{\partial w_2} \\ \frac{\partial f}{\partial w_3} & \frac{\partial f}{\partial
+    w_4} & \frac{\partial f}{\partial w_5} \end{pmatrix} \quad\text{and}\quad \frac{\partial
+    f}{\partial \mathcal{W}_1} = \begin{pmatrix} \frac{\partial f}{\partial w_6} &
+    \frac{\partial f}{\partial w_7} \\ \frac{\partial f}{\partial w_8} & \frac{\partial
+    f}{\partial w_9} \end{pmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use our formulas to confirm that they match these results. We need the Kronecker
+    product, which in PyTorch is implemented as [`torch.kron`](https://pytorch.org/docs/stable/generated/torch.kron.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that this time these results are written in vectorized form (i.e., obtained
+    by concatenating the rows). But they do match with the AD output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**General setting** \(\idx{progressive function}\xdi\) More generally, we have
+    \(L+2\) layers. The input layer is \(\mathbf{z}_0 := \mathbf{x}\), which we refer
+    to as layer \(0\). Hidden layer \(i\), \(i=1,\ldots,L\), is defined by a continuously
+    differentiable function \(\mathbf{z}_i := \bfg_{i-1}(\mathbf{z}_{i-1}, \mathbf{w}_{i-1})\)
+    which this time takes *two vector-valued inputs*: a vector \(\mathbf{z}_{i-1}
+    \in \mathbb{R}^{n_{i-1}}\) fed from the \((i-1)\)-st layer and a vector \(\mathbf{w}_{i-1}
+    \in \mathbb{R}^{r_{i-1}}\) of parameters specific to the \(i\)-th layer'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '\[ \bfg_{i-1} = (g_{i-1,1},\ldots,g_{i-1,n_{i}}) : \mathbb{R}^{n_{i-1} + r_{i-1}}
+    \to \mathbb{R}^{n_{i}}. \]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output \(\mathbf{z}_i\) of \(\bfg_{i-1}\) is a vector in \(\mathbb{R}^{n_{i}}\)
+    which is passed to the \((i+1)\)-st layer as input. The output layer is \(\mathbf{z}_{L+1}
+    := \bfg_{L}(\mathbf{z}_{L}, \mathbf{w}_{L})\), which we also refer to as layer
+    \(L+1\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For \(i = 1,\ldots,L+1\), let
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \overline{\mathbf{w}}^{i-1} = (\mathbf{w}_0,\mathbf{w}_1,\ldots,\mathbf{w}_{i-1})
+    \in \mathbb{R}^{r_0 + r_1+\cdots+r_{i-1}} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: be the concatenation of the parameters from the first \(i\) layers (not including
+    the input layer, which does not have parameters) as a vector in \(\mathbb{R}^{r_0+r_1+\cdots+r_{i-1}}\).
+    Then the output of layer \(i\) *as a function of the parameters* is the composition
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}) = \bfg_{i-1}(\mathcal{O}_{i-2}(\overline{\mathbf{w}}^{i-2}),
+    \mathbf{w}_{i-1}) = \bfg_{i-1}(\bfg_{i-2}(\cdots \bfg_1(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1),
+    \cdots, \mathbf{w}_{i-2}), \mathbf{w}_{i-1}) \in \mathbb{R}^{n_{i}}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for \(i = 2, \ldots, L+1\). When \(i=1\), we have simply
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{O}_{0}(\overline{\mathbf{w}}^{0}) = \bfg_{0}(\mathbf{x}, \mathbf{w}_0).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe that the function \(\mathcal{O}_{i-1}\) depends implicitly on the input
+    \(\mathbf{x}\) – which we do *not* think of as a variable in this setting. To
+    simplify the notation, we do not make the dependence on \(\mathbf{x}\) explicit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Letting \(\mathbf{w} := \overline{\mathbf{w}}^{L}\), the final output is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bfh(\mathbf{w}) = \mathcal{O}_{L}(\overline{\mathbf{w}}^{L}). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Expanding out the composition, this can be written alternatively as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bfh(\mathbf{w}) = \bfg_{L}(\bfg_{L-1}(\cdots \bfg_1(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1),
+    \cdots, \mathbf{w}_{L-1}), \mathbf{w}_{L}). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Again, we do not make the dependence on \(\mathbf{x}\) explicit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a final step, we have a loss function \(\ell : \mathbb{R}^{n_{L+1}} \to
+    \mathbb{R}\) which takes as input the output of the last layer and measures the
+    fit to the given label \(\mathbf{y} \in \Delta_K\). We will see some example below.
+    The final function is then'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ f(\mathbf{w}) = \ell(\bfh(\mathbf{w})) \in \mathbb{R}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We seek to compute the gradient of \(f(\mathbf{w})\) with respect to the parameters
+    \(\mathbf{w}\) in order to apply a gradient descent method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** We return to the running example from the previous
+    subsection. That is, \(\bfg_i(\mathbf{z}_i, \mathbf{w}_i) = \mathcal{W}_{i} \mathbf{z}_i\)
+    where the entries of \(\mathcal{W}_{i} \in \mathbb{R}^{n_{i+1} \times n_i}\) are
+    considered parameters and we let \(\mathbf{w}_i = \mathrm{vec}(\mathcal{W}_{i}^T)\).
+    Assume also that \(\ell : \mathbb{R}^K \to \mathbb{R}\) is defined as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \ell(\hat{\mathbf{y}}) = \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2,
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for a fixed, known vector \(\mathbf{y} \in \mathbb{R}^{K}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computing \(f\) recursively gives
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_0 &:= \mathbf{x}\\ \mathbf{z}_1 &:= \mathcal{O}_0(\overline{\mathbf{w}}^0)
+    = \bfg_0(\mathbf{z}_0, \mathbf{w}_0) = \mathcal{W}_{0} \mathbf{z}_0 = \mathcal{W}_{0}
+    \mathbf{x}\\ \mathbf{z}_2 &:= \mathcal{O}_1(\overline{\mathbf{w}}^1) = \bfg_1(\mathbf{z}_1,
+    \mathbf{w}_1) = \mathcal{W}_{1} \mathbf{z}_1 = \mathcal{W}_{1} \mathcal{W}_{0}
+    \mathbf{x}\\ \vdots\\ \mathbf{z}_L &:= \mathcal{O}_{L-1}(\overline{\mathbf{w}}^{L-1})
+    = \bfg_{L-1}(\mathbf{z}_{L-1}, \mathbf{w}_{L-1}) = \mathcal{W}_{L-1} \mathbf{z}_{L-1}
+    = \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\ \hat{\mathbf{y}}
+    := \mathbf{z}_{L+1} &:= \mathcal{O}_{L}(\overline{\mathbf{w}}^{L}) = \bfg_{L}(\mathbf{z}_{L},
+    \mathbf{w}_{L}) = \mathcal{W}_{L} \mathbf{z}_{L} = \mathcal{W}_{L} \mathcal{W}_{L-1}
+    \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\ f(\mathbf{x}) &:= \ell(\hat{\mathbf{y}})
+    = \frac{1}{2}\|\mathbf{y} - \hat{\mathbf{y}}\|^2 = \frac{1}{2}\left\|\mathbf{y}
+    - \mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\right\|^2.
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Applying the chain rule** Recall that the key insight from the *Chain Rule*
+    is that to compute the gradient of a composition such as \(\bfh(\mathbf{w})\)
+    – no matter how complex – it suffices to *separately* compute the Jacobians of
+    the intervening functions and then take *matrix products*. In this section, we
+    compute the necessary Jacobians in the progressive case.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It will be convenient to re-write the basic composition step as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{O}_{i}(\overline{\mathbf{w}}^{i}) = \bfg_{i}(\mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}),
+    \mathbf{w}_{i}) = \bfg_{i}(\mathcal{I}_{i}(\overline{\mathbf{w}}^{i})) \in \mathbb{R}^{n_{i+1}},
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where the input to layer \(i+1\) (both layer-specific parameters and the output
+    of the previous layer) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{I}_{i}(\overline{\mathbf{w}}^{i}) = \left( \mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}),
+    \mathbf{w}_{i} \right) \in \mathbb{R}^{n_{i} + r_{i}}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for \(i = 1, \ldots, L\). When \(i=0\), we have simply
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{I}_{0}(\overline{\mathbf{w}}^{0}) = \left(\mathbf{z}_0, \mathbf{w}_0
+    \right) = \left(\mathbf{x}, \mathbf{w}_0 \right). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applying the *Chain Rule* we get
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\mathcal{O}_{i}}(\overline{\mathbf{w}}^{i}) = J_{\bfg_i}(\mathcal{I}_{i}(\overline{\mathbf{w}}^{i}))
+    \,J_{\mathcal{I}_{i}}(\overline{\mathbf{w}}^{i}). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, the Jacobian of
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{I}_{i}(\overline{\mathbf{w}}^{i}) = \left( \mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}),
+    \mathbf{w}_i \right) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: has a simple block diagonal structure
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} J_{\mathcal{I}_{i}}(\overline{\mathbf{w}}^{i}) = \begin{pmatrix}
+    J_{\mathcal{O}_{i-1}}(\overline{\mathbf{w}}^{i-1}) & 0 \\ 0 & I_{r_i \times r_i}
+    \end{pmatrix} \in \mathbb{R}^{(n_{i} + r_{i})\times(r_0 + \cdots + r_i)} \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: since the first block component of \(\mathcal{I}_{i}\), \(\mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1})\),
+    does not depend on \(\mathbf{w}_i\) whereas the second block component of \(\mathcal{I}_{i}\),
+    \(\mathbf{w}_i\), does not depend on \(\overline{\mathbf{w}}^{i-1}\). Observe
+    that this is a fairly large matrix whose number of columns in particular grows
+    with \(i\). That last formula is for \(i \geq 1\). When \(i=0\) we have \(\mathcal{I}_{0}(\overline{\mathbf{w}}^{0})
+    = \left(\mathbf{x}, \mathbf{w}_0\right)\), so that
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} J_{\mathcal{I}_{0}}(\overline{\mathbf{w}}^{0}) = \begin{pmatrix}
+    \mathbf{0}_{d \times r_0} \\ I_{r_0 \times r_0} \end{pmatrix} \in \mathbb{R}^{(d+
+    r_0) \times r_0}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We partition the Jacobian of \(\bfg_i(\mathbf{z}_i, \mathbf{w}_i)\) likewise,
+    that is, we divide it into those columns corresponding to partial derivatives
+    with respect to \(\mathbf{z}_{i}\) (the corresponding block being denoted by \(A_i\))
+    and with respect to \(\mathbf{w}_i\) (the corresponding block being denoted by
+    \(B_i\))
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\bfg_i}(\mathbf{z}_i, \mathbf{w}_i) = \begin{pmatrix} A_i & B_i \end{pmatrix}
+    \in \mathbb{R}^{n_{i+1} \times (n_i + r_i)}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: evaluated at \((\mathbf{z}_i, \mathbf{w}_i) = \mathcal{I}_{i}(\overline{\mathbf{w}}^{i})
+    = (\mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}), \mathbf{w}_i)\). Note that
+    \(A_i\) and \(B_i\) depend on the details of the function \(\bfg_i\), which typically
+    is fairly simple. We give examples in the next subsections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Plugging back above we get
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} J_{\mathcal{O}_{i}}(\overline{\mathbf{w}}^{i}) = \begin{pmatrix}
+    A_i & B_i \end{pmatrix} \,\begin{pmatrix} J_{\mathcal{O}_{i-1}}(\overline{\mathbf{w}}^{i-1})
+    & 0 \\ 0 & I_{r_i \times r_i} \end{pmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This leads to the recursion
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\mathcal{O}_{i}}(\overline{\mathbf{w}}^{i}) = \begin{pmatrix} A_i \, J_{\mathcal{O}_{i-1}}(\overline{\mathbf{w}}^{i-1})
+    & B_i \end{pmatrix} \in \mathbb{R}^{n_{i+1}\times(r_0 + \cdots + r_i)} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: from which the Jacobian of \(\mathbf{h}(\mathbf{w})\) can be computed. Like
+    \(J_{\mathcal{I}_{i}}\), \(J_{\mathcal{O}_{i}}\) is a large matrix. We refer to
+    this matrix equation as the *fundamental recursion*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The base case \(i=0\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} J_{\mathcal{O}_{0}}(\overline{\mathbf{w}}^{0}) = \begin{pmatrix}
+    A_0 & B_0 \end{pmatrix}\begin{pmatrix} \mathbf{0}_{d \times r_0} \\ I_{r_0 \times
+    r_0} \end{pmatrix} = B_0. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, using the *Chain Rule* again
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \nabla {f(\mathbf{w})} &= J_{f}(\mathbf{w})^T\\ &= [J_{\ell}(\bfh(\mathbf{w}))
+    \,J_{\bfh}(\mathbf{w})]^T\\ &= J_{\bfh}(\mathbf{w})^T \,\nabla {\ell}(\bfh(\mathbf{w}))\\
+    &= J_{\mathcal{O}_{L}}(\overline{\mathbf{w}}^{L})^T \,\nabla {\ell}(\mathcal{O}_{L}(\overline{\mathbf{w}}^{L})).
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The matrix \(J_{\mathcal{O}_{L}}(\overline{\mathbf{w}}^{L})\) is computed using
+    the recursion above, while \(\nabla {\ell}\) depends on the function \(\ell\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Backpropagation** \(\idx{backpropagation}\xdi\) We take advantage of the
+    fundamental recursion to compute the gradient of \(\bfh\). As we have seen, there
+    are two ways of doing this. Applying the recursion directly is one of them, but
+    it requires many matrix-matrix products. The first few steps are'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\mathcal{O}_{0}}(\overline{\mathbf{w}}^{0}) = B_0, \]\[ J_{\mathcal{O}_{1}}(\overline{\mathbf{w}}^{1})
+    = \begin{pmatrix} A_1 J_{\mathcal{O}_{0}}(\overline{\mathbf{w}}^{0}) & B_1 \end{pmatrix}
+    \]\[ J_{\mathcal{O}_{2}}(\overline{\mathbf{w}}^{2}) = \begin{pmatrix} A_2 \, J_{\mathcal{O}_{1}}(\overline{\mathbf{w}}^{1})
+    & B_2 \end{pmatrix}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead, as in the case of differentiating with respect to the input \(\mathbf{x}\),
+    one can also run the recursion backwards. The latter approach can be much faster
+    because, as we detail next, it involves only matrix-vector products. Start from
+    the end, that is, with the equation
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla {f}(\mathbf{w}) = J_{\bfh}(\mathbf{w})^T \,\nabla {\ell}(\bfh(\mathbf{w})).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that \(\nabla {\ell}(\bfh(\mathbf{w}))\) is a vector – not a matrix. Then
+    expand the matrix \(J_{\bfh}(\mathbf{w})\) using the recursion above
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \nabla {f}(\mathbf{w}) &= J_{\bfh}(\mathbf{w})^T \,\nabla {\ell}(\bfh(\mathbf{w}))\\
+    &= J_{\mathcal{O}_{L}}(\overline{\mathbf{w}}^{L})^T \,\nabla {\ell}(\bfh(\mathbf{w}))\\
+    &= \begin{pmatrix} A_L \, J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1}) &
+    B_L \end{pmatrix}^T \,\nabla {\ell}(\bfh(\mathbf{w}))\\ &= \begin{pmatrix} J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1})^T
+    A_L^T \\ B_L^T \end{pmatrix} \,\nabla {\ell}(\bfh(\mathbf{w}))\\ &= \begin{pmatrix}
+    J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1})^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}
+    \\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) \end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The key is that both expressions \(A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\)
+    and \(B_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\) are *matrix-vector products*.
+    That pattern persists at the next level of recursion. Note that this supposes
+    that we have precomputed \(\bfh(\mathbf{w})\) first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the next level, we expand the matrix \(J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1})^T\)
+    using the fundamental recursion
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \nabla {f}(\mathbf{w}) &= \begin{pmatrix} J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1})^T
+    \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\} \\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))
+    \end{pmatrix}\\ &= \begin{pmatrix} \begin{pmatrix} A_{L-1} \, J_{\mathcal{O}_{L-2}}(\overline{\mathbf{w}}^{L-2})
+    & B_{L-1} \end{pmatrix}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}
+    \\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) \end{pmatrix}\\ &= \begin{pmatrix}
+    \begin{pmatrix} J_{\mathcal{O}_{L-2}}(\overline{\mathbf{w}}^{L-2})\,A_{L-1}^T
+    \\ B_{L-1}^T \end{pmatrix} \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}
+    \\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) \end{pmatrix}\\ &= \begin{pmatrix}
+    J_{\mathcal{O}_{L-2}}(\overline{\mathbf{w}}^{L-2})\left\{A_{L-1}^T \left\{ A_L^T
+    \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\} \\ B_{L-1}^T \left\{ A_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w}))\right\}\\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) \end{pmatrix}.
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Continuing by induction gives an alternative formula for the gradient of \(f\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Indeed, the next level gives
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \nabla {f}(\mathbf{w}) &= \begin{pmatrix} J_{\mathcal{O}_{L-3}}(\overline{\mathbf{w}}^{L-3})\left\{A_{L-2}^T
+    \left\{A_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\}\right\}
+    \\ B_{L-2}^T \left\{A_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\}
+    \\ B_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\\ B_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w})) \end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on. Observe that we do not in fact need to compute the large matrices
+    \(J_{\mathcal{O}_{i}}\) – only the sequence of vectors \(B_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\),
+    \(B_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\), \(B_{L-2}^T
+    \left\{A_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\},
+    \)etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These formulas may seem cumbersome, but they take an intuitive form. Matrix
+    \(A_i\) is the submatrix of the Jacobian \(J_{\bfg_i}\) corresponding only to
+    the partial derivatives with respect to \(\mathbf{z}_i\), i.e., the input from
+    the previous layer. Matrix \(B_i\) is the submatrix of the Jacobian \(J_{\bfg_i}\)
+    corresponding only to the partial derivatives with respect to \(\mathbf{w}_i\),
+    i.e., the layer-specific parameters. To compute the subvector of \(\nabla f\)
+    corresponding to the parameters \(\mathbf{w}_i\) of the \((i+1)\)-th layer, we
+    repeatedly differentiate with respect to the inputs of the previous layer (by
+    multiplying by the corresponding \(A_j^T\)) starting from the last one, until
+    we reach layer \(i+1\) at which point we take partial derivatives with respect
+    to the layer-specific parameters (by multiplying by \(B_i^T\)). The process stops
+    there since the layers preceding it do not depend on \(\mathbf{w}_i\) and therefore
+    its full effect on \(f\) has been accounted for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, we need to compute
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_{L} := A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{q}_{L} := B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_{L-1} := A_{L-1}^T \mathbf{p}_{L} = A_{L-1}^T \left\{ A_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w}))\right\} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{q}_{L-1} := B_{L-1}^T \mathbf{p}_{L} = B_{L-1}^T \left\{ A_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w}))\right\}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_{L-2} := A_{L-2}^T \mathbf{p}_{L-1} = A_{L-2}^T \left\{A_{L-1}^T
+    \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{q}_{L-2} := B_{L-2}^T \mathbf{p}_{L-1} = B_{L-2}^T \left\{A_{L-1}^T
+    \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\} \right\}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on. The \(\mathbf{p}_i\)s are referred to as adjoints; they correspond
+    to the vectors of partial derivatives of \(f\) with respect to the \(\mathbf{z}_i\)s.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is one more detail to note. The matrices \(A_i, B_i\) depend on the output
+    of layer \(i-1\). To compute them, we first proceed forward, that is, we let \(\mathbf{z}_0
+    = \mathbf{x}\) then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{z}_1 = \mathcal{O}_{0}(\overline{\mathbf{w}}^{0}) = \bfg_0(\mathbf{z}_0,
+    \mathbf{w}_0), \]\[ \mathbf{z}_2 = \mathcal{O}_{1}(\overline{\mathbf{w}}^{1})
+    = \bfg_1(\mathcal{O}_{0}(\overline{\mathbf{w}}^{0}), \mathbf{w}_1) = \bfg_1(\mathbf{z}_1,
+    \mathbf{w}_1), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on. In that forward pass, we also compute \(A_i, B_i\) along the way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We give the full algorithm now, which involves two passes. In the forward pass,
+    or forward propagation step, we compute the following.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Initialization:*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\mathbf{z}_0 := \mathbf{x}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Forward layer loop:* For \(i = 0, 1,\ldots,L\),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_{i+1} &:= \bfg_i(\mathbf{z}_i, \mathbf{w}_i)\\ \begin{pmatrix}
+    A_i & B_i \end{pmatrix} &:= J_{\bfg_i}(\mathbf{z}_i, \mathbf{w}_i) \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Loss:*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} z_{L+2} &:= \ell(\mathbf{z}_{L+1})\\ \mathbf{p}_{L+1} &:= \nabla
+    {\ell}(\mathbf{z}_{L+1}). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the backward pass, or backpropagation step, we compute the following.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Backward layer loop:* For \(i = L,\ldots,1, 0\),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{p}_{i} &:= A_i^T \mathbf{p}_{i+1}\\ \mathbf{q}_{i}
+    &:= B_i^T \mathbf{p}_{i+1} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Output:*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla f(\mathbf{w}) = (\mathbf{q}_0,\mathbf{q}_1,\ldots,\mathbf{q}_L). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we do not in fact need to compute \(A_0\) and \(\mathbf{p}_0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** We apply the algorithm to our running example.
+    From previous calculations, for \(i = 0, 1,\ldots,L\), the Jacobians are'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '\[\begin{align*} J_{\bfg_i}(\mathbf{z}_i, \mathbf{w}_i) &= \begin{pmatrix}
+    \mathbb{A}_{n_{i+1}}[\mathbf{w}_i] & \mathbb{B}_{n_{i+1}}[\mathbf{z}_i] \end{pmatrix}\\
+    &= \begin{pmatrix} \mathcal{W}_i & I_{n_{i+1} \times n_{i+1}} \otimes \mathbf{z}_i^T
+    \end{pmatrix}\\ &=: \begin{pmatrix} A_i & B_i \end{pmatrix} \end{align*}\]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\ell}(\hat{\mathbf{y}}) = (\hat{\mathbf{y}} - \mathbf{y})^T. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the *Properties of the Kronecker Product*, we obtain
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_{L} := A_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) = \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \]\[\begin{align*} \mathbf{q}_{L} &:= B_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w})) = (I_{n_{L+1} \times n_{L+1}} \otimes \mathbf{z}_L^T)^T
+    (\hat{\mathbf{y}} - \mathbf{y}) = (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathbf{z}_L\\
+    &= (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathcal{W}_{L-1} \cdots \mathcal{W}_{1}
+    \mathcal{W}_{0} \mathbf{x} \end{align*}\]\[ \mathbf{p}_{L-1} := A_{L-1}^T \mathbf{p}_{L}
+    = \mathcal{W}_{L-1}^T \mathcal{W}_L^T (\hat{\mathbf{y}} - \mathbf{y}) \]\[\begin{align*}
+    \mathbf{q}_{L-1} &:= B_{L-1}^T \mathbf{p}_{L} = (I_{n_{L} \times n_{L}} \otimes
+    \mathbf{z}_{L-1}^T)^T \mathcal{W}_L^T (\hat{\mathbf{y}} - \mathbf{y}) = \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathbf{z}_{L-1}\\ &= \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathcal{W}_{L-2} \cdots \mathcal{W}_{1}
+    \mathcal{W}_{0} \mathbf{x} \end{align*}\]\[ \mathbf{p}_{L-2} := A_{L-2}^T \mathbf{p}_{L-1}
+    = \mathcal{W}_{L-2}^T \mathcal{W}_{L-1}^T \mathcal{W}_L^T (\hat{\mathbf{y}} -
+    \mathbf{y}) \]\[\begin{align*} \mathbf{q}_{L-2} &:= B_{L-2}^T \mathbf{p}_{L-1}
+    = (I_{n_{L-1} \times n_{L-1}} \otimes \mathbf{z}_{L-2}^T)^T \mathcal{W}_{L-1}^T
+    \mathcal{W}_L^T (\hat{\mathbf{y}} - \mathbf{y}) = \mathcal{W}_{L-1}^T \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathbf{z}_{L-2}\\ &= \mathcal{W}_{L-1}^T
+    \mathcal{W}_L^T (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathcal{W}_{L-3} \cdots
+    \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on. Following the pattern, the last step is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_1 := \mathcal{W}_{1}^T \cdots \mathcal{W}_{L-1}^T \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \]\[ \mathbf{q}_0 := B_{0}^T \mathbf{p}_{1} =
+    \mathcal{W}_{1}^T \cdots \mathcal{W}_{L-1}^T \mathcal{W}_L^T (\hat{\mathbf{y}}
+    - \mathbf{y}) \otimes \mathbf{x}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: These calculations are consistent with the case \(L=1\) that we derived previously
+    (check it!). \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** The efficiency of backpropagation has been key to the success
+    of deep learning. Ask your favorite AI chatbot about the history of backpropagation
+    and its role in the development of modern deep learning. \(\ddagger\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '***Self-assessment quiz*** *(with help from Claude, Gemini, and ChatGPT)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**1** In the backpropagation algorithm, what does the ‘forward pass’ compute?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The adjoints \(\mathbf{p}_i\) for each layer \(i\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The gradients \(\mathbf{q}_i\) for the parameters of each layer \(i\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) The function values \(\mathbf{z}_i\) and the Jacobians \(A_i, B_i\) for each
+    layer \(i\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) The final gradient \(\nabla f(\mathbf{w})\) with respect to all parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2** What is the purpose of the ‘backward pass’ in the backpropagation algorithm?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) To compute the function values \(\mathbf{z}_i\) for each layer \(i\) from
+    the input \(\mathbf{x}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) To compute the Jacobians \(A_i, B_i\) for each layer \(i\) using the fundamental
+    recursion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) To compute the adjoints \(\mathbf{p}_i\) and the gradients \(\mathbf{q}_i\)
+    for each layer \(i\) using the fundamental recursion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) To compute the final output \(\ell(\mathbf{z}_{L+1})\) of the progressive
+    function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3** What is the computational complexity of the backpropagation algorithm
+    in terms of the number of layers \(L\) and the matrix dimensions \(m\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) \(\approx Lm\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) \(\approx Lm^2\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) \(\approx Lm^2d\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) \(\approx Lm^3d\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**4** In the context of progressive functions, what is the significance of
+    the matrices \(A_i\) and \(B_i\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) They represent the Jacobians of the layer functions with respect to the inputs
+    and parameters, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) They are the intermediate values computed during the forward pass.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) They are the adjoints used in the backpropagation algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) They are the matrices of parameters for each layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**5** In the context of progressive functions, which of the following best
+    describes the role of the vector \(\mathbf{w}_i\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The input to the \(i\)-th layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The output of the \(i\)-th layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) The parameters specific to the \(i\)-th layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) The concatenation of parameters from all layers up to \(i\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 1: c. Justification: The section presents the forward propagation
+    step which computes “the following: Initialization: \(\mathbf{z}_0 := \mathbf{x}\)
+    Forward layer loop: For \(i=0,1,\dots,L\), \(\mathbf{z}_{i+1} := \mathbf{g}_i(\mathbf{z}_i,
+    \mathbf{w}_i)\) \((A_i,B_i) := J_{\mathbf{g}_i}(\mathbf{z}_i, \mathbf{w}_i)\)
+    Loss: \(\mathbf{z}_{L+2} := \ell(\mathbf{z}_{L+1})\)”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 2: c. Justification: The backward pass is described as follows:
+    “Backward layer loop: For \(i=L,\dots,1,0\), \(\mathbf{p}_i := A_i^T \mathbf{p}_{i+1}\)
+    \(\mathbf{q}_i := B_i^T \mathbf{p}_{i+1}\) Output: \(\nabla f(\mathbf{w}) = (\mathbf{q}_0,
+    \mathbf{q}_1, \dots, \mathbf{q}_L)\).”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 3: b. Justification: The text derives that the number of operations
+    in the reverse mode is approximately \(2Lm^2\), stating “This is approximately
+    \(2Lm^2\) – which can be much smaller than \(2Lm^2d\)!”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 4: a. Justification: The text defines \(A_i\) and \(B_i\) as the
+    blocks of the Jacobian \(J_{\mathbf{g}_i}(\mathbf{z}_i, \mathbf{w}_i)\) corresponding
+    to the partial derivatives with respect to \(\mathbf{z}_i\) and \(\mathbf{w}_i\),
+    respectively.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 5: c. Justification: The text explains: “In the machine learning
+    context, each “layer” \(\mathbf{g}_i\) has parameters (in our running example,
+    there were the entries of \(\mathcal{W}_i\)) and we seek to optimize with respect
+    to those parameters.”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.3.1\. Forward v. backward[#](#forward-v-backward "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We begin with a fixed-parameter example to illustrate the issues. Suppose \(f
+    : \mathbb{R}^d \to \mathbb{R}\) can be expressed as a composition of \(L+1\) vector-valued
+    functions \(\bfg_i : \mathbb{R}^{n_i} \to \mathbb{R}^{n_{i+1}}\) and a real-valued
+    function \(\ell : \mathbb{R}^{n_{L+1}} \to \mathbb{R}\) as follows'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ f(\mathbf{x}) = \ell \circ \bfg_{L} \circ \bfg_{L-1} \circ \cdots \circ \bfg_1
+    \circ \bfg_0(\mathbf{x}) = \ell(\bfg_{L}(\bfg_{L-1}(\cdots \bfg_1(\bfg_0(\mathbf{x}))\cdots))).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here \(n_0 = d\) is the input dimension. We also let \(n_{L+1} = K\) be the
+    output dimension. Think of
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ h(\mathbf{x}) = \bfg_{L}(\bfg_{L-1}(\cdots \bfg_1(\bfg_0(\mathbf{x}))\cdots))
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: as a prediction function (i.e., a regression or classification function) and
+    think of \(\ell\) as a loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Observe first that the function \(f\) itself is straighforward to compute recursively
+    *starting from the inside* as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_0 &:= \mathbf{x}\\ \mathbf{z}_1 &:= \bfg_0(\mathbf{z}_0)\\
+    \mathbf{z}_2 &:= \bfg_1(\mathbf{z}_1)\\ \vdots\\ \mathbf{z}_L &:= \bfg_{L-1}(\mathbf{z}_{L-1})\\
+    \hat{\mathbf{y}} := \mathbf{z}_{L+1} &:= \bfg_{L}(\mathbf{z}_{L})\\ f(\mathbf{x})
+    &:= \ell(\hat{\mathbf{y}}). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anticipating the setting of neural networks, our main application of interest,
+    we refer to \(\mathbf{z}_0 = \mathbf{x}\) as the “input layer”, \(\hat{\mathbf{y}}
+    = \mathbf{z}_{L+1} = \bfg_{L}(\mathbf{z}_{L})\) as the “output layer”, and \(\mathbf{z}_{1}
+    = \bfg_0(\mathbf{z}_0), \ldots, \mathbf{z}_L = \bfg_{L-1}(\mathbf{z}_{L-1})\)
+    as the “hidden layers”. In particular, \(L\) is the number of hidden layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** We will use the following running example throughout this subsection.
+    We assume that each \(\bfg_i\) is a linear map, that is, \(\bfg_i(\mathbf{z}_i)
+    = \mathcal{W}_{i} \mathbf{z}_i\) where \(\mathcal{W}_{i} \in \mathbb{R}^{n_{i+1}
+    \times n_i}\) is a fixed, known matrix. Assume also that \(\ell : \mathbb{R}^K
+    \to \mathbb{R}\) is defined as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \ell(\hat{\mathbf{y}}) = \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2,
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for a fixed, known vector \(\mathbf{y} \in \mathbb{R}^{K}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computing \(f\) recursively *starting from the inside* as above gives here
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_0 &:= \mathbf{x}\\ \mathbf{z}_1 &:= \mathcal{W}_{0}
+    \mathbf{z}_0 = \mathcal{W}_{0} \mathbf{x}\\ \mathbf{z}_2 &:= \mathcal{W}_{1} \mathbf{z}_1
+    = \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\ \vdots\\ \mathbf{z}_L &:= \mathcal{W}_{L-1}
+    \mathbf{z}_{L-1} = \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\
+    \hat{\mathbf{y}} := \mathbf{z}_{L+1} &:= \mathcal{W}_{L} \mathbf{z}_{L} = \mathcal{W}_{L}
+    \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\ f(\mathbf{x})
+    &:= \ell(\hat{\mathbf{y}}) = \frac{1}{2}\|\mathbf{y} - \hat{\mathbf{y}}\|^2 =
+    \frac{1}{2}\left\|\mathbf{y} - \mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1}
+    \mathcal{W}_{0} \mathbf{x}\right\|^2. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In essence, we are comparing an observed outcome \(\mathbf{y}\) to a prediction
+    \(\mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\)
+    based on input \(\mathbf{x}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we look into computing the gradient with respect to \(\mathbf{x}\).
+    (In reality, we will be more interested in taking the gradient with respect to
+    the parameters, i.e., the entries of the matrices \(\mathcal{W}_{0}, \ldots, \mathcal{W}_{L}\),
+    a task to which we will come back later in this section. We will also be interested
+    in more complex – in particular, non-linear – prediction functions.) \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** To make things more concrete, we consider a specific
+    example. We will use [`torch.linalg.vector_norm`](https://pytorch.org/docs/stable/generated/torch.linalg.vector_norm.html)
+    to compute the Euclidean norm in PyTorch. Suppose \(d=3\), \(L=1\), \(n_1 = 2\),
+    and \(K = 2\) with the following choices:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Forward mode** \(\idx{forward mode}\xdi\) We are ready to apply the *Chain
+    Rule*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla f(\mathbf{x})^T = J_{f}(\mathbf{x}) = J_{\ell}(\mathbf{z}_{L+1}) J_{\bfg_L}(\mathbf{z}_L)
+    J_{\bfg_{L-1}}(\mathbf{z}_{L-1}) \cdots J_{\bfg_1}(\mathbf{z}_1) J_{\bfg_0}(\mathbf{x})
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where the \(\mathbf{z}_{i}\)s are as above and we used that \(\mathbf{z}_0 =
+    \mathbf{x}\). The matrix product here is well-defined. Indeed, the size of \(J_{g_i}(\mathbf{z}_i)\)
+    is \(n_{i+1} \times n_{i}\) (i.e., number of outputs by number of inputs) while
+    the size of \(J_{g_{i-1}}(\mathbf{z}_{i-1})\) is \(n_{i} \times n_{i-1}\) – so
+    the dimensions are compatible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So it is straighforward to compute \(\nabla f(\mathbf{x})^T\) recursively as
+    we did for \(f\) itself. In fact, we can compute both simultaneously. This is
+    called the forward mode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_0 &:= \mathbf{x}\\ \mathbf{z}_1 &:= \bfg_0(\mathbf{z}_0),
+    \quad F_0 := J_{\bfg_0}(\mathbf{z}_0)\\ \mathbf{z}_2 &:= \bfg_1(\mathbf{z}_1),
+    \quad F_1 := J_{\bfg_1}(\mathbf{z}_1)\, F_0\\ \vdots\\ \mathbf{z}_L &:= \bfg_{L-1}(\mathbf{z}_{L-1}),
+    \quad F_{L-1} := J_{\bfg_{L-1}}(\mathbf{z}_{L-1})\, F_{L-2}\\ \hat{\mathbf{y}}
+    := \mathbf{z}_{L+1} &:= \bfg_{L}(\mathbf{z}_{L}), \quad F_{L} := J_{\bfg_{L}}(\mathbf{z}_{L})\,
+    F_{L-1}\\ f(\mathbf{x}) &:= \ell(\hat{\mathbf{y}}), \quad \nabla f(\mathbf{x})^T
+    := J_{\ell}(\hat{\mathbf{y}}) F_L. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** We apply this procedure to the running example.
+    The Jacobian of the linear map \(\bfg_i(\mathbf{z}_i) = \mathcal{W}_{i} \mathbf{z}_i\)
+    is the matrix \(\mathcal{W}_{i}\), as we have seen in a previous example. That
+    is, \(J_{\bfg_i}(\mathbf{z}_i) = \mathcal{W}_{i}\) for any \(\mathbf{z}_i\). To
+    compute the Jacobian of \(\ell\), we rewrite it as a quadratic function'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \ell(\hat{\mathbf{y}}) &= \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2\\
+    &= \frac{1}{2} \mathbf{y}^T\mathbf{y} - \frac{1}{2} 2 \mathbf{y}^T\hat{\mathbf{y}}
+    + \frac{1}{2}\hat{\mathbf{y}}^T \hat{\mathbf{y}}\\ &= \frac{1}{2} \hat{\mathbf{y}}^T
+    I_{n_{L+1} \times n_{L+1}}\hat{\mathbf{y}} + (-\mathbf{y})^T\hat{\mathbf{y}} +
+    \frac{1}{2} \mathbf{y}^T\mathbf{y}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: From a previous example,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_\ell(\hat{\mathbf{y}})^T = \nabla \ell(\hat{\mathbf{y}}) = \frac{1}{2}\left[I_{n_{L+1}
+    \times n_{L+1}} + I_{n_{L+1} \times n_{L+1}}^T\right]\, \hat{\mathbf{y}} + (-\mathbf{y})
+    = \hat{\mathbf{y}} - \mathbf{y}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Putting it all together, we get
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} F_0 &:= J_{\bfg_0}(\mathbf{z}_0) = \mathcal{W}_{0}\\ F_1 &:=
+    J_{\bfg_1}(\mathbf{z}_1)\, F_0 = \mathcal{W}_{1} F_0 = \mathcal{W}_{1} \mathcal{W}_{0}\\
+    \vdots\\ F_{L-1} &:= J_{\bfg_{L-1}}(\mathbf{z}_{L-1})\, F_{L-2} = \mathcal{W}_{L-1}
+    F_{L-2}= \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}\\ F_{L} &:=
+    J_{\bfg_{L}}(\mathbf{z}_{L})\, F_{L-1} = \mathcal{W}_{L} F_{L-1} = \mathcal{W}_{L}
+    \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}\\ \nabla f(\mathbf{x})^T
+    &:= J_{\ell}(\hat{\mathbf{y}}) F_L = (\hat{\mathbf{y}} - \mathbf{y})^T F_L = (\hat{\mathbf{y}}
+    - \mathbf{y})^T \mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}\\
+    &= (\mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}
+    - \mathbf{y})^T \mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}.
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We return to our concrete example. Using `.T` to convert
+    a column vector into a row vector throws an error in PyTorch, as it is meant to
+    be used only on 2D tensors. Instead, one can use [`torch.unsqueeze`](https://pytorch.org/docs/stable/generated/torch.unsqueeze.html).
+    Below, `(z2 - y).unsqueeze(0)` adds a dimension to `z2 - y`, making it a 2D tensor
+    with shape \((1, 2)\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can check that we get the same outcome using AD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**KNOWLEDGE CHECK:** Obtain that last expression directly by taking the gradient
+    of'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ f(\mathbf{x}) = \frac{1}{2}\|\mathbf{y} - \mathcal{W}_{L} \mathcal{W}_{L-1}
+    \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\|^2. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\checkmark\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Reverse mode** \(\idx{reverse mode}\xdi\) What we just described corresponds
+    to performing the matrix products in the *Chain Rule* formula'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla f(\mathbf{x})^T = J_{f}(\mathbf{x}) = J_{\ell}(\hat{\mathbf{y}}) J_{\bfg_L}(\mathbf{z}_L)
+    J_{\bfg_{L-1}}(\mathbf{z}_{L-1}) \cdots J_{\bfg_1}(\mathbf{z}_1) J_{\bfg_0}(\mathbf{x}).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*from right to left*. But there is another way to do this – from left to right!
+    This is called reverse mode. First we compute \(f\) recursively as we did previously,
+    in particular we compute the \(\mathbf{z}_i\)s, then going backwards we compute'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} G_{L+1} &:= J_{\ell}(\hat{\mathbf{y}})\\ G_{L} &:= G_{L+1}\,J_{g_{L}}(\mathbf{z}_{L})\\
+    &\vdots\\ G_1 &:= G_2 \, J_{\bfg_1}(\mathbf{z}_1)\\ \nabla f(\mathbf{x})^T &:=
+    G_1 \, J_{\bfg_0}(\mathbf{z}_0) \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This may seem like a rather minor modification to our previous algorithm. It
+    is not – it is much faster! To see this, we need to count the number of elementary
+    operations involved in implementing each mode.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First a simple calcultion: How many elementary operations (i.e., additions
+    and multiplications) does it take to multiply an \(n \times m\) matrix \(A = (a_{ij})_{i,j}\)
+    and an \(m \times \ell\) matrix \(B= (b_{ij})_{i,j}\)? Let’s ask ChatGPT. Here’s
+    the answer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: “To calculate the number of elementary operations required to multiply an \(n
+    \times m\) matrix by an \(m \times \ell\) matrix, consider the computation involved
+    for each element of the resulting \(n \times \ell\) matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each element of the resulting matrix is the dot product of a row from the first
+    matrix and a column from the second matrix. If the first matrix is denoted as
+    \(A\) and the second matrix as \(B\), then the element at position \(i, j\) in
+    the resulting matrix \(C\) is calculated as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ c_{ij} = a_{i1}b_{1j} + a_{i2}b_{2j} + \ldots + a_{im}b_{mj} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This computation involves \(m\) multiplications and \(m - 1\) additions, making
+    a total of \(m + (m - 1) = 2m - 1\) elementary operations for each element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since matrix \(C\) has \(n \times \ell\) elements, the total number of elementary
+    operations required for the entire matrix \(C\) is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ (n \ell)(2m - 1) = 2nm\ell - n\ell \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, multiplying an \(n \times m\) matrix by an \(m \times \ell\) matrix takes
+    \(2nm\ell - n\ell\) elementary operations.”
+  prefs: []
+  type: TYPE_NORMAL
+- en: Returning to computing the gradient, we count the number of elementary operations
+    needed for each mode. To simplify the calculation, we assume that \(n_0 = d\)
+    and \(n_1 = n_2 = \cdots = n_{L} = m\) and \(n_{L+1} = K\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Forward:* The matrix \(F_0 = J_{\bfg_0}(\mathbf{z}_0)\) has dimensions \(m
+    \times d\). The matrix \(F_1\), as a product of \(J_{\bfg_1}(\mathbf{z}_1) \in
+    \mathbb{R}^{m \times m}\) and \(F_0 \in \mathbb{R}^{m \times d}\) has dimensions
+    \(m \times d\); it therefore takes \(m (2m-1) d\) operations to compute. The same
+    holds for \(F_2, \ldots, F_{L-1}\) (check it!). By similar considerations, the
+    matrix \(F_L\) has dimensions \(K \times d\) and takes \(K (2m-1) d\) operations
+    to compute. Finally, \(\nabla f(\mathbf{x})^T = J_{\ell}(\mathbf{z}_{L+1}) F_L
+    \in \mathbb{R}^{1 \times d}\) and takes \((2K-1) d\) operations to compute. Overall
+    the number of operations is'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ (L-1) m (2m-1) d + K (2m-1) d + (2K-1) d. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is approximately \(2 L m^2 d\) if we think of \(K\) as a small constant
+    and ignore the smaller order terms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Reverse:* The matrix \(G_{L+1} = J_{\ell}(\mathbf{z}_{L+1})\) has dimensions
+    \(1 \times K\). The matrix \(G_{L}\), as a product of \(G_{L+1} \in \mathbb{R}^{1
+    \times K}\) and \(J_{g_{L}}(\mathbf{z}_{L}) \in \mathbb{R}^{K \times m}\) has
+    dimensions \(1 \times m\); it therefore takes \((2K-1) m\) operations to compute.
+    The matrix \(G_{L-1}\), as a product of \(G_{L} \in \mathbb{R}^{1 \times m}\)
+    and \(J_{g_{L-1}}(\mathbf{z}_{L-1}) \in \mathbb{R}^{m \times m}\) has dimensions
+    \(1 \times m\); it therefore takes \((2m-1) m\) operations to compute. The same
+    holds for \(G_{L-2}, \ldots, G_{1}\) (check it!). By similar considerations, \(\nabla
+    f(\mathbf{x})^T = G_1 \, J_{\bfg_0}(\mathbf{z}_0) \in \mathbb{R}^{1 \times d}\)
+    and takes \((2m-1) d\) operations to compute. Overall the number of operations
+    is'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ (2K-1) m + (L-1) (2m-1) m + (2m-1) d. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is approximately \(2 L m^2 + 2 m d\) – which can be much smaller than \(2
+    L m^2 d\)! In other words, the reverse mode approach can be much faster. Note
+    in particular that all computations in the reverse mode are matrix-vector products
+    (or more precisely row vector-matrix products) rather than matrix-matrix products.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** We apply the reverse mode approach to our previous
+    example. We get'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} G_{L+1} &:= J_{\ell}(\hat{\mathbf{y}}) = (\hat{\mathbf{y}}
+    - \mathbf{y})^T\\ G_{L} &:= G_{L+1}\,J_{g_{L}}(\mathbf{z}_{L}) = G_{L+1} \mathcal{W}_{L}
+    = (\hat{\mathbf{y}} - \mathbf{y})^T \mathcal{W}_{L} \\ \vdots\\ G_1 &:= G_2 \,
+    J_{\bfg_1}(\mathbf{z}_1) = G_2 \mathcal{W}_{1} = [(\hat{\mathbf{y}} - \mathbf{y})^T
+    \mathcal{W}_{L} \cdots \mathcal{W}_{2}] \mathcal{W}_{1} \\ \nabla f(\mathbf{x})^T
+    &:= G_1 \, J_{\bfg_0}(\mathbf{z}_0) = [(\hat{\mathbf{y}} - \mathbf{y})^T \mathcal{W}_{L}
+    \cdots \mathcal{W}_{2}\mathcal{W}_{1}] \mathcal{W}_{0}\\ &= (\mathcal{W}_{L} \mathcal{W}_{L-1}
+    \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x} - \mathbf{y})^T \mathcal{W}_{L}
+    \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0}, \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: which matches our previous calculation. Note that all computations involve multiplying
+    a row vector by a matrix. \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We try our specific example.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: We indeed obtain the same answer yet again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To provide a little more insight in the savings obtained through the reverse
+    mode, consider the following simple calculations. Let \(A, B \in \mathbb{R}^{n
+    \times n}\) and \(\mathbf{v} \in \mathbb{R}^n\). Suppose we seek to compute \(\mathbf{v}^T
+    B A\). By [associativity](https://en.wikipedia.org/wiki/Associative_property)
+    of matrix multiplication, there are two ways of doing this: compute \(\mathbf{v}^{T}(BA)\)
+    (i.e., first compute \(BA\) then multiply by \(\mathbf{v}^T\); or compute \((\mathbf{v}^T
+    B) A\). The first approach requires \(n^2(2n-1) + n(2n-1)\) operations, while
+    the second only requires \(2n(2n-1)\). The latter is much smaller since \(2 n^3\)
+    (the leading term in the first approach) grows much faster than \(4 n^2\) (the
+    leading term in the second approach) when \(n\) is large.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why is this happening? One way to understand this is to think of the output
+    \(\mathbf{v}^T B A\) as a *linear combination of the rows of \(A\)* – a very specific
+    linear combination in fact. In the first approach, we compute \(BA\) which gives
+    us \(n\) different linear combinations of the rows of \(A\) – none being the one
+    we want – and then we compute the desired linear combination by multiplying by
+    \(\mathbf{v}^T\). This is wasteful. In the second approach, we immediately compute
+    the coefficients of the specific linear combination we seek – \(\mathbf{v}^T B\)
+    – and then we compute that linear combination by multiplying to the right by \(A\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the setting we examined in this subsection is illuminating, it is not
+    exactly what we want. In the machine learning context, each “layer” \(\bfg_i\)
+    has parameters (in our running example, there were the entries of \(\mathcal{W}_{i}\))
+    and we seek to optimize with respect to those parameters. For this, we need the
+    gradient with respect to the parameters, not the input \(\mathbf{x}\). In the
+    next subsection, we consider a generalization of the current setting, progressive
+    functions, which will allow us to do this. The notation gets more complicated,
+    but the basic idea remains the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 8.3.2\. Progressive functions[#](#progressive-functions "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As mentioned previously, while it may seem natural to define a prediction function
+    \(h\) (e.g., a classifier) as a function of the input data \(\mathbf{x}\in \mathbb{R}^{d}\),
+    when fitting data we are ultimately interested in thinking of \(h\) as a function
+    of the parameters \(\mathbf{w} \in \mathbb{R}^r\) that need to be adjusted – over
+    a fixed dataset. Hence, in this section, the input \(\mathbf{x}\) is fixed while
+    the vector of parameters \(\mathbf{w}\) is now variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**A first example** We use the example from the previous subsection to illustrate
+    the main ideas. That is, suppose \(d=3\), \(L=1\), \(n_1 = 2\), and \(K = 2\).
+    Fix a data sample \(\mathbf{x} = (x_1,x_2,x_3) \in \mathbb{R}^3, \mathbf{y} =
+    (y_1, y_2) \in \mathbb{R}^2\). For \(i=0, 1\), we use the notation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \mathcal{W}_{0} = \begin{pmatrix} w_0 & w_1 & w_2\\ w_3 & w_4
+    & w_5 \end{pmatrix} \quad \text{and} \quad \mathcal{W}_{1} = \begin{pmatrix} w_6
+    & w_7\\ w_8 & w_9 \end{pmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and let
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \ell(\hat{\mathbf{y}}) = \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2
+    = \frac{1}{2}(y_1 - \hat{y}_1)^2 + \frac{1}{2}(y_2 - \hat{y}_2)^2. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We change the notation for the “layer” function \(\bfg_i\) to reflect the fact
+    that it is now a function of two (concatenated) vectors: the input \(\mathbf{z}_i
+    = (z_{i,1},\ldots,z_{i,n_i})\) from the previous layer and a layer-specific set
+    of parameters \(\mathbf{w}_i\). That is,'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \bfg_i(\mathbf{z}_i, \mathbf{w}_i) = \mathcal{W}_{i} \mathbf{z}_i
+    = \begin{pmatrix} (\mathbf{w}_i^{(1)})^T\\ (\mathbf{w}_i^{(2)})^T \end{pmatrix}
+    \mathbf{z}_i \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: with \(\mathbf{w}_i = (\mathbf{w}_i^{(1)}, \mathbf{w}_i^{(2)})\), the concatenation
+    of the rows of \(\mathcal{W}_{i}\) (as column vectors). A different way to put
+    this is that
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{w}_i = \mathrm{vec}(\mathcal{W}_{i}^T), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we took the transpose to turn the rows into columns. More specifically,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bfg_0(\mathbf{z}_0, \mathbf{w}_0) = \mathcal{W}_{0} \mathbf{z}_{0} \quad\text{with}\quad
+    \mathbf{w}_0 = (w_0, w_1, w_2, w_3, w_4, w_5) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: (i.e., \(\mathbf{w}_0^{(1)} = (w_0, w_1, w_2)\) and \(\mathbf{w}_0^{(2)} = (w_3,
+    w_4, w_5)\)) and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bfg_1(\mathbf{z}_1, \mathbf{w}_1) = \mathcal{W}_{1} \mathbf{z}_{1} \quad\text{with}\quad
+    \mathbf{w}_1 = (w_6, w_7, w_8, w_9) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: (i.e., \(\mathbf{w}_1^{(1)} = (w_6, w_7)\) and \(\mathbf{w}_1^{(2)} = (w_8,
+    w_9)\)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We seek to compute the gradient of
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} f(\mathbf{w}) &= \ell(\bfg_1(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1))\\
+    &= \frac{1}{2} \|\mathbf{y} - \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\|^2\\
+    &= \frac{1}{2}\left(y_1 - w_6(w_0 x_1 + w_1 x_2 + w_2 x_3) - w_7(w_3 x_1 + w_4
+    x_2 + w_5 x_3)\right)^2\\ & \qquad + \frac{1}{2}\left(y_2 - w_8(w_0 x_1 + w_1
+    x_2 + w_2 x_3) - w_9(w_3 x_1 + w_4 x_2 + w_5 x_3)\right)^2. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: by applying the *Chain Rule* backwards, as we justified in the previous subsection
+    – but this time we take the gradient with respect to the parameters
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{w} := (\mathbf{w}_0, \mathbf{w}_1) = (w_0,w_1,\ldots,w_9). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Notice a key change in the notation: we now accordingly think of \(f\) *as
+    a function of \(\mathbf{w}\)*; the role of \(\mathbf{x}\) is implicit.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, it may seem counter-intuitive that we now think of \(\bfg_i\)
+    as a function of *both* its own parameters and its inputs from the previous layer
+    when we just stated that we only care about the gradient with respect to the former.
+    But, as we will see, it turns out that we need the Jacobians with respect to both
+    as the input from the previous layer *actually depends on the parameters of the
+    previous layers*. For instance, \(\bfg_1(\mathbf{z}_1, \mathbf{w}_1) = \mathcal{W}_{1}
+    \mathbf{z}_{1}\) where \(\mathbf{z}_{1} = \bfg_0(\mathbf{z}_0, \mathbf{w}_0) =
+    \mathcal{W}_{0} \mathbf{z}_{0}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Recall that we have already computed the requisite Jacobians \(J_{\bfg_0}\)
+    and \(J_{\bfg_1}\) in a previous example. We have also computed the Jacobian \(J_{\ell}\)
+    of \(\ell\). At this point, it is tempting to apply the *Chain Rule* and deduce
+    that the gradient of \(f\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\ell}(\bfg_1(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1)) \,J_{\bfg_1}(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1)
+    \,J_{\bfg_0}(\mathbf{x}, \mathbf{w}_0). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: But this is not correct. For one, the dimensions do not match! For instance,
+    \(J_{\bfg_0} \in \mathbb{R}^{2 \times 9}\) since \(\bfg_0\) has \(2\) outputs
+    and \(9\) inputs (i.e., \(z_{0,1}, z_{0,2}, z_{0,3}, w_0, w_1, w_2, w_3, w_4,
+    w_5\)) while \(J_{\bfg_1} \in \mathbb{R}^{2 \times 6}\) since \(\bfg_1\) has \(2\)
+    outputs and \(6\) inputs (i.e., \(z_{1,1}, z_{1,2}, w_6, w_7, w_8, w_9\)). So
+    what went wrong?
+  prefs: []
+  type: TYPE_NORMAL
+- en: The function \(f\) is *not* in fact a straight composition of the functions
+    \(\ell\), \(\bfg_1\), and \(\bfg_0\). Indeed the parameters to differentiate with
+    respect to are introduced progressively, each layer injecting its own additional
+    parameters which are not obtained from the previous layers. Hence we cannot write
+    the gradient of \(f\) as a simple product the Jacobians, unlike what happend in
+    the previous subsection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But not all is lost. We show below that we can still apply the *Chain Rule*
+    step-by-step in a way that accounts for the additional parameters on each layer.
+    Taking a hint from the previous subsection, we proceed forward first to compute
+    \(f\) and the Jacobians, and then go backwards to compute the gradient \(\nabla
+    f\). We use the notation \(\mathbb{A}_{n}[\mathbf{x}]\) and \(\mathbb{B}_{n}[\mathbf{z}]\)
+    from the background section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the forward phase, we compute \(f\) itself and the requisite Jacobians:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\mathbf{z}_0 := \mathbf{x}\\ & = (x_1, x_2, x_3)\\ &\mathbf{z}_1
+    := \bfg_0(\mathbf{z}_0, \mathbf{w}_0) = \mathcal{W}_{0} \mathbf{z}_{0}\\ &= \begin{pmatrix}
+    (\mathbf{w}_0^{(1)})^T\mathbf{x}\\ (\mathbf{w}_0^{(2)})^T\mathbf{x}\end{pmatrix}
+    = \begin{pmatrix} w_0 x_1 + w_1 x_2 + w_2 x_3\\ w_3 x_1 + w_4 x_2 + w_5 x_3 \end{pmatrix}\\
+    &J_{\bfg_0}(\mathbf{z}_0, \mathbf{w}_0) := \begin{pmatrix} \mathbb{A}_{2}[\mathbf{w}_0]
+    & \mathbb{B}_{2}[\mathbf{z}_0] \end{pmatrix} = \begin{pmatrix} \mathcal{W}_{0}
+    & I_{2\times 2} \otimes \mathbf{z}_0^T \end{pmatrix}\\ &= \begin{pmatrix} w_0
+    & w_1 & w_2 & x_1 & x_2 & x_3 & 0 & 0 & 0\\ w_3 & w_4 & w_5 & 0 & 0 & 0 & x_1
+    & x_2 & x_3 \end{pmatrix} \end{align*}\]\[\begin{align*} &\hat{\mathbf{y}} :=
+    \mathbf{z}_2 := \bfg_1(\mathbf{z}_1, \mathbf{w}_1) = \mathcal{W}_{1} \mathbf{z}_{1}\\
+    &= \begin{pmatrix} w_6 z_{1,1} + w_7 z_{1,2}\\ w_8 z_{1,1} + w_9 z_{1,2} \end{pmatrix}\\
+    &= \begin{pmatrix} w_6 (\mathbf{w}_0^{(1)})^T\mathbf{x} + w_7 (\mathbf{w}_0^{(2)})^T\mathbf{x}\\
+    w_8 (\mathbf{w}_0^{(1)})^T\mathbf{x} + w_9 (\mathbf{w}_0^{(2)})^T\mathbf{x} \end{pmatrix}\\
+    &= \begin{pmatrix} w_6(w_0 x_1 + w_1 x_2 + w_2 x_3) + w_7(w_3 x_1 + w_4 x_2 +
+    w_5 x_3)\\ w_8(w_0 x_1 + w_1 x_2 + w_2 x_3) + w_9(w_3 x_1 + w_4 x_2 + w_5 x_3)
+    \end{pmatrix}\\ &J_{\bfg_1}(\mathbf{z}_1, \mathbf{w}_1):= \begin{pmatrix} \mathbb{A}_{2}[\mathbf{w}_1]
+    & \mathbb{B}_{2}[\mathbf{z}_1] \end{pmatrix} = \begin{pmatrix} \mathcal{W}_{1}
+    & I_{2\times 2} \otimes \mathbf{z}_1^T \end{pmatrix}\\ &= \begin{pmatrix} w_6
+    & w_7 & z_{1,1} & z_{1,2} & 0 & 0\\ w_8 & w_9 & 0 & 0 & z_{1,1} & z_{1,2} \end{pmatrix}\\
+    &= \begin{pmatrix} w_6 & w_7 & (\mathbf{w}_0^{(1)})^T\mathbf{x} & (\mathbf{w}_0^{(2)})^T\mathbf{x}
+    & 0 & 0\\ w_8 & w_9 & 0 & 0 & (\mathbf{w}_0^{(1)})^T\mathbf{x} & (\mathbf{w}_0^{(2)})^T\mathbf{x}
+    \end{pmatrix} \end{align*}\]\[\begin{align*} &f(\mathbf{x}) := \ell(\hat{\mathbf{y}})
+    = \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2\\ &= \frac{1}{2}\left(y_1 -
+    w_6(w_0 x_1 + w_1 x_2 + w_2 x_3) - w_7(w_3 x_1 + w_4 x_2 + w_5 x_3)\right)^2\\
+    & \qquad + \frac{1}{2}\left(y_2 - w_8(w_0 x_1 + w_1 x_2 + w_2 x_3) - w_9(w_3 x_1
+    + w_4 x_2 + w_5 x_3)\right)^2\\ &J_{\ell}(\hat{\mathbf{y}}) = (\hat{\mathbf{y}}
+    - \mathbf{y})^T\\ &= \begin{pmatrix} w_6 (\mathbf{w}_0^{(1)})^T\mathbf{x} + w_7
+    (\mathbf{w}_0^{(2)})^T\mathbf{x} - y_1 & w_8 (\mathbf{w}_0^{(1)})^T\mathbf{x}
+    + w_9 (\mathbf{w}_0^{(2)})^T\mathbf{x} - y_2 \end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now compute the gradient of \(f\) with respect to \(\mathbf{w}\). We start
+    with \(\mathbf{w}_1 = (w_6, w_7, w_8, w_9)\). For this step, we think of \(f\)
+    as the composition \(\ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))\). Here \(\mathbf{z}_1\)
+    does not depend on \(\mathbf{w}_1\) and therefore can be considered fixed for
+    this calculation. By the *Chain Rule*
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial w_6} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial w_6} = \frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1, \mathbf{w}_1)}{\partial w_6} +
+    \frac{\partial \ell(\hat{\mathbf{y}})}{\partial \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_6} = (\hat{y}_1 - y_1) z_{1,1} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the fact that \(g_{1,2}(\mathbf{z}_1, \mathbf{w}_1) = w_8 z_{1,1}
+    + w_9 z_{1,2}\) does not depend on \(w_6\) and therefore \(\frac{\partial g_{1,2}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_6} = 0\). Similarly
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial w_7} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial w_7} =\frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1, \mathbf{w}_1)}{\partial w_7} +
+    \frac{\partial \ell(\hat{\mathbf{y}})}{\partial \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_7} = (\hat{y}_1 - y_1) z_{1,2}\\ \frac{\partial f(\mathbf{w})}{\partial
+    w_8} &= \frac{\partial \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial w_8}
+    =\frac{\partial \ell(\hat{\mathbf{y}})}{\partial \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_8} + \frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1, \mathbf{w}_1)}{\partial w_8} =
+    (\hat{y}_2 - y_2) z_{1,1}\\ \frac{\partial f(\mathbf{w})}{\partial w_9} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial w_9} =\frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1, \mathbf{w}_1)}{\partial w_9} +
+    \frac{\partial \ell(\hat{\mathbf{y}})}{\partial \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial w_9} = (\hat{y}_2 - y_2) z_{1,2}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In matrix form, this is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\begin{pmatrix}\frac{\partial f(\mathbf{w})}{\partial w_6}
+    & \frac{\partial f(\mathbf{w})}{\partial w_7} & \frac{\partial f(\mathbf{w})}{\partial
+    w_8} & \frac{\partial f(\mathbf{w})}{\partial w_9} \end{pmatrix}\\ &= J_{\ell}(\hat{\mathbf{y}})
+    \,\mathbb{B}_{2}[\mathbf{z}_1]\\ &= (\hat{\mathbf{y}} - \mathbf{y})^T (I_{2\times
+    2} \otimes \mathbf{z}_1^T)\\ &= (\hat{\mathbf{y}} - \mathbf{y})^T \otimes \mathbf{z}_1^T\\
+    &= \begin{pmatrix} (\hat{y}_1 - y_1) z_{1,1} & (\hat{y}_1 - y_1) z_{1,2} & (\hat{y}_2
+    - y_2) z_{1,1} & (\hat{y}_2 - y_2) z_{1,2} \end{pmatrix} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used *Properties of the Kronecker Product (f)* on the second to last
+    line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To compute the partial derivatives with respect to \(\mathbf{w}_0 = (w_0, w_1,
+    \ldots, w_5)\), we first need to compute partial derivatives with respect to \(\mathbf{z}_1
+    = (z_{1,1}, z_{1,2})\) since \(f\) depends on \(\mathbf{w}_0\) through it. For
+    this calculation, we think again of \(f\) as the composition \(\ell(\bfg_1(\mathbf{z}_1,
+    \mathbf{w}_1))\), but this time our focus is on the variables \(\mathbf{z}_1\).
+    We obtain
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial z_{1,1}} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial z_{1,1}}\\ &= \frac{\partial
+    \ell(\hat{\mathbf{y}})}{\partial \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial z_{1,1}} + \frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1, \mathbf{w}_1)}{\partial z_{1,1}}\\
+    &= (\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8 \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial z_{1,2}} &= \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial z_{1,2}}\\ &= \frac{\partial
+    \ell(\hat{\mathbf{y}})}{\partial \hat{y}_1} \frac{\partial g_{1,1}(\mathbf{z}_1,
+    \mathbf{w}_1)}{\partial z_{1,2}} + \frac{\partial \ell(\hat{\mathbf{y}})}{\partial
+    \hat{y}_2} \frac{\partial g_{1,2}(\mathbf{z}_1, \mathbf{w}_1)}{\partial z_{1,2}}\\
+    &= (\hat{y}_1 - y_1) w_7 + (\hat{y}_2 - y_2) w_9. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In matrix form, this is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\begin{pmatrix}\frac{\partial f(\mathbf{w})}{\partial z_{1,1}}
+    & \frac{\partial f(\mathbf{w})}{\partial z_{1,2}} \end{pmatrix}\\ &= J_{\ell}(\hat{\mathbf{y}})
+    \,\mathbb{A}_{2}[\mathbf{w}_1]\\ &= (\hat{\mathbf{y}} - \mathbf{y})^T \mathcal{W}_1\\
+    &= \begin{pmatrix} (\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8 & (\hat{y}_1
+    - y_1) w_7 + (\hat{y}_2 - y_2) w_9 \end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The vector \(\left(\frac{\partial f(\mathbf{w})}{\partial z_{1,1}}, \frac{\partial
+    f(\mathbf{w})}{\partial z_{1,2}}\right)\) is called an adjoint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now compute the gradient of \(f\) with respect to \(\mathbf{w}_0 = (w_0,
+    w_1, \ldots, w_5)\). For this step, we think of \(f\) as the composition of \(\ell(\bfg_1(\mathbf{z}_1,
+    \mathbf{w}_1))\) as a function of \(\mathbf{z}_1\) and \(\bfg_0(\mathbf{z}_0,
+    \mathbf{w}_0)\) as a function of \(\mathbf{w}_0\). Here \(\mathbf{z}_0\) does
+    not depend on \(\mathbf{w}_0\) and therefore can be considered fixed for this
+    calculation. By the *Chain Rule*
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial w_0} &= \frac{\partial
+    \ell(\bfg_1(\bfg_0(\mathbf{z}_0, \mathbf{w}_0), \mathbf{w}_1))}{\partial w_0}\\
+    &= \frac{\partial \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial z_{1,1}}
+    \frac{\partial g_{0,1}(\mathbf{z}_0, \mathbf{w}_0)}{\partial w_0} + \frac{\partial
+    \ell(\bfg_1(\mathbf{z}_1, \mathbf{w}_1))}{\partial z_{1,2}} \frac{\partial g_{0,2}(\mathbf{z}_0,
+    \mathbf{w}_0)}{\partial w_0}\\ &= ((\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8)
+    z_{0,1}\\ &= ((\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8) x_{1}, \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used the fact that \(g_{0,2}(\mathbf{z}_0, \mathbf{w}_0) = w_3 z_{0,1}
+    + w_4 z_{0,2} + w_5 z_{0,3}\) does not depend on \(w_0\) and therefore \(\frac{\partial
+    g_{0,2}(\mathbf{z}_0, \mathbf{w}_0)}{\partial w_0} = 0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly (check it!)
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \frac{\partial f(\mathbf{w})}{\partial w_1} &= ((\hat{y}_1
+    - y_1) w_6 + (\hat{y}_2 - y_2) w_8) x_{2}\\ \frac{\partial f(\mathbf{w})}{\partial
+    w_2} &= ((\hat{y}_1 - y_1) w_6 + (\hat{y}_2 - y_2) w_8) x_{3}\\ \frac{\partial
+    f(\mathbf{w})}{\partial w_3} &= ((\hat{y}_1 - y_1) w_7 + (\hat{y}_2 - y_2) w_9)
+    x_{1}\\ \frac{\partial f(\mathbf{w})}{\partial w_4} &= ((\hat{y}_1 - y_1) w_7
+    + (\hat{y}_2 - y_2) w_9) x_{2}\\ \frac{\partial f(\mathbf{w})}{\partial w_5} &=
+    ((\hat{y}_1 - y_1) w_7 + (\hat{y}_2 - y_2) w_9) x_{3}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In matrix form, this is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} &\begin{pmatrix}\frac{\partial f(\mathbf{w})}{\partial w_0}
+    & \frac{\partial f(\mathbf{w})}{\partial w_1} & \frac{\partial f(\mathbf{w})}{\partial
+    w_2} & \frac{\partial f(\mathbf{w})}{\partial w_3} & \frac{\partial f(\mathbf{w})}{\partial
+    w_4} & \frac{\partial f(\mathbf{w})}{\partial w_5} \end{pmatrix}\\ &= J_{\ell}(\hat{\mathbf{y}})
+    \,\mathbb{A}_{2}[\mathbf{w}_1] \,\mathbb{B}_{2}[\mathbf{z}_0]\\ &= (\hat{\mathbf{y}}
+    - \mathbf{y})^T \mathcal{W}_1 (I_{2\times 2} \otimes \mathbf{z}_0^T)\\ &= ((\hat{\mathbf{y}}
+    - \mathbf{y})^T \mathcal{W}_1) \otimes \mathbf{x}^T\\ &= \begin{pmatrix} ((\hat{y}_1
+    - y_1) w_6 + (\hat{y}_2 - y_2) w_8) x_{1} & \cdots & ((\hat{y}_1 - y_1) w_7 +
+    (\hat{y}_2 - y_2) w_9) x_{3} \end{pmatrix} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where we used *Properties of the Kronecker Product (f)* on the second to last
+    line.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To sum up,
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla f (\mathbf{w})^T = \begin{pmatrix} (\hat{\mathbf{y}} - \mathbf{y})^T
+    \otimes (\mathcal{W}_{0} \mathbf{x})^T & ((\hat{\mathbf{y}} - \mathbf{y})^T \mathcal{W}_1)
+    \otimes \mathbf{x}^T \end{pmatrix}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NUMERICAL CORNER:** We return to the concrete example from the previous subsection.
+    This time the matrices `W0` and `W1` require partial derivatives.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: We compute the gradient \(\nabla f(\mathbf{w})\) using AD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: These are written in the form of matrix derivatives
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} \frac{\partial f}{\partial \mathcal{W}_0} = \begin{pmatrix}
+    \frac{\partial f}{\partial w_0} & \frac{\partial f}{\partial w_1} & \frac{\partial
+    f}{\partial w_2} \\ \frac{\partial f}{\partial w_3} & \frac{\partial f}{\partial
+    w_4} & \frac{\partial f}{\partial w_5} \end{pmatrix} \quad\text{and}\quad \frac{\partial
+    f}{\partial \mathcal{W}_1} = \begin{pmatrix} \frac{\partial f}{\partial w_6} &
+    \frac{\partial f}{\partial w_7} \\ \frac{\partial f}{\partial w_8} & \frac{\partial
+    f}{\partial w_9} \end{pmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We use our formulas to confirm that they match these results. We need the Kronecker
+    product, which in PyTorch is implemented as [`torch.kron`](https://pytorch.org/docs/stable/generated/torch.kron.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: Observe that this time these results are written in vectorized form (i.e., obtained
+    by concatenating the rows). But they do match with the AD output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\unlhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**General setting** \(\idx{progressive function}\xdi\) More generally, we have
+    \(L+2\) layers. The input layer is \(\mathbf{z}_0 := \mathbf{x}\), which we refer
+    to as layer \(0\). Hidden layer \(i\), \(i=1,\ldots,L\), is defined by a continuously
+    differentiable function \(\mathbf{z}_i := \bfg_{i-1}(\mathbf{z}_{i-1}, \mathbf{w}_{i-1})\)
+    which this time takes *two vector-valued inputs*: a vector \(\mathbf{z}_{i-1}
+    \in \mathbb{R}^{n_{i-1}}\) fed from the \((i-1)\)-st layer and a vector \(\mathbf{w}_{i-1}
+    \in \mathbb{R}^{r_{i-1}}\) of parameters specific to the \(i\)-th layer'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '\[ \bfg_{i-1} = (g_{i-1,1},\ldots,g_{i-1,n_{i}}) : \mathbb{R}^{n_{i-1} + r_{i-1}}
+    \to \mathbb{R}^{n_{i}}. \]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output \(\mathbf{z}_i\) of \(\bfg_{i-1}\) is a vector in \(\mathbb{R}^{n_{i}}\)
+    which is passed to the \((i+1)\)-st layer as input. The output layer is \(\mathbf{z}_{L+1}
+    := \bfg_{L}(\mathbf{z}_{L}, \mathbf{w}_{L})\), which we also refer to as layer
+    \(L+1\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For \(i = 1,\ldots,L+1\), let
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \overline{\mathbf{w}}^{i-1} = (\mathbf{w}_0,\mathbf{w}_1,\ldots,\mathbf{w}_{i-1})
+    \in \mathbb{R}^{r_0 + r_1+\cdots+r_{i-1}} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: be the concatenation of the parameters from the first \(i\) layers (not including
+    the input layer, which does not have parameters) as a vector in \(\mathbb{R}^{r_0+r_1+\cdots+r_{i-1}}\).
+    Then the output of layer \(i\) *as a function of the parameters* is the composition
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}) = \bfg_{i-1}(\mathcal{O}_{i-2}(\overline{\mathbf{w}}^{i-2}),
+    \mathbf{w}_{i-1}) = \bfg_{i-1}(\bfg_{i-2}(\cdots \bfg_1(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1),
+    \cdots, \mathbf{w}_{i-2}), \mathbf{w}_{i-1}) \in \mathbb{R}^{n_{i}}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for \(i = 2, \ldots, L+1\). When \(i=1\), we have simply
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{O}_{0}(\overline{\mathbf{w}}^{0}) = \bfg_{0}(\mathbf{x}, \mathbf{w}_0).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Observe that the function \(\mathcal{O}_{i-1}\) depends implicitly on the input
+    \(\mathbf{x}\) – which we do *not* think of as a variable in this setting. To
+    simplify the notation, we do not make the dependence on \(\mathbf{x}\) explicit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Letting \(\mathbf{w} := \overline{\mathbf{w}}^{L}\), the final output is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bfh(\mathbf{w}) = \mathcal{O}_{L}(\overline{\mathbf{w}}^{L}). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Expanding out the composition, this can be written alternatively as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \bfh(\mathbf{w}) = \bfg_{L}(\bfg_{L-1}(\cdots \bfg_1(\bfg_0(\mathbf{x},\mathbf{w}_0),\mathbf{w}_1),
+    \cdots, \mathbf{w}_{L-1}), \mathbf{w}_{L}). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Again, we do not make the dependence on \(\mathbf{x}\) explicit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a final step, we have a loss function \(\ell : \mathbb{R}^{n_{L+1}} \to
+    \mathbb{R}\) which takes as input the output of the last layer and measures the
+    fit to the given label \(\mathbf{y} \in \Delta_K\). We will see some example below.
+    The final function is then'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ f(\mathbf{w}) = \ell(\bfh(\mathbf{w})) \in \mathbb{R}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We seek to compute the gradient of \(f(\mathbf{w})\) with respect to the parameters
+    \(\mathbf{w}\) in order to apply a gradient descent method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** We return to the running example from the previous
+    subsection. That is, \(\bfg_i(\mathbf{z}_i, \mathbf{w}_i) = \mathcal{W}_{i} \mathbf{z}_i\)
+    where the entries of \(\mathcal{W}_{i} \in \mathbb{R}^{n_{i+1} \times n_i}\) are
+    considered parameters and we let \(\mathbf{w}_i = \mathrm{vec}(\mathcal{W}_{i}^T)\).
+    Assume also that \(\ell : \mathbb{R}^K \to \mathbb{R}\) is defined as'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \ell(\hat{\mathbf{y}}) = \frac{1}{2} \|\mathbf{y} - \hat{\mathbf{y}}\|^2,
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for a fixed, known vector \(\mathbf{y} \in \mathbb{R}^{K}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computing \(f\) recursively gives
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_0 &:= \mathbf{x}\\ \mathbf{z}_1 &:= \mathcal{O}_0(\overline{\mathbf{w}}^0)
+    = \bfg_0(\mathbf{z}_0, \mathbf{w}_0) = \mathcal{W}_{0} \mathbf{z}_0 = \mathcal{W}_{0}
+    \mathbf{x}\\ \mathbf{z}_2 &:= \mathcal{O}_1(\overline{\mathbf{w}}^1) = \bfg_1(\mathbf{z}_1,
+    \mathbf{w}_1) = \mathcal{W}_{1} \mathbf{z}_1 = \mathcal{W}_{1} \mathcal{W}_{0}
+    \mathbf{x}\\ \vdots\\ \mathbf{z}_L &:= \mathcal{O}_{L-1}(\overline{\mathbf{w}}^{L-1})
+    = \bfg_{L-1}(\mathbf{z}_{L-1}, \mathbf{w}_{L-1}) = \mathcal{W}_{L-1} \mathbf{z}_{L-1}
+    = \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\ \hat{\mathbf{y}}
+    := \mathbf{z}_{L+1} &:= \mathcal{O}_{L}(\overline{\mathbf{w}}^{L}) = \bfg_{L}(\mathbf{z}_{L},
+    \mathbf{w}_{L}) = \mathcal{W}_{L} \mathbf{z}_{L} = \mathcal{W}_{L} \mathcal{W}_{L-1}
+    \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\\ f(\mathbf{x}) &:= \ell(\hat{\mathbf{y}})
+    = \frac{1}{2}\|\mathbf{y} - \hat{\mathbf{y}}\|^2 = \frac{1}{2}\left\|\mathbf{y}
+    - \mathcal{W}_{L} \mathcal{W}_{L-1} \cdots \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x}\right\|^2.
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Applying the chain rule** Recall that the key insight from the *Chain Rule*
+    is that to compute the gradient of a composition such as \(\bfh(\mathbf{w})\)
+    – no matter how complex – it suffices to *separately* compute the Jacobians of
+    the intervening functions and then take *matrix products*. In this section, we
+    compute the necessary Jacobians in the progressive case.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It will be convenient to re-write the basic composition step as
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{O}_{i}(\overline{\mathbf{w}}^{i}) = \bfg_{i}(\mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}),
+    \mathbf{w}_{i}) = \bfg_{i}(\mathcal{I}_{i}(\overline{\mathbf{w}}^{i})) \in \mathbb{R}^{n_{i+1}},
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where the input to layer \(i+1\) (both layer-specific parameters and the output
+    of the previous layer) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{I}_{i}(\overline{\mathbf{w}}^{i}) = \left( \mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}),
+    \mathbf{w}_{i} \right) \in \mathbb{R}^{n_{i} + r_{i}}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: for \(i = 1, \ldots, L\). When \(i=0\), we have simply
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{I}_{0}(\overline{\mathbf{w}}^{0}) = \left(\mathbf{z}_0, \mathbf{w}_0
+    \right) = \left(\mathbf{x}, \mathbf{w}_0 \right). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applying the *Chain Rule* we get
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\mathcal{O}_{i}}(\overline{\mathbf{w}}^{i}) = J_{\bfg_i}(\mathcal{I}_{i}(\overline{\mathbf{w}}^{i}))
+    \,J_{\mathcal{I}_{i}}(\overline{\mathbf{w}}^{i}). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, the Jacobian of
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathcal{I}_{i}(\overline{\mathbf{w}}^{i}) = \left( \mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}),
+    \mathbf{w}_i \right) \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: has a simple block diagonal structure
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} J_{\mathcal{I}_{i}}(\overline{\mathbf{w}}^{i}) = \begin{pmatrix}
+    J_{\mathcal{O}_{i-1}}(\overline{\mathbf{w}}^{i-1}) & 0 \\ 0 & I_{r_i \times r_i}
+    \end{pmatrix} \in \mathbb{R}^{(n_{i} + r_{i})\times(r_0 + \cdots + r_i)} \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: since the first block component of \(\mathcal{I}_{i}\), \(\mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1})\),
+    does not depend on \(\mathbf{w}_i\) whereas the second block component of \(\mathcal{I}_{i}\),
+    \(\mathbf{w}_i\), does not depend on \(\overline{\mathbf{w}}^{i-1}\). Observe
+    that this is a fairly large matrix whose number of columns in particular grows
+    with \(i\). That last formula is for \(i \geq 1\). When \(i=0\) we have \(\mathcal{I}_{0}(\overline{\mathbf{w}}^{0})
+    = \left(\mathbf{x}, \mathbf{w}_0\right)\), so that
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} J_{\mathcal{I}_{0}}(\overline{\mathbf{w}}^{0}) = \begin{pmatrix}
+    \mathbf{0}_{d \times r_0} \\ I_{r_0 \times r_0} \end{pmatrix} \in \mathbb{R}^{(d+
+    r_0) \times r_0}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We partition the Jacobian of \(\bfg_i(\mathbf{z}_i, \mathbf{w}_i)\) likewise,
+    that is, we divide it into those columns corresponding to partial derivatives
+    with respect to \(\mathbf{z}_{i}\) (the corresponding block being denoted by \(A_i\))
+    and with respect to \(\mathbf{w}_i\) (the corresponding block being denoted by
+    \(B_i\))
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\bfg_i}(\mathbf{z}_i, \mathbf{w}_i) = \begin{pmatrix} A_i & B_i \end{pmatrix}
+    \in \mathbb{R}^{n_{i+1} \times (n_i + r_i)}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: evaluated at \((\mathbf{z}_i, \mathbf{w}_i) = \mathcal{I}_{i}(\overline{\mathbf{w}}^{i})
+    = (\mathcal{O}_{i-1}(\overline{\mathbf{w}}^{i-1}), \mathbf{w}_i)\). Note that
+    \(A_i\) and \(B_i\) depend on the details of the function \(\bfg_i\), which typically
+    is fairly simple. We give examples in the next subsections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Plugging back above we get
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} J_{\mathcal{O}_{i}}(\overline{\mathbf{w}}^{i}) = \begin{pmatrix}
+    A_i & B_i \end{pmatrix} \,\begin{pmatrix} J_{\mathcal{O}_{i-1}}(\overline{\mathbf{w}}^{i-1})
+    & 0 \\ 0 & I_{r_i \times r_i} \end{pmatrix}. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: This leads to the recursion
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\mathcal{O}_{i}}(\overline{\mathbf{w}}^{i}) = \begin{pmatrix} A_i \, J_{\mathcal{O}_{i-1}}(\overline{\mathbf{w}}^{i-1})
+    & B_i \end{pmatrix} \in \mathbb{R}^{n_{i+1}\times(r_0 + \cdots + r_i)} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: from which the Jacobian of \(\mathbf{h}(\mathbf{w})\) can be computed. Like
+    \(J_{\mathcal{I}_{i}}\), \(J_{\mathcal{O}_{i}}\) is a large matrix. We refer to
+    this matrix equation as the *fundamental recursion*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The base case \(i=0\) is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{split} J_{\mathcal{O}_{0}}(\overline{\mathbf{w}}^{0}) = \begin{pmatrix}
+    A_0 & B_0 \end{pmatrix}\begin{pmatrix} \mathbf{0}_{d \times r_0} \\ I_{r_0 \times
+    r_0} \end{pmatrix} = B_0. \end{split}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, using the *Chain Rule* again
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \nabla {f(\mathbf{w})} &= J_{f}(\mathbf{w})^T\\ &= [J_{\ell}(\bfh(\mathbf{w}))
+    \,J_{\bfh}(\mathbf{w})]^T\\ &= J_{\bfh}(\mathbf{w})^T \,\nabla {\ell}(\bfh(\mathbf{w}))\\
+    &= J_{\mathcal{O}_{L}}(\overline{\mathbf{w}}^{L})^T \,\nabla {\ell}(\mathcal{O}_{L}(\overline{\mathbf{w}}^{L})).
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The matrix \(J_{\mathcal{O}_{L}}(\overline{\mathbf{w}}^{L})\) is computed using
+    the recursion above, while \(\nabla {\ell}\) depends on the function \(\ell\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Backpropagation** \(\idx{backpropagation}\xdi\) We take advantage of the
+    fundamental recursion to compute the gradient of \(\bfh\). As we have seen, there
+    are two ways of doing this. Applying the recursion directly is one of them, but
+    it requires many matrix-matrix products. The first few steps are'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\mathcal{O}_{0}}(\overline{\mathbf{w}}^{0}) = B_0, \]\[ J_{\mathcal{O}_{1}}(\overline{\mathbf{w}}^{1})
+    = \begin{pmatrix} A_1 J_{\mathcal{O}_{0}}(\overline{\mathbf{w}}^{0}) & B_1 \end{pmatrix}
+    \]\[ J_{\mathcal{O}_{2}}(\overline{\mathbf{w}}^{2}) = \begin{pmatrix} A_2 \, J_{\mathcal{O}_{1}}(\overline{\mathbf{w}}^{1})
+    & B_2 \end{pmatrix}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead, as in the case of differentiating with respect to the input \(\mathbf{x}\),
+    one can also run the recursion backwards. The latter approach can be much faster
+    because, as we detail next, it involves only matrix-vector products. Start from
+    the end, that is, with the equation
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla {f}(\mathbf{w}) = J_{\bfh}(\mathbf{w})^T \,\nabla {\ell}(\bfh(\mathbf{w})).
+    \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that \(\nabla {\ell}(\bfh(\mathbf{w}))\) is a vector – not a matrix. Then
+    expand the matrix \(J_{\bfh}(\mathbf{w})\) using the recursion above
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \nabla {f}(\mathbf{w}) &= J_{\bfh}(\mathbf{w})^T \,\nabla {\ell}(\bfh(\mathbf{w}))\\
+    &= J_{\mathcal{O}_{L}}(\overline{\mathbf{w}}^{L})^T \,\nabla {\ell}(\bfh(\mathbf{w}))\\
+    &= \begin{pmatrix} A_L \, J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1}) &
+    B_L \end{pmatrix}^T \,\nabla {\ell}(\bfh(\mathbf{w}))\\ &= \begin{pmatrix} J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1})^T
+    A_L^T \\ B_L^T \end{pmatrix} \,\nabla {\ell}(\bfh(\mathbf{w}))\\ &= \begin{pmatrix}
+    J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1})^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}
+    \\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) \end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The key is that both expressions \(A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\)
+    and \(B_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\) are *matrix-vector products*.
+    That pattern persists at the next level of recursion. Note that this supposes
+    that we have precomputed \(\bfh(\mathbf{w})\) first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the next level, we expand the matrix \(J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1})^T\)
+    using the fundamental recursion
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \nabla {f}(\mathbf{w}) &= \begin{pmatrix} J_{\mathcal{O}_{L-1}}(\overline{\mathbf{w}}^{L-1})^T
+    \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\} \\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))
+    \end{pmatrix}\\ &= \begin{pmatrix} \begin{pmatrix} A_{L-1} \, J_{\mathcal{O}_{L-2}}(\overline{\mathbf{w}}^{L-2})
+    & B_{L-1} \end{pmatrix}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}
+    \\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) \end{pmatrix}\\ &= \begin{pmatrix}
+    \begin{pmatrix} J_{\mathcal{O}_{L-2}}(\overline{\mathbf{w}}^{L-2})\,A_{L-1}^T
+    \\ B_{L-1}^T \end{pmatrix} \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}
+    \\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) \end{pmatrix}\\ &= \begin{pmatrix}
+    J_{\mathcal{O}_{L-2}}(\overline{\mathbf{w}}^{L-2})\left\{A_{L-1}^T \left\{ A_L^T
+    \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\} \\ B_{L-1}^T \left\{ A_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w}))\right\}\\ B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) \end{pmatrix}.
+    \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Continuing by induction gives an alternative formula for the gradient of \(f\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Indeed, the next level gives
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \nabla {f}(\mathbf{w}) &= \begin{pmatrix} J_{\mathcal{O}_{L-3}}(\overline{\mathbf{w}}^{L-3})\left\{A_{L-2}^T
+    \left\{A_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\}\right\}
+    \\ B_{L-2}^T \left\{A_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\}
+    \\ B_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\\ B_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w})) \end{pmatrix}. \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on. Observe that we do not in fact need to compute the large matrices
+    \(J_{\mathcal{O}_{i}}\) – only the sequence of vectors \(B_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\),
+    \(B_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\), \(B_{L-2}^T
+    \left\{A_{L-1}^T \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\},
+    \)etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These formulas may seem cumbersome, but they take an intuitive form. Matrix
+    \(A_i\) is the submatrix of the Jacobian \(J_{\bfg_i}\) corresponding only to
+    the partial derivatives with respect to \(\mathbf{z}_i\), i.e., the input from
+    the previous layer. Matrix \(B_i\) is the submatrix of the Jacobian \(J_{\bfg_i}\)
+    corresponding only to the partial derivatives with respect to \(\mathbf{w}_i\),
+    i.e., the layer-specific parameters. To compute the subvector of \(\nabla f\)
+    corresponding to the parameters \(\mathbf{w}_i\) of the \((i+1)\)-th layer, we
+    repeatedly differentiate with respect to the inputs of the previous layer (by
+    multiplying by the corresponding \(A_j^T\)) starting from the last one, until
+    we reach layer \(i+1\) at which point we take partial derivatives with respect
+    to the layer-specific parameters (by multiplying by \(B_i^T\)). The process stops
+    there since the layers preceding it do not depend on \(\mathbf{w}_i\) and therefore
+    its full effect on \(f\) has been accounted for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, we need to compute
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_{L} := A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{q}_{L} := B_L^T \,\nabla {\ell}(\bfh(\mathbf{w})), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_{L-1} := A_{L-1}^T \mathbf{p}_{L} = A_{L-1}^T \left\{ A_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w}))\right\} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{q}_{L-1} := B_{L-1}^T \mathbf{p}_{L} = B_{L-1}^T \left\{ A_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w}))\right\}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_{L-2} := A_{L-2}^T \mathbf{p}_{L-1} = A_{L-2}^T \left\{A_{L-1}^T
+    \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\}\right\} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{q}_{L-2} := B_{L-2}^T \mathbf{p}_{L-1} = B_{L-2}^T \left\{A_{L-1}^T
+    \left\{ A_L^T \,\nabla {\ell}(\bfh(\mathbf{w}))\right\} \right\}, \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on. The \(\mathbf{p}_i\)s are referred to as adjoints; they correspond
+    to the vectors of partial derivatives of \(f\) with respect to the \(\mathbf{z}_i\)s.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is one more detail to note. The matrices \(A_i, B_i\) depend on the output
+    of layer \(i-1\). To compute them, we first proceed forward, that is, we let \(\mathbf{z}_0
+    = \mathbf{x}\) then
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{z}_1 = \mathcal{O}_{0}(\overline{\mathbf{w}}^{0}) = \bfg_0(\mathbf{z}_0,
+    \mathbf{w}_0), \]\[ \mathbf{z}_2 = \mathcal{O}_{1}(\overline{\mathbf{w}}^{1})
+    = \bfg_1(\mathcal{O}_{0}(\overline{\mathbf{w}}^{0}), \mathbf{w}_1) = \bfg_1(\mathbf{z}_1,
+    \mathbf{w}_1), \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on. In that forward pass, we also compute \(A_i, B_i\) along the way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We give the full algorithm now, which involves two passes. In the forward pass,
+    or forward propagation step, we compute the following.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Initialization:*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\mathbf{z}_0 := \mathbf{x}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Forward layer loop:* For \(i = 0, 1,\ldots,L\),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{z}_{i+1} &:= \bfg_i(\mathbf{z}_i, \mathbf{w}_i)\\ \begin{pmatrix}
+    A_i & B_i \end{pmatrix} &:= J_{\bfg_i}(\mathbf{z}_i, \mathbf{w}_i) \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Loss:*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} z_{L+2} &:= \ell(\mathbf{z}_{L+1})\\ \mathbf{p}_{L+1} &:= \nabla
+    {\ell}(\mathbf{z}_{L+1}). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the backward pass, or backpropagation step, we compute the following.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Backward layer loop:* For \(i = L,\ldots,1, 0\),'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} \mathbf{p}_{i} &:= A_i^T \mathbf{p}_{i+1}\\ \mathbf{q}_{i}
+    &:= B_i^T \mathbf{p}_{i+1} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Output:*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \nabla f(\mathbf{w}) = (\mathbf{q}_0,\mathbf{q}_1,\ldots,\mathbf{q}_L). \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we do not in fact need to compute \(A_0\) and \(\mathbf{p}_0\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**EXAMPLE:** **(continued)** We apply the algorithm to our running example.
+    From previous calculations, for \(i = 0, 1,\ldots,L\), the Jacobians are'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '\[\begin{align*} J_{\bfg_i}(\mathbf{z}_i, \mathbf{w}_i) &= \begin{pmatrix}
+    \mathbb{A}_{n_{i+1}}[\mathbf{w}_i] & \mathbb{B}_{n_{i+1}}[\mathbf{z}_i] \end{pmatrix}\\
+    &= \begin{pmatrix} \mathcal{W}_i & I_{n_{i+1} \times n_{i+1}} \otimes \mathbf{z}_i^T
+    \end{pmatrix}\\ &=: \begin{pmatrix} A_i & B_i \end{pmatrix} \end{align*}\]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: and
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ J_{\ell}(\hat{\mathbf{y}}) = (\hat{\mathbf{y}} - \mathbf{y})^T. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the *Properties of the Kronecker Product*, we obtain
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_{L} := A_L^T \,\nabla {\ell}(\bfh(\mathbf{w})) = \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \]\[\begin{align*} \mathbf{q}_{L} &:= B_L^T \,\nabla
+    {\ell}(\bfh(\mathbf{w})) = (I_{n_{L+1} \times n_{L+1}} \otimes \mathbf{z}_L^T)^T
+    (\hat{\mathbf{y}} - \mathbf{y}) = (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathbf{z}_L\\
+    &= (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathcal{W}_{L-1} \cdots \mathcal{W}_{1}
+    \mathcal{W}_{0} \mathbf{x} \end{align*}\]\[ \mathbf{p}_{L-1} := A_{L-1}^T \mathbf{p}_{L}
+    = \mathcal{W}_{L-1}^T \mathcal{W}_L^T (\hat{\mathbf{y}} - \mathbf{y}) \]\[\begin{align*}
+    \mathbf{q}_{L-1} &:= B_{L-1}^T \mathbf{p}_{L} = (I_{n_{L} \times n_{L}} \otimes
+    \mathbf{z}_{L-1}^T)^T \mathcal{W}_L^T (\hat{\mathbf{y}} - \mathbf{y}) = \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathbf{z}_{L-1}\\ &= \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathcal{W}_{L-2} \cdots \mathcal{W}_{1}
+    \mathcal{W}_{0} \mathbf{x} \end{align*}\]\[ \mathbf{p}_{L-2} := A_{L-2}^T \mathbf{p}_{L-1}
+    = \mathcal{W}_{L-2}^T \mathcal{W}_{L-1}^T \mathcal{W}_L^T (\hat{\mathbf{y}} -
+    \mathbf{y}) \]\[\begin{align*} \mathbf{q}_{L-2} &:= B_{L-2}^T \mathbf{p}_{L-1}
+    = (I_{n_{L-1} \times n_{L-1}} \otimes \mathbf{z}_{L-2}^T)^T \mathcal{W}_{L-1}^T
+    \mathcal{W}_L^T (\hat{\mathbf{y}} - \mathbf{y}) = \mathcal{W}_{L-1}^T \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathbf{z}_{L-2}\\ &= \mathcal{W}_{L-1}^T
+    \mathcal{W}_L^T (\hat{\mathbf{y}} - \mathbf{y}) \otimes \mathcal{W}_{L-3} \cdots
+    \mathcal{W}_{1} \mathcal{W}_{0} \mathbf{x} \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: and so on. Following the pattern, the last step is
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \mathbf{p}_1 := \mathcal{W}_{1}^T \cdots \mathcal{W}_{L-1}^T \mathcal{W}_L^T
+    (\hat{\mathbf{y}} - \mathbf{y}) \]\[ \mathbf{q}_0 := B_{0}^T \mathbf{p}_{1} =
+    \mathcal{W}_{1}^T \cdots \mathcal{W}_{L-1}^T \mathcal{W}_L^T (\hat{\mathbf{y}}
+    - \mathbf{y}) \otimes \mathbf{x}. \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: These calculations are consistent with the case \(L=1\) that we derived previously
+    (check it!). \(\lhd\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CHAT & LEARN** The efficiency of backpropagation has been key to the success
+    of deep learning. Ask your favorite AI chatbot about the history of backpropagation
+    and its role in the development of modern deep learning. \(\ddagger\)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '***Self-assessment quiz*** *(with help from Claude, Gemini, and ChatGPT)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**1** In the backpropagation algorithm, what does the ‘forward pass’ compute?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The adjoints \(\mathbf{p}_i\) for each layer \(i\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The gradients \(\mathbf{q}_i\) for the parameters of each layer \(i\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) The function values \(\mathbf{z}_i\) and the Jacobians \(A_i, B_i\) for each
+    layer \(i\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) The final gradient \(\nabla f(\mathbf{w})\) with respect to all parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**2** What is the purpose of the ‘backward pass’ in the backpropagation algorithm?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) To compute the function values \(\mathbf{z}_i\) for each layer \(i\) from
+    the input \(\mathbf{x}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) To compute the Jacobians \(A_i, B_i\) for each layer \(i\) using the fundamental
+    recursion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) To compute the adjoints \(\mathbf{p}_i\) and the gradients \(\mathbf{q}_i\)
+    for each layer \(i\) using the fundamental recursion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) To compute the final output \(\ell(\mathbf{z}_{L+1})\) of the progressive
+    function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**3** What is the computational complexity of the backpropagation algorithm
+    in terms of the number of layers \(L\) and the matrix dimensions \(m\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) \(\approx Lm\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) \(\approx Lm^2\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) \(\approx Lm^2d\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) \(\approx Lm^3d\)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**4** In the context of progressive functions, what is the significance of
+    the matrices \(A_i\) and \(B_i\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) They represent the Jacobians of the layer functions with respect to the inputs
+    and parameters, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) They are the intermediate values computed during the forward pass.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) They are the adjoints used in the backpropagation algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) They are the matrices of parameters for each layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**5** In the context of progressive functions, which of the following best
+    describes the role of the vector \(\mathbf{w}_i\)?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a) The input to the \(i\)-th layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: b) The output of the \(i\)-th layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: c) The parameters specific to the \(i\)-th layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: d) The concatenation of parameters from all layers up to \(i\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 1: c. Justification: The section presents the forward propagation
+    step which computes “the following: Initialization: \(\mathbf{z}_0 := \mathbf{x}\)
+    Forward layer loop: For \(i=0,1,\dots,L\), \(\mathbf{z}_{i+1} := \mathbf{g}_i(\mathbf{z}_i,
+    \mathbf{w}_i)\) \((A_i,B_i) := J_{\mathbf{g}_i}(\mathbf{z}_i, \mathbf{w}_i)\)
+    Loss: \(\mathbf{z}_{L+2} := \ell(\mathbf{z}_{L+1})\)”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 2: c. Justification: The backward pass is described as follows:
+    “Backward layer loop: For \(i=L,\dots,1,0\), \(\mathbf{p}_i := A_i^T \mathbf{p}_{i+1}\)
+    \(\mathbf{q}_i := B_i^T \mathbf{p}_{i+1}\) Output: \(\nabla f(\mathbf{w}) = (\mathbf{q}_0,
+    \mathbf{q}_1, \dots, \mathbf{q}_L)\).”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 3: b. Justification: The text derives that the number of operations
+    in the reverse mode is approximately \(2Lm^2\), stating “This is approximately
+    \(2Lm^2\) – which can be much smaller than \(2Lm^2d\)!”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 4: a. Justification: The text defines \(A_i\) and \(B_i\) as the
+    blocks of the Jacobian \(J_{\mathbf{g}_i}(\mathbf{z}_i, \mathbf{w}_i)\) corresponding
+    to the partial derivatives with respect to \(\mathbf{z}_i\) and \(\mathbf{w}_i\),
+    respectively.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Answer for 5: c. Justification: The text explains: “In the machine learning
+    context, each “layer” \(\mathbf{g}_i\) has parameters (in our running example,
+    there were the entries of \(\mathcal{W}_i\)) and we seek to optimize with respect
+    to those parameters.”'
+  prefs: []
+  type: TYPE_NORMAL
