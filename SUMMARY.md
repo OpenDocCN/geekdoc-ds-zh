@@ -13,6 +13,7 @@
 +   [数据科学简介](docs/intro-ds/README.md)
 +   [TouchDesigner 入门指南](docs/intro-tchdsn/README.md)
 +   [基于物理的模拟](docs/phy-sim/README.md)
++   [光线追踪之一周末的指南](docs/ray-trc-1wk/README.md)
 +   [SeaseIO 博客中文翻译](docs/seaseio-blog/README.md)
 +   [SciPy 秘籍](docs/sp-cb-fix1/README.md)
 +   [理解模型-视图-控制器](docs/udstd-mvc/README.md)
