@@ -1,0 +1,721 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>3.6. Application: logistic regression#</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>3.6. Application: logistic regression#</h1>
+<blockquote>原文：<a href="https://mmids-textbook.github.io/chap03_opt/06_logistic/roch-mmids-opt-logistic.html">https://mmids-textbook.github.io/chap03_opt/06_logistic/roch-mmids-opt-logistic.html</a></blockquote>
+
+<p>We return to logistic regression<span class="math notranslate nohighlight">\(\idx{logistic regression}\xdi\)</span>, which we alluded to in the motivating example of this chapter. The input data is of the form <span class="math notranslate nohighlight">\(\{(\boldsymbol{\alpha}_i, b_i) : i=1,\ldots, n\}\)</span> where <span class="math notranslate nohighlight">\(\boldsymbol{\alpha}_i = (\alpha_{i,1}, \ldots, \alpha_{i,d}) \in \mathbb{R}^d\)</span> are the features and <span class="math notranslate nohighlight">\(b_i \in \{0,1\}\)</span> is the label. As before we use a matrix representation: <span class="math notranslate nohighlight">\(A \in \mathbb{R}^{n \times d}\)</span> has rows <span class="math notranslate nohighlight">\(\boldsymbol{\alpha}_i^T\)</span>, <span class="math notranslate nohighlight">\(i = 1,\ldots, n\)</span> and <span class="math notranslate nohighlight">\(\mathbf{b} = (b_1, \ldots, b_n) \in \{0,1\}^n\)</span>.</p>
+<section id="definitions">
+<h2><span class="section-number">3.6.1. </span>Definitions<a class="headerlink" href="#definitions" title="Link to this heading">#</a></h2>
+<p>We summarize the logistic regression approach. Our goal is to find a function of the features that approximates the probability of the label <span class="math notranslate nohighlight">\(1\)</span>. For this purpose, we model the <a class="reference external" href="https://en.wikipedia.org/wiki/Logit">log-odds</a> (or logit function) of the probability of label <span class="math notranslate nohighlight">\(1\)</span> as a linear function of the features <span class="math notranslate nohighlight">\(\boldsymbol{\alpha}  \in \mathbb{R}^d\)</span></p>
+<div class="math notranslate nohighlight">
+\[
+\log \frac{p(\mathbf{x}; \boldsymbol{\alpha})}{1-p(\mathbf{x}; \boldsymbol{\alpha})}
+= \boldsymbol{\alpha}^T \mathbf{x}
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{x} \in \mathbb{R}^d\)</span> is the vector of coefficients (i.e., parameters). Inverting this expression gives</p>
+<div class="math notranslate nohighlight">
+\[
+p(\mathbf{x}; \boldsymbol{\alpha})
+= \sigma(\boldsymbol{\alpha}^T \mathbf{x})
+\]</div>
+<p>where the <a class="reference external" href="https://en.wikipedia.org/wiki/Logistic_function">sigmoid</a><span class="math notranslate nohighlight">\(\idx{sigmoid function}\xdi\)</span> function is</p>
+<div class="math notranslate nohighlight">
+\[
+\sigma(z)
+= \frac{1}{1 + e^{-z}}
+\]</div>
+<p>for <span class="math notranslate nohighlight">\(z \in \mathbb{R}\)</span>.</p>
+<p><strong>NUMERICAL CORNER:</strong> We plot the sigmoid function.</p>
+<div class="cell tag_colab-keep docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">sigmoid</span><span class="p">(</span><span class="n">z</span><span class="p">):</span> 
+    <span class="k">return</span> <span class="mi">1</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">z</span><span class="p">))</span>
+
+<span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">grid</span><span class="p">),</span> <span class="n">c</span><span class="o">=</span><span class="s1">'k'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/beb1329759d4211ded6c56cbd1366fe1f58d01d13f8f8dedb821b6c63b9982c9.png" src="../Images/0cd8936e1761530c96b5b7087ee4fd19.png" data-original-src="https://mmids-textbook.github.io/_images/beb1329759d4211ded6c56cbd1366fe1f58d01d13f8f8dedb821b6c63b9982c9.png"/>
+</div>
+</div>
+<p><span class="math notranslate nohighlight">\(\unlhd\)</span></p>
+<p>We seek to maximize the probability of observing the data (also known as <a class="reference external" href="https://en.wikipedia.org/wiki/Likelihood_function">likelihood function</a>) assuming the labels are independent given the features, which is given by (see Chapter 6 for more details; for now we are merely setting up the relevant optimization problem)</p>
+<div class="math notranslate nohighlight">
+\[
+\mathcal{L}(\mathbf{x}; A, \mathbf{b})
+= \prod_{i=1}^n p(\boldsymbol{\alpha}_i; \mathbf{x})^{b_i} 
+(1- p(\boldsymbol{\alpha}_i; \mathbf{x}))^{1-b_i}.
+\]</div>
+<p>Taking a logarithm, multiplying by <span class="math notranslate nohighlight">\(-1/n\)</span> and substituting the sigmoid function, we want to minimize the <a class="reference external" href="https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_loss_function_and_logistic_regression">cross-entropy loss</a><span class="math notranslate nohighlight">\(\idx{cross-entropy loss}\xdi\)</span></p>
+<div class="math notranslate nohighlight">
+\[
+\ell(\mathbf{x}; A, \mathbf{b})
+= \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))
+- (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}.
+\]</div>
+<p>We used standard properties of the logarithm: for <span class="math notranslate nohighlight">\(x, y &gt; 0\)</span>, <span class="math notranslate nohighlight">\(\log(xy) = \log x + \log y\)</span> and <span class="math notranslate nohighlight">\(\log(x^y) = y \log x\)</span>.</p>
+<p>Hence, we want to solve the minimization problem</p>
+<div class="math notranslate nohighlight">
+\[
+\min_{\mathbf{x} \in \mathbb{R}^d} \ell(\mathbf{x}; A, \mathbf{b}).
+\]</div>
+<p>We are implicitly using here that the logarithm is a strictly increasing function and therefore does not change the global optimum of a function; multiplying by <span class="math notranslate nohighlight">\(-1/n\)</span> changed the global maximum into a global minimum.</p>
+<p>To use gradient descent, we need the gradient of <span class="math notranslate nohighlight">\(\ell\)</span>. We use the <em>Chain Rule</em> and first compute the derivative of <span class="math notranslate nohighlight">\(\sigma\)</span> which is</p>
+<div class="math notranslate nohighlight">
+\[
+\sigma'(z)
+= \frac{e^{-z}}{(1 + e^{-z})^2}
+= \frac{1}{1 + e^{-z}}\left(1 - \frac{1}{1 + e^{-z}}\right)
+= \sigma(z) (1 - \sigma(z)).
+\]</div>
+<p>The latter expression is known as the <a class="reference external" href="https://en.wikipedia.org/wiki/Logistic_function#Logistic_differential_equation">logistic differential equation</a>. It arises in a variety of applications, including the modeling of <a class="reference external" href="https://towardsdatascience.com/covid-19-infection-in-italy-mathematical-models-and-predictions-7784b4d7dd8d">population dynamics</a>. Here it will be a convenient way to compute the gradient.</p>
+<p>Observe that, for <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} = (\alpha_{1}, \ldots, \alpha_{d})  \in \mathbb{R}^d\)</span>, by the <em>Chain Rule</em></p>
+<div class="math notranslate nohighlight">
+\[
+\nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x})
+= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \nabla (\boldsymbol{\alpha}^T \mathbf{x})
+= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \boldsymbol{\alpha}
+\]</div>
+<p>where, throughout, the gradient is with respect to <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>.</p>
+<p>Alternatively, we can obtain the same formula by applying the single-variable <em>Chain Rule</em></p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\frac{\partial}{\partial x_j} \sigma(\boldsymbol{\alpha}^T \mathbf{x})
+&amp;= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}(\boldsymbol{\alpha}^T \mathbf{x})\\
+&amp;= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}\left(\alpha_{j} x_{j} + \sum_{\ell=1, \ell \neq j}^d \alpha_{\ell} x_{\ell}\right)\\
+&amp;= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j}
+\end{align*}\]</div>
+<p>so that</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x})
+&amp;= \left(\sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{1}, \ldots, \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{d}\right)\\
+&amp;= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, (\alpha_{1}, \ldots, \alpha_{d})\\
+&amp;= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}.
+\end{align*}\]</div>
+<p>By another application of the <em>Chain Rule</em>, since <span class="math notranslate nohighlight">\(\frac{\mathrm{d}}{\mathrm{d} z} \log z = \frac{1}{z}\)</span>,</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\nabla\ell(\mathbf{x}; A, \mathbf{b})
+&amp;= \nabla\left[\frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))
+- (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}\right]\\
+&amp;= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})
+- \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\\
+&amp;= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})
++ \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}).
+\end{align*}\]</div>
+<p>Using the expression for the gradient of the sigmoid functions, this is equal to</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+&amp;- \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\
+&amp;\quad\quad + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\
+&amp;= - \frac{1}{n} \sum_{i=1}^n \left(
+b_i (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i)\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) 
+\right)\,\boldsymbol{\alpha}_i\\
+&amp;= - \frac{1}{n} \sum_{i=1}^n (
+b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) 
+) \,\boldsymbol{\alpha}_i.
+\end{align*}\]</div>
+<p>To implement this formula, it will be useful to re-write it in terms of the matrix representation <span class="math notranslate nohighlight">\(A \in \mathbb{R}^{n \times d}\)</span> (which has rows <span class="math notranslate nohighlight">\(\boldsymbol{\alpha}_i^T\)</span>, <span class="math notranslate nohighlight">\(i = 1,\ldots, n\)</span>) and <span class="math notranslate nohighlight">\(\mathbf{b} = (b_1, \ldots, b_n) \in \{0,1\}^n\)</span>. Let <span class="math notranslate nohighlight">\(\bsigma : \mathbb{R}^n \to \mathbb{R}\)</span> be the vector-valued function that applies the sigmoid <span class="math notranslate nohighlight">\(\sigma\)</span> entry-wise, i.e., <span class="math notranslate nohighlight">\(\bsigma(\mathbf{z}) = (\sigma(z_1),\ldots,\sigma(z_n))\)</span> where <span class="math notranslate nohighlight">\(\mathbf{z} = (z_1,\ldots,z_n)\)</span>. Thinking of <span class="math notranslate nohighlight">\(\sum_{i=1}^n (b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})\,\boldsymbol{\alpha}_i\)</span> as a linear combination of the columns of <span class="math notranslate nohighlight">\(A^T\)</span> with coefficients being the entries of the vector <span class="math notranslate nohighlight">\(\mathbf{b} - \bsigma(A \mathbf{x})\)</span>, we that</p>
+<div class="math notranslate nohighlight">
+\[
+\nabla\ell(\mathbf{x}; A, \mathbf{b})
+= - \frac{1}{n} \sum_{i=1}^n (
+b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) 
+) \,\boldsymbol{\alpha}_i
+= -\frac{1}{n} A^T [\mathbf{b} - \bsigma(A \mathbf{x})].
+\]</div>
+<p>We turn to the Hessian. By symmetry, we can think of the <span class="math notranslate nohighlight">\(j\)</span>-th column of the Hessian as the gradient of the partial derivative with respect to <span class="math notranslate nohighlight">\(x_j\)</span>. Hence we start by computing the gradient of the <span class="math notranslate nohighlight">\(j\)</span>-th entry of the summands in the gradient of <span class="math notranslate nohighlight">\(\ell\)</span>. We note that, for <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} = (\alpha_{1}, \ldots, \alpha_{d})  \in \mathbb{R}^d\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[
+\nabla [(b - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j}] 
+= - \nabla [\sigma(\boldsymbol{\alpha}^T \mathbf{x})] \, \alpha_{j} 
+=  - \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}\alpha_{j}.
+\]</div>
+<p>Thus, using the fact that <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} \alpha_{j}\)</span> is the <span class="math notranslate nohighlight">\(j\)</span>-th column of the matrix <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} \boldsymbol{\alpha}^T\)</span>, we get</p>
+<div class="math notranslate nohighlight">
+\[
+\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b})
+= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b})\)</span> indicates the Hessian with respect to the <span class="math notranslate nohighlight">\(\mathbf{x}\)</span> variables, for fixed <span class="math notranslate nohighlight">\(A, \mathbf{b}\)</span>.</p>
+<p><strong>LEMMA</strong> <strong>(Convexity of logistic regression)</strong> <span class="math notranslate nohighlight">\(\idx{convexity of logistic regression}\xdi\)</span> The function <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b})\)</span> is convex as a function of <span class="math notranslate nohighlight">\(\mathbf{x} \in \mathbb{R}^d\)</span>. <span class="math notranslate nohighlight">\(\flat\)</span></p>
+<p><em>Proof:</em> Indeed, the Hessian is positive semidefinite: for any <span class="math notranslate nohighlight">\(\mathbf{z} \in \mathbb{R}^d\)</span></p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}
+&amp;= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \mathbf{z}^T \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T \mathbf{z}\\
+&amp;= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)^2\\ 
+&amp;\geq 0 
+\end{align*}\]</div>
+<p>since <span class="math notranslate nohighlight">\(\sigma(t) \in [0,1]\)</span> for all <span class="math notranslate nohighlight">\(t\)</span>. <span class="math notranslate nohighlight">\(\square\)</span></p>
+<p>Convexity is one reason for working with the cross-entropy loss (<a class="reference external" href="https://math.stackexchange.com/questions/1582452/logistic-regression-prove-that-the-cost-function-is-convex">rather than the mean squared error</a> for instance).</p>
+<p><strong>LEMMA</strong> <strong>(Smoothness of logistic regression)</strong> The function <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b})\)</span> is <span class="math notranslate nohighlight">\(L\)</span>-smooth for</p>
+<div class="math notranslate nohighlight">
+\[
+L= \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|^2 = \frac{1}{4n} \|A\|_F^2.
+\]</div>
+<p><span class="math notranslate nohighlight">\(\flat\)</span></p>
+<p><em>Proof:</em> We use convexity and the expression for the Hessian to derive that, for any unit vector <span class="math notranslate nohighlight">\(\mathbf{z} \in \mathbb{R}^d\)</span>,</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+0 \leq \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}
+&amp;= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)^2.
+\end{align*}\]</div>
+<p>We need to find the maximum value that the factor <span class="math notranslate nohighlight">\(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\)</span> can take. Note that <span class="math notranslate nohighlight">\(\sigma(t) \in [0,1]\)</span> for all <span class="math notranslate nohighlight">\(t\)</span> and <span class="math notranslate nohighlight">\(\sigma(t) + (1 - \sigma(t)) = 1\)</span>. Taking the derivatives of the function <span class="math notranslate nohighlight">\(f(w) = w (1 - w) = w - w^2\)</span> we get <span class="math notranslate nohighlight">\(f'(w) = 1 - 2 w\)</span> and <span class="math notranslate nohighlight">\(f''(w) = -2\)</span>. So <span class="math notranslate nohighlight">\(f\)</span> is concave and achieve its maximum at <span class="math notranslate nohighlight">\(w^* = 1/2\)</span> where it takes the value <span class="math notranslate nohighlight">\(f(1/2) = 1/4\)</span>. We have proved that</p>
+<div class="math notranslate nohighlight">
+\[
+\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \leq 1/4
+\]</div>
+<p>for any <span class="math notranslate nohighlight">\(\mathbf{z}\)</span>.</p>
+<p>Going back to the upper bound on <span class="math notranslate nohighlight">\(\mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}\)</span> we get</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}
+&amp;= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)^2\\ 
+&amp;\leq  \frac{1}{4n} \sum_{i=1}^n (\mathbf{z}^T \boldsymbol{\alpha}_i)^2\\
+&amp;\leq  \frac{1}{4n} \sum_{i=1}^n \|\mathbf{z}\|^2 \|\boldsymbol{\alpha}_i\|^2\\
+&amp;\leq  \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|^2,
+\end{align*}\]</div>
+<p>where we used the <em>Cauchy-Schwarz inequality</em> on the third line and the fact that <span class="math notranslate nohighlight">\(\mathbf{z}\)</span> is a unit vector on the fourth one.</p>
+<p>That implies <span class="math notranslate nohighlight">\(L\)</span>-smoothness. <span class="math notranslate nohighlight">\(\square\)</span></p>
+<p>For step size <span class="math notranslate nohighlight">\(\beta\)</span>, one step of gradient descent is therefore</p>
+<div class="math notranslate nohighlight">
+\[
+\mathbf{x}^{t+1}
+= \mathbf{x}^{t} +\beta \frac{1}{n} \sum_{i=1}^n (
+b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}^t) 
+) \,\boldsymbol{\alpha}_i.
+\]</div>
+</section>
+<section id="implementation">
+<h2><span class="section-number">3.6.2. </span>Implementation<a class="headerlink" href="#implementation" title="Link to this heading">#</a></h2>
+<p>We modify our implementation of gradient descent to take a dataset as input. Recall that to run gradient descent, we first implement a function computing a descent update. It takes as input a function <code class="docutils literal notranslate"><span class="pre">grad_fn</span></code> computing the gradient itself, as well as a current iterate and a step size. We now also feed a dataset as additional input.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">desc_update_for_logreg</span><span class="p">(</span><span class="n">grad_fn</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">curr_x</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+    <span class="n">gradient</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">curr_x</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">curr_x</span> <span class="o">-</span> <span class="n">beta</span><span class="o">*</span><span class="n">gradient</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>We are ready to implement gradient descent. Our function takes as input a function <code class="docutils literal notranslate"><span class="pre">loss_fn</span></code> computing the objective, a function <code class="docutils literal notranslate"><span class="pre">grad_fn</span></code> computing the gradient, the dataset <code class="docutils literal notranslate"><span class="pre">A</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span></code>, and an initial guess <code class="docutils literal notranslate"><span class="pre">init_x</span></code>. Optional parameters are the step size and the number of iterations.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">gd_for_logreg</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">grad_fn</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">init_x</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">niters</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e5</span><span class="p">)):</span>
+    <span class="n">curr_x</span> <span class="o">=</span> <span class="n">init_x</span>
+    
+    <span class="k">for</span> <span class="nb">iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">niters</span><span class="p">):</span>
+        <span class="n">curr_x</span> <span class="o">=</span> <span class="n">desc_update_for_logreg</span><span class="p">(</span><span class="n">grad_fn</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">curr_x</span><span class="p">,</span> <span class="n">beta</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">curr_x</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>To implement <code class="docutils literal notranslate"><span class="pre">loss_fn</span></code> and <code class="docutils literal notranslate"><span class="pre">grad_fn</span></code>, we define the sigmoid as above. Below, <code class="docutils literal notranslate"><span class="pre">pred_fn</span></code> is <span class="math notranslate nohighlight">\(\bsigma(A \mathbf{x})\)</span>. Here we write the loss function as</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\ell(\mathbf{x}; A, \mathbf{b})
+&amp;= \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha_i}^T \mathbf{x}))
+- (1-b_i) \log(1- \sigma(\boldsymbol{\alpha_i}^T \mathbf{x}))\right\}\\
+&amp;= \mathrm{mean}\left(-\mathbf{b} \odot \mathbf{log}(\bsigma(A \mathbf{x})) - (\mathbf{1} - \mathbf{b}) \odot \mathbf{log}(\mathbf{1} - \bsigma(A \mathbf{x}))\right),
+\end{align*}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\odot\)</span> is the Hadamard product, or element-wise product (for example <span class="math notranslate nohighlight">\(\mathbf{u} \odot \mathbf{v} = (u_1 v_1, \ldots,u_n v_n)\)</span>), the logarithm (denoted in bold) is applied element-wise and <span class="math notranslate nohighlight">\(\mathrm{mean}(\mathbf{z})\)</span> is the mean of the entries of <span class="math notranslate nohighlight">\(\mathbf{z}\)</span> (i.e., <span class="math notranslate nohighlight">\(\mathrm{mean}(\mathbf{z}) = n^{-1} \sum_{i=1}^n z_i\)</span>).</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">pred_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">):</span> 
+    <span class="k">return</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">A</span> <span class="o">@</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span> 
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="o">-</span><span class="n">b</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">pred_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">))</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pred_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">)))</span>
+
+<span class="k">def</span> <span class="nf">grad_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">return</span> <span class="o">-</span><span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">pred_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">))</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>We can choose a step size based on the smoothness of the objective as above. Recall that <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html"><code class="docutils literal notranslate"><span class="pre">numpy.linalg.norm</span></code></a> computes the Frobenius norm by default.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">stepsize_for_logreg</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">LA</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">A</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="o">/</span><span class="n">L</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p><strong>NUMERICAL CORNER:</strong> We return to our original motivation, the <a class="reference external" href="https://www.kaggle.com/datasets/sjleshrac/airlines-customer-satisfaction">airline customer satisfaction</a> dataset. We first load the dataset. We will need the column names later.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'customer_airline_satisfaction.csv'</span><span class="p">)</span>
+<span class="n">column_names</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">column_names</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span/>['Satisfied', 'Age', 'Class_Business', 'Class_Eco', 'Class_Eco Plus', 'Business travel', 'Loyal customer', 'Flight Distance', 'Departure Delay in Minutes', 'Arrival Delay in Minutes', 'Seat comfort', 'Departure/Arrival time convenient', 'Food and drink', 'Gate location', 'Inflight wifi service', 'Inflight entertainment', 'Online support', 'Ease of Online booking', 'On-board service', 'Leg room service', 'Baggage handling', 'Checkin service', 'Cleanliness', 'Online boarding']
+</pre></div>
+</div>
+</div>
+</div>
+<p>Our goal will be to predict the first column, <code class="docutils literal notranslate"><span class="pre">Satisfied</span></code>, from the rest of the columns. For this, we transform our data into NumPy arrays. We also standardize the columns by subtracting their mean and dividing by their standard deviation. This will allow to compare the influence of different features on the prediction. And we add a column of 1s to account for the intercept.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="n">y</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">'Satisfied'</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">'Satisfied'</span><span class="p">])</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+
+<span class="n">means</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">stds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">X_standardized</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">means</span><span class="p">)</span> <span class="o">/</span> <span class="n">stds</span>
+
+<span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span><span class="mi">1</span><span class="p">)),</span> <span class="n">X_standardized</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">b</span> <span class="o">=</span> <span class="n">y</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>We use the functions <code class="docutils literal notranslate"><span class="pre">loss_fn</span></code> and <code class="docutils literal notranslate"><span class="pre">grad_fn</span></code> which were written for general logistic regression problems.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="n">init_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">best_x</span> <span class="o">=</span> <span class="n">gd_for_logreg</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">grad_fn</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">init_x</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">niters</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e3</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">best_x</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span/>[ 0.03622497  0.04123861  0.10020177 -0.08786108 -0.02485893  0.0420605
+  0.11995567 -0.01799992 -0.02399636 -0.02653084  0.1176043  -0.02382631
+  0.05909378 -0.01161711  0.06553672  0.21313777  0.12883519  0.14631027
+  0.12239595  0.11282894  0.08556647  0.08954403  0.08447245  0.108043  ]
+</pre></div>
+</div>
+</div>
+</div>
+<p>To interpret the results, we plot the coefficients in decreasing order.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="n">coefficients</span><span class="p">,</span> <span class="n">features</span> <span class="o">=</span> <span class="n">best_x</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">column_names</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+<span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">coefficients</span><span class="p">)</span>
+<span class="n">sorted_coefficients</span> <span class="o">=</span> <span class="n">coefficients</span><span class="p">[</span><span class="n">sorted_indices</span><span class="p">]</span>
+<span class="n">sorted_features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">features</span><span class="p">)[</span><span class="n">sorted_indices</span><span class="p">]</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">barh</span><span class="p">(</span><span class="n">sorted_features</span><span class="p">,</span> <span class="n">sorted_coefficients</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">'lightblue'</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">'black'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">'Coefficient Value'</span><span class="p">),</span> <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">'Logistic Regression Coefficients'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/4a66052e179e6e561e9711defd186394eac14fb13f59c0250fcce6f357c91144.png" src="../Images/f0f3c46cb4f17a7ae15de744d08dd196.png" data-original-src="https://mmids-textbook.github.io/_images/4a66052e179e6e561e9711defd186394eac14fb13f59c0250fcce6f357c91144.png"/>
+</div>
+</div>
+<p>We see from the first ten bars or so that, as might be expected, higher ratings on various aspects of the flight generally contribute to a higher predicted likelihood of satisfaction (with one exception being <code class="docutils literal notranslate"><span class="pre">Gate</span> <span class="pre">location</span></code> whose coefficient is negative but may not be <a class="reference external" href="https://en.wikipedia.org/wiki/Statistical_significance">statistically significant</a>). <code class="docutils literal notranslate"><span class="pre">Inflight</span> <span class="pre">entertainment</span></code> seems particularly influential. <code class="docutils literal notranslate"><span class="pre">Age</span></code> also shows the same pattern, something we had noticed in the introductory section through a different analysis. On the other hand, <code class="docutils literal notranslate"><span class="pre">Departure</span> <span class="pre">Delay</span> <span class="pre">in</span> <span class="pre">Minutes</span></code> and <code class="docutils literal notranslate"><span class="pre">Arrival</span> <span class="pre">Delay</span> <span class="pre">in</span> <span class="pre">Minutes</span></code> contribute to a lower predicted likelihood of satisfaction, again an expected pattern. The most negative influence however appears to come from <code class="docutils literal notranslate"><span class="pre">Class_Eco</span></code>.</p>
+<p><strong>CHAT &amp; LEARN</strong> There are faster methods for logistic regression. Ask your favorite AI chatbot for an explanation and implementation of the iteratively reweighted least squares method. Try it on this dataset. (<a class="reference external" href="https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_opt_notebook.ipynb">Open In Colab</a>) <span class="math notranslate nohighlight">\(\ddagger\)</span></p>
+<p><strong>TRY IT!</strong> One can attempt to predict whether a new customer, whose feature vector is <span class="math notranslate nohighlight">\(\boldsymbol{\alpha}\)</span>, will be satisfied by using the prediction function <span class="math notranslate nohighlight">\(p(\mathbf{x}; \boldsymbol{\alpha}) = \sigma(\boldsymbol{\alpha}^T \mathbf{x})\)</span>, where <span class="math notranslate nohighlight">\(\mathbf{x}\)</span> is the fitted coefficients. Say a customer is predicted to be satisfied if <span class="math notranslate nohighlight">\(\sigma(\boldsymbol{\alpha}^T \mathbf{x}) &gt; 0.5\)</span>. Implement this predictor and compute its accuracy on this dataset. (<a class="reference external" href="https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_opt_notebook.ipynb">Open In Colab</a>)</p>
+<p><strong>CHAT &amp; LEARN</strong> Because of the issue of overfitting, computing the accuracy of a predictor on a dataset used to estimate the coefficients is problematic. Ask your favorite AI chatbot about scikit-learn’s <code class="docutils literal notranslate"><span class="pre">train_test_split</span></code> function and how it helps resolve this issue. Implement it on this dataset. (<a class="reference external" href="https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_opt_notebook.ipynb">Open In Colab</a>) <span class="math notranslate nohighlight">\(\ddagger\)</span></p>
+<p><span class="math notranslate nohighlight">\(\unlhd\)</span></p>
+<p><em><strong>Self-assessment quiz</strong></em> <em>(with help from Claude, Gemini, and ChatGPT)</em></p>
+<p><strong>1</strong> What is the primary goal of logistic regression?</p>
+<p>a) To predict a continuous outcome variable.</p>
+<p>b) To classify data points into multiple categories.</p>
+<p>c) To model the probability of a binary outcome.</p>
+<p>d) To find the optimal linear combination of features.</p>
+<p><strong>2</strong> What is the relationship between maximizing the likelihood function and minimizing the cross-entropy loss in logistic regression?</p>
+<p>a) They are unrelated concepts.</p>
+<p>b) Maximizing the likelihood is equivalent to minimizing the cross-entropy loss.</p>
+<p>c) Minimizing the cross-entropy loss is a first step towards maximizing the likelihood.</p>
+<p>d) Maximizing the likelihood is a special case of minimizing the cross-entropy loss.</p>
+<p><strong>3</strong> Which of the following is the correct formula for the logistic regression objective function (cross-entropy loss)?</p>
+<p>a) <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \log(1 + \exp(-b_i \boldsymbol{\alpha}_i^T \mathbf{x}))\)</span></p>
+<p>b) <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n (b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))^2\)</span></p>
+<p>c) <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \{-b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1 - b_i) \log(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\}\)</span></p>
+<p>d) <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n b_i \boldsymbol{\alpha}_i^T \mathbf{x}\)</span></p>
+<p><strong>4</strong> What is the purpose of standardizing the input features in the airline customer satisfaction dataset example?</p>
+<p>a) To ensure the objective function is convex.</p>
+<p>b) To speed up the convergence of gradient descent.</p>
+<p>c) To allow comparison of the influence of different features on the prediction.</p>
+<p>d) To handle missing data in the dataset.</p>
+<p><strong>5</strong> Which of the following is a valid reason for adding a column of 1’s to the feature matrix in logistic regression?</p>
+<p>a) To ensure the objective function is convex.</p>
+<p>b) To allow for an intercept term in the model.</p>
+<p>c) To standardize the input features.</p>
+<p>d) To handle missing data in the dataset.</p>
+<p>Answer for 1: c. Justification: The text states that the goal of logistic regression is to “find a function of the features that approximates the probability of the label.”</p>
+<p>Answer for 2: b. Justification: The text states: “We seek to maximize the probability of observing the data… which is given by… Taking a logarithm, multiplying by <span class="math notranslate nohighlight">\(-1/n\)</span> and substituting the sigmoid function, we want to minimize the cross-entropy loss.”</p>
+<p>Answer for 3: c. Justification: The text states: “Hence, we want to solve the minimization problem <span class="math notranslate nohighlight">\(\min_{x \in \mathbb{R}^d} \ell(\mathbf{x}; A, \mathbf{b})\)</span>,” where <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \{-b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1 - b_i) \log(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\}\)</span>.</p>
+<p>Answer for 4: c. Justification: The text states: “We also standardize the columns by subtracting their mean and dividing by their standard deviation. This will allow to compare the influence of different features on the prediction.”</p>
+<p>Answer for 5: b. Justification: The text states: “To allow an affine function of the features, we add a column of 1’s as we have done before.”</p>
+</section>
+&#13;
+
+<h2><span class="section-number">3.6.1. </span>Definitions<a class="headerlink" href="#definitions" title="Link to this heading">#</a></h2>
+<p>We summarize the logistic regression approach. Our goal is to find a function of the features that approximates the probability of the label <span class="math notranslate nohighlight">\(1\)</span>. For this purpose, we model the <a class="reference external" href="https://en.wikipedia.org/wiki/Logit">log-odds</a> (or logit function) of the probability of label <span class="math notranslate nohighlight">\(1\)</span> as a linear function of the features <span class="math notranslate nohighlight">\(\boldsymbol{\alpha}  \in \mathbb{R}^d\)</span></p>
+<div class="math notranslate nohighlight">
+\[
+\log \frac{p(\mathbf{x}; \boldsymbol{\alpha})}{1-p(\mathbf{x}; \boldsymbol{\alpha})}
+= \boldsymbol{\alpha}^T \mathbf{x}
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{x} \in \mathbb{R}^d\)</span> is the vector of coefficients (i.e., parameters). Inverting this expression gives</p>
+<div class="math notranslate nohighlight">
+\[
+p(\mathbf{x}; \boldsymbol{\alpha})
+= \sigma(\boldsymbol{\alpha}^T \mathbf{x})
+\]</div>
+<p>where the <a class="reference external" href="https://en.wikipedia.org/wiki/Logistic_function">sigmoid</a><span class="math notranslate nohighlight">\(\idx{sigmoid function}\xdi\)</span> function is</p>
+<div class="math notranslate nohighlight">
+\[
+\sigma(z)
+= \frac{1}{1 + e^{-z}}
+\]</div>
+<p>for <span class="math notranslate nohighlight">\(z \in \mathbb{R}\)</span>.</p>
+<p><strong>NUMERICAL CORNER:</strong> We plot the sigmoid function.</p>
+<div class="cell tag_colab-keep docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">sigmoid</span><span class="p">(</span><span class="n">z</span><span class="p">):</span> 
+    <span class="k">return</span> <span class="mi">1</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">z</span><span class="p">))</span>
+
+<span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">grid</span><span class="p">),</span> <span class="n">c</span><span class="o">=</span><span class="s1">'k'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/beb1329759d4211ded6c56cbd1366fe1f58d01d13f8f8dedb821b6c63b9982c9.png" src="../Images/0cd8936e1761530c96b5b7087ee4fd19.png" data-original-src="https://mmids-textbook.github.io/_images/beb1329759d4211ded6c56cbd1366fe1f58d01d13f8f8dedb821b6c63b9982c9.png"/>
+</div>
+</div>
+<p><span class="math notranslate nohighlight">\(\unlhd\)</span></p>
+<p>We seek to maximize the probability of observing the data (also known as <a class="reference external" href="https://en.wikipedia.org/wiki/Likelihood_function">likelihood function</a>) assuming the labels are independent given the features, which is given by (see Chapter 6 for more details; for now we are merely setting up the relevant optimization problem)</p>
+<div class="math notranslate nohighlight">
+\[
+\mathcal{L}(\mathbf{x}; A, \mathbf{b})
+= \prod_{i=1}^n p(\boldsymbol{\alpha}_i; \mathbf{x})^{b_i} 
+(1- p(\boldsymbol{\alpha}_i; \mathbf{x}))^{1-b_i}.
+\]</div>
+<p>Taking a logarithm, multiplying by <span class="math notranslate nohighlight">\(-1/n\)</span> and substituting the sigmoid function, we want to minimize the <a class="reference external" href="https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_loss_function_and_logistic_regression">cross-entropy loss</a><span class="math notranslate nohighlight">\(\idx{cross-entropy loss}\xdi\)</span></p>
+<div class="math notranslate nohighlight">
+\[
+\ell(\mathbf{x}; A, \mathbf{b})
+= \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))
+- (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}.
+\]</div>
+<p>We used standard properties of the logarithm: for <span class="math notranslate nohighlight">\(x, y &gt; 0\)</span>, <span class="math notranslate nohighlight">\(\log(xy) = \log x + \log y\)</span> and <span class="math notranslate nohighlight">\(\log(x^y) = y \log x\)</span>.</p>
+<p>Hence, we want to solve the minimization problem</p>
+<div class="math notranslate nohighlight">
+\[
+\min_{\mathbf{x} \in \mathbb{R}^d} \ell(\mathbf{x}; A, \mathbf{b}).
+\]</div>
+<p>We are implicitly using here that the logarithm is a strictly increasing function and therefore does not change the global optimum of a function; multiplying by <span class="math notranslate nohighlight">\(-1/n\)</span> changed the global maximum into a global minimum.</p>
+<p>To use gradient descent, we need the gradient of <span class="math notranslate nohighlight">\(\ell\)</span>. We use the <em>Chain Rule</em> and first compute the derivative of <span class="math notranslate nohighlight">\(\sigma\)</span> which is</p>
+<div class="math notranslate nohighlight">
+\[
+\sigma'(z)
+= \frac{e^{-z}}{(1 + e^{-z})^2}
+= \frac{1}{1 + e^{-z}}\left(1 - \frac{1}{1 + e^{-z}}\right)
+= \sigma(z) (1 - \sigma(z)).
+\]</div>
+<p>The latter expression is known as the <a class="reference external" href="https://en.wikipedia.org/wiki/Logistic_function#Logistic_differential_equation">logistic differential equation</a>. It arises in a variety of applications, including the modeling of <a class="reference external" href="https://towardsdatascience.com/covid-19-infection-in-italy-mathematical-models-and-predictions-7784b4d7dd8d">population dynamics</a>. Here it will be a convenient way to compute the gradient.</p>
+<p>Observe that, for <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} = (\alpha_{1}, \ldots, \alpha_{d})  \in \mathbb{R}^d\)</span>, by the <em>Chain Rule</em></p>
+<div class="math notranslate nohighlight">
+\[
+\nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x})
+= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \nabla (\boldsymbol{\alpha}^T \mathbf{x})
+= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \boldsymbol{\alpha}
+\]</div>
+<p>where, throughout, the gradient is with respect to <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>.</p>
+<p>Alternatively, we can obtain the same formula by applying the single-variable <em>Chain Rule</em></p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\frac{\partial}{\partial x_j} \sigma(\boldsymbol{\alpha}^T \mathbf{x})
+&amp;= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}(\boldsymbol{\alpha}^T \mathbf{x})\\
+&amp;= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}\left(\alpha_{j} x_{j} + \sum_{\ell=1, \ell \neq j}^d \alpha_{\ell} x_{\ell}\right)\\
+&amp;= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j}
+\end{align*}\]</div>
+<p>so that</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x})
+&amp;= \left(\sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{1}, \ldots, \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{d}\right)\\
+&amp;= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, (\alpha_{1}, \ldots, \alpha_{d})\\
+&amp;= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}.
+\end{align*}\]</div>
+<p>By another application of the <em>Chain Rule</em>, since <span class="math notranslate nohighlight">\(\frac{\mathrm{d}}{\mathrm{d} z} \log z = \frac{1}{z}\)</span>,</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\nabla\ell(\mathbf{x}; A, \mathbf{b})
+&amp;= \nabla\left[\frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))
+- (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}\right]\\
+&amp;= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})
+- \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\\
+&amp;= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})
++ \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}).
+\end{align*}\]</div>
+<p>Using the expression for the gradient of the sigmoid functions, this is equal to</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+&amp;- \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\
+&amp;\quad\quad + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\
+&amp;= - \frac{1}{n} \sum_{i=1}^n \left(
+b_i (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i)\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) 
+\right)\,\boldsymbol{\alpha}_i\\
+&amp;= - \frac{1}{n} \sum_{i=1}^n (
+b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) 
+) \,\boldsymbol{\alpha}_i.
+\end{align*}\]</div>
+<p>To implement this formula, it will be useful to re-write it in terms of the matrix representation <span class="math notranslate nohighlight">\(A \in \mathbb{R}^{n \times d}\)</span> (which has rows <span class="math notranslate nohighlight">\(\boldsymbol{\alpha}_i^T\)</span>, <span class="math notranslate nohighlight">\(i = 1,\ldots, n\)</span>) and <span class="math notranslate nohighlight">\(\mathbf{b} = (b_1, \ldots, b_n) \in \{0,1\}^n\)</span>. Let <span class="math notranslate nohighlight">\(\bsigma : \mathbb{R}^n \to \mathbb{R}\)</span> be the vector-valued function that applies the sigmoid <span class="math notranslate nohighlight">\(\sigma\)</span> entry-wise, i.e., <span class="math notranslate nohighlight">\(\bsigma(\mathbf{z}) = (\sigma(z_1),\ldots,\sigma(z_n))\)</span> where <span class="math notranslate nohighlight">\(\mathbf{z} = (z_1,\ldots,z_n)\)</span>. Thinking of <span class="math notranslate nohighlight">\(\sum_{i=1}^n (b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})\,\boldsymbol{\alpha}_i\)</span> as a linear combination of the columns of <span class="math notranslate nohighlight">\(A^T\)</span> with coefficients being the entries of the vector <span class="math notranslate nohighlight">\(\mathbf{b} - \bsigma(A \mathbf{x})\)</span>, we that</p>
+<div class="math notranslate nohighlight">
+\[
+\nabla\ell(\mathbf{x}; A, \mathbf{b})
+= - \frac{1}{n} \sum_{i=1}^n (
+b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) 
+) \,\boldsymbol{\alpha}_i
+= -\frac{1}{n} A^T [\mathbf{b} - \bsigma(A \mathbf{x})].
+\]</div>
+<p>We turn to the Hessian. By symmetry, we can think of the <span class="math notranslate nohighlight">\(j\)</span>-th column of the Hessian as the gradient of the partial derivative with respect to <span class="math notranslate nohighlight">\(x_j\)</span>. Hence we start by computing the gradient of the <span class="math notranslate nohighlight">\(j\)</span>-th entry of the summands in the gradient of <span class="math notranslate nohighlight">\(\ell\)</span>. We note that, for <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} = (\alpha_{1}, \ldots, \alpha_{d})  \in \mathbb{R}^d\)</span>,</p>
+<div class="math notranslate nohighlight">
+\[
+\nabla [(b - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j}] 
+= - \nabla [\sigma(\boldsymbol{\alpha}^T \mathbf{x})] \, \alpha_{j} 
+=  - \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}\alpha_{j}.
+\]</div>
+<p>Thus, using the fact that <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} \alpha_{j}\)</span> is the <span class="math notranslate nohighlight">\(j\)</span>-th column of the matrix <span class="math notranslate nohighlight">\(\boldsymbol{\alpha} \boldsymbol{\alpha}^T\)</span>, we get</p>
+<div class="math notranslate nohighlight">
+\[
+\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b})
+= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b})\)</span> indicates the Hessian with respect to the <span class="math notranslate nohighlight">\(\mathbf{x}\)</span> variables, for fixed <span class="math notranslate nohighlight">\(A, \mathbf{b}\)</span>.</p>
+<p><strong>LEMMA</strong> <strong>(Convexity of logistic regression)</strong> <span class="math notranslate nohighlight">\(\idx{convexity of logistic regression}\xdi\)</span> The function <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b})\)</span> is convex as a function of <span class="math notranslate nohighlight">\(\mathbf{x} \in \mathbb{R}^d\)</span>. <span class="math notranslate nohighlight">\(\flat\)</span></p>
+<p><em>Proof:</em> Indeed, the Hessian is positive semidefinite: for any <span class="math notranslate nohighlight">\(\mathbf{z} \in \mathbb{R}^d\)</span></p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}
+&amp;= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \mathbf{z}^T \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T \mathbf{z}\\
+&amp;= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)^2\\ 
+&amp;\geq 0 
+\end{align*}\]</div>
+<p>since <span class="math notranslate nohighlight">\(\sigma(t) \in [0,1]\)</span> for all <span class="math notranslate nohighlight">\(t\)</span>. <span class="math notranslate nohighlight">\(\square\)</span></p>
+<p>Convexity is one reason for working with the cross-entropy loss (<a class="reference external" href="https://math.stackexchange.com/questions/1582452/logistic-regression-prove-that-the-cost-function-is-convex">rather than the mean squared error</a> for instance).</p>
+<p><strong>LEMMA</strong> <strong>(Smoothness of logistic regression)</strong> The function <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b})\)</span> is <span class="math notranslate nohighlight">\(L\)</span>-smooth for</p>
+<div class="math notranslate nohighlight">
+\[
+L= \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|^2 = \frac{1}{4n} \|A\|_F^2.
+\]</div>
+<p><span class="math notranslate nohighlight">\(\flat\)</span></p>
+<p><em>Proof:</em> We use convexity and the expression for the Hessian to derive that, for any unit vector <span class="math notranslate nohighlight">\(\mathbf{z} \in \mathbb{R}^d\)</span>,</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+0 \leq \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}
+&amp;= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)^2.
+\end{align*}\]</div>
+<p>We need to find the maximum value that the factor <span class="math notranslate nohighlight">\(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\)</span> can take. Note that <span class="math notranslate nohighlight">\(\sigma(t) \in [0,1]\)</span> for all <span class="math notranslate nohighlight">\(t\)</span> and <span class="math notranslate nohighlight">\(\sigma(t) + (1 - \sigma(t)) = 1\)</span>. Taking the derivatives of the function <span class="math notranslate nohighlight">\(f(w) = w (1 - w) = w - w^2\)</span> we get <span class="math notranslate nohighlight">\(f'(w) = 1 - 2 w\)</span> and <span class="math notranslate nohighlight">\(f''(w) = -2\)</span>. So <span class="math notranslate nohighlight">\(f\)</span> is concave and achieve its maximum at <span class="math notranslate nohighlight">\(w^* = 1/2\)</span> where it takes the value <span class="math notranslate nohighlight">\(f(1/2) = 1/4\)</span>. We have proved that</p>
+<div class="math notranslate nohighlight">
+\[
+\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \leq 1/4
+\]</div>
+<p>for any <span class="math notranslate nohighlight">\(\mathbf{z}\)</span>.</p>
+<p>Going back to the upper bound on <span class="math notranslate nohighlight">\(\mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}\)</span> we get</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}
+&amp;= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)^2\\ 
+&amp;\leq  \frac{1}{4n} \sum_{i=1}^n (\mathbf{z}^T \boldsymbol{\alpha}_i)^2\\
+&amp;\leq  \frac{1}{4n} \sum_{i=1}^n \|\mathbf{z}\|^2 \|\boldsymbol{\alpha}_i\|^2\\
+&amp;\leq  \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|^2,
+\end{align*}\]</div>
+<p>where we used the <em>Cauchy-Schwarz inequality</em> on the third line and the fact that <span class="math notranslate nohighlight">\(\mathbf{z}\)</span> is a unit vector on the fourth one.</p>
+<p>That implies <span class="math notranslate nohighlight">\(L\)</span>-smoothness. <span class="math notranslate nohighlight">\(\square\)</span></p>
+<p>For step size <span class="math notranslate nohighlight">\(\beta\)</span>, one step of gradient descent is therefore</p>
+<div class="math notranslate nohighlight">
+\[
+\mathbf{x}^{t+1}
+= \mathbf{x}^{t} +\beta \frac{1}{n} \sum_{i=1}^n (
+b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}^t) 
+) \,\boldsymbol{\alpha}_i.
+\]</div>
+&#13;
+
+<h2><span class="section-number">3.6.2. </span>Implementation<a class="headerlink" href="#implementation" title="Link to this heading">#</a></h2>
+<p>We modify our implementation of gradient descent to take a dataset as input. Recall that to run gradient descent, we first implement a function computing a descent update. It takes as input a function <code class="docutils literal notranslate"><span class="pre">grad_fn</span></code> computing the gradient itself, as well as a current iterate and a step size. We now also feed a dataset as additional input.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">desc_update_for_logreg</span><span class="p">(</span><span class="n">grad_fn</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">curr_x</span><span class="p">,</span> <span class="n">beta</span><span class="p">):</span>
+    <span class="n">gradient</span> <span class="o">=</span> <span class="n">grad_fn</span><span class="p">(</span><span class="n">curr_x</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">curr_x</span> <span class="o">-</span> <span class="n">beta</span><span class="o">*</span><span class="n">gradient</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>We are ready to implement gradient descent. Our function takes as input a function <code class="docutils literal notranslate"><span class="pre">loss_fn</span></code> computing the objective, a function <code class="docutils literal notranslate"><span class="pre">grad_fn</span></code> computing the gradient, the dataset <code class="docutils literal notranslate"><span class="pre">A</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span></code>, and an initial guess <code class="docutils literal notranslate"><span class="pre">init_x</span></code>. Optional parameters are the step size and the number of iterations.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">gd_for_logreg</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">grad_fn</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">init_x</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">niters</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e5</span><span class="p">)):</span>
+    <span class="n">curr_x</span> <span class="o">=</span> <span class="n">init_x</span>
+    
+    <span class="k">for</span> <span class="nb">iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">niters</span><span class="p">):</span>
+        <span class="n">curr_x</span> <span class="o">=</span> <span class="n">desc_update_for_logreg</span><span class="p">(</span><span class="n">grad_fn</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">curr_x</span><span class="p">,</span> <span class="n">beta</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">curr_x</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>To implement <code class="docutils literal notranslate"><span class="pre">loss_fn</span></code> and <code class="docutils literal notranslate"><span class="pre">grad_fn</span></code>, we define the sigmoid as above. Below, <code class="docutils literal notranslate"><span class="pre">pred_fn</span></code> is <span class="math notranslate nohighlight">\(\bsigma(A \mathbf{x})\)</span>. Here we write the loss function as</p>
+<div class="amsmath math notranslate nohighlight">
+\[\begin{align*}
+\ell(\mathbf{x}; A, \mathbf{b})
+&amp;= \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha_i}^T \mathbf{x}))
+- (1-b_i) \log(1- \sigma(\boldsymbol{\alpha_i}^T \mathbf{x}))\right\}\\
+&amp;= \mathrm{mean}\left(-\mathbf{b} \odot \mathbf{log}(\bsigma(A \mathbf{x})) - (\mathbf{1} - \mathbf{b}) \odot \mathbf{log}(\mathbf{1} - \bsigma(A \mathbf{x}))\right),
+\end{align*}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\odot\)</span> is the Hadamard product, or element-wise product (for example <span class="math notranslate nohighlight">\(\mathbf{u} \odot \mathbf{v} = (u_1 v_1, \ldots,u_n v_n)\)</span>), the logarithm (denoted in bold) is applied element-wise and <span class="math notranslate nohighlight">\(\mathrm{mean}(\mathbf{z})\)</span> is the mean of the entries of <span class="math notranslate nohighlight">\(\mathbf{z}\)</span> (i.e., <span class="math notranslate nohighlight">\(\mathrm{mean}(\mathbf{z}) = n^{-1} \sum_{i=1}^n z_i\)</span>).</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">pred_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">):</span> 
+    <span class="k">return</span> <span class="n">sigmoid</span><span class="p">(</span><span class="n">A</span> <span class="o">@</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span> 
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="o">-</span><span class="n">b</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">pred_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">))</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pred_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">)))</span>
+
+<span class="k">def</span> <span class="nf">grad_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">return</span> <span class="o">-</span><span class="n">A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">pred_fn</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">A</span><span class="p">))</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>We can choose a step size based on the smoothness of the objective as above. Recall that <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html"><code class="docutils literal notranslate"><span class="pre">numpy.linalg.norm</span></code></a> computes the Frobenius norm by default.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="k">def</span> <span class="nf">stepsize_for_logreg</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">LA</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">A</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="o">/</span><span class="n">L</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p><strong>NUMERICAL CORNER:</strong> We return to our original motivation, the <a class="reference external" href="https://www.kaggle.com/datasets/sjleshrac/airlines-customer-satisfaction">airline customer satisfaction</a> dataset. We first load the dataset. We will need the column names later.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">'customer_airline_satisfaction.csv'</span><span class="p">)</span>
+<span class="n">column_names</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">column_names</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span/>['Satisfied', 'Age', 'Class_Business', 'Class_Eco', 'Class_Eco Plus', 'Business travel', 'Loyal customer', 'Flight Distance', 'Departure Delay in Minutes', 'Arrival Delay in Minutes', 'Seat comfort', 'Departure/Arrival time convenient', 'Food and drink', 'Gate location', 'Inflight wifi service', 'Inflight entertainment', 'Online support', 'Ease of Online booking', 'On-board service', 'Leg room service', 'Baggage handling', 'Checkin service', 'Cleanliness', 'Online boarding']
+</pre></div>
+</div>
+</div>
+</div>
+<p>Our goal will be to predict the first column, <code class="docutils literal notranslate"><span class="pre">Satisfied</span></code>, from the rest of the columns. For this, we transform our data into NumPy arrays. We also standardize the columns by subtracting their mean and dividing by their standard deviation. This will allow to compare the influence of different features on the prediction. And we add a column of 1s to account for the intercept.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="n">y</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">'Satisfied'</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">'Satisfied'</span><span class="p">])</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+
+<span class="n">means</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">stds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">X_standardized</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">means</span><span class="p">)</span> <span class="o">/</span> <span class="n">stds</span>
+
+<span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">),</span><span class="mi">1</span><span class="p">)),</span> <span class="n">X_standardized</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">b</span> <span class="o">=</span> <span class="n">y</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>We use the functions <code class="docutils literal notranslate"><span class="pre">loss_fn</span></code> and <code class="docutils literal notranslate"><span class="pre">grad_fn</span></code> which were written for general logistic regression problems.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="n">init_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">best_x</span> <span class="o">=</span> <span class="n">gd_for_logreg</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">grad_fn</span><span class="p">,</span> <span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">init_x</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">niters</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="mf">1e3</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">best_x</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span/>[ 0.03622497  0.04123861  0.10020177 -0.08786108 -0.02485893  0.0420605
+  0.11995567 -0.01799992 -0.02399636 -0.02653084  0.1176043  -0.02382631
+  0.05909378 -0.01161711  0.06553672  0.21313777  0.12883519  0.14631027
+  0.12239595  0.11282894  0.08556647  0.08954403  0.08447245  0.108043  ]
+</pre></div>
+</div>
+</div>
+</div>
+<p>To interpret the results, we plot the coefficients in decreasing order.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span/><span class="n">coefficients</span><span class="p">,</span> <span class="n">features</span> <span class="o">=</span> <span class="n">best_x</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">column_names</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+<span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">coefficients</span><span class="p">)</span>
+<span class="n">sorted_coefficients</span> <span class="o">=</span> <span class="n">coefficients</span><span class="p">[</span><span class="n">sorted_indices</span><span class="p">]</span>
+<span class="n">sorted_features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">features</span><span class="p">)[</span><span class="n">sorted_indices</span><span class="p">]</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">barh</span><span class="p">(</span><span class="n">sorted_features</span><span class="p">,</span> <span class="n">sorted_coefficients</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">'lightblue'</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">'black'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">'Coefficient Value'</span><span class="p">),</span> <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">'Logistic Regression Coefficients'</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../../_images/4a66052e179e6e561e9711defd186394eac14fb13f59c0250fcce6f357c91144.png" src="../Images/f0f3c46cb4f17a7ae15de744d08dd196.png" data-original-src="https://mmids-textbook.github.io/_images/4a66052e179e6e561e9711defd186394eac14fb13f59c0250fcce6f357c91144.png"/>
+</div>
+</div>
+<p>We see from the first ten bars or so that, as might be expected, higher ratings on various aspects of the flight generally contribute to a higher predicted likelihood of satisfaction (with one exception being <code class="docutils literal notranslate"><span class="pre">Gate</span> <span class="pre">location</span></code> whose coefficient is negative but may not be <a class="reference external" href="https://en.wikipedia.org/wiki/Statistical_significance">statistically significant</a>). <code class="docutils literal notranslate"><span class="pre">Inflight</span> <span class="pre">entertainment</span></code> seems particularly influential. <code class="docutils literal notranslate"><span class="pre">Age</span></code> also shows the same pattern, something we had noticed in the introductory section through a different analysis. On the other hand, <code class="docutils literal notranslate"><span class="pre">Departure</span> <span class="pre">Delay</span> <span class="pre">in</span> <span class="pre">Minutes</span></code> and <code class="docutils literal notranslate"><span class="pre">Arrival</span> <span class="pre">Delay</span> <span class="pre">in</span> <span class="pre">Minutes</span></code> contribute to a lower predicted likelihood of satisfaction, again an expected pattern. The most negative influence however appears to come from <code class="docutils literal notranslate"><span class="pre">Class_Eco</span></code>.</p>
+<p><strong>CHAT &amp; LEARN</strong> There are faster methods for logistic regression. Ask your favorite AI chatbot for an explanation and implementation of the iteratively reweighted least squares method. Try it on this dataset. (<a class="reference external" href="https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_opt_notebook.ipynb">Open In Colab</a>) <span class="math notranslate nohighlight">\(\ddagger\)</span></p>
+<p><strong>TRY IT!</strong> One can attempt to predict whether a new customer, whose feature vector is <span class="math notranslate nohighlight">\(\boldsymbol{\alpha}\)</span>, will be satisfied by using the prediction function <span class="math notranslate nohighlight">\(p(\mathbf{x}; \boldsymbol{\alpha}) = \sigma(\boldsymbol{\alpha}^T \mathbf{x})\)</span>, where <span class="math notranslate nohighlight">\(\mathbf{x}\)</span> is the fitted coefficients. Say a customer is predicted to be satisfied if <span class="math notranslate nohighlight">\(\sigma(\boldsymbol{\alpha}^T \mathbf{x}) &gt; 0.5\)</span>. Implement this predictor and compute its accuracy on this dataset. (<a class="reference external" href="https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_opt_notebook.ipynb">Open In Colab</a>)</p>
+<p><strong>CHAT &amp; LEARN</strong> Because of the issue of overfitting, computing the accuracy of a predictor on a dataset used to estimate the coefficients is problematic. Ask your favorite AI chatbot about scikit-learn’s <code class="docutils literal notranslate"><span class="pre">train_test_split</span></code> function and how it helps resolve this issue. Implement it on this dataset. (<a class="reference external" href="https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_opt_notebook.ipynb">Open In Colab</a>) <span class="math notranslate nohighlight">\(\ddagger\)</span></p>
+<p><span class="math notranslate nohighlight">\(\unlhd\)</span></p>
+<p><em><strong>Self-assessment quiz</strong></em> <em>(with help from Claude, Gemini, and ChatGPT)</em></p>
+<p><strong>1</strong> What is the primary goal of logistic regression?</p>
+<p>a) To predict a continuous outcome variable.</p>
+<p>b) To classify data points into multiple categories.</p>
+<p>c) To model the probability of a binary outcome.</p>
+<p>d) To find the optimal linear combination of features.</p>
+<p><strong>2</strong> What is the relationship between maximizing the likelihood function and minimizing the cross-entropy loss in logistic regression?</p>
+<p>a) They are unrelated concepts.</p>
+<p>b) Maximizing the likelihood is equivalent to minimizing the cross-entropy loss.</p>
+<p>c) Minimizing the cross-entropy loss is a first step towards maximizing the likelihood.</p>
+<p>d) Maximizing the likelihood is a special case of minimizing the cross-entropy loss.</p>
+<p><strong>3</strong> Which of the following is the correct formula for the logistic regression objective function (cross-entropy loss)?</p>
+<p>a) <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \log(1 + \exp(-b_i \boldsymbol{\alpha}_i^T \mathbf{x}))\)</span></p>
+<p>b) <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n (b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))^2\)</span></p>
+<p>c) <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \{-b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1 - b_i) \log(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\}\)</span></p>
+<p>d) <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n b_i \boldsymbol{\alpha}_i^T \mathbf{x}\)</span></p>
+<p><strong>4</strong> What is the purpose of standardizing the input features in the airline customer satisfaction dataset example?</p>
+<p>a) To ensure the objective function is convex.</p>
+<p>b) To speed up the convergence of gradient descent.</p>
+<p>c) To allow comparison of the influence of different features on the prediction.</p>
+<p>d) To handle missing data in the dataset.</p>
+<p><strong>5</strong> Which of the following is a valid reason for adding a column of 1’s to the feature matrix in logistic regression?</p>
+<p>a) To ensure the objective function is convex.</p>
+<p>b) To allow for an intercept term in the model.</p>
+<p>c) To standardize the input features.</p>
+<p>d) To handle missing data in the dataset.</p>
+<p>Answer for 1: c. Justification: The text states that the goal of logistic regression is to “find a function of the features that approximates the probability of the label.”</p>
+<p>Answer for 2: b. Justification: The text states: “We seek to maximize the probability of observing the data… which is given by… Taking a logarithm, multiplying by <span class="math notranslate nohighlight">\(-1/n\)</span> and substituting the sigmoid function, we want to minimize the cross-entropy loss.”</p>
+<p>Answer for 3: c. Justification: The text states: “Hence, we want to solve the minimization problem <span class="math notranslate nohighlight">\(\min_{x \in \mathbb{R}^d} \ell(\mathbf{x}; A, \mathbf{b})\)</span>,” where <span class="math notranslate nohighlight">\(\ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \{-b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1 - b_i) \log(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\}\)</span>.</p>
+<p>Answer for 4: c. Justification: The text states: “We also standardize the columns by subtracting their mean and dividing by their standard deviation. This will allow to compare the influence of different features on the prediction.”</p>
+<p>Answer for 5: b. Justification: The text states: “To allow an affine function of the features, we add a column of 1’s as we have done before.”</p>
+    
+</body>
+</html>
