@@ -1,4 +1,4 @@
-# 2.6\. 练习题#
+# 2.6\. 练习题
 
 > 原文：[`mmids-textbook.github.io/chap02_ls/exercises/roch-mmids-ls-exercises.html`](https://mmids-textbook.github.io/chap02_ls/exercises/roch-mmids-ls-exercises.html)
 
@@ -148,13 +148,13 @@
 
 **2.6** （改编自[Axl]）证明如果 \(\{\mathbf{v}_1,\ldots,\mathbf{v}_n\}\) 张成 \(U\)，那么列表
 
-\[ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, \]
+$$ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, $$
 
 通过从每个向量（除了最后一个）中减去以下向量得到。\(\lhd\)
 
 **2.7** （改编自[Axl]）证明如果 \(\{\mathbf{v}_1,\ldots,\mathbf{v}_n\}\) 是线性无关的，那么列表
 
-\[ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, \]
+$$ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, $$
 
 通过从每个向量（除了最后一个）中减去以下向量得到。\(\lhd\)
 
@@ -172,7 +172,7 @@
 
 **2.15** 判断向量 \(\mathbf{v} = (0,0,1)\) 是否在由该基张成的子空间中。
 
-\[\begin{split} \mathbf{q}_1 = \frac{1}{\sqrt{2}} \begin{pmatrix} 1\\ 0\\ 1 \end{pmatrix}, \quad \mathbf{q}_2 = \frac{1}{\sqrt{3}} \begin{pmatrix} -1\\ 1\\ 1 \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{q}_1 = \frac{1}{\sqrt{2}} \begin{pmatrix} 1\\ 0\\ 1 \end{pmatrix}, \quad \mathbf{q}_2 = \frac{1}{\sqrt{3}} \begin{pmatrix} -1\\ 1\\ 1 \end{pmatrix}. \end{split}$$
 
 \(\lhd\)
 
@@ -198,7 +198,7 @@ c) \(\|\mathbf{x}_1\|² = \langle \mathbf{x}_1, \mathbf{x}_1 \rangle\)
 
 **2.22** 使用为 Householder 反射引入的符号，定义
 
-\[ \tilde{\mathbf{z}}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1}{\| \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1\|} \quad \text{and} \quad \tilde{H}_1 = I_{n\times n} - 2\tilde{\mathbf{z}}_1 \tilde{\mathbf{z}}_1^T. \]
+$$ \tilde{\mathbf{z}}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1}{\| \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1\|} \quad \text{and} \quad \tilde{H}_1 = I_{n\times n} - 2\tilde{\mathbf{z}}_1 \tilde{\mathbf{z}}_1^T. $$
 
 a) 证明 \(\tilde{H}_1 \mathbf{y}_1 = - \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}\)。
 
@@ -214,7 +214,7 @@ b) 在 \(\mathbf{y}_1 = \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}\) 的情况下计�
 
 **2.26** （改编自 [Sol]）假设 \(A \in \mathbb{R}^{m \times n}\) 的秩为 \(m\)，且 \(m \leq n\)。设
 
-\[ A^T = Q R \]
+$$ A^T = Q R $$
 
 be the QR decomposition of \(A^T\) obtained by the Gram-Schmidt algorithm. Provide a solution \(\mathbf{x}\) to the underdetermined system \(A\mathbf{x} = \mathbf{b}\) in terms of \(Q\) and \(R\). [*提示:* 首先尝试平方情况。然后通过添加 \(0\) 来猜测并检查一般情况的解。] \(\lhd\)
 
@@ -248,23 +248,23 @@ c) 检查上述两个命题对于 \(\mathbb{R}³\) 中 \(\mathbf{u} = (1, 0, 1)\
 
 **2.33** 证明对于任何 \(\mathbf{x}_1, \ldots, \mathbf{x}_m, \mathbf{y}_1, \ldots, \mathbf{y}_\ell, \in \mathbb{R}^n\),
 
-\[ \left\langle \sum_{i=1}^m \mathbf{x}_i, \sum_{j=1}^\ell \mathbf{y}_j \right\rangle = \sum_{i=1}^m \sum_{j=1}^\ell \langle \mathbf{x}_i,\mathbf{y}_j\rangle. \]
+$$ \left\langle \sum_{i=1}^m \mathbf{x}_i, \sum_{j=1}^\ell \mathbf{y}_j \right\rangle = \sum_{i=1}^m \sum_{j=1}^\ell \langle \mathbf{x}_i,\mathbf{y}_j\rangle. $$
 
 \(\lhd\)
 
 **2.34** 设 \(A \in \mathbb{R}^{n\times m}\) 为 \(n\times m\) 矩阵，其中 \(n \geq m\)，设 \(\mathbf{b} \in \mathbb{R}^n\) 为一个向量。设
 
-\[ \mathbf{p}^* = \arg\min_{\mathbf{p} \in U} \|\mathbf{p} - \mathbf{b}\|, \]
+$$ \mathbf{p}^* = \arg\min_{\mathbf{p} \in U} \|\mathbf{p} - \mathbf{b}\|, $$
 
 and \(\mathbf{x}^*\) be such that \(\mathbf{p}^* = A \mathbf{x}^*\). Construct an \(A\) and a \(\mathbf{b}\) such that \(\mathbf{x}^*\) is *not* unique. \(\lhd\)
 
 **2.35** 设 \(H_k \in \mathbb{R}^{n \times n}\) 为形式
 
-\[\begin{split} H_k = \begin{pmatrix} I_{(k-1)\times (k-1)} & \mathbf{0} \\ \mathbf{0} & F_k \end{pmatrix} \end{split}\]
+$$\begin{split} H_k = \begin{pmatrix} I_{(k-1)\times (k-1)} & \mathbf{0} \\ \mathbf{0} & F_k \end{pmatrix} \end{split}$$
 
 where
 
-\[ F_k = I_{(n-k+1) \times (n-k+1)} - 2 \mathbf{z}_k \mathbf{z}_k^T, \]
+$$ F_k = I_{(n-k+1) \times (n-k+1)} - 2 \mathbf{z}_k \mathbf{z}_k^T, $$
 
 for some unit vector \(\mathbf{z}_k \in \mathbb{R}^{n - k + 1}\). Show that \(H_k\) is an orthogonal matrix. \(\lhd\)
 
@@ -280,7 +280,7 @@ b) 假设 \(\mathbf{z}_1, \mathbf{z}_2 \neq \mathbf{0}\)，证明 \(\mathbf{y}_3
 
 a) 如果存在 \(d+1\) 个形式为
 
-\[\begin{split} \begin{pmatrix} 1 \\ \mathbf{x}_i \end{pmatrix} \end{split}\]
+$$\begin{split} \begin{pmatrix} 1 \\ \mathbf{x}_i \end{pmatrix} \end{split}$$
 
 that form an independent list.
 
@@ -298,11 +298,11 @@ b) 设 \(Q\) 为列向量为 \(\mathbf{q}_1, \ldots, \mathbf{q}_k\) 的矩阵。
 
 **2.40** 证明以下命题，该命题被称为 *子空间交集引理*。设 \(\mathcal{S}_1\) 和 \(\mathcal{S}_2\) 是 \(\mathbb{R}^d\) 的线性子空间，并设
 
-\[ \mathcal{S}_1 + \mathcal{S}_2 = \{\mathbf{x}_1 + \mathbf{x}_2 \,:\, \forall \mathbf{x}_1 \in \mathcal{S}_1, \mathbf{x}_2 \in \mathcal{S}_2\}. \]
+$$ \mathcal{S}_1 + \mathcal{S}_2 = \{\mathbf{x}_1 + \mathbf{x}_2 \,:\, \forall \mathbf{x}_1 \in \mathcal{S}_1, \mathbf{x}_2 \in \mathcal{S}_2\}. $$
 
 然后，它成立
 
-\[ \mathrm{dim}(\mathcal{S}_1 + \mathcal{S}_2) = \mathrm{dim}(\mathcal{S}_1) + \mathrm{dim}(\mathcal{S}_2) - \mathrm{dim}(\mathcal{S}_1 \cap \mathcal{S}_2). \]
+$$ \mathrm{dim}(\mathcal{S}_1 + \mathcal{S}_2) = \mathrm{dim}(\mathcal{S}_1) + \mathrm{dim}(\mathcal{S}_2) - \mathrm{dim}(\mathcal{S}_1 \cap \mathcal{S}_2). $$
 
 [*提示:* 考虑 \(\mathcal{S}_1 \cap \mathcal{S}_2\) 的一个基并将其扩展为 \(\mathcal{S}_1\) 和 \(\mathcal{S}_2\) 的基。证明得到的向量列表是线性无关的。] \(\lhd\)
 
@@ -310,7 +310,7 @@ b) 设 \(Q\) 为列向量为 \(\mathbf{q}_1, \ldots, \mathbf{q}_k\) 的矩阵。
 
 **2.42** 证明对于 \(\mathcal{V} = \mathbb{R}^d\) 的任意线性子空间 \(\mathcal{S}_1, \ldots, \mathcal{S}_m\)，它成立
 
-\[ \mathrm{dim}\left(\bigcap_{k=1}^m \mathcal{S}_k\right) \geq \sum_{k=1}^m \mathrm{dim}\left(\mathcal{S}_k\right) - (m-1) \,\mathrm{dim}(\mathcal{V}). \]
+$$ \mathrm{dim}\left(\bigcap_{k=1}^m \mathcal{S}_k\right) \geq \sum_{k=1}^m \mathrm{dim}\left(\mathcal{S}_k\right) - (m-1) \,\mathrm{dim}(\mathcal{V}). $$
 
 [*提示:* 使用问题 2.40 中的 *子空间交集引理* 和归纳法。] \(\lhd\)
 
@@ -474,13 +474,13 @@ b) 设 \(Q\) 为列向量为 \(\mathbf{q}_1, \ldots, \mathbf{q}_k\) 的矩阵。
 
 **2.6** （改编自[Axl]）证明如果 \(\{\mathbf{v}_1,\ldots,\mathbf{v}_n\}\) 张成 \(U\)，那么该列表也张成 \(U\)。
 
-\[ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, \]
+$$ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, $$
 
 通过从每个向量（除了最后一个）中减去以下向量得到。 \(\lhd\)
 
 **2.7** （改编自[Axl]）证明如果 \(\{\mathbf{v}_1,\ldots,\mathbf{v}_n\}\) 是线性无关的，那么该列表也是线性无关的。
 
-\[ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, \]
+$$ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, $$
 
 通过从每个向量（除了最后一个）中减去以下向量得到。 \(\lhd\)
 
@@ -498,7 +498,7 @@ b) 设 \(Q\) 为列向量为 \(\mathbf{q}_1, \ldots, \mathbf{q}_k\) 的矩阵。
 
 **2.14** 向量 \(\mathbf{v} = (0,0,1)\) 是否在由以下向量张成的空间中？
 
-\[\begin{split} \mathbf{q}_1 = \frac{1}{\sqrt{2}} \begin{pmatrix} 1\\ 0\\ 1 \end{pmatrix}, \quad \mathbf{q}_2 = \frac{1}{\sqrt{3}} \begin{pmatrix} -1\\ 1\\ 1 \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{q}_1 = \frac{1}{\sqrt{2}} \begin{pmatrix} 1\\ 0\\ 1 \end{pmatrix}, \quad \mathbf{q}_2 = \frac{1}{\sqrt{3}} \begin{pmatrix} -1\\ 1\\ 1 \end{pmatrix}. \end{split}$$
 
 \(\lhd\)
 
@@ -524,7 +524,7 @@ c) \(\|\mathbf{x}_1\|² = \langle \mathbf{x}_1, \mathbf{x}_1 \rangle\)
 
 **2.21** 使用为 Householder 反射引入的符号，定义
 
-\[ \tilde{\mathbf{z}}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1}{\| \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1\|} \quad \text{和} \quad \tilde{H}_1 = I_{n\times n} - 2\tilde{\mathbf{z}}_1 \tilde{\mathbf{z}}_1^T. \]
+$$ \tilde{\mathbf{z}}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1}{\| \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1\|} \quad \text{和} \quad \tilde{H}_1 = I_{n\times n} - 2\tilde{\mathbf{z}}_1 \tilde{\mathbf{z}}_1^T. $$
 
 a) 证明 \(\tilde{H}_1 \mathbf{y}_1 = - \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}\).
 
@@ -540,7 +540,7 @@ b) 在 \(\mathbf{y}_1 = \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}\) 的情况下计�
 
 **2.26** (改编自 [Sol]) 假设 \(A \in \mathbb{R}^{m \times n}\) 的秩为 \(m\)，其中 \(m \leq n\)。令
 
-\[ A^T = Q R \]
+$$ A^T = Q R $$
 
 是通过 Gram-Schmidt 算法获得的 \(A^T\) 的 QR 分解。以 \(Q\) 和 \(R\) 为条件，提供一个解 \(\mathbf{x}\) 来解决欠定系统 \(A\mathbf{x} = \mathbf{b}\)。[*提示:* 首先尝试平方情况。然后通过添加 \(0\) 来猜测和检查一般情况的解。] \(\lhd\)
 
@@ -574,23 +574,23 @@ c) 检查上述两个关于在 \(\mathbb{R}³\) 中投影到 \(\mathbf{u} = (1, 
 
 **2.33** 证明对于任何 \(\mathbf{x}_1, \ldots, \mathbf{x}_m, \mathbf{y}_1, \ldots, \mathbf{y}_\ell, \in \mathbb{R}^n\),
 
-\[ \left\langle \sum_{i=1}^m \mathbf{x}_i, \sum_{j=1}^\ell \mathbf{y}_j \right\rangle = \sum_{i=1}^m \sum_{j=1}^\ell \langle \mathbf{x}_i,\mathbf{y}_j\rangle. \]
+$$ \left\langle \sum_{i=1}^m \mathbf{x}_i, \sum_{j=1}^\ell \mathbf{y}_j \right\rangle = \sum_{i=1}^m \sum_{j=1}^\ell \langle \mathbf{x}_i,\mathbf{y}_j\rangle. $$
 
 \(\lhd\)
 
 **2.34** 设 \(A \in \mathbb{R}^{n\times m}\) 是一个 \(n\times m\) 的矩阵，其中 \(n \geq m\)，且设 \(\mathbf{b} \in \mathbb{R}^n\) 是一个向量。设
 
-\[ \mathbf{p}^* = \arg\min_{\mathbf{p} \in U} \|\mathbf{p} - \mathbf{b}\|, \]
+$$ \mathbf{p}^* = \arg\min_{\mathbf{p} \in U} \|\mathbf{p} - \mathbf{b}\|, $$
 
 以及 \(\mathbf{x}^*\) 使得 \(\mathbf{p}^* = A \mathbf{x}^*\)。构造一个 \(A\) 和一个 \(\mathbf{b}\)，使得 \(\mathbf{x}^*\) 不是唯一的。 \(\lhd\)
 
 **2.35** 设 \(H_k \in \mathbb{R}^{n \times n}\) 是一个形式为
 
-\[\begin{split} H_k = \begin{pmatrix} I_{(k-1)\times (k-1)} & \mathbf{0} \\ \mathbf{0} & F_k \end{pmatrix} \end{split}\]
+$$\begin{split} H_k = \begin{pmatrix} I_{(k-1)\times (k-1)} & \mathbf{0} \\ \mathbf{0} & F_k \end{pmatrix} \end{split}$$
 
 其中
 
-\[ F_k = I_{(n-k+1) \times (n-k+1)} - 2 \mathbf{z}_k \mathbf{z}_k^T, \]
+$$ F_k = I_{(n-k+1) \times (n-k+1)} - 2 \mathbf{z}_k \mathbf{z}_k^T, $$
 
 对于某个单位向量 \(\mathbf{z}_k \in \mathbb{R}^{n - k + 1}\)。证明 \(H_k\) 是一个正交矩阵。 \(\lhd\)
 
@@ -606,7 +606,7 @@ b) 假设 \(\mathbf{z}_1, \mathbf{z}_2 \neq \mathbf{0}\)，证明 \(\mathbf{y}_3
 
 a) 如果存在 \(d+1\) 个形式为
 
-\[\begin{split} \begin{pmatrix} 1 \\ \mathbf{x}_i \end{pmatrix} \end{split}\]
+$$\begin{split} \begin{pmatrix} 1 \\ \mathbf{x}_i \end{pmatrix} \end{split}$$
 
 形成一个独立的列表。
 
@@ -624,11 +624,11 @@ b) 设 \(Q\) 是列向量为 \(\mathbf{q}_1, \ldots, \mathbf{q}_k\) 的矩阵。
 
 **2.40** 证明以下命题，该命题被称为 *子空间交集引理*。设 \(\mathcal{S}_1\) 和 \(\mathcal{S}_2\) 是 \(\mathbb{R}^d\) 的线性子空间，并设
 
-\[ \mathcal{S}_1 + \mathcal{S}_2 = \{\mathbf{x}_1 + \mathbf{x}_2 \,:\, \forall \mathbf{x}_1 \in \mathcal{S}_1, \mathbf{x}_2 \in \mathcal{S}_2\}. \]
+$$ \mathcal{S}_1 + \mathcal{S}_2 = \{\mathbf{x}_1 + \mathbf{x}_2 \,:\, \forall \mathbf{x}_1 \in \mathcal{S}_1, \mathbf{x}_2 \in \mathcal{S}_2\}. $$
 
 然后，它成立
 
-\[ \mathrm{dim}(\mathcal{S}_1 + \mathcal{S}_2) = \mathrm{dim}(\mathcal{S}_1) + \mathrm{dim}(\mathcal{S}_2) - \mathrm{dim}(\mathcal{S}_1 \cap \mathcal{S}_2). \]
+$$ \mathrm{dim}(\mathcal{S}_1 + \mathcal{S}_2) = \mathrm{dim}(\mathcal{S}_1) + \mathrm{dim}(\mathcal{S}_2) - \mathrm{dim}(\mathcal{S}_1 \cap \mathcal{S}_2). $$
 
 [*提示:* 考虑 \(\mathcal{S}_1 \cap \mathcal{S}_2\) 的一个基，并将其扩展为 \(\mathcal{S}_1\) 和 \(\mathcal{S}_2\) 的基。证明得到的向量列表是线性无关的。] \(\lhd\)
 
@@ -636,7 +636,7 @@ b) 设 \(Q\) 是列向量为 \(\mathbf{q}_1, \ldots, \mathbf{q}_k\) 的矩阵。
 
 **2.42** 证明，对于 \(\mathcal{V} = \mathbb{R}^d\) 的任何线性子空间 \(\mathcal{S}_1, \ldots, \mathcal{S}_m\)，都有
 
-\[ \mathrm{dim}\left(\bigcap_{k=1}^m \mathcal{S}_k\right) \geq \sum_{k=1}^m \mathrm{dim}\left(\mathcal{S}_k\right) - (m-1) \,\mathrm{dim}(\mathcal{V}). \]
+$$ \mathrm{dim}\left(\bigcap_{k=1}^m \mathcal{S}_k\right) \geq \sum_{k=1}^m \mathrm{dim}\left(\mathcal{S}_k\right) - (m-1) \,\mathrm{dim}(\mathcal{V}). $$
 
 [*提示:* 使用问题 2.40 中的 *子空间交集引理* 和归纳法。] \(\lhd\)
 

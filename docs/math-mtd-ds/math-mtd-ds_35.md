@@ -1,4 +1,4 @@
-# 5\. 谱图论#
+# 5\. 谱图论
 
 > 原文：[`mmids-textbook.github.io/chap05_specgraph/00_intro/roch-mmids-specgraph-intro.html`](https://mmids-textbook.github.io/chap05_specgraph/00_intro/roch-mmids-specgraph-intro.html)
 

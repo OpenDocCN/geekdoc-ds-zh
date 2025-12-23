@@ -1,4 +1,4 @@
-# 8.1. 激励示例：对自然图像进行分类#
+# 8.1. 激励示例：对自然图像进行分类
 
 > 原文：[`mmids-textbook.github.io/chap08_nn/01_motiv/roch-mmids-nn-motiv.html`](https://mmids-textbook.github.io/chap08_nn/01_motiv/roch-mmids-nn-motiv.html)
 
@@ -10,7 +10,7 @@
 
 ![Fashion-MNIST 样本图像](img/ca5de089f1108499cd298a6112fb5d69.png)
 
-\(\bowtie\)
+$\bowtie$
 
 我们首先加载数据并将其转换为适当的矩阵表示。数据可以通过 `torchvision.datasets.FashionMNIST` 访问。
 

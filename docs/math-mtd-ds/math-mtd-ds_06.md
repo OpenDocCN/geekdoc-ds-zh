@@ -1,4 +1,4 @@
-# 1.4\. 高维数据的一些观察#
+# 1.4\. 高维数据的一些观察
 
 > 原文：[`mmids-textbook.github.io/chap01_intro/04_highdim/roch-mmids-intro-highdim.html`](https://mmids-textbook.github.io/chap01_intro/04_highdim/roch-mmids-intro-highdim.html)
 
@@ -155,7 +155,7 @@ plt.show()
 
 **定理** **(高维立方体)** \(\idx{high-dimensional cube theorem}\xdi\) 设 \(\mathcal{B} = \{\mathbf{x} \in \mathbb{R}^d \,:\, \|\mathbf{x}\|\leq 1/2\}\) 和 \(\mathcal{C} = [-1/2,1/2]^d\)。选择 \(\mathbf{X} \sim \mathrm{U}[\mathcal{C}]\)。那么，当 \(d \to +\infty\) 时，
 
-\[ \mathbb{P}[\mathbf{X} \in \mathcal{B}] \to 0. \]
+$$ \mathbb{P}[\mathbf{X} \in \mathcal{B}] \to 0. $$
 
 \(\sharp\)
 
@@ -173,23 +173,23 @@ plt.show()
 
 *证明:* 为了看到 *切比雪夫不等式* 的相关性，我们计算 \(\mathbf{X}\) 的范数的均值和标准差。实际上，由于 \(\|\mathbf{X}\|\) 中的平方根，计算其期望是困难的。因此，我们处理平方范数
 
-\[ \|\mathbf{X}\|² = X_1² + X_2² + \cdots + X_d², \]
+$$ \|\mathbf{X}\|² = X_1² + X_2² + \cdots + X_d², $$
 
 这具有作为独立随机变量和的优势——对于这些变量的期望和方差更容易计算。进一步观察，感兴趣的事件的概率 \(\{\|\mathbf{X}\| \leq 1/2\}\) 可以用 \(\|\mathbf{X}\|²\) 表示如下
 
-\[\begin{align*} \mathbb{P} \left[ \|\mathbf{X}\| \leq 1/2 \right] &= \mathbb{P} \left[ \|\mathbf{X}\|² \leq 1/4 \right]. \end{align*}\]
+$$\begin{align*} \mathbb{P} \left[ \|\mathbf{X}\| \leq 1/2 \right] &= \mathbb{P} \left[ \|\mathbf{X}\|² \leq 1/4 \right]. \end{align*}$$
 
 为了简化符号，我们使用 \(\tilde\mu = \mathbb{E}[X_1²]\) 和 \(\tilde\sigma = \sqrt{\mathrm{Var}[X_1²]}\) 分别表示 \(X_1²\) 的均值和标准差。利用期望的线性性和 \(X_i\) 的独立性，我们得到
 
-\[ \mu_{\|\mathbf{X}\|²} = \mathbb{E}\left[ \|\mathbf{X}\|² \right] = \sum_{i=1}^d \mathbb{E}[X_i²] = d \,\mathbb{E}[X_1²] = \tilde\mu \, d, \]
+$$ \mu_{\|\mathbf{X}\|²} = \mathbb{E}\left[ \|\mathbf{X}\|² \right] = \sum_{i=1}^d \mathbb{E}[X_i²] = d \,\mathbb{E}[X_1²] = \tilde\mu \, d, $$
 
 和
 
-\[ \mathrm{Var}\left[ \|\mathbf{X}\|² \right] = \sum_{i=1}^d \mathrm{Var}[X_i²] = d \,\mathrm{Var}[X_1²]. \]
+$$ \mathrm{Var}\left[ \|\mathbf{X}\|² \right] = \sum_{i=1}^d \mathrm{Var}[X_i²] = d \,\mathrm{Var}[X_1²]. $$
 
 取平方根，我们得到我们感兴趣的数量 \(\|\mathbf{X}\|²\) 的标准差的表达式，它是 \(X_1²\) 的标准差的函数
 
-\[ \sigma_{\|\mathbf{X}\|²} = \tilde\sigma \, \sqrt{d}. \]
+$$ \sigma_{\|\mathbf{X}\|²} = \tilde\sigma \, \sqrt{d}. $$
 
 （注意，我们可以显式地计算 \(\tilde\mu\) 和 \(\tilde\sigma\)，但在这里将不是必要的。）
 
@@ -197,21 +197,21 @@ plt.show()
 
 根据标准差的单边版本 *切比雪夫不等式*，我们有
 
-\[ \mathbb{P}\left[ \|\mathbf{X}\|² - \mu_{\|\mathbf{X}\|²} \leq - \alpha \right] \leq \left(\frac{\sigma_{\|\mathbf{X}\|²}}{\alpha}\right)². \]
+$$ \mathbb{P}\left[ \|\mathbf{X}\|² - \mu_{\|\mathbf{X}\|²} \leq - \alpha \right] \leq \left(\frac{\sigma_{\|\mathbf{X}\|²}}{\alpha}\right)². $$
 
 那就是，使用上述公式并稍作整理，
 
-\[ \mathbb{P}\left[ \|\mathbf{X}\|² \leq \tilde\mu \, d - \alpha \right] \leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\alpha}\right)². \]
+$$ \mathbb{P}\left[ \|\mathbf{X}\|² \leq \tilde\mu \, d - \alpha \right] \leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\alpha}\right)². $$
 
 我们如何将此与感兴趣的概率 \(\mathbb{P}\left[\|\mathbf{X}\|² \leq 1/4\right]\) 相关联？回想一下，我们可以自由选择这个不等式中的 \(\alpha\)。因此，简单地取 \(\alpha\) 使得
 
-\[ \tilde\mu \,d - \alpha = \frac{1}{4}, \]
+$$ \tilde\mu \,d - \alpha = \frac{1}{4}, $$
 
 即，\(\alpha = \tilde\mu \,d - 1/4\)。观察一下，一旦 \(d\) 足够大，就成立 \(\alpha > 0\)。
 
 最后，将这个 \(\alpha\) 的选择代入上述不等式中
 
-\[\begin{align*} \mathbb{P} \left[ \|\mathbf{X}\| \leq 1/2 \right] &= \mathbb{P}\left[\|\mathbf{X}\|² \leq 1/4\right]\\ &= \mathbb{P}\left[ \|\mathbf{X}\|² \leq \tilde\mu \, d - \alpha \right]\\ &\leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\alpha}\right)²\\ &\leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\tilde\mu \,d - 1/4}\right)². \end{align*}\]
+$$\begin{align*} \mathbb{P} \left[ \|\mathbf{X}\| \leq 1/2 \right] &= \mathbb{P}\left[\|\mathbf{X}\|² \leq 1/4\right]\\ &= \mathbb{P}\left[ \|\mathbf{X}\|² \leq \tilde\mu \, d - \alpha \right]\\ &\leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\alpha}\right)²\\ &\leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\tilde\mu \,d - 1/4}\right)². \end{align*}$$
 
 关键的是，\(\tilde\mu\) 和 \(\tilde\sigma\) 不依赖于 \(d\)。因此，当 \(d \to +\infty\) 时，右侧趋于 \(0\)。实际上，当 \(d\) 很大时，\(d\) 远大于 \(\sqrt{d}\)。这证明了该命题。\(\square\)
 
@@ -298,7 +298,7 @@ d) 它是相关随机变量的乘积。
 
 5 题的答案：b. 证明：证明中提到，“我们使用平方范数”
 
-\[ \|\mathbf{X}\|² = X_1² + X_2² + \cdots + X_d², \]
+$$ \|\mathbf{X}\|² = X_1² + X_2² + \cdots + X_d², $$
 
 这具有作为独立随机变量之和的优势。”
 
@@ -453,7 +453,7 @@ plt.show()
 
 **定理** **(高维立方体)** \(\idx{高维立方体定理}\xdi\) 设 \(\mathcal{B} = \{\mathbf{x} \in \mathbb{R}^d \,:\, \|\mathbf{x}\|\leq 1/2\}\) 和 \(\mathcal{C} = [-1/2,1/2]^d\). 从 \(\mathrm{U}[\mathcal{C}]\) 中选取 \(\mathbf{X}\)。当 \(d \to +\infty\) 时，
 
-\[ \mathbb{P}[\mathbf{X} \in \mathcal{B}] \to 0. \]
+$$ \mathbb{P}[\mathbf{X} \in \mathcal{B}] \to 0. $$
 
 \(\sharp\)
 
@@ -471,23 +471,23 @@ plt.show()
 
 *证明：* 为了看到**切比雪夫不等式**的相关性，我们计算 \(\mathbf{X}\) 的范数的均值和标准差。实际上，由于 \(\|\mathbf{X}\|\) 中的平方根，计算其期望是困难的。因此，我们处理平方范数
 
-\[ \|\mathbf{X}\|² = X_1² + X_2² + \cdots + X_d², \]
+$$ \|\mathbf{X}\|² = X_1² + X_2² + \cdots + X_d², $$
 
 这具有将独立随机变量的和作为优势——对于这些变量的期望和方差更容易计算。进一步观察，感兴趣的事件的概率 \(\{\|\mathbf{X}\| \leq 1/2\}\) 可以用 \(\|\mathbf{X}\|²\) 表示如下
 
-\[\begin{align*} \mathbb{P} \left[ \|\mathbf{X}\| \leq 1/2 \right] &= \mathbb{P} \left[ \|\mathbf{X}\|² \leq 1/4 \right]. \end{align*}\]
+$$\begin{align*} \mathbb{P} \left[ \|\mathbf{X}\| \leq 1/2 \right] &= \mathbb{P} \left[ \|\mathbf{X}\|² \leq 1/4 \right]. \end{align*}$$
 
 为了简化符号，我们分别用 \(\tilde\mu = \mathbb{E}[X_1²]\) 和 \(\tilde\sigma = \sqrt{\mathrm{Var}[X_1²]}\) 表示 \(X_1²\) 的均值和标准差。利用期望的线性性和 \(X_i\) 的独立性，我们得到
 
-\[ \mu_{\|\mathbf{X}\|²} = \mathbb{E}\left[ \|\mathbf{X}\|² \right] = \sum_{i=1}^d \mathbb{E}[X_i²] = d \,\mathbb{E}[X_1²] = \tilde\mu \, d, \]
+$$ \mu_{\|\mathbf{X}\|²} = \mathbb{E}\left[ \|\mathbf{X}\|² \right] = \sum_{i=1}^d \mathbb{E}[X_i²] = d \,\mathbb{E}[X_1²] = \tilde\mu \, d, $$
 
 和
 
-\[ \mathrm{Var}\left[ \|\mathbf{X}\|² \right] = \sum_{i=1}^d \mathrm{Var}[X_i²] = d \,\mathrm{Var}[X_1²]. \]
+$$ \mathrm{Var}\left[ \|\mathbf{X}\|² \right] = \sum_{i=1}^d \mathrm{Var}[X_i²] = d \,\mathrm{Var}[X_1²]. $$
 
 开平方，我们得到我们感兴趣的数量 \(\|\mathbf{X}\|²\) 的标准差的表达式，它是 \(X_1²\) 的标准差的函数
 
-\[ \sigma_{\|\mathbf{X}\|²} = \tilde\sigma \, \sqrt{d}. \]
+$$ \sigma_{\|\mathbf{X}\|²} = \tilde\sigma \, \sqrt{d}. $$
 
 （注意，我们可以显式地计算 \(\tilde\mu\) 和 \(\tilde\sigma\)，但在这里并不必要。）
 
@@ -495,21 +495,21 @@ plt.show()
 
 通过标准差的单侧版本 *切比雪夫不等式*，我们有
 
-\[ \mathbb{P}\left[ \|\mathbf{X}\|² - \mu_{\|\mathbf{X}\|²} \leq - \alpha \right] \leq \left(\frac{\sigma_{\|\mathbf{X}\|²}}{\alpha}\right)². \]
+$$ \mathbb{P}\left[ \|\mathbf{X}\|² - \mu_{\|\mathbf{X}\|²} \leq - \alpha \right] \leq \left(\frac{\sigma_{\|\mathbf{X}\|²}}{\alpha}\right)². $$
 
 也就是说，使用上述公式并稍作整理，
 
-\[ \mathbb{P}\left[ \|\mathbf{X}\|² \leq \tilde\mu \, d - \alpha \right] \leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\alpha}\right)². \]
+$$ \mathbb{P}\left[ \|\mathbf{X}\|² \leq \tilde\mu \, d - \alpha \right] \leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\alpha}\right)². $$
 
 我们如何将这个结果与感兴趣的概率 \(\mathbb{P}\left[\|\mathbf{X}\|² \leq 1/4\right]\) 相关联？回想一下，在这个不等式中我们可以自由选择 \(\alpha\)。所以只需取 \(\alpha\) 使得
 
-\[ \tilde\mu \,d - \alpha = \frac{1}{4}, \]
+$$ \tilde\mu \,d - \alpha = \frac{1}{4}, $$
 
 即，\(\alpha = \tilde\mu \,d - 1/4\)。观察一下，一旦 \(d\) 足够大，就有 \(\alpha > 0\)。
 
 最后，将上述不等式中的 \(\alpha\) 替换为这个选择
 
-\[\begin{align*} \mathbb{P} \left[ \|\mathbf{X}\| \leq 1/2 \right] &= \mathbb{P}\left[\|\mathbf{X}\|² \leq 1/4\right]\\ &= \mathbb{P}\left[ \|\mathbf{X}\|² \leq \tilde\mu \, d - \alpha \right]\\ &\leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\alpha}\right)²\\ &\leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\tilde\mu \,d - 1/4}\right)². \end{align*}\]
+$$\begin{align*} \mathbb{P} \left[ \|\mathbf{X}\| \leq 1/2 \right] &= \mathbb{P}\left[\|\mathbf{X}\|² \leq 1/4\right]\\ &= \mathbb{P}\left[ \|\mathbf{X}\|² \leq \tilde\mu \, d - \alpha \right]\\ &\leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\alpha}\right)²\\ &\leq \left(\frac{\tilde\sigma \, \sqrt{d}}{\tilde\mu \,d - 1/4}\right)². \end{align*}$$
 
 关键的是，\(\tilde\mu\) 和 \(\tilde\sigma\) 不依赖于 \(d\)。因此，当 \(d \to +\infty\) 时，右侧趋于 \(0\)。实际上，当 \(d\) 很大时，\(d\) 远大于 \(\sqrt{d}\)。这证明了我们的断言。\(\square\)
 
@@ -596,6 +596,6 @@ d) 它是相关随机变量的乘积。
 
 答案 5：b. 理由：证明中提到，“我们处理平方范数”
 
-\[ \|\mathbf{X}\|² = X_1² + X_2² + \cdots + X_d², \]
+$$ \|\mathbf{X}\|² = X_1² + X_2² + \cdots + X_d², $$
 
 具有作为独立随机变量之和的优势。”

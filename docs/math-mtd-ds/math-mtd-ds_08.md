@@ -1,4 +1,4 @@
-# 1.6\. 在线补充材料##
+# 1.6\. 在线补充材料#
 
 > 原文：[`mmids-textbook.github.io/chap01_intro/supp/roch-mmids-intro-supp.html`](https://mmids-textbook.github.io/chap01_intro/supp/roch-mmids-intro-supp.html)
 
@@ -34,15 +34,15 @@
 
 E1.2.1 的答案和解释：欧几里得范数 \(\|\mathbf{x}\|_2\) 定义为
 
-\[ \|\mathbf{x}\|_2 = \sqrt{x_1² + x_2²} = \sqrt{6² + 8²} = \sqrt{36 + 64} = \sqrt{100} = 10. \]
+$$ \|\mathbf{x}\|_2 = \sqrt{x_1² + x_2²} = \sqrt{6² + 8²} = \sqrt{36 + 64} = \sqrt{100} = 10. $$
 
 E1.2.3 的答案和解释：通过交换行和列得到转置矩阵 \(A^T\)
 
-\[\begin{split} A^T = \begin{pmatrix}1 & 4 \\ 2 & 5 \\ 3 & 6\end{pmatrix} \end{split}\]
+$$\begin{split} A^T = \begin{pmatrix}1 & 4 \\ 2 & 5 \\ 3 & 6\end{pmatrix} \end{split}$$
 
 E1.2.5 的答案和解释：如果一个矩阵 \(A\) 满足 \(A = A^T\)，则该矩阵是对称的
 
-\[\begin{split} A^T = \begin{pmatrix}2 & 0 \\ 0 & 3\end{pmatrix} = A. \end{split}\]
+$$\begin{split} A^T = \begin{pmatrix}2 & 0 \\ 0 & 3\end{pmatrix} = A. \end{split}$$
 
 因此，\(A\) 是对称的。
 
@@ -54,11 +54,11 @@ E1.2.5 的答案和解释：如果一个矩阵 \(A\) 满足 \(A = A^T\)，则该
 
 对 E1.2.11 的答案和解释：首先，计算 \(\E[X²]\)
 
-\[ \E[X²] = \sum_{x} x² \cdot P(X = x) = 1² \cdot 0.4 + 2² \cdot 0.6 = 0.4 + 4 \cdot 0.6 = 0.4 + 2.4 = 2.8. \]
+$$ \E[X²] = \sum_{x} x² \cdot P(X = x) = 1² \cdot 0.4 + 2² \cdot 0.6 = 0.4 + 4 \cdot 0.6 = 0.4 + 2.4 = 2.8. $$
 
 然后，使用公式 \(\mathrm{Var}[X] = \E[X²] - (\E[X])²\)
 
-\[ \mathrm{Var}[X] = 2.8 - (1.6)² = 2.8 - 2.56 = 0.24. \]
+$$ \mathrm{Var}[X] = 2.8 - (1.6)² = 2.8 - 2.56 = 0.24. $$
 
 对 E1.2.13 的答案和解释：根据 **切比雪夫不等式**，对于任何 \(\alpha > 0\)，\(\P[|X - \mathbb{E}[X]| \geq \alpha] \leq \frac{\mathrm{Var}[X]}{\alpha²}\)。这里，\(\alpha = 4\)，所以 \(\P[|X - 3| \geq 4] \leq \frac{4}{4²} = \frac{1}{4}\)。
 
@@ -68,7 +68,7 @@ E1.2.5 的答案和解释：如果一个矩阵 \(A\) 满足 \(A = A^T\)，则该
 
 对 E1.2.19 的答案和解释：对于任何非零向量 \(z = \begin{pmatrix} z_1 \\ z_2 \end{pmatrix}\)，我们有
 
-\[\begin{align*} z^TAz &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix} \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \\ &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2z_1 - z_2 \\ -z_1 + 2z_2 \end{pmatrix} \\ &= 2z_1² - 2z_1z_2 + 2z_2² \\ &= z_1² + (z_1 - z_2)² + z_2² > 0 \end{align*}\]
+$$\begin{align*} z^TAz &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix} \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \\ &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2z_1 - z_2 \\ -z_1 + 2z_2 \end{pmatrix} \\ &= 2z_1² - 2z_1z_2 + 2z_2² \\ &= z_1² + (z_1 - z_2)² + z_2² > 0 \end{align*}$$
 
 由于 \((z_1 - z_2)² \geq 0\)，并且 \(z_1² > 0\) 或 \(z_2² > 0\)（因为 \(z \neq 0\)）。因此，\(A\) 是正定的。
 
@@ -86,15 +86,15 @@ E1.2.5 的答案和解释：如果一个矩阵 \(A\) 满足 \(A = A^T\)，则该
 
 对 E1.4.1 的回答和证明：由于\(X_i\)在\([-1/2, 1/2]\)上均匀分布，其概率密度函数为\(f_{X_i}(x) = 1\)，当\(x \in [-1/2, 1/2]\)时，否则为 0。因此，
 
-\[\mathbb{E}[X_i] = \int_{-1/2}^{1/2} x f_{X_i}(x) dx = \int_{-1/2}^{1/2} x dx = 0\]
+$$\mathbb{E}[X_i] = \int_{-1/2}^{1/2} x f_{X_i}(x) dx = \int_{-1/2}^{1/2} x dx = 0$$
 
 和
 
-\[\text{Var}[X_i] = \mathbb{E}[X_i²] - (\mathbb{E}[X_i])² = \int_{-1/2}^{1/2} x² dx = \frac{1}{12}.\]
+$$\text{Var}[X_i] = \mathbb{E}[X_i²] - (\mathbb{E}[X_i])² = \int_{-1/2}^{1/2} x² dx = \frac{1}{12}.$$
 
 对 E1.4.3 的回答和证明：我们有
 
-\[\mathbb{E}[\|X\|²] = \mathbb{E}\left[\sum_{i=1}^d X_i²\right] = \sum_{i=1}^d \mathbb{E}[X_i²] = \sum_{i=1}^d 1 = d.\]
+$$\mathbb{E}[\|X\|²] = \mathbb{E}\left[\sum_{i=1}^d X_i²\right] = \sum_{i=1}^d \mathbb{E}[X_i²] = \sum_{i=1}^d 1 = d.$$
 
 对 E1.4.5 的回答和证明：根据**切比雪夫不等式**，\(P[|X - 1| \geq 3] \leq \frac{\mathrm{Var}[X]}{3²} = \frac{4}{9}\)。
 
@@ -172,7 +172,7 @@ E1.2.5 的答案和解释：如果一个矩阵 \(A\) 满足 \(A = A^T\)，则该
 
 **定理** 设 \(\mathbf{X}_1, \mathbf{X}_2, \mathbf{Y}_1\) 是独立的球形 \(d\)-维高斯分布，均值为 \(-w_d \mathbf{e}_1\)，方差为 \(1\)，其中 \(\{w_d\}\) 是 \(d\) 中的单调序列。设 \(\mathbf{Y}_2\) 是独立的球形 \(d\)-维高斯分布，均值为 \(w_d \mathbf{e}_1\)，方差为 \(1\)。令 \(\Delta_d = \|\mathbf{Y}_1 - \mathbf{Y}_2\|² - \|\mathbf{X}_1 - \mathbf{X}_2\|²\)，当 \(d \to +\infty\) 时
 
-\[\begin{split} \frac{\mathbb{E}[\Delta_d]}{\sqrt{\mathrm{Var}[\Delta_d]}} \to \begin{cases} 0, & \text{如果 $w_d \ll d^{1/4}$}\\ +\infty, & \text{如果 $w_d \gg d^{1/4}$} \end{cases} \end{split}\]
+$$\begin{split} \frac{\mathbb{E}[\Delta_d]}{\sqrt{\mathrm{Var}[\Delta_d]}} \to \begin{cases} 0, & \text{如果 $w_d \ll d^{1/4}$}\\ +\infty, & \text{如果 $w_d \gg d^{1/4}$} \end{cases} \end{split}$$
 
 其中 \(w_d \ll d^{1/4}\) 表示 \(w_d/d^{1/4} \to 0\)。\(\sharp\)
 
@@ -184,7 +184,7 @@ E1.2.5 的答案和解释：如果一个矩阵 \(A\) 满足 \(A = A^T\)，则该
 
 *证明:* 通过对称性，
 
-\[ \mathbb{E}[W^k] = \mathbb{E}[(-W)^k] = \mathbb{E}[(-1)^k W^k] = - \mathbb{E}[W^k]. \]
+$$ \mathbb{E}[W^k] = \mathbb{E}[(-W)^k] = \mathbb{E}[(-1)^k W^k] = - \mathbb{E}[W^k]. $$
 
 满足这个方程的唯一方法是 \(\mathbb{E}[W^k] = 0\)。\(\square\)
 
@@ -196,33 +196,33 @@ E1.2.5 的答案和解释：如果一个矩阵 \(A\) 满足 \(A = A^T\)，则该
 
 *(1) \(\Delta\) 的期望：* 根据定义，随机变量 \(X_{1,i} - X_{2,i}\)，\(i = 1,\ldots, d\)，和 \(Y_{1,i} - Y_{2,i}\)，\(i = 2,\ldots, d\)，是同分布的。因此，根据期望的线性，我们有
 
-\[\begin{align*} \mathbb{E}[\Delta] &= \sum_{i=1}^d \mathbb{E}[(Y_{1,i} - Y_{2,i})²] - \sum_{i=1}^d \mathbb{E}[(X_{1,i} - X_{2,i})²]\\ &= \mathbb{E}[(Y_{1,1} - Y_{2,1})²] - \mathbb{E}[(X_{1,1} - X_{2,1})²]. \end{align*}\]
+$$\begin{align*} \mathbb{E}[\Delta] &= \sum_{i=1}^d \mathbb{E}[(Y_{1,i} - Y_{2,i})²] - \sum_{i=1}^d \mathbb{E}[(X_{1,i} - X_{2,i})²]\\ &= \mathbb{E}[(Y_{1,1} - Y_{2,1})²] - \mathbb{E}[(X_{1,1} - X_{2,1})²]. \end{align*}$$
 
 进一步，我们可以写出 \(Y_{1,1} - Y_{1,2} \sim (Z_1 -w) - (Z_2+w)\) 其中 \(Z_1, Z_2 \sim N(0,1)\) 是独立的，其中这里 \(\sim\) 表示分布上的等价。因此，我们有
 
-\[\begin{align*} \mathbb{E}[(Y_{1,1} - Y_{2,1})²] &= \mathbb{E}[(Z_1 - Z_2 - 2w)²]\\ &= \mathbb{E}[(Z_1 - Z_2)²] - 4w \,\mathbb{E}[Z_1 - Z_2] + 4 w². \end{align*}\]
+$$\begin{align*} \mathbb{E}[(Y_{1,1} - Y_{2,1})²] &= \mathbb{E}[(Z_1 - Z_2 - 2w)²]\\ &= \mathbb{E}[(Z_1 - Z_2)²] - 4w \,\mathbb{E}[Z_1 - Z_2] + 4 w². \end{align*}$$
 
 类似地，\(X_{1,1} - X_{1,2} \sim Z_1 - Z_2\) 因此 \(\mathbb{E}[(X_{1,1} - X_{2,1})²] = \mathbb{E}[(Z_1 - Z_2)²]\)。由于 \(\mathbb{E}[Z_1 - Z_2] = 0\)，我们最终得到 \(\mathbb{E}[\Delta] = 4 w²\)。
 
 *(2) \(\Delta\) 的方差：* 使用 (1) 中的观察结果和坐标的独立性，我们得到
 
-\[\begin{align*} \mathrm{Var}[\Delta] &= \sum_{i=1}^d \mathrm{Var}[(Y_{1,i} - Y_{2,i})²] + \sum_{i=1}^d \mathrm{Var}[(X_{1,i} - X_{2,i})²]\\ &= \mathrm{Var}[(Z_1 - Z_2 - 2w)²] + (2d-1) \,\mathrm{Var}[(Z_1 - Z_2)²]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[\Delta] &= \sum_{i=1}^d \mathrm{Var}[(Y_{1,i} - Y_{2,i})²] + \sum_{i=1}^d \mathrm{Var}[(X_{1,i} - X_{2,i})²]\\ &= \mathrm{Var}[(Z_1 - Z_2 - 2w)²] + (2d-1) \,\mathrm{Var}[(Z_1 - Z_2)²]. \end{align*}$$
 
 通过**求和的方差**，
 
-\[\begin{align*} \mathrm{Var}[(Z_1 - Z_2 - 2w)²] &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2) + 4w²]\\ &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2)]\\ &= \mathrm{Var}[(Z_1 - Z_2)²] + 16 w² \mathrm{Var}[Z_1 - Z_2]\\ &\quad - 8w \,\mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[(Z_1 - Z_2 - 2w)²] &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2) + 4w²]\\ &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2)]\\ &= \mathrm{Var}[(Z_1 - Z_2)²] + 16 w² \mathrm{Var}[Z_1 - Z_2]\\ &\quad - 8w \,\mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2]. \end{align*}$$
 
 因为 \(Z_1\) 和 \(Z_2\) 是独立的，\(\mathrm{Var}[Z_1 - Z_2] = \mathrm{Var}[Z_1] + \mathrm{Var}[Z_2] = 2\)。此外，随机变量 \((Z_1 - Z_2)\) 是对称的，所以
 
-\[\begin{align*} \mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2] &= \mathbb{E}[(Z_1 - Z_2)³]\\ & \quad - \mathbb{E}[(Z_1 - Z_2)²] \,\mathbb{E}[Z_1 - Z_2]\\ &= 0. \end{align*}\]
+$$\begin{align*} \mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2] &= \mathbb{E}[(Z_1 - Z_2)³]\\ & \quad - \mathbb{E}[(Z_1 - Z_2)²] \,\mathbb{E}[Z_1 - Z_2]\\ &= 0. \end{align*}$$
 
 最后，
 
-\[ \mathrm{Var}[\Delta] = 32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²] \]
+$$ \mathrm{Var}[\Delta] = 32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²] $$
 
 *整合一切：*
 
-\[ \frac{\mathbb{E}[\Delta]}{\sqrt{\mathrm{Var}[\Delta]}} = \frac{4 w²}{\sqrt{32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²]}}. \]
+$$ \frac{\mathbb{E}[\Delta]}{\sqrt{\mathrm{Var}[\Delta]}} = \frac{4 w²}{\sqrt{32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²]}}. $$
 
 当 \(d \to +\infty\) 时，得出结论。 \(\square\)
 
@@ -258,15 +258,15 @@ E1.2.5 的答案和解释：如果一个矩阵 \(A\) 满足 \(A = A^T\)，则该
 
 E1.2.1 的答案和证明：欧几里得范数 \(\|\mathbf{x}\|_2\) 定义为
 
-\[ \|\mathbf{x}\|_2 = \sqrt{x_1² + x_2²} = \sqrt{6² + 8²} = \sqrt{36 + 64} = \sqrt{100} = 10. \]
+$$ \|\mathbf{x}\|_2 = \sqrt{x_1² + x_2²} = \sqrt{6² + 8²} = \sqrt{36 + 64} = \sqrt{100} = 10. $$
 
 E1.2.3 的答案和证明：转置 \(A^T\) 是通过交换行和列得到的
 
-\[\begin{split} A^T = \begin{pmatrix}1 & 4 \\ 2 & 5 \\ 3 & 6\end{pmatrix} \end{split}\]
+$$\begin{split} A^T = \begin{pmatrix}1 & 4 \\ 2 & 5 \\ 3 & 6\end{pmatrix} \end{split}$$
 
 E1.2.5 的答案和证明：一个矩阵 \(A\) 是对称的，如果 \(A = A^T\)
 
-\[\begin{split} A^T = \begin{pmatrix}2 & 0 \\ 0 & 3\end{pmatrix} = A. \end{split}\]
+$$\begin{split} A^T = \begin{pmatrix}2 & 0 \\ 0 & 3\end{pmatrix} = A. \end{split}$$
 
 因此，\(A\) 是对称的。
 
@@ -278,11 +278,11 @@ E1.2.9 的答案和证明：根据 *泰勒定理*，\(f(x) = f(a) + (x - a)f'(a)
 
 E1.2.11 的答案和证明：首先，计算 \(\E[X²]\)
 
-\[ \E[X²] = \sum_{x} x² \cdot P(X = x) = 1² \cdot 0.4 + 2² \cdot 0.6 = 0.4 + 4 \cdot 0.6 = 0.4 + 2.4 = 2.8. \]
+$$ \E[X²] = \sum_{x} x² \cdot P(X = x) = 1² \cdot 0.4 + 2² \cdot 0.6 = 0.4 + 4 \cdot 0.6 = 0.4 + 2.4 = 2.8. $$
 
 然后，使用公式 \(\mathrm{Var}[X] = \E[X²] - (\E[X])²\)
 
-\[ \mathrm{Var}[X] = 2.8 - (1.6)² = 2.8 - 2.56 = 0.24. \]
+$$ \mathrm{Var}[X] = 2.8 - (1.6)² = 2.8 - 2.56 = 0.24. $$
 
 E1.2.13 的答案和证明：根据 *切比雪夫不等式*，\(\P[|X - \mathbb{E}[X]| \geq \alpha] \leq \frac{\mathrm{Var}[X]}{\alpha²}\) 对于任何 \(\alpha > 0\)。这里，\(\alpha = 4\)，所以 \(\P[|X - 3| \geq 4] \leq \frac{4}{4²} = \frac{1}{4}\)。
 
@@ -292,7 +292,7 @@ E1.2.17 的答案和证明：\(\mathbb{E}[AX] = A\mathbb{E}[X] = A\mu_X = \begin
 
 E1.2.19 的答案和证明：对于任何非零向量 \(z = \begin{pmatrix} z_1 \\ z_2 \end{pmatrix}\)，我们有
 
-\[\begin{align*} z^TAz &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix} \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \\ &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2z_1 - z_2 \\ -z_1 + 2z_2 \end{pmatrix} \\ &= 2z_1² - 2z_1z_2 + 2z_2² \\ &= z_1² + (z_1 - z_2)² + z_2² > 0 \end{align*}\]
+$$\begin{align*} z^TAz &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix} \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \\ &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2z_1 - z_2 \\ -z_1 + 2z_2 \end{pmatrix} \\ &= 2z_1² - 2z_1z_2 + 2z_2² \\ &= z_1² + (z_1 - z_2)² + z_2² > 0 \end{align*}$$
 
 由于 \((z_1 - z_2)² \geq 0\)，且 \(z_1² > 0\) 或 \(z_2² > 0\)（因为 \(z \neq 0\)）。因此，\(A\) 是正定的。
 
@@ -310,15 +310,15 @@ E1.2.19 的答案和证明：对于任何非零向量 \(z = \begin{pmatrix} z_1 
 
 对 E1.4.1 的答案和解释：由于 \(X_i\) 在 \([-1/2, 1/2]\) 上均匀分布，其概率密度函数为 \(f_{X_i}(x) = 1\) 对于 \(x \in [-1/2, 1/2]\) 且其他情况为 0。因此，
 
-\[\mathbb{E}[X_i] = \int_{-1/2}^{1/2} x f_{X_i}(x) dx = \int_{-1/2}^{1/2} x dx = 0\]
+$$\mathbb{E}[X_i] = \int_{-1/2}^{1/2} x f_{X_i}(x) dx = \int_{-1/2}^{1/2} x dx = 0$$
 
 和
 
-\[\text{Var}[X_i] = \mathbb{E}[X_i²] - (\mathbb{E}[X_i])² = \int_{-1/2}^{1/2} x² dx = \frac{1}{12}.\]
+$$\text{Var}[X_i] = \mathbb{E}[X_i²] - (\mathbb{E}[X_i])² = \int_{-1/2}^{1/2} x² dx = \frac{1}{12}.$$
 
 对 E1.4.3 的答案和解释：我们有
 
-\[\mathbb{E}[\|X\|²] = \mathbb{E}\left[\sum_{i=1}^d X_i²\right] = \sum_{i=1}^d \mathbb{E}[X_i²] = \sum_{i=1}^d 1 = d.\]
+$$\mathbb{E}[\|X\|²] = \mathbb{E}\left[\sum_{i=1}^d X_i²\right] = \sum_{i=1}^d \mathbb{E}[X_i²] = \sum_{i=1}^d 1 = d.$$
 
 对 E1.4.5 的答案和解释：根据**切比雪夫不等式**，\(P[|X - 1| \geq 3] \leq \frac{\mathrm{Var}[X]}{3²} = \frac{4}{9}\)。
 
@@ -418,15 +418,15 @@ E1.2.19 的答案和证明：对于任何非零向量 \(z = \begin{pmatrix} z_1 
 
 E1.2.1 的答案和解释：欧几里得范数 \(\|\mathbf{x}\|_2\) 由以下公式给出
 
-\[ \|\mathbf{x}\|_2 = \sqrt{x_1² + x_2²} = \sqrt{6² + 8²} = \sqrt{36 + 64} = \sqrt{100} = 10. \]
+$$ \|\mathbf{x}\|_2 = \sqrt{x_1² + x_2²} = \sqrt{6² + 8²} = \sqrt{36 + 64} = \sqrt{100} = 10. $$
 
 E1.2.3 的答案和解释：矩阵 \(A\) 的转置 \(A^T\) 是通过交换行和列得到的
 
-\[\begin{split} A^T = \begin{pmatrix}1 & 4 \\ 2 & 5 \\ 3 & 6\end{pmatrix} \end{split}\]
+$$\begin{split} A^T = \begin{pmatrix}1 & 4 \\ 2 & 5 \\ 3 & 6\end{pmatrix} \end{split}$$
 
 E1.2.5 的答案和解释：如果 \(A = A^T\)，则矩阵 \(A\) 是对称的
 
-\[\begin{split} A^T = \begin{pmatrix}2 & 0 \\ 0 & 3\end{pmatrix} = A. \end{split}\]
+$$\begin{split} A^T = \begin{pmatrix}2 & 0 \\ 0 & 3\end{pmatrix} = A. \end{split}$$
 
 因此，\(A\) 是对称的。
 
@@ -438,11 +438,11 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 答案和证明 E1.2.11：首先，计算 \(\E[X²]\)。
 
-\[ \E[X²] = \sum_{x} x² \cdot P(X = x) = 1² \cdot 0.4 + 2² \cdot 0.6 = 0.4 + 4 \cdot 0.6 = 0.4 + 2.4 = 2.8. \]
+$$ \E[X²] = \sum_{x} x² \cdot P(X = x) = 1² \cdot 0.4 + 2² \cdot 0.6 = 0.4 + 4 \cdot 0.6 = 0.4 + 2.4 = 2.8. $$
 
 然后，使用公式 \(\mathrm{Var}[X] = \E[X²] - (\E[X])²\)
 
-\[ \mathrm{Var}[X] = 2.8 - (1.6)² = 2.8 - 2.56 = 0.24. \]
+$$ \mathrm{Var}[X] = 2.8 - (1.6)² = 2.8 - 2.56 = 0.24. $$
 
 答案和证明 E1.2.13：根据**切比雪夫不等式**，对于任何 \(\alpha > 0\)，\(\P[|X - \mathbb{E}[X]| \geq \alpha] \leq \frac{\mathrm{Var}[X]}{\alpha²}\)。这里，\(\alpha = 4\)，所以 \(\P[|X - 3| \geq 4] \leq \frac{4}{4²} = \frac{1}{4}\)。
 
@@ -452,7 +452,7 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 答案和证明 E1.2.19：对于任何非零向量 \(z = \begin{pmatrix} z_1 \\ z_2 \end{pmatrix}\)，我们有
 
-\[\begin{align*} z^TAz &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix} \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \\ &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2z_1 - z_2 \\ -z_1 + 2z_2 \end{pmatrix} \\ &= 2z_1² - 2z_1z_2 + 2z_2² \\ &= z_1² + (z_1 - z_2)² + z_2² > 0 \end{align*}\]
+$$\begin{align*} z^TAz &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2 & -1 \\ -1 & 2 \end{pmatrix} \begin{pmatrix} z_1 \\ z_2 \end{pmatrix} \\ &= \begin{pmatrix} z_1 & z_2 \end{pmatrix} \begin{pmatrix} 2z_1 - z_2 \\ -z_1 + 2z_2 \end{pmatrix} \\ &= 2z_1² - 2z_1z_2 + 2z_2² \\ &= z_1² + (z_1 - z_2)² + z_2² > 0 \end{align*}$$
 
 由于 \((z_1 - z_2)² \geq 0\)，并且 \(z_1² > 0\) 或 \(z_2² > 0\)（因为 \(z \neq 0\)）。因此，\(A\) 是正定的。
 
@@ -470,15 +470,15 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 对 E1.4.1 的答案和解释：由于 \(X_i\) 在 \([-1/2, 1/2]\) 上均匀分布，其概率密度函数为 \(f_{X_i}(x) = 1\)，对于 \(x \in [-1/2, 1/2]\) 且其他情况为 0。因此，
 
-\[\mathbb{E}[X_i] = \int_{-1/2}^{1/2} x f_{X_i}(x) dx = \int_{-1/2}^{1/2} x dx = 0\]
+$$\mathbb{E}[X_i] = \int_{-1/2}^{1/2} x f_{X_i}(x) dx = \int_{-1/2}^{1/2} x dx = 0$$
 
 和
 
-\[\text{Var}[X_i] = \mathbb{E}[X_i²] - (\mathbb{E}[X_i])² = \int_{-1/2}^{1/2} x² dx = \frac{1}{12}.\]
+$$\text{Var}[X_i] = \mathbb{E}[X_i²] - (\mathbb{E}[X_i])² = \int_{-1/2}^{1/2} x² dx = \frac{1}{12}.$$
 
 对 E1.4.3 的答案和解释：我们有
 
-\[\mathbb{E}[\|X\|²] = \mathbb{E}\left[\sum_{i=1}^d X_i²\right] = \sum_{i=1}^d \mathbb{E}[X_i²] = \sum_{i=1}^d 1 = d.\]
+$$\mathbb{E}[\|X\|²] = \mathbb{E}\left[\sum_{i=1}^d X_i²\right] = \sum_{i=1}^d \mathbb{E}[X_i²] = \sum_{i=1}^d 1 = d.$$
 
 对 E1.4.5 的答案和解释：根据**切比雪夫不等式**，\(P[|X - 1| \geq 3] \leq \frac{\mathrm{Var}[X]}{3²} = \frac{4}{9}\)。
 
@@ -556,7 +556,7 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 **定理** 设 \(\mathbf{X}_1, \mathbf{X}_2, \mathbf{Y}_1\) 是独立的球形 \(d\)-维高斯分布，均值为 \(-w_d \mathbf{e}_1\)，方差为 \(1\)，其中 \(\{w_d\}\) 是 \(d\) 中的单调序列。设 \(\mathbf{Y}_2\) 是独立的球形 \(d\)-维高斯分布，均值为 \(w_d \mathbf{e}_1\)，方差为 \(1\)。令 \(\Delta_d = \|\mathbf{Y}_1 - \mathbf{Y}_2\|² - \|\mathbf{X}_1 - \mathbf{X}_2\|²\)，当 \(d \to +\infty\) 时
 
-\[\begin{split} \frac{\mathbb{E}[\Delta_d]}{\sqrt{\mathrm{Var}[\Delta_d]}} \to \begin{cases} 0, & \text{如果 $w_d \ll d^{1/4}$}\\ +\infty, & \text{如果 $w_d \gg d^{1/4}$} \end{cases} \end{split}\]
+$$\begin{split} \frac{\mathbb{E}[\Delta_d]}{\sqrt{\mathrm{Var}[\Delta_d]}} \to \begin{cases} 0, & \text{如果 $w_d \ll d^{1/4}$}\\ +\infty, & \text{如果 $w_d \gg d^{1/4}$} \end{cases} \end{split}$$
 
 其中 \(w_d \ll d^{1/4}\) 表示 \(w_d/d^{1/4} \to 0\)。 \(\sharp\)
 
@@ -568,7 +568,7 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 *证明：* 通过对称性，
 
-\[ \mathbb{E}[W^k] = \mathbb{E}[(-W)^k] = \mathbb{E}[(-1)^k W^k] = - \mathbb{E}[W^k]. \]
+$$ \mathbb{E}[W^k] = \mathbb{E}[(-W)^k] = \mathbb{E}[(-1)^k W^k] = - \mathbb{E}[W^k]. $$
 
 满足这个方程的唯一方法是 \(\mathbb{E}[W^k] = 0\)。\(\square\)
 
@@ -580,33 +580,33 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 *(1) \(\Delta\) 的期望：* 根据定义，随机变量 \(X_{1,i} - X_{2,i}\)，\(i = 1,\ldots, d\)，和 \(Y_{1,i} - Y_{2,i}\)，\(i = 2,\ldots, d\)，具有相同的分布。因此，根据期望的线性性质，
 
-\[\begin{align*} \mathbb{E}[\Delta] &= \sum_{i=1}^d \mathbb{E}[(Y_{1,i} - Y_{2,i})²] - \sum_{i=1}^d \mathbb{E}[(X_{1,i} - X_{2,i})²]\\ &= \mathbb{E}[(Y_{1,1} - Y_{2,1})²] - \mathbb{E}[(X_{1,1} - X_{2,1})²]. \end{align*}\]
+$$\begin{align*} \mathbb{E}[\Delta] &= \sum_{i=1}^d \mathbb{E}[(Y_{1,i} - Y_{2,i})²] - \sum_{i=1}^d \mathbb{E}[(X_{1,i} - X_{2,i})²]\\ &= \mathbb{E}[(Y_{1,1} - Y_{2,1})²] - \mathbb{E}[(X_{1,1} - X_{2,1})²]. \end{align*}$$
 
 此外，我们可以写出 \(Y_{1,1} - Y_{1,2} \sim (Z_1 -w) - (Z_2+w)\)，其中 \(Z_1, Z_2 \sim N(0,1)\) 是独立的，其中这里的 \(\sim\) 表示分布上的等价。因此，我们有
 
-\[\begin{align*} \mathbb{E}[(Y_{1,1} - Y_{2,1})²] &= \mathbb{E}[(Z_1 - Z_2 - 2w)²]\\ &= \mathbb{E}[(Z_1 - Z_2)²] - 4w \,\mathbb{E}[Z_1 - Z_2] + 4 w². \end{align*}\]
+$$\begin{align*} \mathbb{E}[(Y_{1,1} - Y_{2,1})²] &= \mathbb{E}[(Z_1 - Z_2 - 2w)²]\\ &= \mathbb{E}[(Z_1 - Z_2)²] - 4w \,\mathbb{E}[Z_1 - Z_2] + 4 w². \end{align*}$$
 
 类似地，\(X_{1,1} - X_{1,2} \sim Z_1 - Z_2\)，所以 \(\mathbb{E}[(X_{1,1} - X_{2,1})²] = \mathbb{E}[(Z_1 - Z_2)²]\)。由于 \(\mathbb{E}[Z_1 - Z_2] = 0\)，我们最终得到 \(\mathbb{E}[\Delta] = 4 w²\)。
 
 *(2) \(\Delta\) 的方差：* 使用 (1) 中的观察结果和坐标的独立性，我们得到
 
-\[\begin{align*} \mathrm{Var}[\Delta] &= \sum_{i=1}^d \mathrm{Var}[(Y_{1,i} - Y_{2,i})²] + \sum_{i=1}^d \mathrm{Var}[(X_{1,i} - X_{2,i})²]\\ &= \mathrm{Var}[(Z_1 - Z_2 - 2w)²] + (2d-1) \,\mathrm{Var}[(Z_1 - Z_2)²]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[\Delta] &= \sum_{i=1}^d \mathrm{Var}[(Y_{1,i} - Y_{2,i})²] + \sum_{i=1}^d \mathrm{Var}[(X_{1,i} - X_{2,i})²]\\ &= \mathrm{Var}[(Z_1 - Z_2 - 2w)²] + (2d-1) \,\mathrm{Var}[(Z_1 - Z_2)²]. \end{align*}$$
 
 根据方差的性质，
 
-\[\begin{align*} \mathrm{Var}[(Z_1 - Z_2 - 2w)²] &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2) + 4w²]\\ &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2)]\\ &= \mathrm{Var}[(Z_1 - Z_2)²] + 16 w² \mathrm{Var}[Z_1 - Z_2]\\ &\quad - 8w \,\mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[(Z_1 - Z_2 - 2w)²] &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2) + 4w²]\\ &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2)]\\ &= \mathrm{Var}[(Z_1 - Z_2)²] + 16 w² \mathrm{Var}[Z_1 - Z_2]\\ &\quad - 8w \,\mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2]. \end{align*}$$
 
 因为 \(Z_1\) 和 \(Z_2\) 是独立的，\(\mathrm{Var}[Z_1 - Z_2] = \mathrm{Var}[Z_1] + \mathrm{Var}[Z_2] = 2\)。此外，随机变量 \((Z_1 - Z_2)\) 是对称的，所以
 
-\[\begin{align*} \mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2] &= \mathbb{E}[(Z_1 - Z_2)³]\\ & \quad - \mathbb{E}[(Z_1 - Z_2)²] \,\mathbb{E}[Z_1 - Z_2]\\ &= 0. \end{align*}\]
+$$\begin{align*} \mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2] &= \mathbb{E}[(Z_1 - Z_2)³]\\ & \quad - \mathbb{E}[(Z_1 - Z_2)²] \,\mathbb{E}[Z_1 - Z_2]\\ &= 0. \end{align*}$$
 
 最后，
 
-\[ \mathrm{Var}[\Delta] = 32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²] \]
+$$ \mathrm{Var}[\Delta] = 32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²] $$
 
 *将所有内容综合起来：*
 
-\[ \frac{\mathbb{E}[\Delta]}{\sqrt{\mathrm{Var}[\Delta]}} = \frac{4 w²}{\sqrt{32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²]}}. \]
+$$ \frac{\mathbb{E}[\Delta]}{\sqrt{\mathrm{Var}[\Delta]}} = \frac{4 w²}{\sqrt{32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²]}}. $$
 
 取 \(d \to +\infty\) 得到断言。 \(\square\)
 
@@ -616,7 +616,7 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 **定理** 设 \(\mathbf{X}_1, \mathbf{X}_2, \mathbf{Y}_1\) 是独立的球形 \(d\)-维高斯分布，均值为 \(-w_d \mathbf{e}_1\)，方差为 \(1\)，其中 \(\{w_d\}\) 是 \(d\) 中的单调序列。设 \(\mathbf{Y}_2\) 是独立的球形 \(d\)-维高斯分布，均值为 \(w_d \mathbf{e}_1\)，方差为 \(1\)。然后，令 \(\Delta_d = \|\mathbf{Y}_1 - \mathbf{Y}_2\|² - \|\mathbf{X}_1 - \mathbf{X}_2\|²\)，当 \(d \to +\infty\) 时
 
-\[\begin{split} \frac{\mathbb{E}[\Delta_d]}{\sqrt{\mathrm{Var}[\Delta_d]}} \to \begin{cases} 0, & \text{如果 $w_d \ll d^{1/4}$}\\ +\infty, & \text{如果 $w_d \gg d^{1/4}$} \end{cases} \end{split}\]
+$$\begin{split} \frac{\mathbb{E}[\Delta_d]}{\sqrt{\mathrm{Var}[\Delta_d]}} \to \begin{cases} 0, & \text{如果 $w_d \ll d^{1/4}$}\\ +\infty, & \text{如果 $w_d \gg d^{1/4}$} \end{cases} \end{split}$$
 
 其中 \(w_d \ll d^{1/4}\) 表示 \(w_d/d^{1/4} \to 0\). \(\sharp\)
 
@@ -628,7 +628,7 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 *证明：* 通过对称性，
 
-\[ \mathbb{E}[W^k] = \mathbb{E}[(-W)^k] = \mathbb{E}[(-1)^k W^k] = - \mathbb{E}[W^k]. \]
+$$ \mathbb{E}[W^k] = \mathbb{E}[(-W)^k] = \mathbb{E}[(-1)^k W^k] = - \mathbb{E}[W^k]. $$
 
 满足此方程的唯一方法是 \(\mathbb{E}[W^k] = 0\). \(\square\)
 
@@ -640,32 +640,32 @@ E1.2.7 的答案和解释：\(\frac{\partial f}{\partial x} = \lim_{h \to 0} \fr
 
 *(1) \(\Delta\) 的期望：* 根据定义，随机变量 \(X_{1,i} - X_{2,i}\)，\(i = 1,\ldots, d\)，和 \(Y_{1,i} - Y_{2,i}\)，\(i = 2,\ldots, d\)，具有相同的分布。因此，根据期望的线性性质，
 
-\[\begin{align*} \mathbb{E}[\Delta] &= \sum_{i=1}^d \mathbb{E}[(Y_{1,i} - Y_{2,i})²] - \sum_{i=1}^d \mathbb{E}[(X_{1,i} - X_{2,i})²]\\ &= \mathbb{E}[(Y_{1,1} - Y_{2,1})²] - \mathbb{E}[(X_{1,1} - X_{2,1})²]. \end{align*}\]
+$$\begin{align*} \mathbb{E}[\Delta] &= \sum_{i=1}^d \mathbb{E}[(Y_{1,i} - Y_{2,i})²] - \sum_{i=1}^d \mathbb{E}[(X_{1,i} - X_{2,i})²]\\ &= \mathbb{E}[(Y_{1,1} - Y_{2,1})²] - \mathbb{E}[(X_{1,1} - X_{2,1})²]. \end{align*}$$
 
 此外，我们可以写出 \(Y_{1,1} - Y_{1,2} \sim (Z_1 -w) - (Z_2+w)\)，其中 \(Z_1, Z_2 \sim N(0,1)\) 是独立的，其中 \(\sim\) 表示分布上的等价。因此，我们有
 
-\[\begin{align*} \mathbb{E}[(Y_{1,1} - Y_{2,1})²] &= \mathbb{E}[(Z_1 - Z_2 - 2w)²]\\ &= \mathbb{E}[(Z_1 - Z_2)²] - 4w \,\mathbb{E}[Z_1 - Z_2] + 4 w². \end{align*}\]
+$$\begin{align*} \mathbb{E}[(Y_{1,1} - Y_{2,1})²] &= \mathbb{E}[(Z_1 - Z_2 - 2w)²]\\ &= \mathbb{E}[(Z_1 - Z_2)²] - 4w \,\mathbb{E}[Z_1 - Z_2] + 4 w². \end{align*}$$
 
 同样，\(X_{1,1} - X_{1,2} \sim Z_1 - Z_2\)，因此 \(\mathbb{E}[(X_{1,1} - X_{2,1})²] = \mathbb{E}[(Z_1 - Z_2)²]\)。由于 \(\mathbb{E}[Z_1 - Z_2] = 0\)，我们最终得到 \(\mathbb{E}[\Delta] = 4 w²\)。
 
 *(2) \(\Delta\) 的方差：* 利用(1)中的观察结果和坐标的独立性，我们得到
 
-\[\begin{align*} \mathrm{Var}[\Delta] &= \sum_{i=1}^d \mathrm{Var}[(Y_{1,i} - Y_{2,i})²] + \sum_{i=1}^d \mathrm{Var}[(X_{1,i} - X_{2,i})²]\\ &= \mathrm{Var}[(Z_1 - Z_2 - 2w)²] + (2d-1) \,\mathrm{Var}[(Z_1 - Z_2)²]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[\Delta] &= \sum_{i=1}^d \mathrm{Var}[(Y_{1,i} - Y_{2,i})²] + \sum_{i=1}^d \mathrm{Var}[(X_{1,i} - X_{2,i})²]\\ &= \mathrm{Var}[(Z_1 - Z_2 - 2w)²] + (2d-1) \,\mathrm{Var}[(Z_1 - Z_2)²]. \end{align*}$$
 
 根据方差的和，
 
-\[\begin{align*} \mathrm{Var}[(Z_1 - Z_2 - 2w)²] &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2) + 4w²]\\ &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2)]\\ &= \mathrm{Var}[(Z_1 - Z_2)²] + 16 w² \mathrm{Var}[Z_1 - Z_2]\\ &\quad - 8w \,\mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[(Z_1 - Z_2 - 2w)²] &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2) + 4w²]\\ &= \mathrm{Var}[(Z_1 - Z_2)² - 4w(Z_1 - Z_2)]\\ &= \mathrm{Var}[(Z_1 - Z_2)²] + 16 w² \mathrm{Var}[Z_1 - Z_2]\\ &\quad - 8w \,\mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2]. \end{align*}$$
 
 因为 \(Z_1\) 和 \(Z_2\) 是独立的，\(\mathrm{Var}[Z_1 - Z_2] = \mathrm{Var}[Z_1] + \mathrm{Var}[Z_2] = 2\)。此外，随机变量 \((Z_1 - Z_2)\) 是对称的，所以
 
-\[\begin{align*} \mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2] &= \mathbb{E}[(Z_1 - Z_2)³]\\ & \quad - \mathbb{E}[(Z_1 - Z_2)²] \,\mathbb{E}[Z_1 - Z_2]\\ &= 0. \end{align*}\]
+$$\begin{align*} \mathrm{Cov}[(Z_1 - Z_2)², Z_1 - Z_2] &= \mathbb{E}[(Z_1 - Z_2)³]\\ & \quad - \mathbb{E}[(Z_1 - Z_2)²] \,\mathbb{E}[Z_1 - Z_2]\\ &= 0. \end{align*}$$
 
 最后，
 
-\[ \mathrm{Var}[\Delta] = 32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²] \]
+$$ \mathrm{Var}[\Delta] = 32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²] $$
 
 *将所有内容综合起来：*
 
-\[ \frac{\mathbb{E}[\Delta]}{\sqrt{\mathrm{Var}[\Delta]}} = \frac{4 w²}{\sqrt{32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²]}}. \]
+$$ \frac{\mathbb{E}[\Delta]}{\sqrt{\mathrm{Var}[\Delta]}} = \frac{4 w²}{\sqrt{32 w² + 2d \,\mathrm{Var}[(Z_1 - Z_2)²]}}. $$
 
 当 \(d \to +\infty\) 时，得到所声称的结果。 \(\square\)

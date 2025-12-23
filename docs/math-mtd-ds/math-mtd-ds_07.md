@@ -1,4 +1,4 @@
-# 1.5\. 练习题#
+# 1.5\. 练习题
 
 > 原文：[`mmids-textbook.github.io/chap01_intro/exercises/roch-mmids-intro-exercises.html`](https://mmids-textbook.github.io/chap01_intro/exercises/roch-mmids-intro-exercises.html)
 
@@ -60,11 +60,11 @@
 
 **E1.3.6** 给定簇分配矩阵
 
-\[\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0 \end{bmatrix} \end{split}\]
+$$\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0 \end{bmatrix} \end{split}$$
 
 以及簇代表矩阵
 
-\[\begin{split} U = \begin{bmatrix} 1 & 2\\ -1 & 0\\ 0 & -2 \end{bmatrix}, \end{split}\]
+$$\begin{split} U = \begin{bmatrix} 1 & 2\\ -1 & 0\\ 0 & -2 \end{bmatrix}, \end{split}$$
 
 计算矩阵乘积 \(ZU\)。
 
@@ -78,7 +78,7 @@
 
 **E1.3.11** 计算矩阵的 Frobenius 范数
 
-\[\begin{split} A = \begin{bmatrix} 2 & -1 \\ 0 & 3 \end{bmatrix}. \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 2 & -1 \\ 0 & 3 \end{bmatrix}. \end{split}$$
 
 **第 1.4 节**
 
@@ -114,7 +114,7 @@ b) 假设 \(\mathbf{x}\) 和 \(\mathbf{y}\) 是布尔 \(n\)-向量。给出它�
 
 **1.3** (改编自 [VLMS]) 如果 \(\mathbf{a}\) 是一个向量，那么 \(\mathbf{a}_{r:s}\) 是一个大小为 \(s - r + 1\) 的向量，其元素为 \(a_r,\ldots,a_s\)，即 \(\mathbf{a}_{r:s} = (a_r,\ldots,a_s)\)。向量 \(\mathbf{a}_{r:s}\) 被称为切片。作为一个更具体的例子，如果 \(\mathbf{z}\) 是 \(4\)-向量 \((1, -1, 2, 0)\)，那么切片 \(\mathbf{z}_{2:3} = (-1, 2)\)。假设 \(T\)-向量 \(\mathbf{x}\) 表示一个时间序列或信号。这个量
 
-\[ \mathcal{D}(\mathbf{x})=(x_1 - x_2)² + (x_2 - x_3)² + \cdots+(x_{T-1} - x_T)², \]
+$$ \mathcal{D}(\mathbf{x})=(x_1 - x_2)² + (x_2 - x_3)² + \cdots+(x_{T-1} - x_T)², $$
 
 信号相邻值的差的和被称为信号的狄利克雷能量。狄利克雷能量是时间序列粗糙度或波动性的度量。
 
@@ -142,17 +142,17 @@ b) \(\|\mathbf{a} + \mathbf{b}\|_2² + \|\mathbf{a} - \mathbf{b}\|_2² = 2(\|\ma
 
 **1.7** (改编自 [VLMS]) \(n\) 维向量 \(\mathbf{x}\) 的均方根 (RMS) 值定义为
 
-\[ \mathrm{rms}(\mathbf{x}) = \sqrt{\frac{x_1² + \cdots + x_n²}{n}} = \frac{\|\mathbf{x}\|_2}{\sqrt{n}}. \]
+$$ \mathrm{rms}(\mathbf{x}) = \sqrt{\frac{x_1² + \cdots + x_n²}{n}} = \frac{\|\mathbf{x}\|_2}{\sqrt{n}}. $$
 
 a) 证明一个向量的至少一个元素的绝对值至少与向量的均方根值一样大。
 
 b) 对于一个 \(n\) 维向量 \(\mathbf{x}\)，令 \(\mathrm{avg}(\mathbf{x}) = \mathbf{1}^T \mathbf{x}/n\) 和
 
-\[ \mathrm{std}(\mathbf{x}) = \frac{\|\mathbf{x} - \mathrm{avg}(\mathbf{x}) \mathbf{1}\|_2}{\sqrt{n}}. \]
+$$ \mathrm{std}(\mathbf{x}) = \frac{\|\mathbf{x} - \mathrm{avg}(\mathbf{x}) \mathbf{1}\|_2}{\sqrt{n}}. $$
 
 建立恒等式
 
-\[ \mathrm{rms}(\mathbf{x})² = \mathrm{avg}(\mathbf{x})² + \mathrm{std}(\mathbf{x})². \]
+$$ \mathrm{rms}(\mathbf{x})² = \mathrm{avg}(\mathbf{x})² + \mathrm{std}(\mathbf{x})². $$
 
 c) 使用(b)证明 \(|\mathrm{avg}(\mathbf{x})| \leq \mathrm{rms}(\mathbf{x})\).
 
@@ -168,7 +168,7 @@ c) 假设原始向量 \(\mathbf{x}_i\) 是布尔值，即它们的元素是 \(0\
 
 **1.9** (改编自 [VLMS]) 将向量集合聚类成 \(k = 2\) 个组称为 \(2\)-way 分区，因为我们正在将向量分成 \(2\) 个组，索引集为 \(G_1\) 和 \(G_2\)。假设我们在 \(n\) 个向量 \(\mathbf{x}_1,\ldots,\mathbf{x}_N\) 上运行 \(k = 2\) 的 \(k\)-means。证明存在一个非零向量 \(\mathbf{w}\) 和一个标量 \(v\)，使得
 
-\[ \mathbf{w}^T \mathbf{x}_i + v \geq 0, \forall i \in G_1, \quad \mathbf{w}^T \mathbf{x}_i + v \leq 0, \forall i \in G_2. \]
+$$ \mathbf{w}^T \mathbf{x}_i + v \geq 0, \forall i \in G_1, \quad \mathbf{w}^T \mathbf{x}_i + v \leq 0, \forall i \in G_2. $$
 
 换句话说，仿射函数 \(f(\mathbf{x}) = \mathbf{w}^T \mathbf{x} + v\) 在第一组上大于或等于零，在第二组上小于或等于零。这被称为两组的线性分离。[*提示:* 考虑函数 \(\|\mathbf{x} - \mathbf{z}_1\|_2² - \|\mathbf{x} - \mathbf{z}_2\|_2²\)，其中 \(\mathbf{z}_1\) 和 \(\mathbf{z}_2\) 是组代表。] \(\lhd\)
 
@@ -202,31 +202,31 @@ c) 假设 \(Y_1,Y_2,\ldots,Y_{300}\) 是与 \(X\) 具有相同分布的独立同
 
 **1.13** (改编自 [ASV]) 假设我们有一组独立同分布的随机变量 \(X_1, X_2, X_3,\ldots\)，它们的期望值 \(\mathbb{E}[X_1] = \mu\) 和方差 \(\mathrm{Var}(X_1) = \sigma²\) 是有限的。令 \(S_n = X_1 +\cdots+X_n\)。证明对于任何固定的 \(\varepsilon > 0\) 和 \(1/2 < \alpha < 1\)，我们有
 
-\[ \lim_{n \to +\infty} \mathbb{P}\left[\left|\frac{S_n - n\mu}{n^\alpha}\right| < \varepsilon\right] = 1. \]
+$$ \lim_{n \to +\infty} \mathbb{P}\left[\left|\frac{S_n - n\mu}{n^\alpha}\right| < \varepsilon\right] = 1. $$
 
 \(\lhd\)
 
 **1.14** (改编自 [ASV]) 通过模仿 *大数定律* 的证明，证明以下变体。假设我们有一些随机变量 \(X_1, X_2, \ldots\)，每个都有有限的均值 \(\mathbb{E}[X_i] = \mu\) 和方差 \(\mathrm{Var}(X_i) = \sigma²\)。进一步假设当 \(|i - j| \geq 2\) 时，\(\mathrm{Cov}(X_i,X_j) = 0\)，并且存在一个常数 \(c > 0\)，使得对于所有 \(i\)，\(|\mathrm{Cov}(X_i, X_{i+1})| < c\)。设 \(S_n =X_1 +\cdots+X_n\)。那么对于任何固定的 \(\varepsilon>0\)，我们有
 
-\[ \lim_{n\to +\infty} \mathbb{P}\left[\left|\frac{S_n}{n} - \mu\right|\right]<\varepsilon=1. \]
+$$ \lim_{n\to +\infty} \mathbb{P}\left[\left|\frac{S_n}{n} - \mu\right|\right]<\varepsilon=1. $$
 
 \(\lhd\)
 
 **1.15** (改编自 [ASV]) 通过模仿 *切比雪夫不等式* 的证明，证明以下变体。设 \(X\) 是一个具有有限均值 \(\mu\) 的随机变量，并且对于某个 \(s > 0\)，\(\mathbb{E}[\exp(s(X - \mu))] < +\infty\)。那么对于 \(c > 0\)，我们有
 
-\[ \mathbb{P}(X \geq \mu + c) \leq \frac{\mathbb{E}[\exp(s(X - \mu)]}{e^{s c}}. \]
+$$ \mathbb{P}(X \geq \mu + c) \leq \frac{\mathbb{E}[\exp(s(X - \mu)]}{e^{s c}}. $$
 
 仔细证明你的答案。\(\lhd\)
 
 **1.16** (改编自 [ASV]) 回想一下，实值随机变量 \(Z\) 的累积分布函数 (CDF) 是函数 \(F_Z(z) = \mathbb{P}[Z \leq z]\)，对于所有 \(z \in \mathbb{R}\)。设 \(X_1, X_2, \ldots , X_n\) 是具有相同累积分布函数 \(F\) 的独立随机变量。用最小值和最大值表示为
 
-\[ Z = \min(X_1,X_2,\ldots,X_n) \quad\text{和}\quad W = \max(X_1,X_2,\ldots,X_n). \]
+$$ Z = \min(X_1,X_2,\ldots,X_n) \quad\text{和}\quad W = \max(X_1,X_2,\ldots,X_n). $$
 
 找到 \(Z\) 和 \(W\) 的累积分布函数 \(F_Z\) 和 \(F_W\)。\(\lhd\)
 
 **1.17** (改编自 [ASV]) 假设 \(X_1, X_2, \ldots\) 是具有参数 \(\lambda = 1\) 的指数分布的独立同分布随机变量（参见上面的练习 1.11），并设 \(M_n = \max(X_1,\ldots,X_n)\)。证明对于任何 \(x \in \mathbb{R}\)，我们有
 
-\[ \lim_{n \to +\infty} \mathbb{P}(M_n - \ln n \leq x) = \exp(-e^{-x}). \]
+$$ \lim_{n \to +\infty} \mathbb{P}(M_n - \ln n \leq x) = \exp(-e^{-x}). $$
 
 右侧是 Gumbel 分布的累积分布函数，它是极值分布的一个例子。[提示：使用练习 1.16 计算出 \(\mathbb{P}(M_n \leq \ln n + x)\) 的显式值，然后求 \(n \to +\infty\) 时的极限。] \(\lhd\)
 
@@ -244,13 +244,13 @@ b) 设 \(X\) 为所选数字的第一个数字，\(Z\) 为两个数字的和。�
 
 **1.21** (改编自 [ASV]) 假设 \(X,Y\) 具有联合概率密度函数
 
-\[ f(x,y) = c\exp\left[-\frac{x²}{2} - \frac{(x - y)²}{2}\right], \]
+$$ f(x,y) = c\exp\left[-\frac{x²}{2} - \frac{(x - y)²}{2}\right], $$
 
 对于 \(x,y \in \mathbb{R}²\)，对于某个常数 \(c > 0\)。
 
 a) 求常数 \(c\) 的值。[*提示:* 积分的顺序很重要。你可以不进行复杂的积分来完成这个任务。具体来说，回忆一下对于任何 \(\mu \in \mathbb{R}\) 和 \(\sigma > 0\)，都有
 
-\[ \int_{-\infty}^{+\infty} \frac{1}{\sqrt{2 \pi \sigma²}} \exp\left(-\frac{(z - \mu)²}{2\sigma²}\right) \mathrm{d} z= 1. \]
+$$ \int_{-\infty}^{+\infty} \frac{1}{\sqrt{2 \pi \sigma²}} \exp\left(-\frac{(z - \mu)²}{2\sigma²}\right) \mathrm{d} z= 1. $$
 
 ]
 
@@ -266,7 +266,7 @@ b) 两个在单位 d 维立方体 \(\mathcal{C} = [-1/2,1/2]^d\) 内随机生成
 
 **1.24** (改编自 [BHK]) a) 对于任意 \(a > 0\)，给出一个非负随机变量 \(X\) 的概率分布，使得
 
-\[ \mathbb{P}[X \geq a] = \frac{\mathbb{E}[X]}{a}. \]
+$$ \mathbb{P}[X \geq a] = \frac{\mathbb{E}[X]}{a}. $$
 
 b) 证明对于任何 \(c > 0\)，存在一个分布使得 *切比雪夫不等式* 是紧的，即 \( \mathbb{P}[|X - \mathbb{E}[X]| \geq c] = \frac{\mathrm{Var}[X]}{c²}. \)
 
@@ -274,17 +274,17 @@ b) 证明对于任何 \(c > 0\)，存在一个分布使得 *切比雪夫不等�
 
 **1.25** (改编自 [BHK]) 设 \(X_1, X_2, \ldots , X_n\) 是具有均值 \(\mu\) 和方差 \(\sigma²\) 的独立同分布随机变量。设
 
-\[ \overline{X}_n = \frac{1}{n} \sum_{i=1}^n X_i, \]
+$$ \overline{X}_n = \frac{1}{n} \sum_{i=1}^n X_i, $$
 
 是样本均值。假设使用样本均值估计方差如下
 
-\[ S²_n = \frac{1}{n} \sum_{i=1}^n \left(X_i - \overline{X}_n\right)². \]
+$$ S²_n = \frac{1}{n} \sum_{i=1}^n \left(X_i - \overline{X}_n\right)². $$
 
 计算 \(\mathbb{E}(S²_n)\)。[*提示:* 将 \(X_i - \overline{X}_n\) 替换为 \((X_i - \mu) - (\overline{X}_n - \mu)\)。] \(\lhd\)
 
 **1.26** 设 \(f\) 和 \(g\) 在 \(x\) 处有导数，且 \(\alpha\) 和 \(\beta\) 是常数。从导数的定义出发证明
 
-\[ [\alpha f(x) + \beta g(x)]' = \alpha f'(x) + \beta g'(x). \]
+$$ [\alpha f(x) + \beta g(x)]' = \alpha f'(x) + \beta g'(x). $$
 
 \(\lhd\)
 
@@ -296,25 +296,25 @@ b) 设 \(\mathbf{X}_1, \mathbf{X}_2, \mathbf{Y}_1\) 是独立的球形 \(d\) 维
 
 **1.28** 假设我们给出了 \(\mathbb{R}^d\) 中的 \(n\) 个向量 \(\mathbf{x}_1,\ldots,\mathbf{x}_n\) 和一个划分 \(C_1, \ldots, C_k \subseteq [n]\)。设 \(n_i = |C_i|\) 为簇 \(C_i\) 的大小，并设
 
-\[ \boldsymbol{\mu}_i^* = \frac{1}{n_i} \sum_{j\in C_i} \mathbf{x}_j \]
+$$ \boldsymbol{\mu}_i^* = \frac{1}{n_i} \sum_{j\in C_i} \mathbf{x}_j $$
 
 为 \(C_i\) 的质心，对于 \(i=1,\ldots,k\)。
 
 a) 证明
 
-\[ \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i^*\|² = \left(\sum_{j \in C_i} \|\mathbf{x}_j\|²\right) - n_i\|\boldsymbol{\mu}_i^*\|². \]
+$$ \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i^*\|² = \left(\sum_{j \in C_i} \|\mathbf{x}_j\|²\right) - n_i\|\boldsymbol{\mu}_i^*\|². $$
 
 b) 证明
 
-\[\begin{split} \|\boldsymbol{\mu}_i^*\|² = \frac{1}{n_i²}\left(\sum_{j \in C_i} \|\mathbf{x}_j\|² + \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \mathbf{x}_j^T\mathbf{x}_\ell\right). \end{split}\]
+$$\begin{split} \|\boldsymbol{\mu}_i^*\|² = \frac{1}{n_i²}\left(\sum_{j \in C_i} \|\mathbf{x}_j\|² + \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \mathbf{x}_j^T\mathbf{x}_\ell\right). \end{split}$$
 
 c) 证明
 
-\[\begin{split} \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \|\mathbf{x}_j - \mathbf{x}_\ell\|² = 2(n_i-1)\sum_{j \in C_i} \|\mathbf{x}_j\|² - 2 \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \mathbf{x}_j^T\mathbf{x}_\ell. \end{split}\]
+$$\begin{split} \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \|\mathbf{x}_j - \mathbf{x}_\ell\|² = 2(n_i-1)\sum_{j \in C_i} \|\mathbf{x}_j\|² - 2 \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \mathbf{x}_j^T\mathbf{x}_\ell. \end{split}$$
 
 d) 结合 a)，b），c）来证明在所有 \([n]\) 的划分 \(C_1, \ldots, C_k\) 上最小化 \(k\)-means 目标函数 \(\mathcal{G}(C_1,\ldots,C_k)\) 等价于最小化
 
-\[ \sum_{i=1}^k \frac{1}{2 |C_i|} \sum_{j,\ell \in C_i} \|\mathbf{x}_j - \mathbf{x}_\ell\|². \]
+$$ \sum_{i=1}^k \frac{1}{2 |C_i|} \sum_{j,\ell \in C_i} \|\mathbf{x}_j - \mathbf{x}_\ell\|². $$
 
 \(\lhd\)
 
@@ -396,11 +396,11 @@ b) \((c A)^T = c A^T\)
 
 **E1.3.6** 给定聚类分配矩阵
 
-\[\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0 \end{bmatrix} \end{split}\]
+$$\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0 \end{bmatrix} \end{split}$$
 
 以及聚类代表矩阵
 
-\[\begin{split} U = \begin{bmatrix} 1 & 2\\ -1 & 0\\ 0 & -2 \end{bmatrix}, \end{split}\]
+$$\begin{split} U = \begin{bmatrix} 1 & 2\\ -1 & 0\\ 0 & -2 \end{bmatrix}, \end{split}$$
 
 计算矩阵乘积 \(ZU\)。
 
@@ -414,7 +414,7 @@ b) \((c A)^T = c A^T\)
 
 **E1.3.11** 计算矩阵的弗罗贝尼乌斯范数
 
-\[\begin{split} A = \begin{bmatrix} 2 & -1 \\ 0 & 3 \end{bmatrix}. \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 2 & -1 \\ 0 & 3 \end{bmatrix}. \end{split}$$
 
 **第 1.4 节**
 
@@ -450,7 +450,7 @@ b) 假设 \(\mathbf{x}\) 和 \(\mathbf{y}\) 是布尔 \(n\) 维向量。给出�
 
 **1.3** (改编自 [VLMS]) 如果 \(\mathbf{a}\) 是一个向量，那么 \(\mathbf{a}_{r:s}\) 是大小为 \(s - r + 1\) 的向量，条目为 \(a_r,\ldots,a_s\)，即 \(\mathbf{a}_{r:s} = (a_r,\ldots,a_s)\)。向量 \(\mathbf{a}_{r:s}\) 被称为切片。作为一个更具体的例子，如果 \(\mathbf{z}\) 是 \(4\) 维向量 \((1, -1, 2, 0)\)，那么切片 \(\mathbf{z}_{2:3} = (-1, 2)\)。假设 \(T\) 维向量 \(\mathbf{x}\) 表示时间序列或信号。量
 
-\[ \mathcal{D}(\mathbf{x})=(x_1 - x_2)² + (x_2 - x_3)² + \cdots+(x_{T-1} - x_T)², \]
+$$ \mathcal{D}(\mathbf{x})=(x_1 - x_2)² + (x_2 - x_3)² + \cdots+(x_{T-1} - x_T)², $$
 
 信号相邻值的差的和，被称为信号的狄利克雷能量。狄利克雷能量是时间序列粗糙度或波动性的度量。
 
@@ -478,17 +478,17 @@ b) \(\|\mathbf{a} + \mathbf{b}\|_2² + \|\mathbf{a} - \mathbf{b}\|_2² = 2(\|\ma
 
 **1.7** (改编自 [VLMS]) \(n\)-向量 \(\mathbf{x}\) 的均方根 (RMS) 值定义为
 
-\[ \mathrm{rms}(\mathbf{x}) = \sqrt{\frac{x_1² + \cdots + x_n²}{n}} = \frac{\|\mathbf{x}\|_2}{\sqrt{n}}. \]
+$$ \mathrm{rms}(\mathbf{x}) = \sqrt{\frac{x_1² + \cdots + x_n²}{n}} = \frac{\|\mathbf{x}\|_2}{\sqrt{n}}. $$
 
 a) 证明向量中至少有一个元素的绝对值不小于该向量的 RMS 值。
 
 b) 对于 \(n\)-向量 \(\mathbf{x}\)，令 \(\mathrm{avg}(\mathbf{x}) = \mathbf{1}^T \mathbf{x}/n\) 和
 
-\[ \mathrm{std}(\mathbf{x}) = \frac{\|\mathbf{x} - \mathrm{avg}(\mathbf{x}) \mathbf{1}\|_2}{\sqrt{n}}. \]
+$$ \mathrm{std}(\mathbf{x}) = \frac{\|\mathbf{x} - \mathrm{avg}(\mathbf{x}) \mathbf{1}\|_2}{\sqrt{n}}. $$
 
 建立以下恒等式
 
-\[ \mathrm{rms}(\mathbf{x})² = \mathrm{avg}(\mathbf{x})² + \mathrm{std}(\mathbf{x})². \]
+$$ \mathrm{rms}(\mathbf{x})² = \mathrm{avg}(\mathbf{x})² + \mathrm{std}(\mathbf{x})². $$
 
 c) 使用 (b) 证明 \(|\mathrm{avg}(\mathbf{x})| \leq \mathrm{rms}(\mathbf{x})\)。
 
@@ -504,7 +504,7 @@ c) 假设原始向量 \(\mathbf{x}_i\) 是布尔值，即它们的元素是 \(0\
 
 **1.9** (改编自 [VLMS]) 将一组向量聚类成 \(k = 2\) 个组称为 \(2\)-way 分区，因为我们把向量分成了 \(2\) 个组，分别用索引集 \(G_1\) 和 \(G_2\) 表示。假设我们在 \(n\) 个向量 \(\mathbf{x}_1,\ldots,\mathbf{x}_N\) 上运行 \(k\)-means 算法，其中 \(k = 2\)。证明存在一个非零向量 \(\mathbf{w}\) 和一个标量 \(v\)，使得
 
-\[ \mathbf{w}^T \mathbf{x}_i + v \geq 0, \forall i \in G_1, \quad \mathbf{w}^T \mathbf{x}_i + v \leq 0, \forall i \in G_2. \]
+$$ \mathbf{w}^T \mathbf{x}_i + v \geq 0, \forall i \in G_1, \quad \mathbf{w}^T \mathbf{x}_i + v \leq 0, \forall i \in G_2. $$
 
 换句话说，仿射函数 \(f(\mathbf{x}) = \mathbf{w}^T \mathbf{x} + v\) 在第一组上大于或等于零，在第二组上小于或等于零。这被称为两组的线性分离。[提示：考虑函数 \(\|\mathbf{x} - \mathbf{z}_1\|_2² - \|\mathbf{x} - \mathbf{z}_2\|_2²\)，其中 \(\mathbf{z}_1\) 和 \(\mathbf{z}_2\) 是组代表。] \(\lhd\)
 
@@ -538,31 +538,31 @@ c) 假设 \(Y_1,Y_2,\ldots,Y_{300}\) 是与 \(X\) 具有相同分布的独立同
 
 **1.13** (改编自 [ASV]) 假设我们有一些独立同分布的随机变量 \(X_1, X_2, X_3,\ldots\)，它们具有有限的均值 \(\mathbb{E}[X_1] = \mu\) 和方差 \(\mathrm{Var}(X_1) = \sigma²\)。设 \(S_n = X_1 +\cdots+X_n\)。证明对于任何固定的 \(\varepsilon > 0\) 和 \(1/2 < \alpha < 1\)，我们有
 
-\[ \lim_{n \to +\infty} \mathbb{P}\left[\left|\frac{S_n - n\mu}{n^\alpha}\right| < \varepsilon\right] = 1. \]
+$$ \lim_{n \to +\infty} \mathbb{P}\left[\left|\frac{S_n - n\mu}{n^\alpha}\right| < \varepsilon\right] = 1. $$
 
 \(\lhd\)
 
 **1.14** (改编自 [ASV]) 通过模仿 *大数定律* 的证明，证明以下变体。假设我们有一些随机变量 \(X_1, X_2, \ldots\)，每个都有有限的均值 \(\mathbb{E}[X_i] = \mu\) 和方差 \(\mathrm{Var}(X_i) = \sigma²\)。进一步假设当 \(|i - j| \geq 2\) 时，\(\mathrm{Cov}(X_i,X_j) = 0\)，并且存在一个常数 \(c > 0\)，使得对于所有 \(i\)，\(|\mathrm{Cov}(X_i, X_{i+1})| < c\)。令 \(S_n =X_1 +\cdots+X_n\)。那么对于任何固定的 \(\varepsilon>0\)，我们有
 
-\[ \lim_{n\to +\infty} \mathbb{P}\left[\left|\frac{S_n}{n} - \mu\right|\right]<\varepsilon=1. \]
+$$ \lim_{n\to +\infty} \mathbb{P}\left[\left|\frac{S_n}{n} - \mu\right|\right]<\varepsilon=1. $$
 
 \(\lhd\)
 
 **1.15** (改编自 [ASV]) 通过模仿 *切比雪夫不等式* 的证明，证明以下变体。令 \(X\) 为具有有限均值 \(\mu\) 的随机变量，并且对于某个 \(s > 0\)，\(\mathbb{E}[\exp(s(X - \mu)] < +\infty\)。那么对于 \(c > 0\)，我们有
 
-\[ \mathbb{P}(X \geq \mu + c) \leq \frac{\mathbb{E}[\exp(s(X - \mu)]}{e^{s c}}. \]
+$$ \mathbb{P}(X \geq \mu + c) \leq \frac{\mathbb{E}[\exp(s(X - \mu)]}{e^{s c}}. $$
 
 仔细证明你的答案。\(\lhd\)
 
 **1.16** (改编自 [ASV]) 回忆一下，实值随机变量 \(Z\) 的累积分布函数 (CDF) 是函数 \(F_Z(z) = \mathbb{P}[Z \leq z]\)，对于所有 \(z \in \mathbb{R}\)。令 \(X_1, X_2, \ldots , X_n\) 是具有相同的累积分布函数 \(F\) 的独立随机变量。用最小值和最大值表示
 
-\[ Z = \min(X_1,X_2,\ldots,X_n) \quad\text{和}\quad W = \max(X_1,X_2,\ldots,X_n). \]
+$$ Z = \min(X_1,X_2,\ldots,X_n) \quad\text{和}\quad W = \max(X_1,X_2,\ldots,X_n). $$
 
 找到 \(Z\) 和 \(W\) 的累积分布函数 \(F_Z\) 和 \(F_W\)。\(\lhd\)
 
 **1.17** (改编自 [ASV]) 假设 \(X_1, X_2, \ldots\) 是具有参数 \(\lambda = 1\) 的指数分布的独立同分布随机变量（参见上文的练习 1.11），令 \(M_n = \max(X_1,\ldots,X_n)\)。证明对于任何 \(x \in \mathbb{R}\)，我们有
 
-\[ \lim_{n \to +\infty} \mathbb{P}(M_n - \ln n \leq x) = \exp(-e^{-x}). \]
+$$ \lim_{n \to +\infty} \mathbb{P}(M_n - \ln n \leq x) = \exp(-e^{-x}). $$
 
 右侧是 Gumbel 分布的累积分布函数，是极值分布的一个例子。[提示：使用练习 1.16 来显式计算 \(\mathbb{P}(M_n \leq \ln n + x)\)，然后求 \(n \to +\infty\) 时的极限。] \(\lhd\)
 
@@ -580,13 +580,13 @@ b) 令 \(X\) 为所选数字的第一个数字，\(Z\) 为两个数字的和。�
 
 **1.21** (改编自 [ASV]) 假设 \(X,Y\) 有联合概率密度函数
 
-\[ f(x,y) = c\exp\left[-\frac{x²}{2} - \frac{(x - y)²}{2}\right], \]
+$$ f(x,y) = c\exp\left[-\frac{x²}{2} - \frac{(x - y)²}{2}\right], $$
 
 对于 \(x,y \in \mathbb{R}²\)，对于某个常数 \(c > 0\)。
 
 a) 求常数 \(c\) 的值。[*提示:* 积分的顺序很重要。你可以不进行复杂的积分来完成这个任务。具体来说，回忆一下对于任何 \(\mu \in \mathbb{R}\) 和 \(\sigma > 0\)，以下等式成立
 
-\[ \int_{-\infty}^{+\infty} \frac{1}{\sqrt{2 \pi \sigma²}} \exp\left(-\frac{(z - \mu)²}{2\sigma²}\right) \mathrm{d} z= 1. \]
+$$ \int_{-\infty}^{+\infty} \frac{1}{\sqrt{2 \pi \sigma²}} \exp\left(-\frac{(z - \mu)²}{2\sigma²}\right) \mathrm{d} z= 1. $$
 
 ]
 
@@ -602,7 +602,7 @@ b) 两个在单位 d 维立方体 \(\mathcal{C} = [-1/2,1/2]^d\) 内随机生成
 
 **1.24** (改编自 [BHK]) a) 对于任意 \(a > 0\)，给出一个非负随机变量 \(X\) 的概率分布，使得
 
-\[ \mathbb{P}[X \geq a] = \frac{\mathbb{E}[X]}{a}. \]
+$$ \mathbb{P}[X \geq a] = \frac{\mathbb{E}[X]}{a}. $$
 
 b) 证明对于任何 \(c > 0\)，存在一个分布使得 *切比雪夫不等式* 是紧的，即 \( \mathbb{P}[|X - \mathbb{E}[X]| \geq c] = \frac{\mathrm{Var}[X]}{c²}. \)
 
@@ -610,17 +610,17 @@ b) 证明对于任何 \(c > 0\)，存在一个分布使得 *切比雪夫不等�
 
 **1.25** (改编自 [BHK]) 设 \(X_1, X_2, \ldots , X_n\) 是具有均值 \(\mu\) 和方差 \(\sigma²\) 的独立同分布随机变量。设
 
-\[ \overline{X}_n = \frac{1}{n} \sum_{i=1}^n X_i, \]
+$$ \overline{X}_n = \frac{1}{n} \sum_{i=1}^n X_i, $$
 
 作为样本均值。假设使用样本均值来估计方差如下
 
-\[ S²_n = \frac{1}{n} \sum_{i=1}^n \left(X_i - \overline{X}_n\right)². \]
+$$ S²_n = \frac{1}{n} \sum_{i=1}^n \left(X_i - \overline{X}_n\right)². $$
 
 计算 \(\mathbb{E}(S²_n)\)。[*提示:* 将 \(X_i - \overline{X}_n\) 替换为 \((X_i - \mu) - (\overline{X}_n - \mu)\)。] \(\lhd\)
 
 **1.26** 设 \(f\) 和 \(g\) 在 \(x\) 处有导数，设 \(\alpha\) 和 \(\beta\) 是常数。从导数的定义出发证明：
 
-\[ [\alpha f(x) + \beta g(x)]' = \alpha f'(x) + \beta g'(x). \]
+$$ [\alpha f(x) + \beta g(x)]' = \alpha f'(x) + \beta g'(x). $$
 
 \(\lhd\)
 
@@ -632,25 +632,25 @@ b) 设 \(\mathbf{X}_1, \mathbf{X}_2, \mathbf{Y}_1\) 是独立的 \(d\) 维球面
 
 **1.28** 假设我们给出了 \(\mathbb{R}^d\) 中的 \(n\) 个向量 \(\mathbf{x}_1,\ldots,\mathbf{x}_n\) 和一个划分 \(C_1, \ldots, C_k \subseteq [n]\)。设 \(n_i = |C_i|\) 为簇 \(C_i\) 的大小，并设
 
-\[ \boldsymbol{\mu}_i^* = \frac{1}{n_i} \sum_{j\in C_i} \mathbf{x}_j \]
+$$ \boldsymbol{\mu}_i^* = \frac{1}{n_i} \sum_{j\in C_i} \mathbf{x}_j $$
 
 为 \(C_i\) 的质心，对于 \(i=1,\ldots,k\)。
 
 a) 证明：
 
-\[ \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i^*\|² = \left(\sum_{j \in C_i} \|\mathbf{x}_j\|²\right) - n_i\|\boldsymbol{\mu}_i^*\|². \]
+$$ \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i^*\|² = \left(\sum_{j \in C_i} \|\mathbf{x}_j\|²\right) - n_i\|\boldsymbol{\mu}_i^*\|². $$
 
 b) 证明：
 
-\[\begin{split} \|\boldsymbol{\mu}_i^*\|² = \frac{1}{n_i²}\left(\sum_{j \in C_i} \|\mathbf{x}_j\|² + \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \mathbf{x}_j^T\mathbf{x}_\ell\right). \end{split}\]
+$$\begin{split} \|\boldsymbol{\mu}_i^*\|² = \frac{1}{n_i²}\left(\sum_{j \in C_i} \|\mathbf{x}_j\|² + \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \mathbf{x}_j^T\mathbf{x}_\ell\right). \end{split}$$
 
 c) 证明：
 
-\[\begin{split} \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \|\mathbf{x}_j - \mathbf{x}_\ell\|² = 2(n_i-1)\sum_{j \in C_i} \|\mathbf{x}_j\|² - 2 \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \mathbf{x}_j^T\mathbf{x}_\ell. \end{split}\]
+$$\begin{split} \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \|\mathbf{x}_j - \mathbf{x}_\ell\|² = 2(n_i-1)\sum_{j \in C_i} \|\mathbf{x}_j\|² - 2 \sum_{\substack{j, \ell \in C_i\\j \neq \ell}} \mathbf{x}_j^T\mathbf{x}_\ell. \end{split}$$
 
 d) 将 a), b), c) 结合起来证明在所有 \([n]\) 的划分 \(C_1, \ldots, C_k\) 上最小化 \(k\)-means 目标函数 \(\mathcal{G}(C_1,\ldots,C_k)\) 等价于最小化
 
-\[ \sum_{i=1}^k \frac{1}{2 |C_i|} \sum_{j,\ell \in C_i} \|\mathbf{x}_j - \mathbf{x}_\ell\|². \]
+$$ \sum_{i=1}^k \frac{1}{2 |C_i|} \sum_{j,\ell \in C_i} \|\mathbf{x}_j - \mathbf{x}_\ell\|². $$
 
 \(\lhd\)
 

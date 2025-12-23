@@ -1,4 +1,4 @@
-# 数据科学中的数学方法#
+# 数据科学中的数学方法
 
 > 原文：[`mmids-textbook.github.io/`](https://mmids-textbook.github.io/)
 

@@ -1,4 +1,4 @@
-# 3.6\. 应用：逻辑回归#
+# 3.6\. 应用：逻辑回归
 
 > 原文：[`mmids-textbook.github.io/chap03_opt/06_logistic/roch-mmids-opt-logistic.html`](https://mmids-textbook.github.io/chap03_opt/06_logistic/roch-mmids-opt-logistic.html)
 
@@ -8,15 +8,15 @@
 
 我们总结了逻辑回归方法。我们的目标是找到一个特征函数，该函数近似于标签 \(1\) 的概率。为此，我们将标签 \(1\) 的概率的对数几率（或 logit 函数）建模为特征 \(\boldsymbol{\alpha} \in \mathbb{R}^d\) 的线性函数
 
-\[ \log \frac{p(\mathbf{x}; \boldsymbol{\alpha})}{1-p(\mathbf{x}; \boldsymbol{\alpha})} = \boldsymbol{\alpha}^T \mathbf{x} \]
+$$ \log \frac{p(\mathbf{x}; \boldsymbol{\alpha})}{1-p(\mathbf{x}; \boldsymbol{\alpha})} = \boldsymbol{\alpha}^T \mathbf{x} $$
 
 其中 \(\mathbf{x} \in \mathbb{R}^d\) 是系数向量（即参数）。通过反转这个表达式，我们得到
 
-\[ p(\mathbf{x}; \boldsymbol{\alpha}) = \sigma(\boldsymbol{\alpha}^T \mathbf{x}) \]
+$$ p(\mathbf{x}; \boldsymbol{\alpha}) = \sigma(\boldsymbol{\alpha}^T \mathbf{x}) $$
 
 其中 sigmoid 函数\(\idx{sigmoid 函数}\xdi\)是
 
-\[ \sigma(z) = \frac{1}{1 + e^{-z}} \]
+$$ \sigma(z) = \frac{1}{1 + e^{-z}} $$
 
 对于 \(z \in \mathbb{R}\)。
 
@@ -37,59 +37,59 @@ plt.show()
 
 我们寻求最大化观察数据的概率（也称为[似然函数](https://en.wikipedia.org/wiki/Likelihood_function)），假设在给定特征的情况下标签是独立的，这由以下公式给出（详见第六章以获取更多详细信息；现在我们只是设置相关的优化问题）
 
-\[ \mathcal{L}(\mathbf{x}; A, \mathbf{b}) = \prod_{i=1}^n p(\boldsymbol{\alpha}_i; \mathbf{x})^{b_i} (1- p(\boldsymbol{\alpha}_i; \mathbf{x}))^{1-b_i}. \]
+$$ \mathcal{L}(\mathbf{x}; A, \mathbf{b}) = \prod_{i=1}^n p(\boldsymbol{\alpha}_i; \mathbf{x})^{b_i} (1- p(\boldsymbol{\alpha}_i; \mathbf{x}))^{1-b_i}. $$
 
 取对数，乘以 \(-1/n\) 并代入 S 形函数，我们希望最小化[交叉熵损失](https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_loss_function_and_logistic_regression)\(\idx{交叉熵损失}\xdi\)
 
-\[ \ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}. \]
+$$ \ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}. $$
 
 我们使用了对数的标准性质：对于 \(x, y > 0\)，\(\log(xy) = \log x + \log y\) 和 \(\log(x^y) = y \log x\)。
 
 因此，我们希望解决最小化问题
 
-\[ \min_{\mathbf{x} \in \mathbb{R}^d} \ell(\mathbf{x}; A, \mathbf{b}). \]
+$$ \min_{\mathbf{x} \in \mathbb{R}^d} \ell(\mathbf{x}; A, \mathbf{b}). $$
 
 我们在这里隐含地使用了对数是严格单调递增的函数，因此不会改变函数的全局最优；乘以 \(-1/n\) 将全局最大值变为全局最小值。
 
 要使用梯度下降，我们需要 \(\ell\) 的梯度。我们使用链式法则，并首先计算 \(\sigma\) 的导数，即
 
-\[ \sigma'(z) = \frac{e^{-z}}{(1 + e^{-z})²} = \frac{1}{1 + e^{-z}}\left(1 - \frac{1}{1 + e^{-z}}\right) = \sigma(z) (1 - \sigma(z)). \]
+$$ \sigma'(z) = \frac{e^{-z}}{(1 + e^{-z})²} = \frac{1}{1 + e^{-z}}\left(1 - \frac{1}{1 + e^{-z}}\right) = \sigma(z) (1 - \sigma(z)). $$
 
 后者表达式被称为[逻辑微分方程](https://en.wikipedia.org/wiki/Logistic_function#Logistic_differential_equation)。它在各种应用中出现，包括[人口动力学](https://towardsdatascience.com/covid-19-in-italy-mathematical-models-and-predictions-7784b4d7dd8d)的建模。在这里，它将是一种方便计算梯度的方法。
 
 注意到，对于 \(\boldsymbol{\alpha} = (\alpha_{1}, \ldots, \alpha_{d}) \in \mathbb{R}^d\)，通过链式法则
 
-\[ \nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x}) = \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \nabla (\boldsymbol{\alpha}^T \mathbf{x}) = \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \boldsymbol{\alpha} \]
+$$ \nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x}) = \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \nabla (\boldsymbol{\alpha}^T \mathbf{x}) = \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \boldsymbol{\alpha} $$
 
 在整个过程中，梯度是相对于 \(\mathbf{x}\) 的。
 
 或者，我们可以通过应用单变量链式法则得到相同的公式
 
-\[\begin{align*} \frac{\partial}{\partial x_j} \sigma(\boldsymbol{\alpha}^T \mathbf{x}) &= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}(\boldsymbol{\alpha}^T \mathbf{x})\\ &= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}\left(\alpha_{j} x_{j} + \sum_{\ell=1, \ell \neq j}^d \alpha_{\ell} x_{\ell}\right)\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j} \end{align*}\]
+$$\begin{align*} \frac{\partial}{\partial x_j} \sigma(\boldsymbol{\alpha}^T \mathbf{x}) &= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}(\boldsymbol{\alpha}^T \mathbf{x})\\ &= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}\left(\alpha_{j} x_{j} + \sum_{\ell=1, \ell \neq j}^d \alpha_{\ell} x_{\ell}\right)\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j} \end{align*}$$
 
 所以
 
-\[\begin{align*} \nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x}) &= \left(\sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{1}, \ldots, \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{d}\right)\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, (\alpha_{1}, \ldots, \alpha_{d})\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}. \end{align*}\]
+$$\begin{align*} \nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x}) &= \left(\sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{1}, \ldots, \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{d}\right)\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, (\alpha_{1}, \ldots, \alpha_{d})\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}. \end{align*}$$
 
 通过应用链式法则的另一个例子，因为 \(\frac{\mathrm{d}}{\mathrm{d} z} \log z = \frac{1}{z}\),
 
-\[\begin{align*} \nabla\ell(\mathbf{x}; A, \mathbf{b}) &= \nabla\left[\frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}\right]\\ &= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) - \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\\ &= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}). \end{align*}\]
+$$\begin{align*} \nabla\ell(\mathbf{x}; A, \mathbf{b}) &= \nabla\left[\frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}\right]\\ &= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) - \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\\ &= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}). \end{align*}$$
 
 使用 sigmoid 函数梯度的表达式，这等于
 
-\[\begin{align*} &- \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\ &\quad\quad + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\ &= - \frac{1}{n} \sum_{i=1}^n \left( b_i (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i)\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) \right)\,\boldsymbol{\alpha}_i\\ &= - \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) ) \,\boldsymbol{\alpha}_i. \end{align*}\]
+$$\begin{align*} &- \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\ &\quad\quad + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\ &= - \frac{1}{n} \sum_{i=1}^n \left( b_i (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i)\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) \right)\,\boldsymbol{\alpha}_i\\ &= - \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) ) \,\boldsymbol{\alpha}_i. \end{align*}$$
 
 要实现这个公式，将其用矩阵表示 \(A \in \mathbb{R}^{n \times d}\)（其行是 \(\boldsymbol{\alpha}_i^T\)，\(i = 1,\ldots, n\)）和 \(\mathbf{b} = (b_1, \ldots, b_n) \in \{0,1\}^n\) 来重新编写将是有用的。设 \(\bsigma : \mathbb{R}^n \to \mathbb{R}\) 是一个向量值函数，它逐项应用 sigmoid \(\sigma\)，即 \(\bsigma(\mathbf{z}) = (\sigma(z_1),\ldots,\sigma(z_n))\) 其中 \(\mathbf{z} = (z_1,\ldots,z_n)\)。将 \(\sum_{i=1}^n (b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})\,\boldsymbol{\alpha}_i\) 视为 \(A^T\) 的列的线性组合，其系数是向量 \(\mathbf{b} - \bsigma(A \mathbf{x})\) 的项，我们得到
 
-\[ \nabla\ell(\mathbf{x}; A, \mathbf{b}) = - \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) ) \,\boldsymbol{\alpha}_i = -\frac{1}{n} A^T [\mathbf{b} - \bsigma(A \mathbf{x})]. \]
+$$ \nabla\ell(\mathbf{x}; A, \mathbf{b}) = - \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) ) \,\boldsymbol{\alpha}_i = -\frac{1}{n} A^T [\mathbf{b} - \bsigma(A \mathbf{x})]. $$
 
 我们转向 Hessian 矩阵。由于对称性，我们可以将 Hessian 矩阵的第 \(j\) 列视为关于 \(x_j\) 的偏导数的梯度。因此，我们首先计算 \(\ell\) 的梯度中项的和的 \(j\) 项的梯度。我们注意到，对于 \(\boldsymbol{\alpha} = (\alpha_{1}, \ldots, \alpha_{d}) \in \mathbb{R}^d\)，
 
-\[ \nabla [(b - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j}] = - \nabla [\sigma(\boldsymbol{\alpha}^T \mathbf{x})] \, \alpha_{j} = - \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}\alpha_{j}. \]
+$$ \nabla [(b - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j}] = - \nabla [\sigma(\boldsymbol{\alpha}^T \mathbf{x})] \, \alpha_{j} = - \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}\alpha_{j}. $$
 
 因此，利用 \(\boldsymbol{\alpha} \alpha_{j}\) 是矩阵 \(\boldsymbol{\alpha} \boldsymbol{\alpha}^T\) 的第 \(j\) 列这一事实，我们得到
 
-\[ \mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T \]
+$$ \mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T $$
 
 其中 \(\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b})\) 表示相对于 \(\mathbf{x}\) 变量的 Hessian 矩阵，对于固定的 \(A, \mathbf{b}\)。
 
@@ -97,7 +97,7 @@ plt.show()
 
 *证明:* 事实上，Hessian 矩阵是正半定的：对于任何 \(\mathbf{z} \in \mathbb{R}^d\)
 
-\[\begin{align*} \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \mathbf{z}^T \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T \mathbf{z}\\ &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\geq 0 \end{align*}\]
+$$\begin{align*} \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \mathbf{z}^T \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T \mathbf{z}\\ &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\geq 0 \end{align*}$$
 
 由于对于所有 \(t\)，\(\sigma(t) \in [0,1]\)。 \(\square\)
 
@@ -105,23 +105,23 @@ plt.show()
 
 **引理** **(逻辑回归的平滑性)** 函数 \(\ell(\mathbf{x}; A, \mathbf{b})\) 对于
 
-\[ L= \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|² = \frac{1}{4n} \|A\|_F². \]
+$$ L= \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|² = \frac{1}{4n} \|A\|_F². $$
 
 \(\flat\)
 
 *证明:* 我们使用凸性和 Hessian 的表达式推导出，对于任何单位向量 \(\mathbf{z} \in \mathbb{R}^d\)，
 
-\[\begin{align*} 0 \leq \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)². \end{align*}\]
+$$\begin{align*} 0 \leq \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)². \end{align*}$$
 
 我们需要找到因子 \(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\) 可以取的最大值。注意，对于所有 \(t\)，\(\sigma(t) \in [0,1]\)，且 \(\sigma(t) + (1 - \sigma(t)) = 1\)。对函数 \(f(w) = w (1 - w) = w - w²\) 求导得到 \(f'(w) = 1 - 2 w\) 和 \(f''(w) = -2\)。因此，\(f\) 是凹函数，并在 \(w^* = 1/2\) 处达到最大值，此时 \(f(1/2) = 1/4\)。我们已经证明了
 
-\[ \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \leq 1/4 \]
+$$ \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \leq 1/4 $$
 
 对于任何 \(\mathbf{z}\)。
 
 返回到 \(\mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}\) 的上界，我们得到
 
-\[\begin{align*} \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\leq \frac{1}{4n} \sum_{i=1}^n (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\leq \frac{1}{4n} \sum_{i=1}^n \|\mathbf{z}\|² \|\boldsymbol{\alpha}_i\|²\\ &\leq \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|², \end{align*}\]
+$$\begin{align*} \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\leq \frac{1}{4n} \sum_{i=1}^n (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\leq \frac{1}{4n} \sum_{i=1}^n \|\mathbf{z}\|² \|\boldsymbol{\alpha}_i\|²\\ &\leq \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|², \end{align*}$$
 
 在第三行中，我们使用了 *柯西-施瓦茨不等式*，在第四行中，我们使用了 \(\mathbf{z}\) 是一个单位向量的事实。
 
@@ -129,7 +129,7 @@ plt.show()
 
 对于步长 \(\beta\)，梯度下降的一步因此是
 
-\[ \mathbf{x}^{t+1} = \mathbf{x}^{t} +\beta \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}^t) ) \,\boldsymbol{\alpha}_i. \]
+$$ \mathbf{x}^{t+1} = \mathbf{x}^{t} +\beta \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}^t) ) \,\boldsymbol{\alpha}_i. $$
 
 ## 3.6.2\. 实现方法#
 
@@ -155,7 +155,7 @@ def gd_for_logreg(loss_fn, grad_fn, A, b, init_x, beta=1e-3, niters=int(1e5)):
 
 要实现 `loss_fn` 和 `grad_fn`，我们定义了上述的 sigmoid 函数。下面，`pred_fn` 是 \(\bsigma(A \mathbf{x})\)。这里我们将损失函数写为
 
-\[\begin{align*} \ell(\mathbf{x}; A, \mathbf{b}) &= \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha_i}^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha_i}^T \mathbf{x}))\right\}\\ &= \mathrm{mean}\left(-\mathbf{b} \odot \mathbf{log}(\bsigma(A \mathbf{x})) - (\mathbf{1} - \mathbf{b}) \odot \mathbf{log}(\mathbf{1} - \bsigma(A \mathbf{x}))\right), \end{align*}\]
+$$\begin{align*} \ell(\mathbf{x}; A, \mathbf{b}) &= \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha_i}^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha_i}^T \mathbf{x}))\right\}\\ &= \mathrm{mean}\left(-\mathbf{b} \odot \mathbf{log}(\bsigma(A \mathbf{x})) - (\mathbf{1} - \mathbf{b}) \odot \mathbf{log}(\mathbf{1} - \bsigma(A \mathbf{x}))\right), \end{align*}$$
 
 其中 \(\odot\) 是哈达玛积，或逐元素乘积（例如 \(\mathbf{u} \odot \mathbf{v} = (u_1 v_1, \ldots,u_n v_n)\)），对数（用粗体表示）是逐元素应用，\(\mathrm{mean}(\mathbf{z})\) 是 \(\mathbf{z}\) 的元素平均值（即，\(\mathrm{mean}(\mathbf{z}) = n^{-1} \sum_{i=1}^n z_i\))。
 
@@ -312,15 +312,15 @@ d) 处理数据集中的缺失数据。
 
 我们总结逻辑回归方法。我们的目标是找到一个近似标签 1 的概率的特征函数。为此，我们将标签 1 的概率的对数几率（或 logit 函数）建模为特征 \(\boldsymbol{\alpha} \in \mathbb{R}^d\) 的线性函数
 
-\[ \log \frac{p(\mathbf{x}; \boldsymbol{\alpha})}{1-p(\mathbf{x}; \boldsymbol{\alpha})} = \boldsymbol{\alpha}^T \mathbf{x} \]
+$$ \log \frac{p(\mathbf{x}; \boldsymbol{\alpha})}{1-p(\mathbf{x}; \boldsymbol{\alpha})} = \boldsymbol{\alpha}^T \mathbf{x} $$
 
 其中 \(\mathbf{x} \in \mathbb{R}^d\) 是系数向量（即参数）。通过反转这个表达式给出
 
-\[ p(\mathbf{x}; \boldsymbol{\alpha}) = \sigma(\boldsymbol{\alpha}^T \mathbf{x}) \]
+$$ p(\mathbf{x}; \boldsymbol{\alpha}) = \sigma(\boldsymbol{\alpha}^T \mathbf{x}) $$
 
 其中 sigmoid 函数是
 
-\[ \sigma(z) = \frac{1}{1 + e^{-z}} \]
+$$ \sigma(z) = \frac{1}{1 + e^{-z}} $$
 
 对于 \(z \in \mathbb{R}\)。
 
@@ -341,59 +341,59 @@ plt.show()
 
 我们寻求最大化观察数据的概率（也称为 [似然函数](https://en.wikipedia.org/wiki/Likelihood_function)），假设在给定特征的情况下标签是独立的，这由以下公式给出（详见第六章，目前我们只是在设置相关的优化问题）。
 
-\[ \mathcal{L}(\mathbf{x}; A, \mathbf{b}) = \prod_{i=1}^n p(\boldsymbol{\alpha}_i; \mathbf{x})^{b_i} (1- p(\boldsymbol{\alpha}_i; \mathbf{x}))^{1-b_i}. \]
+$$ \mathcal{L}(\mathbf{x}; A, \mathbf{b}) = \prod_{i=1}^n p(\boldsymbol{\alpha}_i; \mathbf{x})^{b_i} (1- p(\boldsymbol{\alpha}_i; \mathbf{x}))^{1-b_i}. $$
 
 取对数，乘以 \(-1/n\) 并代入 sigmoid 函数，我们希望最小化 [交叉熵损失](https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_loss_function_and_logistic_regression)\(\idx{交叉熵损失}\xdi\)。
 
-\[ \ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}. \]
+$$ \ell(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}. $$
 
 我们使用了对数的标准性质：对于 \(x, y > 0\)，\(\log(xy) = \log x + \log y\) 和 \(\log(x^y) = y \log x\)。
 
 因此，我们想要解决最小化问题
 
-\[ \min_{\mathbf{x} \in \mathbb{R}^d} \ell(\mathbf{x}; A, \mathbf{b}). \]
+$$ \min_{\mathbf{x} \in \mathbb{R}^d} \ell(\mathbf{x}; A, \mathbf{b}). $$
 
 在这里我们隐含地使用了对数是一个严格递增函数的事实，因此它不会改变函数的全局最优解；乘以 \(-1/n\) 将全局最大值变成了全局最小值。
 
 要使用梯度下降，我们需要 \(\ell\) 的梯度。我们使用**链式法则**，首先计算 \(\sigma\) 的导数，它是
 
-\[ \sigma'(z) = \frac{e^{-z}}{(1 + e^{-z})²} = \frac{1}{1 + e^{-z}}\left(1 - \frac{1}{1 + e^{-z}}\right) = \sigma(z) (1 - \sigma(z)). \]
+$$ \sigma'(z) = \frac{e^{-z}}{(1 + e^{-z})²} = \frac{1}{1 + e^{-z}}\left(1 - \frac{1}{1 + e^{-z}}\right) = \sigma(z) (1 - \sigma(z)). $$
 
 后一个表达式被称为[逻辑微分方程](https://en.wikipedia.org/wiki/Logistic_function#Logistic_differential_equation)。它在各种应用中都有出现，包括[人口动力学](https://towardsdatascience.com/covid-19-in-italy-mathematical-models-and-predictions-7784b4d7dd8d)的建模。在这里，它将是一个方便计算梯度的方法。
 
 注意到，对于 \(\boldsymbol{\alpha} = (\alpha_{1}, \ldots, \alpha_{d}) \in \mathbb{R}^d\)，通过**链式法则**
 
-\[ \nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x}) = \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \nabla (\boldsymbol{\alpha}^T \mathbf{x}) = \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \boldsymbol{\alpha} \]
+$$ \nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x}) = \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \nabla (\boldsymbol{\alpha}^T \mathbf{x}) = \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \boldsymbol{\alpha} $$
 
 其中，梯度始终是相对于 \(\mathbf{x}\) 的。
 
 或者，我们可以通过应用单变量**链式法则**得到相同的公式
 
-\[\begin{align*} \frac{\partial}{\partial x_j} \sigma(\boldsymbol{\alpha}^T \mathbf{x}) &= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}(\boldsymbol{\alpha}^T \mathbf{x})\\ &= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}\left(\alpha_{j} x_{j} + \sum_{\ell=1, \ell \neq j}^d \alpha_{\ell} x_{\ell}\right)\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j} \end{align*}\]
+$$\begin{align*} \frac{\partial}{\partial x_j} \sigma(\boldsymbol{\alpha}^T \mathbf{x}) &= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}(\boldsymbol{\alpha}^T \mathbf{x})\\ &= \sigma'(\boldsymbol{\alpha}^T \mathbf{x}) \frac{\partial}{\partial x_j}\left(\alpha_{j} x_{j} + \sum_{\ell=1, \ell \neq j}^d \alpha_{\ell} x_{\ell}\right)\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j} \end{align*}$$
 
 因此
 
-\[\begin{align*} \nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x}) &= \left(\sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{1}, \ldots, \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{d}\right)\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, (\alpha_{1}, \ldots, \alpha_{d})\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}. \end{align*}\]
+$$\begin{align*} \nabla\sigma(\boldsymbol{\alpha}^T \mathbf{x}) &= \left(\sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{1}, \ldots, \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{d}\right)\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, (\alpha_{1}, \ldots, \alpha_{d})\\ &= \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}. \end{align*}$$
 
 通过**链式法则**的另一种应用，因为 \(\frac{\mathrm{d}}{\mathrm{d} z} \log z = \frac{1}{z}\)，
 
-\[\begin{align*} \nabla\ell(\mathbf{x}; A, \mathbf{b}) &= \nabla\left[\frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}\right]\\ &= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) - \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\\ &= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}). \end{align*}\]
+$$\begin{align*} \nabla\ell(\mathbf{x}; A, \mathbf{b}) &= \nabla\left[\frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\right\}\right]\\ &= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) - \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla(1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\\ &= - \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \nabla\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}). \end{align*}$$
 
 使用 sigmoid 函数的梯度表达式，这等于
 
-\[\begin{align*} &- \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\ &\quad\quad + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\ &= - \frac{1}{n} \sum_{i=1}^n \left( b_i (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i)\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) \right)\,\boldsymbol{\alpha}_i\\ &= - \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) ) \,\boldsymbol{\alpha}_i. \end{align*}\]
+$$\begin{align*} &- \frac{1}{n} \sum_{i=1}^n \frac{b_i}{\sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\ &\quad\quad + \frac{1}{n} \sum_{i=1}^n \frac{1-b_i}{1- \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})} \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \,\boldsymbol{\alpha}_i\\ &= - \frac{1}{n} \sum_{i=1}^n \left( b_i (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) - (1-b_i)\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) \right)\,\boldsymbol{\alpha}_i\\ &= - \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) ) \,\boldsymbol{\alpha}_i. \end{align*}$$
 
 为了实现这个公式，将其用矩阵表示 \(A \in \mathbb{R}^{n \times d}\)（其行是 \(\boldsymbol{\alpha}_i^T\)，\(i = 1,\ldots, n\)）和 \(\mathbf{b} = (b_1, \ldots, b_n) \in \{0,1\}^n\) 来重写将是有用的。设 \(\bsigma : \mathbb{R}^n \to \mathbb{R}\) 是一个向量值函数，它逐项应用 sigmoid \(\sigma\)，即 \(\bsigma(\mathbf{z}) = (\sigma(z_1),\ldots,\sigma(z_n))\) 其中 \(\mathbf{z} = (z_1,\ldots,z_n)\)。将 \(\sum_{i=1}^n (b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})\,\boldsymbol{\alpha}_i\) 视为 \(A^T\) 的列的线性组合，其系数是向量 \(\mathbf{b} - \bsigma(A \mathbf{x})\) 的元素，我们得到
 
-\[ \nabla\ell(\mathbf{x}; A, \mathbf{b}) = - \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) ) \,\boldsymbol{\alpha}_i = -\frac{1}{n} A^T [\mathbf{b} - \bsigma(A \mathbf{x})]. \]
+$$ \nabla\ell(\mathbf{x}; A, \mathbf{b}) = - \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) ) \,\boldsymbol{\alpha}_i = -\frac{1}{n} A^T [\mathbf{b} - \bsigma(A \mathbf{x})]. $$
 
 我们转向 Hessian 矩阵。由于对称性，我们可以将 Hessian 矩阵的第 \(j\) 列视为关于 \(x_j\) 的偏导数的梯度。因此，我们首先计算梯度中求和项的第 \(j\) 个元素的梯度。我们注意到，对于 \(\boldsymbol{\alpha} = (\alpha_{1}, \ldots, \alpha_{d}) \in \mathbb{R}^d\)，
 
-\[ \nabla [(b - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j}] = - \nabla [\sigma(\boldsymbol{\alpha}^T \mathbf{x})] \, \alpha_{j} = - \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}\alpha_{j}. \]
+$$ \nabla [(b - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \alpha_{j}] = - \nabla [\sigma(\boldsymbol{\alpha}^T \mathbf{x})] \, \alpha_{j} = - \sigma(\boldsymbol{\alpha}^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}^T \mathbf{x}))\, \boldsymbol{\alpha}\alpha_{j}. $$
 
 因此，利用 \(\boldsymbol{\alpha} \alpha_{j}\) 是矩阵 \(\boldsymbol{\alpha} \boldsymbol{\alpha}^T\) 的第 \(j\) 列这一事实，我们得到
 
-\[ \mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T \]
+$$ \mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) = \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T $$
 
 其中 \(\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b})\) 表示相对于 \(\mathbf{x}\) 变量的 Hessian，对于固定的 \(A, \mathbf{b}\)。
 
@@ -401,7 +401,7 @@ plt.show()
 
 *证明*: 事实上，Hessian 是正半定的：对于任何 \(\mathbf{z} \in \mathbb{R}^d\)
 
-\[\begin{align*} \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \mathbf{z}^T \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T \mathbf{z}\\ &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\geq 0 \end{align*}\]
+$$\begin{align*} \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, \mathbf{z}^T \boldsymbol{\alpha}_i \boldsymbol{\alpha}_i^T \mathbf{z}\\ &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\geq 0 \end{align*}$$
 
 由于对于所有 \(t\)，\(\sigma(t) \in [0,1]\)。\(\square\)
 
@@ -409,23 +409,23 @@ plt.show()
 
 **引理** **(逻辑回归的平滑性)** 函数 \(\ell(\mathbf{x}; A, \mathbf{b})\) 对于
 
-\[ L= \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|² = \frac{1}{4n} \|A\|_F². \]
+$$ L= \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|² = \frac{1}{4n} \|A\|_F². $$
 
 \(\flat\)
 
 *证明*: 我们使用凸性和 Hessian 的表达式推导出，对于任何单位向量 \(\mathbf{z} \in \mathbb{R}^d\),
 
-\[\begin{align*} 0 \leq \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)². \end{align*}\]
+$$\begin{align*} 0 \leq \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)². \end{align*}$$
 
 我们需要找到因子 \(\sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\) 可以取的最大值。注意，对于所有 \(t\)，\(\sigma(t) \in [0,1]\)，且 \(\sigma(t) + (1 - \sigma(t)) = 1\)。对函数 \(f(w) = w (1 - w) = w - w²\) 求导，我们得到 \(f'(w) = 1 - 2 w\) 和 \(f''(w) = -2\)。因此，\(f\) 是凹函数，并在 \(w^* = 1/2\) 处达到最大值，此时 \(f(1/2) = 1/4\)。我们已经证明了
 
-\[ \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \leq 1/4 \]
+$$ \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x})) \leq 1/4 $$
 
 对于任何 \(\mathbf{z}\)。
 
 回到 \(\mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z}\) 的上界，我们得到
 
-\[\begin{align*} \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\leq \frac{1}{4n} \sum_{i=1}^n (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\leq \frac{1}{4n} \sum_{i=1}^n \|\mathbf{z}\|² \|\boldsymbol{\alpha}_i\|²\\ &\leq \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|², \end{align*}\]
+$$\begin{align*} \mathbf{z}^T \,\mathbf{H}_{\ell}(\mathbf{x}; A, \mathbf{b}) \,\mathbf{z} &= \frac{1}{n} \sum_{i=1}^n \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}) (1 - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}))\, (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\leq \frac{1}{4n} \sum_{i=1}^n (\mathbf{z}^T \boldsymbol{\alpha}_i)²\\ &\leq \frac{1}{4n} \sum_{i=1}^n \|\mathbf{z}\|² \|\boldsymbol{\alpha}_i\|²\\ &\leq \frac{1}{4n} \sum_{i=1}^n \|\boldsymbol{\alpha}_i\|², \end{align*}$$
 
 其中，我们在第三行使用了柯西-施瓦茨不等式，在第四行使用了 \(\mathbf{z}\) 是单位向量的事实。
 
@@ -433,7 +433,7 @@ plt.show()
 
 对于步长 \(\beta\)，梯度下降的一步因此是
 
-\[ \mathbf{x}^{t+1} = \mathbf{x}^{t} +\beta \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}^t) ) \,\boldsymbol{\alpha}_i. \]
+$$ \mathbf{x}^{t+1} = \mathbf{x}^{t} +\beta \frac{1}{n} \sum_{i=1}^n ( b_i - \sigma(\boldsymbol{\alpha}_i^T \mathbf{x}^t) ) \,\boldsymbol{\alpha}_i. $$
 
 ## 3.6.2\. 实现方法#
 
@@ -459,7 +459,7 @@ def gd_for_logreg(loss_fn, grad_fn, A, b, init_x, beta=1e-3, niters=int(1e5)):
 
 要实现 `loss_fn` 和 `grad_fn`，我们定义了上述的 sigmoid 函数。下面，`pred_fn` 是 \(\bsigma(A \mathbf{x})\)。在这里，我们将损失函数写成
 
-\[\begin{align*} \ell(\mathbf{x}; A, \mathbf{b}) &= \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha_i}^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha_i}^T \mathbf{x}))\right\}\\ &= \mathrm{mean}\left(-\mathbf{b} \odot \mathbf{log}(\bsigma(A \mathbf{x})) - (\mathbf{1} - \mathbf{b}) \odot \mathbf{log}(\mathbf{1} - \bsigma(A \mathbf{x}))\right), \end{align*}\]
+$$\begin{align*} \ell(\mathbf{x}; A, \mathbf{b}) &= \frac{1}{n} \sum_{i=1}^n \left\{- b_i \log(\sigma(\boldsymbol{\alpha_i}^T \mathbf{x})) - (1-b_i) \log(1- \sigma(\boldsymbol{\alpha_i}^T \mathbf{x}))\right\}\\ &= \mathrm{mean}\left(-\mathbf{b} \odot \mathbf{log}(\bsigma(A \mathbf{x})) - (\mathbf{1} - \mathbf{b}) \odot \mathbf{log}(\mathbf{1} - \bsigma(A \mathbf{x}))\right), \end{align*}$$
 
 其中，\(\odot\) 是哈达玛积，或逐元素乘积（例如 \(\mathbf{u} \odot \mathbf{v} = (u_1 v_1, \ldots,u_n v_n)\)），对数（用粗体表示）是逐元素应用，\(\mathrm{mean}(\mathbf{z})\) 是 \(\mathbf{z}\) 的元素平均值（即，\(\mathrm{mean}(\mathbf{z}) = n^{-1} \sum_{i=1}^n z_i\))。
 

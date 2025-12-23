@@ -1,4 +1,4 @@
-# 2. 最小二乘法：几何、代数和数值方面#
+# 2. 最小二乘法：几何、代数和数值方面
 
 > 原文：[`mmids-textbook.github.io/chap02_ls/00_intro/roch-mmids-ls-intro.html`](https://mmids-textbook.github.io/chap02_ls/00_intro/roch-mmids-ls-intro.html)
 

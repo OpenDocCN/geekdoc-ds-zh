@@ -1,4 +1,4 @@
-# 2.2\. 背景：向量空间和矩阵逆的复习#
+# 2.2\. 背景：向量空间和矩阵逆的复习
 
 > 原文：[`mmids-textbook.github.io/chap02_ls/02_spaces/roch-mmids-ls-spaces.html`](https://mmids-textbook.github.io/chap02_ls/02_spaces/roch-mmids-ls-spaces.html)
 
@@ -10,7 +10,7 @@
 
 **定义** **(线性子空间)** \(\idx{linear subspace}\xdi\) \(\mathbb{R}^n\) 的线性子空间是 \(\mathbb{R}^n\) 的子集 \(U \subseteq \mathbb{R}^n\)，它对向量加法和数乘封闭。也就是说，对于所有 \(\mathbf{u}_1, \mathbf{u}_2 \in U\) 和 \(\alpha \in \mathbb{R}\)，它都成立
 
-\[ \mathbf{u}_1 + \mathbf{u}_2 \in U \quad \text{和} \quad \alpha \,\mathbf{u}_1 \in U. \]
+$$ \mathbf{u}_1 + \mathbf{u}_2 \in U \quad \text{和} \quad \alpha \,\mathbf{u}_1 \in U. $$
 
 从这个条件可以得出 \(\mathbf{0} \in U\)。\(\natural\)
 
@@ -18,7 +18,7 @@
 
 **数值角**: 由所有满足 \(z = x+y\) 的点 \((x,y,z) \in \mathbb{R}³\) 构成的平面 \(P\) 是一个线性子空间。确实，\(0 = 0 + 0\) 所以 \((0,0,0) \in P\)。并且，对于任何 \(\mathbf{u}_1 = (x_1, y_1, z_1)\) 和 \(\mathbf{u}_2 = (x_2, y_2, z_2)\) 满足 \(z_1 = x_1 + y_1\) 和 \(z_2 = x_2 + y_2\)，以及对于任何 \(\alpha \in \mathbb{R}\)，我们有
 
-\[ \alpha z_1 + z_2 = \alpha (x_1 + y_1) + (x_2 + y_2) = (\alpha x_1 + x_2) + (\alpha y_1 + y_2). \]
+$$ \alpha z_1 + z_2 = \alpha (x_1 + y_1) + (x_2 + y_2) = (\alpha x_1 + x_2) + (\alpha y_1 + y_2). $$
 
 那就是说，\(\alpha \mathbf{u}_1 + \mathbf{u}_2\) 满足定义 \(P\) 的条件，因此它本身也在 \(P\) 中。注意，\(P\) 通过原点。
 
@@ -87,7 +87,7 @@ plt.show()
 
 **定义** **(张量积)** \(\idx{span}\xdi\) 设 \(\mathbf{w}_1, \ldots, \mathbf{w}_m \in \mathbb{R}^n\)。\(\{\mathbf{w}_1, \ldots, \mathbf{w}_m\}\) 的张量积，记为 \(\mathrm{span}(\mathbf{w}_1, \ldots, \mathbf{w}_m)\)，是所有 \(\mathbf{w}_j\) 的线性组合的集合。也就是说，
 
-\[ \mathrm{span}(\mathbf{w}_1, \ldots, \mathbf{w}_m) = \left\{ \sum_{j=1}^m \alpha_j \mathbf{w}_j\,:\, \alpha_1,\ldots, \alpha_m \in \mathbb{R} \right\}. \]
+$$ \mathrm{span}(\mathbf{w}_1, \ldots, \mathbf{w}_m) = \left\{ \sum_{j=1}^m \alpha_j \mathbf{w}_j\,:\, \alpha_1,\ldots, \alpha_m \in \mathbb{R} \right\}. $$
 
 按照惯例，我们声明空列表的生成空间是 \(\{\mathbf{0}\}\)。 \(\natural\)
 
@@ -101,13 +101,13 @@ plt.show()
 
 *证明：* 首先，\(\mathbf{0} = \sum_{j=1}^m 0\mathbf{w}_j \in W\)。其次，设 \(\mathbf{u}_1, \mathbf{u}_2 \in W\) 和 \(\alpha \in \mathbb{R}\)。对于 \(i=1,2\)，因为 \(\mathbf{u}_i\) 在 \(\mathbf{w}_j\) 的生成空间中，我们可以写成
 
-\[ \mathbf{u}_i = \sum_{j=1}^m \beta_{ij} \mathbf{w}_j \]
+$$ \mathbf{u}_i = \sum_{j=1}^m \beta_{ij} \mathbf{w}_j $$
 
 对于某些 \(\beta_{ij} \in \mathbb{R}\) 对于 \(j=1,\ldots,m\)。
 
 因此
 
-\[ \alpha \mathbf{u}_1 + \mathbf{u}_2 = \alpha \sum_{j=1}^m \beta_{1j} \mathbf{w}_j + \sum_{j=1}^m \beta_{2j} \mathbf{w}_j = \sum_{j=1}^m (\alpha \beta_{1j} + \beta_{2j}) \mathbf{w}_j. \]
+$$ \alpha \mathbf{u}_1 + \mathbf{u}_2 = \alpha \sum_{j=1}^m \beta_{1j} \mathbf{w}_j + \sum_{j=1}^m \beta_{2j} \mathbf{w}_j = \sum_{j=1}^m (\alpha \beta_{1j} + \beta_{2j}) \mathbf{w}_j. $$
 
 因此 \(\alpha \,\mathbf{u}_1 + \mathbf{u}_2 \in W\)。\(\square\)
 
@@ -115,7 +115,7 @@ plt.show()
 
 > 证明如果 \(\{\mathbf{v}_1,\ldots,\mathbf{v}_n\}\) 生成 \(U\)，那么列表
 > 
-> \[ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, \]
+> $$ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, $$
 > 
 > 通过从每个向量（除了最后一个）中减去以下向量得到。
 
@@ -123,7 +123,7 @@ plt.show()
 
 > 假设 \(U = \text{span}(\mathbf{v}_1, \ldots, \mathbf{v}_n)\)。那么对于 \(U\) 中的任意向量 \(\mathbf{v}\)，存在标量 \(a_1, \ldots, a_n \in \mathbb{R}\) 使得：
 > 
-> \[ \mathbf{v} = a_1\mathbf{v}_1 + a_2\mathbf{v}_2 + \ldots + a_n\mathbf{v}_n \]
+> $$ \mathbf{v} = a_1\mathbf{v}_1 + a_2\mathbf{v}_2 + \ldots + a_n\mathbf{v}_n $$
 > 
 > 现在我们用给定的向量表示新列表中的每个向量：
 > 
@@ -139,7 +139,7 @@ plt.show()
 > +   
 > 将所有这些表达式相加，我们得到：
 > 
-> \[ \mathbf{v} = a_1(\mathbf{v}_1-\mathbf{v}_2) + (a_1 + a_2)(\mathbf{v}_2-\mathbf{v}_3) + \ldots + (a_1 + a_2 + \ldots + a_{n-1})(\mathbf{v}_{n-1}-\mathbf{v}_n) + a_n\mathbf{v}_n \]
+> $$ \mathbf{v} = a_1(\mathbf{v}_1-\mathbf{v}_2) + (a_1 + a_2)(\mathbf{v}_2-\mathbf{v}_3) + \ldots + (a_1 + a_2 + \ldots + a_{n-1})(\mathbf{v}_{n-1}-\mathbf{v}_n) + a_n\mathbf{v}_n $$
 > 
 > 这表明向量 \(\mathbf{v}\) 可以表示为新列表中向量的线性组合，这意味着新列表也张成了 \(U\)。因此，列表 \({\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3, \ldots, \mathbf{v}_{n-1}-\mathbf{v}_n, \mathbf{v}_n}\) 张成了 \(U\)，完成了证明。
 
@@ -155,7 +155,7 @@ plt.show()
 
 **定义：** **（零空间）** \(\idx{null space}\xdi\) 设 \(B \in \mathbb{R}^{n \times m}\)。\(B\) 的零空间是线性子空间
 
-\[ \mathrm{null}(B) = \left\{\mathbf{x} \in \mathbb{R}^m\,:\, B\mathbf{x} = \mathbf{0}\right\}. \]
+$$ \mathrm{null}(B) = \left\{\mathbf{x} \in \mathbb{R}^m\,:\, B\mathbf{x} = \mathbf{0}\right\}. $$
 
 \(\natural\)
 
@@ -171,31 +171,31 @@ plt.show()
 
 **例题：** 考虑线性子空间 \(\mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3)\)，其中 \(\mathbf{w}_1 = (1,0,1)\)，\(\mathbf{w}_2 = (0,1,1)\)，和 \(\mathbf{w}_3 = (1,-1,0)\)。我们声称
 
-\[ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3) = \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2). \]
+$$ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3) = \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2). $$
 
 回想一下，为了证明集合之间的等价性，只需证明两个方向上的包含关系。
 
 首先，根据张成的定义，这是显而易见的
 
-\[ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2) \subseteq \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3). \]
+$$ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2) \subseteq \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3). $$
 
 为了证明另一个方向，设 \(\mathbf{u} \in \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3)\) 使得
 
-\[ \mathbf{u} = \beta_1\,(1,0,1) + \beta_2\,(0,1,1) + \beta_3\,(1,-1,0). \]
+$$ \mathbf{u} = \beta_1\,(1,0,1) + \beta_2\,(0,1,1) + \beta_3\,(1,-1,0). $$
 
 现在观察 \((1,-1,0) = (1,0,1) - (0,1,1)\)。换句话说，\(\mathbf{w}_3 \in \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2)\)。替换上述内容给出
 
-\[\begin{align*} \mathbf{u} &= \beta_1\,(1,0,1) + \beta_2\,(0,1,1) + \beta_3\,[(1,0,1) - (0,1,1)]\\ &= (\beta_1+\beta_3)\,(1,0,1) + (\beta_2-\beta_3)\,(0,1,1) \end{align*}\]
+$$\begin{align*} \mathbf{u} &= \beta_1\,(1,0,1) + \beta_2\,(0,1,1) + \beta_3\,[(1,0,1) - (0,1,1)]\\ &= (\beta_1+\beta_3)\,(1,0,1) + (\beta_2-\beta_3)\,(0,1,1) \end{align*}$$
 
 这表明 \(\mathbf{u} \in \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2)\)。换句话说，\((1,-1,0)\) 是多余的。因此
 
-\[ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2) \supseteq \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3) \]
+$$ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2) \supseteq \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3) $$
 
 这就完成了证明。\(\lhd\)
 
 **定义** **(线性无关)** \(\idx{线性无关}\xdi\) 一组非零向量 \(\mathbf{u}_1,\ldots,\mathbf{u}_m\) 是线性无关的，如果它们中的任何一个都不能表示为其他向量的线性组合，也就是说，
 
-\[ \forall i,\ \mathbf{u}_i \notin \mathrm{span}(\{\mathbf{u}_j:j\neq i\}). \]
+$$ \forall i,\ \mathbf{u}_i \notin \mathrm{span}(\{\mathbf{u}_j:j\neq i\}). $$
 
 按照惯例，我们宣布空列表是线性无关的。如果一个向量列表不是线性无关的，则称为线性相关。 \(\natural\)
 
@@ -203,17 +203,17 @@ plt.show()
 
 **知识检查：** 考虑 \(2 \times 2\) 矩阵
 
-\[\begin{split} A = \begin{pmatrix} a & b\\ c & d \end{pmatrix}, \end{split}\]
+$$\begin{split} A = \begin{pmatrix} a & b\\ c & d \end{pmatrix}, \end{split}$$
 
 其中所有条目均非零。在什么条件下 \(A\) 的列线性无关？解释你的答案。 \(\checkmark\)
 
 **示例：** 考虑 \(2 \times 2\) 矩阵
 
-\[\begin{split} A = \begin{pmatrix} a & b\\ c & d \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} a & b\\ c & d \end{pmatrix}. \end{split}$$
 
 我们证明列
 
-\[\begin{split} \mathbf{u}_1 = \begin{pmatrix} a\\ c \end{pmatrix} \quad \text{和} \quad \mathbf{u}_2 = \begin{pmatrix} b\\ d \end{pmatrix} \end{split}\]
+$$\begin{split} \mathbf{u}_1 = \begin{pmatrix} a\\ c \end{pmatrix} \quad \text{和} \quad \mathbf{u}_2 = \begin{pmatrix} b\\ d \end{pmatrix} \end{split}$$
 
 如果 \(ad - bc = 0\)，则它们是线性相关的。你可能已经注意到 \(ad - bc\) 是 \(A\) 的行列式，这是一个重要的代数量，但在这本书中只扮演了很小的角色。
 
@@ -221,7 +221,7 @@ plt.show()
 
 *首先假设 \(A\) 的所有条目均非零。* 在这种情况下，\(ad = bc\) 意味着 \(d/c = b/a =: \gamma\)。将 \(\mathbf{u}_1\) 乘以 \(\gamma\) 得到
 
-\[\begin{split} \gamma \mathbf{u}_1 = \gamma \begin{pmatrix} a\\ c \end{pmatrix} = \begin{pmatrix} \gamma a\\ \gamma c \end{pmatrix} = \begin{pmatrix} (b/a)a\\ (d/c)c \end{pmatrix} = \begin{pmatrix} b\\ d \end{pmatrix} = \mathbf{u}_2. \end{split}\]
+$$\begin{split} \gamma \mathbf{u}_1 = \gamma \begin{pmatrix} a\\ c \end{pmatrix} = \begin{pmatrix} \gamma a\\ \gamma c \end{pmatrix} = \begin{pmatrix} (b/a)a\\ (d/c)c \end{pmatrix} = \begin{pmatrix} b\\ d \end{pmatrix} = \mathbf{u}_2. \end{split}$$
 
 因此 \(\mathbf{u}_2\) 是 \(\mathbf{u}_1\) 的倍数，因此这些向量因此不是线性无关的。
 
@@ -229,7 +229,7 @@ plt.show()
 
 **引理** **(线性无关性的等价定义)** \(\idx{equivalent definition of linear independence}\xdi\) 向量 \(\mathbf{u}_1,\ldots,\mathbf{u}_m\) 线性无关当且仅当
 
-\[ \sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0} \implies \alpha_j = 0,\ \forall j. \]
+$$ \sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0} \implies \alpha_j = 0,\ \forall j. $$
 
 等价地，\(\mathbf{u}_1,\ldots,\mathbf{u}_m\) 线性相关当且仅当存在 \(\alpha_j\)，不全为零，使得 \(\sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0}\)。
 
@@ -241,13 +241,13 @@ plt.show()
 
 +   假设 \(\sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0}\) 且 \(\alpha_j\) 不全为零。特别是对于某个 \(i\)，\(\alpha_i \neq 0\)。那么
 
-\[ \mathbf{u}_i = - \frac{1}{\alpha_i} \sum_{j\neq i} \alpha_j \mathbf{u}_j = \sum_{j\neq i} \left(- \frac{\alpha_j}{\alpha_i}\right) \mathbf{u}_j. \]
+$$ \mathbf{u}_i = - \frac{1}{\alpha_i} \sum_{j\neq i} \alpha_j \mathbf{u}_j = \sum_{j\neq i} \left(- \frac{\alpha_j}{\alpha_i}\right) \mathbf{u}_j. $$
 
 \(\square\)
 
 以矩阵形式：设 \(\mathbf{a}_1,\ldots,\mathbf{a}_m \in \mathbb{R}^n\) 并形成列向量是 \(\mathbf{a}_i\) 的矩阵
 
-\[\begin{split} A = \begin{pmatrix} | & & | \\ \mathbf{a}_1 & \ldots & \mathbf{a}_m \\ | & & | \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} | & & | \\ \mathbf{a}_1 & \ldots & \mathbf{a}_m \\ | & & | \end{pmatrix}. \end{split}$$
 
 注意到 \(A\mathbf{x}\) 是 \(A\) 的列向量的以下线性组合：\(\sum_{j=1}^m x_j \mathbf{a}_j\)。因此，\(\mathbf{a}_1,\ldots,\mathbf{a}_m\) 线性无关当且仅当 \(A \mathbf{x} = \mathbf{0} \implies \mathbf{x} = \mathbf{0}\)。从 \(A\) 的零空间的角度来看，这个最后条件转化为 \(\mathrm{null}(A) = \{\mathbf{0}\}\)。
 
@@ -257,39 +257,39 @@ plt.show()
 
 **EXAMPLE:** **(通过手工检查线性无关性)** 假设我们有以下向量
 
-\[\begin{split} \mathbf{v}_1 = \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix}, \quad \mathbf{v}_2 = \begin{pmatrix} 0 \\ 1 \\ 4 \end{pmatrix}, \quad \mathbf{v}_3 = \begin{pmatrix} 5 \\ 6 \\ 0 \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{v}_1 = \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix}, \quad \mathbf{v}_2 = \begin{pmatrix} 0 \\ 1 \\ 4 \end{pmatrix}, \quad \mathbf{v}_3 = \begin{pmatrix} 5 \\ 6 \\ 0 \end{pmatrix}. \end{split}$$
 
 要确定这些向量是否线性无关，我们需要检查以下方程
 
-\[ \alpha_1 \mathbf{v}_1 + \alpha_2 \mathbf{v}_2 + \alpha_3 \mathbf{v}_3 = \mathbf{0} \]
+$$ \alpha_1 \mathbf{v}_1 + \alpha_2 \mathbf{v}_2 + \alpha_3 \mathbf{v}_3 = \mathbf{0} $$
 
 导致 \(\alpha_1 = 0\)，\(\alpha_2 = 0\)，和 \(\alpha_3 = 0\)。
 
 代入向量，我们得到
 
-\[\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 0 \\ 1 \\ 4 \end{pmatrix} + \alpha_3 \begin{pmatrix} 5 \\ 6 \\ 0 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}\]
+$$\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 0 \\ 1 \\ 4 \end{pmatrix} + \alpha_3 \begin{pmatrix} 5 \\ 6 \\ 0 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}$$
 
 这给我们以下方程组
 
-\[\begin{split} \begin{cases} \alpha_1 + 5\alpha_3 = 0 \\ 2\alpha_1 + \alpha_2 + 6\alpha_3 = 0 \\ 3\alpha_1 + 4\alpha_2 = 0 \end{cases}. \end{split}\]
+$$\begin{split} \begin{cases} \alpha_1 + 5\alpha_3 = 0 \\ 2\alpha_1 + \alpha_2 + 6\alpha_3 = 0 \\ 3\alpha_1 + 4\alpha_2 = 0 \end{cases}. \end{split}$$
 
 我们逐步解决这个问题。
 
 从第一个方程，我们有
 
-\[ \alpha_1 + 5\alpha_3 = 0 \implies \alpha_1 = -5\alpha_3. \]
+$$ \alpha_1 + 5\alpha_3 = 0 \implies \alpha_1 = -5\alpha_3. $$
 
 将 \(\alpha_1 = -5\alpha_3\) 代入第二个方程
 
-\[ 2(-5\alpha_3) + \alpha_2 + 6\alpha_3 = 0 \implies -10\alpha_3 + \alpha_2 + 6\alpha_3 = 0 \implies \alpha_2 - 4\alpha_3 = 0 \implies \alpha_2 = 4\alpha_3. \]
+$$ 2(-5\alpha_3) + \alpha_2 + 6\alpha_3 = 0 \implies -10\alpha_3 + \alpha_2 + 6\alpha_3 = 0 \implies \alpha_2 - 4\alpha_3 = 0 \implies \alpha_2 = 4\alpha_3. $$
 
 现在，将 \(\alpha_1 = -5\alpha_3\) 和 \(\alpha_2 = 4\alpha_3\) 代入第三个方程
 
-\[ 3(-5\alpha_3) + 4(4\alpha_3) = 0 \implies -15\alpha_3 + 16\alpha_3 = 0 \implies \alpha_3 = 0. \]
+$$ 3(-5\alpha_3) + 4(4\alpha_3) = 0 \implies -15\alpha_3 + 16\alpha_3 = 0 \implies \alpha_3 = 0. $$
 
 由于 \(\alpha_3 = 0\)，我们也有
 
-\[\begin{split} \alpha_1 = -5\alpha_3 = -5(0) = 0 \\ \alpha_2 = 4\alpha_3 = 4(0) = 0. \end{split}\]
+$$\begin{split} \alpha_1 = -5\alpha_3 = -5(0) = 0 \\ \alpha_2 = 4\alpha_3 = 4(0) = 0. \end{split}$$
 
 因此，\(\alpha_1 = 0\)，\(\alpha_2 = 0\)，和 \(\alpha_3 = 0\)。
 
@@ -305,15 +305,15 @@ plt.show()
 
 **示例** 对于 \(i=1,\ldots,n\)，回忆一下 \(\mathbf{e}_i \in \mathbb{R}^n\) 是一个具有以下元素的向量
 
-\[\begin{split} (\mathbf{e}_i)_j = \begin{cases} 1, & \text{if } j = i,\\ 0, & \text{otherwise.} \end{cases} \end{split}\]
+$$\begin{split} (\mathbf{e}_i)_j = \begin{cases} 1, & \text{if } j = i,\\ 0, & \text{otherwise.} \end{cases} \end{split}$$
 
 然后 \(\mathbf{e}_1, \ldots, \mathbf{e}_n\) 形成了 \(\mathbb{R}^n\) 的一个基，因为每个向量都在 \(\mathbb{R}^n\) 中。它被称为 \(\mathbb{R}^n\) 的标准基。实际上，显然 \(\mathrm{span}(\mathbf{e}_1, \ldots, \mathbf{e}_n) \subseteq \mathbb{R}^n\)。此外，任何向量 \(\mathbf{u} = (u_1,\ldots,u_n) \in \mathbb{R}^n\) 都可以写成
 
-\[ \mathbf{u} = \sum_{i=1}^{n} u_i \mathbf{e}_i. \]
+$$ \mathbf{u} = \sum_{i=1}^{n} u_i \mathbf{e}_i. $$
 
 因此，\(\mathbf{e}_1, \ldots, \mathbf{e}_n\) 张成了 \(\mathbb{R}^n\)。此外，
 
-\[ \mathbf{e}_i \notin \mathrm{span}(\{\mathbf{e}_j:j\neq i\}), \quad \forall i=1,\ldots,n, \]
+$$ \mathbf{e}_i \notin \mathrm{span}(\{\mathbf{e}_j:j\neq i\}), \quad \forall i=1,\ldots,n, $$
 
 由于 \(\mathbf{e}_i\) 在第 \(i\) 个位置有一个非零项，而右侧的所有向量在第 \(i\) 个位置都是零。因此，向量 \(\mathbf{e}_1, \ldots, \mathbf{e}_n\) 是线性无关的。 \(\lhd\)
 
@@ -345,7 +345,7 @@ plt.show()
 
 **知识检查:** 矩阵
 
-\[\begin{split} B=\begin{bmatrix}1& 2\\1 & 3\\2 & 4\end{bmatrix} \end{split}\]
+$$\begin{split} B=\begin{bmatrix}1& 2\\1 & 3\\2 & 4\end{bmatrix} \end{split}$$
 
 有线性无关的列吗？请证明你的答案。 \(\checkmark\)
 
@@ -373,7 +373,7 @@ plt.show()
 
 *证明:* *(线性相关性)* 对于 1.，由于线性相关性，\(\sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0}\)，其中 \(\alpha_j\) 不全为零。进一步地，因为 \(\mathbf{u}_1 \neq \mathbf{0}\)，所以 \(\alpha_2, \ldots, \alpha_m\) 中不全为零（为什么？）。取 \(\alpha_j\) 中非零的最大索引，设为 \(i\)。然后重新排列前面的表达式，并利用 \(\alpha_j=0\) 对于 \(j > i\) 的事实，给出
 
-\[ \mathbf{u}_i = - \sum_{j=1}^{i-1} \frac{\alpha_j}{\alpha_i} \mathbf{u}_j \in \mathrm{span}(\mathbf{u}_1,\ldots,\mathbf{u}_{i-1}). \]
+$$ \mathbf{u}_i = - \sum_{j=1}^{i-1} \frac{\alpha_j}{\alpha_i} \mathbf{u}_j \in \mathrm{span}(\mathbf{u}_1,\ldots,\mathbf{u}_{i-1}). $$
 
 对于 2.，我们注意到对于任何 \(\mathbf{w} \in \mathrm{span}(\{\mathbf{u}_j:j \in [m]\})\)，我们可以将其表示为 \(\mathbf{w} = \sum_{j=1}^m \beta_j \mathbf{u}_j\)，并且我们可以用上面的方程替换 \(\mathbf{u}_i\)，从而得到 \(\mathbf{w}\) 以 \(\{\mathbf{u}_j:j \in [m], j\neq i\}\) 为基的表示。\(\square\)
 
@@ -403,7 +403,7 @@ plt.show()
 
 **引理** **(可逆性)** \(\idx{invertibility lemma}\xdi\) 一个方阵 \(A \in \mathbb{R}^{n \times n}\) 是非奇异的当且仅当存在一个唯一的 \(A^{-1}\) 使得
 
-\[ A A^{-1} = A^{-1} A = I_{n \times n}. \]
+$$ A A^{-1} = A^{-1} A = I_{n \times n}. $$
 
 矩阵 \(A^{-1}\) 被称为 \(A\) 的逆。我们还说 \(A\) 是可逆的\(\idx{invertible matrix}\xdi\)。\(\flat\)
 
@@ -411,7 +411,7 @@ plt.show()
 
 *证明：* 首先假设 \(A\) 是满列秩的。那么它的列是线性无关的，并构成 \(\mathbb{R}^n\) 的一个基。特别是，对于任意的 \(i\)，标准基向量 \(\mathbf{e}_i\) 可以被唯一线性组合 \(A\) 的列来表示，即存在 \(\mathbf{b}_i\) 使得 \(A \mathbf{b}_i = \mathbf{e}_i\)。令 \(B\) 为列向量为 \(\mathbf{b}_i\) 的矩阵，\(i=1,\ldots,n\)。通过构造，\(A B = I_{n\times n}\)。应用相同的思想到 \(A\) 的行（根据 *Row Rank Equals Column Rank Lemma*，它们也构成 \(\mathbb{R}^n\) 的一个基），存在一个唯一的 \(C\) 使得 \(C A = I_{n\times n}\)。将两边乘以 \(B\)，我们得到
 
-\[ C = C A B = I_{n \times n} B = B. \]
+$$ C = C A B = I_{n \times n} B = B. $$
 
 因此我们取 \(A^{-1} = B = C\)。
 
@@ -421,7 +421,7 @@ plt.show()
 
 *证明*：第一个结论直接来源于 \(A\) 的列向量构成了 \(\mathbb{R}^n\) 的一个基的事实。对于第二个结论，注意
 
-\[ \mathbf{x} = A^{-1} A \mathbf{x} = A^{-1} \mathbf{b}. \]
+$$ \mathbf{x} = A^{-1} A \mathbf{x} = A^{-1} \mathbf{b}. $$
 
 \(\square\)
 
@@ -431,17 +431,17 @@ plt.show()
 
 注意到 \(B\) 是一个 \(m \times m\) 的矩阵。根据定义，为了证明它是非奇异的，我们需要证明它具有满列秩，或者换句话说，它的列也是线性无关的。根据线性无关的等价定义的矩阵版本，我们只需要证明
 
-\[ B \mathbf{x} = \mathbf{0} \implies \mathbf{x} = \mathbf{0}. \]
+$$ B \mathbf{x} = \mathbf{0} \implies \mathbf{x} = \mathbf{0}. $$
 
 我们接下来证明这一点。
 
 由于 \(B = A^T A\)，方程 \(B \mathbf{x} = \mathbf{0}\) 意味着
 
-\[ A^T A \mathbf{x} = \mathbf{0}. \]
+$$ A^T A \mathbf{x} = \mathbf{0}. $$
 
 现在是关键思想：我们将等式的两边都乘以 \(\mathbf{x}^T\)。左边变为
 
-\[ \mathbf{x}^T (A^T A \mathbf{x}) = (A \mathbf{x})^T (A \mathbf{x}) = \|A \mathbf{x}\|², \]
+$$ \mathbf{x}^T (A^T A \mathbf{x}) = (A \mathbf{x})^T (A \mathbf{x}) = \|A \mathbf{x}\|², $$
 
 其中我们使用了，对于矩阵 \(C, D\)，我们有 \((CD)^T = D^T C^T\)。右边变为 \(\mathbf{x}^T \mathbf{0} = 0\)。因此，我们已经证明了 \(A^T A \mathbf{x} = \mathbf{0}\) 实际上意味着 \(\|A \mathbf{x}\|² = 0\)。
 
@@ -449,11 +449,11 @@ plt.show()
 
 **例题:** **(推导 \(2 \times 2\) 矩阵逆的一般公式)** 考虑一个由下式给出的 \(2 \times 2\) 矩阵 \(A\)
 
-\[\begin{split} A = \begin{pmatrix} a & b \\ c & d \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} a & b \\ c & d \end{pmatrix}. \end{split}$$
 
 我们试图找到其逆 \(A^{-1}\)，使得 \(A A^{-1} = I_{2 \times 2}\)。我们猜测逆 \(A^{-1}\) 的形式为
 
-\[\begin{split} A^{-1} = \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}, \end{split}\]
+$$\begin{split} A^{-1} = \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}, \end{split}$$
 
 在前一个例子中，我们看到了逆矩阵存在的必要条件是 \(ad - bc \neq 0\)。
 
@@ -461,41 +461,41 @@ plt.show()
 
 我们执行矩阵乘法 \(A A^{-1}\)
 
-\[\begin{align*} A A^{-1} &= \begin{pmatrix} a & b \\ c & d \end{pmatrix} \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}\\ &= \frac{1}{ad - bc} \begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix} \\ &= \frac{1}{ad - bc} \begin{pmatrix} ad - bc & -ab + ab \\ cd - cd & -bc + ad \end{pmatrix} \\ &= \frac{1}{ad - bc} \begin{pmatrix} ad - bc & 0 \\ 0 & ad - bc \end{pmatrix} \\ &= \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} A A^{-1} &= \begin{pmatrix} a & b \\ c & d \end{pmatrix} \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}\\ &= \frac{1}{ad - bc} \begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix} \\ &= \frac{1}{ad - bc} \begin{pmatrix} ad - bc & -ab + ab \\ cd - cd & -bc + ad \end{pmatrix} \\ &= \frac{1}{ad - bc} \begin{pmatrix} ad - bc & 0 \\ 0 & ad - bc \end{pmatrix} \\ &= \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}. \end{align*}$$
 
 由于乘积结果是单位矩阵，我们的逆矩阵猜测形式在 \(ad - bc \neq 0\) 的条件下是正确的。
 
 这里有一个简单的数值例子。设
 
-\[\begin{split} A = \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix}. \end{split}$$
 
 要找到 \(A^{-1}\)，我们计算
 
-\[ ad - bc = 2 \cdot 4 - 3 \cdot 1 = 8 - 3 = 5 \neq 0. \]
+$$ ad - bc = 2 \cdot 4 - 3 \cdot 1 = 8 - 3 = 5 \neq 0. $$
 
 使用推导出的公式，我们有
 
-\[\begin{split} A^{-1} = \frac{1}{5} \begin{pmatrix} 4 & -3 \\ -1 & 2 \end{pmatrix} = \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix}. \end{split}\]
+$$\begin{split} A^{-1} = \frac{1}{5} \begin{pmatrix} 4 & -3 \\ -1 & 2 \end{pmatrix} = \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix}. \end{split}$$
 
 我们可以通过检查 \(A A^{-1}\) 来验证这一点：
 
-\[\begin{split} \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix} \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix} = \begin{pmatrix} 2 \cdot 0.8 + 3 \cdot (-0.2) & 2 \cdot (-0.6) + 3 \cdot 0.4 \\ 1 \cdot 0.8 + 4 \cdot (-0.2) & 1 \cdot (-0.6) + 4 \cdot 0.4 \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}. \end{split}\]
+$$\begin{split} \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix} \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix} = \begin{pmatrix} 2 \cdot 0.8 + 3 \cdot (-0.2) & 2 \cdot (-0.6) + 3 \cdot 0.4 \\ 1 \cdot 0.8 + 4 \cdot (-0.2) & 1 \cdot (-0.6) + 4 \cdot 0.4 \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}. \end{split}$$
 
 最后，这里有一个使用此公式求解两个未知数的两个方程线性系统的例子。考虑以下线性系统
 
-\[\begin{split} \begin{cases} 2x_1 + 3x_2 = 5, \\ x_1 + 4x_2 = 6. \end{cases} \end{split}\]
+$$\begin{split} \begin{cases} 2x_1 + 3x_2 = 5, \\ x_1 + 4x_2 = 6. \end{cases} \end{split}$$
 
 我们可以将此系统表示为 \(A \mathbf{x} = \mathbf{b}\)，其中
 
-\[\begin{split} A = \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix}, \quad \mathbf{x} = \begin{pmatrix} x_1 \\ x_2 \end{pmatrix}, \quad \mathbf{b} = \begin{pmatrix} 5 \\ 6 \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix}, \quad \mathbf{x} = \begin{pmatrix} x_1 \\ x_2 \end{pmatrix}, \quad \mathbf{b} = \begin{pmatrix} 5 \\ 6 \end{pmatrix}. \end{split}$$
 
 为了求解 \(\mathbf{x}\)，我们使用 \(A^{-1}\)
 
-\[\begin{split} \mathbf{x} = A^{-1} \mathbf{b} = \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix} \begin{pmatrix} 5 \\ 6 \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{x} = A^{-1} \mathbf{b} = \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix} \begin{pmatrix} 5 \\ 6 \end{pmatrix}. \end{split}$$
 
 进行矩阵乘法，我们得到
 
-\[\begin{split} \mathbf{x} = \begin{pmatrix} 0.8 \cdot 5 + (-0.6) \cdot 6 \\ -0.2 \cdot 5 + 0.4 \cdot 6 \end{pmatrix} = \begin{pmatrix} 4 - 3.6 \\ -1 + 2.4 \end{pmatrix} = \begin{pmatrix} 0.4 \\ 1.4 \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{x} = \begin{pmatrix} 0.8 \cdot 5 + (-0.6) \cdot 6 \\ -0.2 \cdot 5 + 0.4 \cdot 6 \end{pmatrix} = \begin{pmatrix} 4 - 3.6 \\ -1 + 2.4 \end{pmatrix} = \begin{pmatrix} 0.4 \\ 1.4 \end{pmatrix}. \end{split}$$
 
 因此，该系统的解为 \(x_1 = 0.4\) 和 \(x_2 = 1.4\)。 \(\lhd\)
 
@@ -567,7 +567,7 @@ d) 子空间中正交向量的数量。
 
 **定义** **(线性子空间)** \(\idx{线性子空间}\xdi\) \(\mathbb{R}^n\) 的线性子空间是 \(\mathbb{R}^n\) 的一个子集 \(U \subseteq \mathbb{R}^n\)，它对向量加法和数乘封闭。也就是说，对于所有 \(\mathbf{u}_1, \mathbf{u}_2 \in U\) 和 \(\alpha \in \mathbb{R}\)，都有
 
-\[ \mathbf{u}_1 + \mathbf{u}_2 \in U \quad \text{和} \quad \alpha \,\mathbf{u}_1 \in U. \]
+$$ \mathbf{u}_1 + \mathbf{u}_2 \in U \quad \text{和} \quad \alpha \,\mathbf{u}_1 \in U. $$
 
 从这个条件可以得出 \(\mathbf{0} \in U\)。 \(\natural\)
 
@@ -575,7 +575,7 @@ d) 子空间中正交向量的数量。
 
 **数值角** 由所有满足 \(z = x+y\) 的点 \((x,y,z) \in \mathbb{R}³\) 构成的平面 \(P\) 是一个线性子空间。实际上，\(0 = 0 + 0\) 所以 \((0,0,0) \in P\)。并且，对于任何满足 \(z_1 = x_1 + y_1\) 和 \(z_2 = x_2 + y_2\) 的 \(\mathbf{u}_1 = (x_1, y_1, z_1)\) 和 \(\mathbf{u}_2 = (x_2, y_2, z_2)\)，以及任何 \(\alpha \in \mathbb{R}\)，我们有
 
-\[ \alpha z_1 + z_2 = \alpha (x_1 + y_1) + (x_2 + y_2) = (\alpha x_1 + x_2) + (\alpha y_1 + y_2). \]
+$$ \alpha z_1 + z_2 = \alpha (x_1 + y_1) + (x_2 + y_2) = (\alpha x_1 + x_2) + (\alpha y_1 + y_2). $$
 
 即，\(\alpha \mathbf{u}_1 + \mathbf{u}_2\) 满足定义 \(P\) 的条件，因此它本身也在 \(P\) 中。注意，\(P\) 通过原点。
 
@@ -644,7 +644,7 @@ plt.show()
 
 **定义** **(张成)** \(\idx{span}\xdi\) 设 \(\mathbf{w}_1, \ldots, \mathbf{w}_m \in \mathbb{R}^n\)。\(\{\mathbf{w}_1, \ldots, \mathbf{w}_m\}\) 的张成，记为 \(\mathrm{span}(\mathbf{w}_1, \ldots, \mathbf{w}_m)\)，是 \(\mathbf{w}_j\) 的所有线性组合的集合。也就是说，
 
-\[ \mathrm{span}(\mathbf{w}_1, \ldots, \mathbf{w}_m) = \left\{ \sum_{j=1}^m \alpha_j \mathbf{w}_j\,:\, \alpha_1,\ldots, \alpha_m \in \mathbb{R} \right\}. \]
+$$ \mathrm{span}(\mathbf{w}_1, \ldots, \mathbf{w}_m) = \left\{ \sum_{j=1}^m \alpha_j \mathbf{w}_j\,:\, \alpha_1,\ldots, \alpha_m \in \mathbb{R} \right\}. $$
 
 按照惯例，我们声明空列表的张成是 \(\{\mathbf{0}\}\)。 \(\natural\)
 
@@ -658,13 +658,13 @@ plt.show()
 
 *证明* 首先，\(\mathbf{0} = \sum_{j=1}^m 0\mathbf{w}_j \in W\)。其次，设 \(\mathbf{u}_1, \mathbf{u}_2 \in W\) 以及 \(\alpha \in \mathbb{R}\)。对于 \(i=1,2\)，因为 \(\mathbf{u}_i\) 在 \(\mathbf{w}_j\) 的张集中，我们可以写成
 
-\[ \mathbf{u}_i = \sum_{j=1}^m \beta_{ij} \mathbf{w}_j \]
+$$ \mathbf{u}_i = \sum_{j=1}^m \beta_{ij} \mathbf{w}_j $$
 
 对于某些 \(\beta_{ij} \in \mathbb{R}\)（\(j=1,\ldots,m\)）。
 
 因此
 
-\[ \alpha \mathbf{u}_1 + \mathbf{u}_2 = \alpha \sum_{j=1}^m \beta_{1j} \mathbf{w}_j + \sum_{j=1}^m \beta_{2j} \mathbf{w}_j = \sum_{j=1}^m (\alpha \beta_{1j} + \beta_{2j}) \mathbf{w}_j. \]
+$$ \alpha \mathbf{u}_1 + \mathbf{u}_2 = \alpha \sum_{j=1}^m \beta_{1j} \mathbf{w}_j + \sum_{j=1}^m \beta_{2j} \mathbf{w}_j = \sum_{j=1}^m (\alpha \beta_{1j} + \beta_{2j}) \mathbf{w}_j. $$
 
 因此 \(\alpha \,\mathbf{u}_1 + \mathbf{u}_2 \in W\).\(\square\)
 
@@ -672,7 +672,7 @@ plt.show()
 
 > 证明如果 \(\{\mathbf{v}_1,\ldots,\mathbf{v}_n\}\) 张成 \(U\)，那么列表
 > 
-> \[ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, \]
+> $$ \{\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3,\ldots,\mathbf{v}_{n-1}-\mathbf{v}_n,\mathbf{v}_n\}, $$
 > 
 > 通过从每个向量（除了最后一个）中减去以下向量得到。
 
@@ -680,7 +680,7 @@ plt.show()
 
 > 假设 \(U = \text{span}(\mathbf{v}_1, \ldots, \mathbf{v}_n)\)。那么对于 \(U\) 中的任意向量 \(\mathbf{v}\)，存在标量 \(a_1, \ldots, a_n \in \mathbb{R}\)，使得：
 > 
-> \[ \mathbf{v} = a_1\mathbf{v}_1 + a_2\mathbf{v}_2 + \ldots + a_n\mathbf{v}_n \]
+> $$ \mathbf{v} = a_1\mathbf{v}_1 + a_2\mathbf{v}_2 + \ldots + a_n\mathbf{v}_n $$
 > 
 > 现在让我们用给定的向量表示新列表中的每个向量：
 > 
@@ -696,7 +696,7 @@ plt.show()
 > +   
 > 将所有这些表达式相加，我们得到：
 > 
-> \[ \mathbf{v} = a_1(\mathbf{v}_1-\mathbf{v}_2) + (a_1 + a_2)(\mathbf{v}_2-\mathbf{v}_3) + \ldots + (a_1 + a_2 + \ldots + a_{n-1})(\mathbf{v}_{n-1}-\mathbf{v}_n) + a_n\mathbf{v}_n \]
+> $$ \mathbf{v} = a_1(\mathbf{v}_1-\mathbf{v}_2) + (a_1 + a_2)(\mathbf{v}_2-\mathbf{v}_3) + \ldots + (a_1 + a_2 + \ldots + a_{n-1})(\mathbf{v}_{n-1}-\mathbf{v}_n) + a_n\mathbf{v}_n $$
 > 
 > 这表明 \(\mathbf{v}\) 可以表示为新列表中向量的线性组合，这意味着新列表也张成 \(U\)。因此，列表 \({\mathbf{v}_1-\mathbf{v}_2, \mathbf{v}_2-\mathbf{v}_3, \ldots, \mathbf{v}_{n-1}-\mathbf{v}_n, \mathbf{v}_n}\) 张成 \(U\)，完成了证明。
 
@@ -712,7 +712,7 @@ plt.show()
 
 **定义** **(零空间)** \(\idx{null space}\xdi\) 设 \(B \in \mathbb{R}^{n \times m}\)。\(B\) 的零空间是线性子空间
 
-\[ \mathrm{null}(B) = \left\{\mathbf{x} \in \mathbb{R}^m\,:\, B\mathbf{x} = \mathbf{0}\right\}. \]
+$$ \mathrm{null}(B) = \left\{\mathbf{x} \in \mathbb{R}^m\,:\, B\mathbf{x} = \mathbf{0}\right\}. $$
 
 \(\natural\)
 
@@ -728,31 +728,31 @@ plt.show()
 
 **EXAMPLE:** 考虑线性子空间 \(\mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3)\)，其中 \(\mathbf{w}_1 = (1,0,1)\)，\(\mathbf{w}_2 = (0,1,1)\)，和 \(\mathbf{w}_3 = (1,-1,0)\)。我们声称
 
-\[ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3) = \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2). \]
+$$ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3) = \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2). $$
 
 回想一下，为了证明两个集合之间的等价性，只需证明它们在两个方向上的包含关系即可。
 
 首先，根据张成的定义，这是显而易见的，
 
-\[ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2) \subseteq \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3). \]
+$$ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2) \subseteq \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3). $$
 
 为了证明另一个方向，假设 \(\mathbf{u} \in \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3)\) 使得
 
-\[ \mathbf{u} = \beta_1\,(1,0,1) + \beta_2\,(0,1,1) + \beta_3\,(1,-1,0). \]
+$$ \mathbf{u} = \beta_1\,(1,0,1) + \beta_2\,(0,1,1) + \beta_3\,(1,-1,0). $$
 
 现在观察 \((1,-1,0) = (1,0,1) - (0,1,1)\)。换句话说，\(\mathbf{w}_3 \in \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2)\)。替换上面的表达式给出
 
-\[\begin{align*} \mathbf{u} &= \beta_1\,(1,0,1) + \beta_2\,(0,1,1) + \beta_3\,[(1,0,1) - (0,1,1)]\\ &= (\beta_1+\beta_3)\,(1,0,1) + (\beta_2-\beta_3)\,(0,1,1) \end{align*}\]
+$$\begin{align*} \mathbf{u} &= \beta_1\,(1,0,1) + \beta_2\,(0,1,1) + \beta_3\,[(1,0,1) - (0,1,1)]\\ &= (\beta_1+\beta_3)\,(1,0,1) + (\beta_2-\beta_3)\,(0,1,1) \end{align*}$$
 
 这表明 \(\mathbf{u} \in \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2)\)。换句话说，\((1,-1,0)\) 是冗余的。因此
 
-\[ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2) \supseteq \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3) \]
+$$ \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2) \supseteq \mathrm{span}(\mathbf{w}_1,\mathbf{w}_2,\mathbf{w}_3) $$
 
 这就完成了证明。\(\lhd\)
 
 **DEFINITION** **(线性无关)** \(\idx{linear independence}\xdi\) 一个非零向量列表 \(\mathbf{u}_1,\ldots,\mathbf{u}_m\) 是线性无关的，如果其中没有一个向量可以被其他向量的线性组合表示，即，
 
-\[ \forall i,\ \mathbf{u}_i \notin \mathrm{span}(\{\mathbf{u}_j:j\neq i\}). \]
+$$ \forall i,\ \mathbf{u}_i \notin \mathrm{span}(\{\mathbf{u}_j:j\neq i\}). $$
 
 按照惯例，我们将空列表声明为线性无关。如果一个向量列表不是线性无关的，则称其为线性相关。\(\natural\)
 
@@ -760,17 +760,17 @@ plt.show()
 
 **知识检查：** 考虑 \(2 \times 2\) 矩阵
 
-\[\begin{split} A = \begin{pmatrix} a & b\\ c & d \end{pmatrix}, \end{split}\]
+$$\begin{split} A = \begin{pmatrix} a & b\\ c & d \end{pmatrix}, \end{split}$$
 
 其中所有元素都不为零。在什么条件下，\(A\) 的列线性无关？解释你的答案。 \(\checkmark\)
 
 **示例：** 考虑 \(2 \times 2\) 矩阵
 
-\[\begin{split} A = \begin{pmatrix} a & b\\ c & d \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} a & b\\ c & d \end{pmatrix}. \end{split}$$
 
 我们证明列
 
-\[\begin{split} \mathbf{u}_1 = \begin{pmatrix} a\\ c \end{pmatrix} \quad \text{和} \quad \mathbf{u}_2 = \begin{pmatrix} b\\ d \end{pmatrix} \end{split}\]
+$$\begin{split} \mathbf{u}_1 = \begin{pmatrix} a\\ c \end{pmatrix} \quad \text{和} \quad \mathbf{u}_2 = \begin{pmatrix} b\\ d \end{pmatrix} \end{split}$$
 
 当 \(ad - bc = 0\) 时线性相关。你可能认出 \(ad - bc\) 是 \(A\) 的行列式，这是一个重要的代数量，但在本书中只扮演了很小的角色。
 
@@ -778,7 +778,7 @@ plt.show()
 
 *首先假设 \(A\) 的所有元素都不为零。* 在这种情况下，\(ad = bc\) 意味着 \(d/c = b/a =: \gamma\)。将 \(\mathbf{u}_1\) 乘以 \(\gamma\) 得到
 
-\[\begin{split} \gamma \mathbf{u}_1 = \gamma \begin{pmatrix} a\\ c \end{pmatrix} = \begin{pmatrix} \gamma a\\ \gamma c \end{pmatrix} = \begin{pmatrix} (b/a)a\\ (d/c)c \end{pmatrix} = \begin{pmatrix} b\\ d \end{pmatrix} = \mathbf{u}_2. \end{split}\]
+$$\begin{split} \gamma \mathbf{u}_1 = \gamma \begin{pmatrix} a\\ c \end{pmatrix} = \begin{pmatrix} \gamma a\\ \gamma c \end{pmatrix} = \begin{pmatrix} (b/a)a\\ (d/c)c \end{pmatrix} = \begin{pmatrix} b\\ d \end{pmatrix} = \mathbf{u}_2. \end{split}$$
 
 因此 \(\mathbf{u}_2\) 是 \(\mathbf{u}_1\) 的倍数，因此这些向量不是线性无关的。
 
@@ -786,7 +786,7 @@ plt.show()
 
 **引理** **（线性无关的等价定义）** \(\idx{equivalent definition of linear independence}\xdi\) 向量 \(\mathbf{u}_1,\ldots,\mathbf{u}_m\) 线性无关当且仅当
 
-\[ \sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0} \implies \alpha_j = 0,\ \forall j. \]
+$$ \sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0} \implies \alpha_j = 0,\ \forall j. $$
 
 等价地，如果存在非全零的 \(\alpha_j\)，使得 \(\sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0}\)，则 \(\mathbf{u}_1,\ldots,\mathbf{u}_m\) 线性相关。
 
@@ -798,13 +798,13 @@ plt.show()
 
 +   假设 \(\sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0}\) 且 \(\alpha_j\) 不全为零。特别是对于某个 \(i\)，\(\alpha_i \neq 0\)。那么
 
-\[ \mathbf{u}_i = - \frac{1}{\alpha_i} \sum_{j\neq i} \alpha_j \mathbf{u}_j = \sum_{j\neq i} \left(- \frac{\alpha_j}{\alpha_i}\right) \mathbf{u}_j. \]
+$$ \mathbf{u}_i = - \frac{1}{\alpha_i} \sum_{j\neq i} \alpha_j \mathbf{u}_j = \sum_{j\neq i} \left(- \frac{\alpha_j}{\alpha_i}\right) \mathbf{u}_j. $$
 
 \(\square\)
 
 以矩阵形式表示：设 \(\mathbf{a}_1,\ldots,\mathbf{a}_m \in \mathbb{R}^n\) 并形成列向量是 \(\mathbf{a}_i\) 的矩阵
 
-\[\begin{split} A = \begin{pmatrix} | & & | \\ \mathbf{a}_1 & \ldots & \mathbf{a}_m \\ | & & | \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} | & & | \\ \mathbf{a}_1 & \ldots & \mathbf{a}_m \\ | & & | \end{pmatrix}. \end{split}$$
 
 注意到 \(A\mathbf{x}\) 是 \(A\) 的列向量的以下线性组合：\(\sum_{j=1}^m x_j \mathbf{a}_j\)。因此，\(\mathbf{a}_1,\ldots,\mathbf{a}_m\) 线性无关当且仅当 \(A \mathbf{x} = \mathbf{0} \implies \mathbf{x} = \mathbf{0}\)。从 \(A\) 的零空间的角度来看，这个条件可以转化为 \(\mathrm{null}(A) = \{\mathbf{0}\}\)。
 
@@ -814,39 +814,39 @@ plt.show()
 
 **示例：** **(手动检查线性无关性)** 假设我们有以下向量
 
-\[\begin{split} \mathbf{v}_1 = \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix}, \quad \mathbf{v}_2 = \begin{pmatrix} 0 \\ 1 \\ 4 \end{pmatrix}, \quad \mathbf{v}_3 = \begin{pmatrix} 5 \\ 6 \\ 0 \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{v}_1 = \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix}, \quad \mathbf{v}_2 = \begin{pmatrix} 0 \\ 1 \\ 4 \end{pmatrix}, \quad \mathbf{v}_3 = \begin{pmatrix} 5 \\ 6 \\ 0 \end{pmatrix}. \end{split}$$
 
 要确定这些向量是否线性无关，我们需要检查方程
 
-\[ \alpha_1 \mathbf{v}_1 + \alpha_2 \mathbf{v}_2 + \alpha_3 \mathbf{v}_3 = \mathbf{0} \]
+$$ \alpha_1 \mathbf{v}_1 + \alpha_2 \mathbf{v}_2 + \alpha_3 \mathbf{v}_3 = \mathbf{0} $$
 
 这意味着 \(\alpha_1 = 0\)，\(\alpha_2 = 0\)，和 \(\alpha_3 = 0\)。
 
 代入向量，我们得到
 
-\[\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 0 \\ 1 \\ 4 \end{pmatrix} + \alpha_3 \begin{pmatrix} 5 \\ 6 \\ 0 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}\]
+$$\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 0 \\ 1 \\ 4 \end{pmatrix} + \alpha_3 \begin{pmatrix} 5 \\ 6 \\ 0 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}$$
 
 这给我们以下方程组
 
-\[\begin{split} \begin{cases} \alpha_1 + 5\alpha_3 = 0 \\ 2\alpha_1 + \alpha_2 + 6\alpha_3 = 0 \\ 3\alpha_1 + 4\alpha_2 = 0 \end{cases}. \end{split}\]
+$$\begin{split} \begin{cases} \alpha_1 + 5\alpha_3 = 0 \\ 2\alpha_1 + \alpha_2 + 6\alpha_3 = 0 \\ 3\alpha_1 + 4\alpha_2 = 0 \end{cases}. \end{split}$$
 
 我们将逐步解决这个问题。
 
 从第一个方程，我们有
 
-\[ \alpha_1 + 5\alpha_3 = 0 \implies \alpha_1 = -5\alpha_3. \]
+$$ \alpha_1 + 5\alpha_3 = 0 \implies \alpha_1 = -5\alpha_3. $$
 
 将 \(\alpha_1 = -5\alpha_3\) 代入第二个方程
 
-\[ 2(-5\alpha_3) + \alpha_2 + 6\alpha_3 = 0 \implies -10\alpha_3 + \alpha_2 + 6\alpha_3 = 0 \implies \alpha_2 - 4\alpha_3 = 0 \implies \alpha_2 = 4\alpha_3. \]
+$$ 2(-5\alpha_3) + \alpha_2 + 6\alpha_3 = 0 \implies -10\alpha_3 + \alpha_2 + 6\alpha_3 = 0 \implies \alpha_2 - 4\alpha_3 = 0 \implies \alpha_2 = 4\alpha_3. $$
 
 现在，将 \(\alpha_1 = -5\alpha_3\) 和 \(\alpha_2 = 4\alpha_3\) 代入第三个方程
 
-\[ 3(-5\alpha_3) + 4(4\alpha_3) = 0 \implies -15\alpha_3 + 16\alpha_3 = 0 \implies \alpha_3 = 0. \]
+$$ 3(-5\alpha_3) + 4(4\alpha_3) = 0 \implies -15\alpha_3 + 16\alpha_3 = 0 \implies \alpha_3 = 0. $$
 
 由于 \(\alpha_3 = 0\)，我们也有
 
-\[\begin{split} \alpha_1 = -5\alpha_3 = -5(0) = 0 \\ \alpha_2 = 4\alpha_3 = 4(0) = 0. \end{split}\]
+$$\begin{split} \alpha_1 = -5\alpha_3 = -5(0) = 0 \\ \alpha_2 = 4\alpha_3 = 4(0) = 0. \end{split}$$
 
 因此，\(\alpha_1 = 0\)，\(\alpha_2 = 0\)，以及 \(\alpha_3 = 0\)。
 
@@ -862,15 +862,15 @@ plt.show()
 
 **示例：** 对于 \(i=1,\ldots,n\)，回忆一下 \(\mathbf{e}_i \in \mathbb{R}^n\) 是一个分量如下
 
-\[\begin{split} (\mathbf{e}_i)_j = \begin{cases} 1, & \text{if } j = i,\\ 0, & \text{otherwise.} \end{cases} \end{split}\]
+$$\begin{split} (\mathbf{e}_i)_j = \begin{cases} 1, & \text{if } j = i,\\ 0, & \text{otherwise.} \end{cases} \end{split}$$
 
 然后 \(\mathbf{e}_1, \ldots, \mathbf{e}_n\) 构成了 \(\mathbb{R}^n\) 的一个基底，因为每个向量都在 \(\mathbb{R}^n\) 中。它被称为 \(\mathbb{R}^n\) 的标准基底。实际上，显然 \(\mathrm{span}(\mathbf{e}_1, \ldots, \mathbf{e}_n) \subseteq \mathbb{R}^n\)。此外，任何向量 \(\mathbf{u} = (u_1,\ldots,u_n) \in \mathbb{R}^n\) 都可以写成
 
-\[ \mathbf{u} = \sum_{i=1}^{n} u_i \mathbf{e}_i. \]
+$$ \mathbf{u} = \sum_{i=1}^{n} u_i \mathbf{e}_i. $$
 
 因此，\(\mathbf{e}_1, \ldots, \mathbf{e}_n\) 张成 \(\mathbb{R}^n\)。此外，
 
-\[ \mathbf{e}_i \notin \mathrm{span}(\{\mathbf{e}_j:j\neq i\}), \quad \forall i=1,\ldots,n, \]
+$$ \mathbf{e}_i \notin \mathrm{span}(\{\mathbf{e}_j:j\neq i\}), \quad \forall i=1,\ldots,n, $$
 
 因为 \(\mathbf{e}_i\) 的第 \(i\) 个分量非零，而右侧的所有向量在第 \(i\) 个分量中都是零。因此，向量 \(\mathbf{e}_1, \ldots, \mathbf{e}_n\) 是线性无关的。\(\lhd\)
 
@@ -902,7 +902,7 @@ plt.show()
 
 **知识检查:** 该矩阵
 
-\[\begin{split} B=\begin{bmatrix}1& 2\\1 & 3\\2 & 4\end{bmatrix} \end{split}\]
+$$\begin{split} B=\begin{bmatrix}1& 2\\1 & 3\\2 & 4\end{bmatrix} \end{split}$$
 
 矩阵的列线性独立吗？请证明你的答案。 \(\checkmark\)
 
@@ -930,7 +930,7 @@ plt.show()
 
 *证明：* *(线性相关)* 对于 1.，由于线性相关，\(\sum_{j=1}^m \alpha_j \mathbf{u}_j = \mathbf{0}\)，其中 \(\alpha_j\) 不全为零。进一步地，因为 \(\mathbf{u}_1 \neq \mathbf{0}\)，所以 \(\alpha_2, \ldots, \alpha_m\) 中不全为零（为什么？）。取 \(\alpha_j\) 中非零的最大索引，设为 \(i\)。然后重新排列前面的表达式，并使用 \(\alpha_j=0\) 对于 \(j > i\) 的事实给出
 
-\[ \mathbf{u}_i = - \sum_{j=1}^{i-1} \frac{\alpha_j}{\alpha_i} \mathbf{u}_j \in \mathrm{span}(\mathbf{u}_1,\ldots,\mathbf{u}_{i-1}). \]
+$$ \mathbf{u}_i = - \sum_{j=1}^{i-1} \frac{\alpha_j}{\alpha_i} \mathbf{u}_j \in \mathrm{span}(\mathbf{u}_1,\ldots,\mathbf{u}_{i-1}). $$
 
 对于 2.，我们注意到对于任意的 \(\mathbf{w} \in \mathrm{span}(\{\mathbf{u}_j:j \in [m]\})\)，我们可以将其写成 \(\mathbf{w} = \sum_{j=1}^m \beta_j \mathbf{u}_j\)，并且我们可以用上面的方程替换 \(\mathbf{u}_i\)，从而得到一个以 \(\{\mathbf{u}_j:j \in [m], j\neq i\}\) 为基的 \(\mathbf{w}\) 的表示。\(\square\)
 
@@ -960,7 +960,7 @@ plt.show()
 
 **引理** **(可逆性)** \(\idx{可逆性引理}\xdi\) 一个 \(n \times n\) 的方阵 \(A \in \mathbb{R}^{n \times n}\) 是非奇异的当且仅当存在唯一的 \(A^{-1}\) 使得
 
-\[ A A^{-1} = A^{-1} A = I_{n \times n}. \]
+$$ A A^{-1} = A^{-1} A = I_{n \times n}. $$
 
 矩阵 \(A^{-1}\) 被称为 \(A\) 的逆。我们还说 \(A\) 是可逆的\(\idx{可逆矩阵}\xdi\)。\(\flat\)
 
@@ -968,7 +968,7 @@ plt.show()
 
 *证明* 首先假设 \(A\) 具有满列秩。那么它的列是线性无关的，并构成了 \(\mathbb{R}^n\) 的一个基。特别是，对于任何 \(i\)，标准基向量 \(\mathbf{e}_i\) 可以唯一地表示为 \(A\) 的列的线性组合，即存在 \(\mathbf{b}_i\) 使得 \(A \mathbf{b}_i = \mathbf{e}_i\)。令 \(B\) 为列向量为 \(\mathbf{b}_i\) 的矩阵，\(i=1,\ldots,n\)。通过构造，\(A B = I_{n \times n}\)。应用相同的思想到 \(A\) 的行（根据 *行秩等于列秩引理*，它们也构成了 \(\mathbb{R}^n\) 的一个基），存在唯一的 \(C\) 使得 \(C A = I_{n \times n}\)。将两边乘以 \(B\)，我们得到
 
-\[ C = C A B = I_{n \times n} B = B. \]
+$$ C = C A B = I_{n \times n} B = B. $$
 
 因此，我们取 \(A^{-1} = B = C\).
 
@@ -978,7 +978,7 @@ plt.show()
 
 *证明* 第一个命题立即从 \(A\) 的列构成了 \(\mathbb{R}^n\) 的基这一事实中得出。对于第二个命题，注意
 
-\[ \mathbf{x} = A^{-1} A \mathbf{x} = A^{-1} \mathbf{b}. \]
+$$ \mathbf{x} = A^{-1} A \mathbf{x} = A^{-1} \mathbf{b}. $$
 
 \(\square\)
 
@@ -988,17 +988,17 @@ plt.show()
 
 注意到 \(B\) 是一个 \(m \times m\) 的矩阵。根据定义，为了证明它是非奇异的，我们需要证明它具有满列秩，或者换句话说，它的列也是线性无关的。根据线性无关的等价定义，我们只需要证明
 
-\[ B \mathbf{x} = \mathbf{0} \implies \mathbf{x} = \mathbf{0}. \]
+$$ B \mathbf{x} = \mathbf{0} \implies \mathbf{x} = \mathbf{0}. $$
 
 我们将在下面建立这一点。
 
 由于 \(B = A^T A\)，方程 \(B \mathbf{x} = \mathbf{0}\) 意味着
 
-\[ A^T A \mathbf{x} = \mathbf{0}. \]
+$$ A^T A \mathbf{x} = \mathbf{0}. $$
 
 现在是关键思想：我们将两边都乘以 \(\mathbf{x}^T\)。左边变为
 
-\[ \mathbf{x}^T (A^T A \mathbf{x}) = (A \mathbf{x})^T (A \mathbf{x}) = \|A \mathbf{x}\|², \]
+$$ \mathbf{x}^T (A^T A \mathbf{x}) = (A \mathbf{x})^T (A \mathbf{x}) = \|A \mathbf{x}\|², $$
 
 其中我们使用了，对于矩阵 \(C, D\)，我们有 \((CD)^T = D^T C^T\)。右边变为 \(\mathbf{x}^T \mathbf{0} = 0\)。因此，我们已经证明了 \(A^T A \mathbf{x} = \mathbf{0}\) 实际上意味着 \(\|A \mathbf{x}\|² = 0\)。
 
@@ -1006,11 +1006,11 @@ plt.show()
 
 **EXAMPLE:** **(推导 \(2 \times 2\) 矩阵逆的一般公式)** 考虑一个由 \(A\) 给出的 \(2 \times 2\) 矩阵
 
-\[\begin{split} A = \begin{pmatrix} a & b \\ c & d \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} a & b \\ c & d \end{pmatrix}. \end{split}$$
 
 我们寻求找到一个逆矩阵 \(A^{-1}\)，使得 \(A A^{-1} = I_{2 \times 2}\)。我们猜测逆矩阵 \(A^{-1}\) 的形式为
 
-\[\begin{split} A^{-1} = \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}, \end{split}\]
+$$\begin{split} A^{-1} = \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}, \end{split}$$
 
 条件 \(ad - bc \neq 0\) 是逆矩阵存在性的必要条件，正如我们在前面的例子中看到的。
 
@@ -1018,41 +1018,41 @@ plt.show()
 
 我们执行矩阵乘法 \(A A^{-1}\)
 
-\[\begin{align*} A A^{-1} &= \begin{pmatrix} a & b \\ c & d \end{pmatrix} \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}\\ &= \frac{1}{ad - bc} \begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix} \\ &= \frac{1}{ad - bc} \begin{pmatrix} ad - bc & -ab + ab \\ cd - cd & -bc + ad \end{pmatrix} \\ &= \frac{1}{ad - bc} \begin{pmatrix} ad - bc & 0 \\ 0 & ad - bc \end{pmatrix} \\ &= \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} A A^{-1} &= \begin{pmatrix} a & b \\ c & d \end{pmatrix} \frac{1}{ad - bc} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}\\ &= \frac{1}{ad - bc} \begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix} \\ &= \frac{1}{ad - bc} \begin{pmatrix} ad - bc & -ab + ab \\ cd - cd & -bc + ad \end{pmatrix} \\ &= \frac{1}{ad - bc} \begin{pmatrix} ad - bc & 0 \\ 0 & ad - bc \end{pmatrix} \\ &= \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}. \end{align*}$$
 
 由于乘法结果为单位矩阵，我们猜测的逆矩阵形式在 \(ad - bc \neq 0\) 的条件下是正确的。
 
 这里有一个简单的数值例子。设
 
-\[\begin{split} A = \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix}. \end{split}$$
 
 为了找到 \(A^{-1}\)，我们计算
 
-\[ ad - bc = 2 \cdot 4 - 3 \cdot 1 = 8 - 3 = 5 \neq 0. \]
+$$ ad - bc = 2 \cdot 4 - 3 \cdot 1 = 8 - 3 = 5 \neq 0. $$
 
 使用推导出的公式，我们有
 
-\[\begin{split} A^{-1} = \frac{1}{5} \begin{pmatrix} 4 & -3 \\ -1 & 2 \end{pmatrix} = \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix}. \end{split}\]
+$$\begin{split} A^{-1} = \frac{1}{5} \begin{pmatrix} 4 & -3 \\ -1 & 2 \end{pmatrix} = \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix}. \end{split}$$
 
 我们可以通过检查 \(A A^{-1}\) 来验证这一点：
 
-\[\begin{split} \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix} \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix} = \begin{pmatrix} 2 \cdot 0.8 + 3 \cdot (-0.2) & 2 \cdot (-0.6) + 3 \cdot 0.4 \\ 1 \cdot 0.8 + 4 \cdot (-0.2) & 1 \cdot (-0.6) + 4 \cdot 0.4 \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}. \end{split}\]
+$$\begin{split} \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix} \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix} = \begin{pmatrix} 2 \cdot 0.8 + 3 \cdot (-0.2) & 2 \cdot (-0.6) + 3 \cdot 0.4 \\ 1 \cdot 0.8 + 4 \cdot (-0.2) & 1 \cdot (-0.6) + 4 \cdot 0.4 \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}. \end{split}$$
 
 最后，这里是一个使用此公式求解两个未知数的两个方程线性系统的例子。考虑线性系统
 
-\[\begin{split} \begin{cases} 2x_1 + 3x_2 = 5, \\ x_1 + 4x_2 = 6. \end{cases} \end{split}\]
+$$\begin{split} \begin{cases} 2x_1 + 3x_2 = 5, \\ x_1 + 4x_2 = 6. \end{cases} \end{split}$$
 
 我们可以将这个系统表示为 \(A \mathbf{x} = \mathbf{b}\)，其中
 
-\[\begin{split} A = \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix}, \quad \mathbf{x} = \begin{pmatrix} x_1 \\ x_2 \end{pmatrix}, \quad \mathbf{b} = \begin{pmatrix} 5 \\ 6 \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 2 & 3 \\ 1 & 4 \end{pmatrix}, \quad \mathbf{x} = \begin{pmatrix} x_1 \\ x_2 \end{pmatrix}, \quad \mathbf{b} = \begin{pmatrix} 5 \\ 6 \end{pmatrix}. \end{split}$$
 
 为了求解 \(\mathbf{x}\)，我们使用 \(A^{-1}\)
 
-\[\begin{split} \mathbf{x} = A^{-1} \mathbf{b} = \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix} \begin{pmatrix} 5 \\ 6 \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{x} = A^{-1} \mathbf{b} = \begin{pmatrix} 0.8 & -0.6 \\ -0.2 & 0.4 \end{pmatrix} \begin{pmatrix} 5 \\ 6 \end{pmatrix}. \end{split}$$
 
 进行矩阵乘法，我们得到
 
-\[\begin{split} \mathbf{x} = \begin{pmatrix} 0.8 \cdot 5 + (-0.6) \cdot 6 \\ -0.2 \cdot 5 + 0.4 \cdot 6 \end{pmatrix} = \begin{pmatrix} 4 - 3.6 \\ -1 + 2.4 \end{pmatrix} = \begin{pmatrix} 0.4 \\ 1.4 \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{x} = \begin{pmatrix} 0.8 \cdot 5 + (-0.6) \cdot 6 \\ -0.2 \cdot 5 + 0.4 \cdot 6 \end{pmatrix} = \begin{pmatrix} 4 - 3.6 \\ -1 + 2.4 \end{pmatrix} = \begin{pmatrix} 0.4 \\ 1.4 \end{pmatrix}. \end{split}$$
 
 因此，该系统的解是 \(x_1 = 0.4\) 和 \(x_2 = 1.4\)。 \(\lhd\)
 

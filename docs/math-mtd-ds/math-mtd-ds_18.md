@@ -1,4 +1,4 @@
-# 3.1. 激励示例：分析客户满意度#
+# 3.1. 激励示例：分析客户满意度
 
 > 原文：[`mmids-textbook.github.io/chap03_opt/01_motiv/roch-mmids-opt-motiv.html`](https://mmids-textbook.github.io/chap03_opt/01_motiv/roch-mmids-opt-motiv.html)
 
@@ -136,21 +136,21 @@ plt.show()
 
 因此，我们的目标是解决
 
-\[ \min_{\hat{f} \in \widehat{\mathcal{F}}} \frac{1}{n} \sum_{i=1}^n \ell(\hat{f}, (\mathbf{x}_i, y_i)), \]
+$$ \min_{\hat{f} \in \widehat{\mathcal{F}}} \frac{1}{n} \sum_{i=1}^n \ell(\hat{f}, (\mathbf{x}_i, y_i)), $$
 
 即，我们寻求在 \(\widehat{\mathcal{F}}\) 中找到一个分类器，以最小化示例的平均损失。
 
 例如，在[逻辑回归](https://en.wikipedia.org/wiki/Logistic_regression)中，我们考虑形式为线性分类器
 
-\[ \hat{f}(\mathbf{x}) = \sigma(\mathbf{x}^T \boldsymbol{\theta}) \qquad \text{with} \qquad \sigma(t) = \frac{1}{1 + e^{-t}} \]
+$$ \hat{f}(\mathbf{x}) = \sigma(\mathbf{x}^T \boldsymbol{\theta}) \qquad \text{with} \qquad \sigma(t) = \frac{1}{1 + e^{-t}} $$
 
 其中 \(\boldsymbol{\theta} \in \mathbb{R}^d\) 是一个参数向量。我们使用[交叉熵损失](https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_loss_function_and_logistic_regression)。
 
-\[ \ell(\hat{f}, (\mathbf{x}, y)) = - y \log(\sigma(\mathbf{x}^T \boldsymbol{\theta})) - (1-y) \log(1- \sigma(\mathbf{x}^T \boldsymbol{\theta})). \]
+$$ \ell(\hat{f}, (\mathbf{x}, y)) = - y \log(\sigma(\mathbf{x}^T \boldsymbol{\theta})) - (1-y) \log(1- \sigma(\mathbf{x}^T \boldsymbol{\theta})). $$
 
 在参数形式下，问题简化为
 
-\[ \min_{\boldsymbol{\theta} \in \mathbb{R}^d} - \frac{1}{n} \sum_{i=1}^n y_i \log(\sigma(\mathbf{x}_i^T \boldsymbol{\theta})) - \frac{1}{n} \sum_{i=1}^n (1-y_i) \log(1- \sigma(\mathbf{x}_i^T \boldsymbol{\theta})). \]
+$$ \min_{\boldsymbol{\theta} \in \mathbb{R}^d} - \frac{1}{n} \sum_{i=1}^n y_i \log(\sigma(\mathbf{x}_i^T \boldsymbol{\theta})) - \frac{1}{n} \sum_{i=1}^n (1-y_i) \log(1- \sigma(\mathbf{x}_i^T \boldsymbol{\theta})). $$
 
 为了在这里获得 \(\{0,1\}\) 的预测，我们可以在阈值 \(\tau \in [0,1]\) 处截断 \(\hat{f}(\mathbf{x})\)，即返回 \(\mathbf{1}\{\hat{f}(\mathbf{x}) > \tau\}\)。
 

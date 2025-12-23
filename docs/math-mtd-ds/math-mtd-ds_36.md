@@ -1,4 +1,4 @@
-# 5.1. 动机示例：揭示社会群体#
+# 5.1. 动机示例：揭示社会群体
 
 > 原文：[`mmids-textbook.github.io/chap05_specgraph/01_motiv/roch-mmids-specgraph-motiv.html`](https://mmids-textbook.github.io/chap05_specgraph/01_motiv/roch-mmids-specgraph-motiv.html)
 
@@ -31,4 +31,4 @@ plt.show()
 
 结果表明，与图自然关联的拉普拉斯矩阵的特征向量包含有关此类社区的有用信息。
 
-**CHAT & LEARN** 向你最喜欢的 AI 聊天机器人询问为什么它如此喜欢数字 42。 \(\ddagger\)
+**CHAT & LEARN** 向你最喜欢的 AI 聊天机器人询问为什么它如此喜欢数字 42。 $\ddagger$

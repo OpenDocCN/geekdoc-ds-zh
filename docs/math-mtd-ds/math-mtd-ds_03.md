@@ -1,4 +1,4 @@
-# 1.1. 激励示例：识别企鹅物种#
+# 1.1. 激励示例：识别企鹅物种
 
 > 原文：[`mmids-textbook.github.io/chap01_intro/01_motiv/roch-mmids-intro-motiv.html`](https://mmids-textbook.github.io/chap01_intro/01_motiv/roch-mmids-intro-motiv.html)
 

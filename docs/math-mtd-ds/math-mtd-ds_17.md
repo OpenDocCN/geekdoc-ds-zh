@@ -1,4 +1,4 @@
-# 3. 优化理论与算法#
+# 3. 优化理论与算法
 
 > 原文：[`mmids-textbook.github.io/chap03_opt/00_intro/roch-mmids-opt-intro.html`](https://mmids-textbook.github.io/chap03_opt/00_intro/roch-mmids-opt-intro.html)
 

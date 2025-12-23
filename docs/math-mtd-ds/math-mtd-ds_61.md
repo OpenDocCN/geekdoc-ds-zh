@@ -1,4 +1,4 @@
-# 8. 神经网络、反向传播和随机梯度下降#
+# 8. 神经网络、反向传播和随机梯度下降
 
 > 原文：[`mmids-textbook.github.io/chap08_nn/00_intro/roch-mmids-nn-intro.html`](https://mmids-textbook.github.io/chap08_nn/00_intro/roch-mmids-nn-intro.html)
 

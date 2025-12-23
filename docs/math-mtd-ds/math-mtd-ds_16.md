@@ -1,4 +1,4 @@
-# 2.7\. 在线补充材料#
+# 2.7\. 在线补充材料
 
 > 原文：[`mmids-textbook.github.io/chap02_ls/supp/roch-mmids-ls-supp.html`](https://mmids-textbook.github.io/chap02_ls/supp/roch-mmids-ls-supp.html)
 
@@ -36,75 +36,75 @@
 
 E2.2.1 的答案和解释：是的，\(U\)是\(\mathbb{R}³\)的线性子空间。设\(u_1 = (x_1, y_1, z_1), u_2 = (x_2, y_2, z_2) \in U\)且\(\alpha \in \mathbb{R}\)。那么
 
-\[\begin{align*} x_1 + 2y_1 - z_1 &= 0 \\ x_2 + 2y_2 - z_2 &= 0 \\ \alpha(x_1 + 2y_1 - z_1) + (x_2 + 2y_2 - z_2) &= 0 \\ (\alpha x_1 + x_2) + 2(\alpha y_1 + y_2) - (\alpha z_1 + z_2) &= 0 \end{align*}\]
+$$\begin{align*} x_1 + 2y_1 - z_1 &= 0 \\ x_2 + 2y_2 - z_2 &= 0 \\ \alpha(x_1 + 2y_1 - z_1) + (x_2 + 2y_2 - z_2) &= 0 \\ (\alpha x_1 + x_2) + 2(\alpha y_1 + y_2) - (\alpha z_1 + z_2) &= 0 \end{align*}$$
 
 因此\(\alpha u_1 + u_2 \in U\)，证明了\(U\)是一个线性子空间。
 
 E2.2.3 的答案和解释：\(U\)的一个基是\(\{(1, 1, 0), (-1, 0, 1)\}\)。任何属于\(U\)的向量\((x, y, z)\)可以写成
 
-\[\begin{align*} (x, y, z) &= (y-z, y, z) \\ &= y(1, 1, 0) + z(-1, 0, 1) \end{align*}\]
+$$\begin{align*} (x, y, z) &= (y-z, y, z) \\ &= y(1, 1, 0) + z(-1, 0, 1) \end{align*}$$
 
 因此，\(\{(1, 1, 0), (-1, 0, 1)\}\) 张成 \(U\)。它们也是线性无关的，因为 \(\alpha(1, 1, 0) + \beta(-1, 0, 1) = \mathbf{0}\) 意味着 \(\alpha = \beta = 0\)。因此，这是 \(U\) 的一个基。
 
 对 E2.2.5 的答案和解释：是的，\(u_1\) 和 \(u_2\) 形成一个正交归一列表。我们有
 
-\[\begin{align*} \|u_1\| &= \sqrt{(1/\sqrt{2})² + (1/\sqrt{2})²} = 1 \\ \|u_2\| &= \sqrt{(1/\sqrt{2})² + (-1/\sqrt{2})²} = 1 \\ \langle u_1, u_2 \rangle &= (1/\sqrt{2})(1/\sqrt{2}) + (1/\sqrt{2})(-1/\sqrt{2}) = 0 \end{align*}\]
+$$\begin{align*} \|u_1\| &= \sqrt{(1/\sqrt{2})² + (1/\sqrt{2})²} = 1 \\ \|u_2\| &= \sqrt{(1/\sqrt{2})² + (-1/\sqrt{2})²} = 1 \\ \langle u_1, u_2 \rangle &= (1/\sqrt{2})(1/\sqrt{2}) + (1/\sqrt{2})(-1/\sqrt{2}) = 0 \end{align*}$$
 
 所以 \(u_1\) 和 \(u_2\) 是单位向量，并且彼此正交。
 
 对 E2.2.7 的答案和解释：\(A\) 是非奇异的。它的列是 \((1, 3)\) 和 \((2, 4)\)，它们是线性无关的
 
-\[\begin{align*} \alpha(1, 3) + \beta(2, 4) &= (0, 0) \\ \alpha + 2\beta &= 0 \\ 3\alpha + 4\beta &= 0 \end{align*}\]
+$$\begin{align*} \alpha(1, 3) + \beta(2, 4) &= (0, 0) \\ \alpha + 2\beta &= 0 \\ 3\alpha + 4\beta &= 0 \end{align*}$$
 
 这个系统只有平凡解 \(\alpha = \beta = 0\)。所以 \(A\) 的列是线性无关的，并且由于 \(A\) 是一个 \(2 \times 2\) 矩阵，这意味着它有秩 2 并且是非奇异的。
 
 对 E2.2.9 的答案和解释：
 
-\[ \mathbf{v} = \alpha \mathbf{w}_1 + \beta \mathbf{w}_2 \implies (2, 3, 5) = \alpha (1, 0, 1) + \beta (0, 1, 1). \]
+$$ \mathbf{v} = \alpha \mathbf{w}_1 + \beta \mathbf{w}_2 \implies (2, 3, 5) = \alpha (1, 0, 1) + \beta (0, 1, 1). $$
 
 解这个方程组
 
-\[ 2 = \alpha, \quad 3 = \beta, \quad 5 = \alpha + \beta. \]
+$$ 2 = \alpha, \quad 3 = \beta, \quad 5 = \alpha + \beta. $$
 
 将 \(\alpha = 2\) 和 \(\beta = 3\) 代入第三个方程
 
-\[ 5 = 2 + 3 \implies \alpha = 2, \beta = 3. \]
+$$ 5 = 2 + 3 \implies \alpha = 2, \beta = 3. $$
 
 因此，\(\mathbf{v} = 2\mathbf{w}_1 + 3\mathbf{w}_2\).
 
 对 E2.2.11 的答案和解释：为了找到零空间，我们需要解齐次系统 \(B\mathbf{x} = \mathbf{0}\)：
 
-\[\begin{split} \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix} \end{split}\]
+$$\begin{split} \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix} \end{split}$$
 
 这给我们提供了两个方程和三个未知数：
 
-\[\begin{align*} x_1 + 2x_2 + 3x_3 &= 0 \tag{1}\\ 4x_1 + 5x_2 + 6x_3 &= 0 \tag{2} \end{align*}\]
+$$\begin{align*} x_1 + 2x_2 + 3x_3 &= 0 \tag{1}\\ 4x_1 + 5x_2 + 6x_3 &= 0 \tag{2} \end{align*}$$
 
 将方程（1）乘以 4：
 
-\[ 4x_1 + 8x_2 + 12x_3 = 0 \tag{3} \]
+$$ 4x_1 + 8x_2 + 12x_3 = 0 \tag{3} $$
 
 从方程（2）中减去方程（3）：
 
-\[ (5-8)x_2 + (6-12)x_3 = 0 \]
+$$ (5-8)x_2 + (6-12)x_3 = 0 $$
 
 这简化为：
 
-\[ -3x_2 - 6x_3 = 0 \]
+$$ -3x_2 - 6x_3 = 0 $$
 
 除以 -3：\( x_2 = -2x_3 \)
 
 现在，将这个结果代入方程（1）：
 
-\[\begin{align*} x_1 + 2(-2x_3) + 3x_3 &= 0 \\ x_1 - 4x_3 + 3x_3 &= 0 \\ x_1 - x_3 &= 0 \end{align*}\]
+$$\begin{align*} x_1 + 2(-2x_3) + 3x_3 &= 0 \\ x_1 - 4x_3 + 3x_3 &= 0 \\ x_1 - x_3 &= 0 \end{align*}$$
 
 因此：
 
-\[ x_1 = x_3 \]
+$$ x_1 = x_3 $$
 
 设 \(x_3 = t\)（一个自由参数），我们得到：
 
-\[\begin{split} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} t \\ -2t \\ t \end{pmatrix} = t \begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix} \end{split}\]
+$$\begin{split} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} t \\ -2t \\ t \end{pmatrix} = t \begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix} \end{split}$$
 
 \(B\) 的零空间是向量 \(\begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix}\) 的张成。
 
@@ -112,31 +112,31 @@ E2.2.3 的答案和解释：\(U\)的一个基是\(\{(1, 1, 0), (-1, 0, 1)\}\)。
 
 让我们写出这个向量方程：
 
-\[\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 2 \\ -1 \\ 0 \end{pmatrix} + \alpha_3 \begin{pmatrix} 1 \\ 8 \\ 6 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}\]
+$$\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 2 \\ -1 \\ 0 \end{pmatrix} + \alpha_3 \begin{pmatrix} 1 \\ 8 \\ 6 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}$$
 
 这给我们一个包含三个方程的系统：
 
-\[\begin{align*} \alpha_1 + 2\alpha_2 + \alpha_3 &= 0 \tag{1}\\ 2\alpha_1 - \alpha_2 + 8\alpha_3 &= 0 \tag{2}\\ 3\alpha_1 + 0\alpha_2 + 6\alpha_3 &= 0 \tag{3} \end{align*}\]
+$$\begin{align*} \alpha_1 + 2\alpha_2 + \alpha_3 &= 0 \tag{1}\\ 2\alpha_1 - \alpha_2 + 8\alpha_3 &= 0 \tag{2}\\ 3\alpha_1 + 0\alpha_2 + 6\alpha_3 &= 0 \tag{3} \end{align*}$$
 
 从方程（3）：
 
-\[ 3\alpha_1 + 6\alpha_3 = 0 \]
+$$ 3\alpha_1 + 6\alpha_3 = 0 $$
 
 这给我们：
 
-\[ \alpha_1 = -2\alpha_3 \tag{4} \]
+$$ \alpha_1 = -2\alpha_3 \tag{4} $$
 
 将此代入方程（1）：
 
-\[\begin{align*} -2\alpha_3 + 2\alpha_2 + \alpha_3 &= 0\\ 2\alpha_2 - \alpha_3 &= 0\\ \alpha_2 &= \frac{\alpha_3}{2} \tag{5} \end{align*}\]
+$$\begin{align*} -2\alpha_3 + 2\alpha_2 + \alpha_3 &= 0\\ 2\alpha_2 - \alpha_3 &= 0\\ \alpha_2 &= \frac{\alpha_3}{2} \tag{5} \end{align*}$$
 
 现在我们通过代入方程（4）和（5）来检查方程（2）：
 
-\[\begin{align*} 2(-2\alpha_3) - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \end{align*}\]
+$$\begin{align*} 2(-2\alpha_3) - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \end{align*}$$
 
 简化：
 
-\[\begin{align*} -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \frac{-8\alpha_3 - \alpha_3 + 16\alpha_3}{2} &= 0\\ \frac{7\alpha_3}{2} &= 0 \end{align*}\]
+$$\begin{align*} -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \frac{-8\alpha_3 - \alpha_3 + 16\alpha_3}{2} &= 0\\ \frac{7\alpha_3}{2} &= 0 \end{align*}$$
 
 由于 \(\frac{7\alpha_3}{2} = 0\) 意味着 \(\alpha_3 = 0\)，并且从方程（4）和（5）中，我们得到 \(\alpha_1 = 0\) 和 \(\alpha_2 = 0\)。
 
@@ -144,7 +144,7 @@ E2.2.3 的答案和解释：\(U\)的一个基是\(\{(1, 1, 0), (-1, 0, 1)\}\)。
 
 考虑方程 \(\alpha_1\mathbf{u}_1 + \alpha_2\mathbf{u}_2 + \alpha_3\mathbf{u}_3 = 0\)。这导致以下方程组
 
-\[ \alpha_1 + 2\alpha_2 + \alpha_3 = 0 \]\[ 2\alpha_1 - \alpha_2 + 8\alpha_3 = 0 \]\[ 3\alpha_1 + 6\alpha_3 = 0 \]
+$$ \alpha_1 + 2\alpha_2 + \alpha_3 = 0 $$$$ 2\alpha_1 - \alpha_2 + 8\alpha_3 = 0 $$$$ 3\alpha_1 + 6\alpha_3 = 0 $$
 
 解这个系统，我们得到 \(\alpha_1 = -2\alpha_3\) 和 \(\alpha_2 = \alpha_3\)。选择 \(\alpha_3 = 1\)，我们得到一个非平凡解 \(\alpha_1 = -2\)，\(\alpha_2 = 1\)，\(\alpha_3 = 1\)。因此，这些向量是线性相关的。
 
@@ -152,31 +152,31 @@ E2.2.15 的答案和证明：我们可以将这个系统写成 \(A\mathbf{x} = \
 
 然后，解为
 
-\[\begin{split} \mathbf{x} = A^{-1}\mathbf{b} = \frac{1}{-3} \begin{bmatrix} -1 & -1 \\ -1 & 2 \end{bmatrix} \begin{bmatrix} 3 \\ 1 \end{bmatrix} = \begin{bmatrix} \frac{4}{3} \\ -\frac{1}{3} \end{bmatrix}. \end{split}\]
+$$\begin{split} \mathbf{x} = A^{-1}\mathbf{b} = \frac{1}{-3} \begin{bmatrix} -1 & -1 \\ -1 & 2 \end{bmatrix} \begin{bmatrix} 3 \\ 1 \end{bmatrix} = \begin{bmatrix} \frac{4}{3} \\ -\frac{1}{3} \end{bmatrix}. \end{split}$$
 
 E2.3.1 的答案和证明：虽然
 
-\[\begin{split} Q^T Q = \begin{pmatrix} 1 & 0\\ 0 & 1 \end{pmatrix} = I_{2 \times 2}, \end{split}\]
+$$\begin{split} Q^T Q = \begin{pmatrix} 1 & 0\\ 0 & 1 \end{pmatrix} = I_{2 \times 2}, \end{split}$$
 
 矩阵 \(Q\) 不是方阵。因此，\(Q\) 不是正交矩阵。
 
 E2.3.3 的答案和证明：
 
-\[ \mathrm{proj}_{U} \mathbf{v} = \frac{\langle \mathbf{v}, \mathbf{u} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(2 \cdot 1 + 3 \cdot 1)}{(1² + 1²)} \mathbf{u} = \frac{5}{2} (1, 1) = \left(\frac{5}{2}, \frac{5}{2}\right). \]
+$$ \mathrm{proj}_{U} \mathbf{v} = \frac{\langle \mathbf{v}, \mathbf{u} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(2 \cdot 1 + 3 \cdot 1)}{(1² + 1²)} \mathbf{u} = \frac{5}{2} (1, 1) = \left(\frac{5}{2}, \frac{5}{2}\right). $$
 
 E2.3.5 的答案和解释：向量 \(\mathbf{v}\) 在 \(\mathbf{u}\) 上的投影由以下公式给出
 
-\[\begin{split} \text{proj}_{\mathbf{u}} \mathbf{v} = \frac{\langle \mathbf{u}, \mathbf{v} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(1)(1) + (1)(2) + (0)(1)}{1² + 1² + 0²} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \frac{3}{2} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \begin{bmatrix} \frac{3}{2} \\ \frac{3}{2} \\ 0 \end{bmatrix}. \end{split}\]
+$$\begin{split} \text{proj}_{\mathbf{u}} \mathbf{v} = \frac{\langle \mathbf{u}, \mathbf{v} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(1)(1) + (1)(2) + (0)(1)}{1² + 1² + 0²} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \frac{3}{2} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \begin{bmatrix} \frac{3}{2} \\ \frac{3}{2} \\ 0 \end{bmatrix}. \end{split}$$
 
 E2.3.7 的答案和解释：使用文本中给出的 \(U\) 的正交基 \(\{\mathbf{q}_1, \mathbf{q}_2\}\)，我们有：$\(\mathrm{proj}_U \mathbf{v} = \langle \mathbf{v}, \mathbf{q}_1 \rangle \mathbf{q}_1 + \langle \mathbf{v}, \mathbf{q}_2 \rangle \mathbf{q}_2 = \frac{4}{\sqrt{2}} \cdot \frac{1}{\sqrt{2}}(1, 0, 1) + \frac{5}{\sqrt{6}} \cdot \frac{1}{\sqrt{6}}(-1, 2, 1) = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}).\)$
 
 E2.3.9 的答案和解释：从 E2.3.7 和 E2.3.8，我们有：
 
-\[ \mathrm{proj}_U \mathbf{v} = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}), \quad \mathbf{v} - \mathrm{proj}_U \mathbf{v} = (-\frac{1}{3}, -\frac{1}{3}, \frac{2}{3}). \]
+$$ \mathrm{proj}_U \mathbf{v} = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}), \quad \mathbf{v} - \mathrm{proj}_U \mathbf{v} = (-\frac{1}{3}, -\frac{1}{3}, \frac{2}{3}). $$
 
 计算平方范数：
 
-\[ \|\mathbf{v}\|² = 1² + 2² + 3² = 14, \quad \|\mathrm{proj}_U \mathbf{v}\|² = (\frac{7}{3})² + (\frac{10}{3})² + (\frac{13}{3})² = \frac{146}{3}, \quad \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|² = (-\frac{1}{3})² + (-\frac{1}{3})² + (\frac{2}{3})² = \frac{2}{3}. \]
+$$ \|\mathbf{v}\|² = 1² + 2² + 3² = 14, \quad \|\mathrm{proj}_U \mathbf{v}\|² = (\frac{7}{3})² + (\frac{10}{3})² + (\frac{13}{3})² = \frac{146}{3}, \quad \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|² = (-\frac{1}{3})² + (-\frac{1}{3})² + (\frac{2}{3})² = \frac{2}{3}. $$
 
 事实上，\(\|\mathbf{v}\|² = 14 = \frac{146}{3} + \frac{2}{3} = \|\mathrm{proj}_U \mathbf{v}\|² + \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|²\)，验证了勾股定理。
 
@@ -186,7 +186,7 @@ E2.3.13 的答案和解释：我们要找到所有满足 \(\begin{pmatrix} x \\ 
 
 E2.3.15 的答案和解释：
 
-\[\begin{split} A^T A = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}, \quad A^T \mathbf{b} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 3 \\ 1 \end{pmatrix} = \begin{pmatrix} 4 \\ 2 \end{pmatrix}. \end{split}\]
+$$\begin{split} A^T A = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}, \quad A^T \mathbf{b} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 3 \\ 1 \end{pmatrix} = \begin{pmatrix} 4 \\ 2 \end{pmatrix}. \end{split}$$
 
 因此，\(\mathbf{x} = (A^T A)^{-1} A^T \mathbf{b} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}^{-1} \begin{pmatrix} 4 \\ 2 \end{pmatrix} = \begin{pmatrix} 2 \\ 1 \end{pmatrix}\).
 
@@ -194,7 +194,7 @@ E2.4.1 的答案和证明：\(\mathbf{q}_1 = \frac{\mathbf{a}_1}{\|\mathbf{a}_1\
 
 E2.4.3 的答案和证明：设\(\mathbf{w}_1 = (1, 1)\)和\(\mathbf{w}_2 = (1, 0)\)。然后
 
-\[\begin{align*} \mathbf{q}_1 &= \frac{\mathbf{w}_1}{\|\mathbf{w}_1\|} = (\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}) \\ \mathbf{q}_2 &= \frac{\mathbf{w}_2 - \langle \mathbf{w}_2, \mathbf{q}_1 \rangle \mathbf{q}_1}{\|\mathbf{w}_2 - \langle \mathbf{w}_2, q_1 \rangle q_1\|} \\ &= \frac{(1, 0) - (\frac{1}{\sqrt{2}})(\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}})}{\sqrt{1 - (\frac{1}{\sqrt{2}})²}} \\ &= (\frac{1}{\sqrt{2}}, -\frac{1}{\sqrt{2}}) \end{align*}\]
+$$\begin{align*} \mathbf{q}_1 &= \frac{\mathbf{w}_1}{\|\mathbf{w}_1\|} = (\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}) \\ \mathbf{q}_2 &= \frac{\mathbf{w}_2 - \langle \mathbf{w}_2, \mathbf{q}_1 \rangle \mathbf{q}_1}{\|\mathbf{w}_2 - \langle \mathbf{w}_2, q_1 \rangle q_1\|} \\ &= \frac{(1, 0) - (\frac{1}{\sqrt{2}})(\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}})}{\sqrt{1 - (\frac{1}{\sqrt{2}})²}} \\ &= (\frac{1}{\sqrt{2}}, -\frac{1}{\sqrt{2}}) \end{align*}$$
 
 因此\(\{\mathbf{q}_1, \mathbf{q}_2\}\)是一个正交基。
 
@@ -206,7 +206,7 @@ E2.4.9 的答案和证明：\(H = I_{3 \times 3} - 2\mathbf{z}\mathbf{z}^T/\|\ma
 
 E2.4.11 的答案和证明：为了验证\(H_1\)是正交的，我们检查\(H_1^T H_1 = I_{2 \times 2}\)是否成立：
 
-\[\begin{split} H_1^T H_1 = \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = I_{2 \times 2}. \end{split}\]
+$$\begin{split} H_1^T H_1 = \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = I_{2 \times 2}. \end{split}$$
 
 为了验证\(H_1\)是对称的，我们检查\(H_1^T = H_1\)是否成立，通过观察可以知道这是真的。
 
@@ -216,55 +216,55 @@ E2.4.11 的答案和证明：为了验证\(H_1\)是正交的，我们检查\(H_1
 
 对 E2.4.17 的答案和解释：
 
-\[\begin{align*} Q &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix}, \\ R &= Q^T A = \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix}, \\ Q^T \mathbf{b} &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix} \begin{pmatrix} 2 \\ 0 \end{pmatrix} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ R \mathbf{x} &= Q^T \mathbf{b}, \quad \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix} \mathbf{x} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ \mathbf{x} &= \begin{pmatrix} 1 \\ 1 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} Q &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix}, \\ R &= Q^T A = \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix}, \\ Q^T \mathbf{b} &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix} \begin{pmatrix} 2 \\ 0 \end{pmatrix} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ R \mathbf{x} &= Q^T \mathbf{b}, \quad \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix} \mathbf{x} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ \mathbf{x} &= \begin{pmatrix} 1 \\ 1 \end{pmatrix}. \end{align*}$$
 
 解是 \(\mathbf{x} = \begin{pmatrix} 1 \\ 1 \end{pmatrix}\)。
 
 对 E2.5.1 的答案和解释：
 
-\[\begin{split} A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \\ 1 & 4 \end{bmatrix}, \quad \mathbf{y} = \begin{bmatrix} 2 \\ 4 \\ 5 \\ 7 \end{bmatrix}. \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \\ 1 & 4 \end{bmatrix}, \quad \mathbf{y} = \begin{bmatrix} 2 \\ 4 \\ 5 \\ 7 \end{bmatrix}. \end{split}$$
 
 正则方程是：
 
-\[\begin{split} A^T A \boldsymbol{\beta} = A^T \mathbf{y} \Rightarrow \begin{pmatrix} 4 & 10 \\ 10 & 30 \end{pmatrix} \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 18 \\ 47 \end{pmatrix}. \end{split}\]
+$$\begin{split} A^T A \boldsymbol{\beta} = A^T \mathbf{y} \Rightarrow \begin{pmatrix} 4 & 10 \\ 10 & 30 \end{pmatrix} \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 18 \\ 47 \end{pmatrix}. \end{split}$$
 
 解这个方程组得到 \(\beta_0 = \frac{1}{2}\) 和 \(\beta_1 = \frac{3}{2}\)。
 
 对 E2.5.3 的答案和解释：
 
-\[\begin{split} A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{bmatrix} \quad \mathbf{y} = \begin{bmatrix} 3 \\ 5 \\ 8 \end{bmatrix} \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{bmatrix} \quad \mathbf{y} = \begin{bmatrix} 3 \\ 5 \\ 8 \end{bmatrix} \end{split}$$
 
 对 E2.5.5 的答案和解释：
 
-\[\begin{split} \boldsymbol{\beta} = \begin{bmatrix} \beta_0 \\ \beta_1 \end{bmatrix} = (A^T A)^{-1} A^T \mathbf{y} = \begin{bmatrix} 1 \\ 2 \end{bmatrix} \end{split}\]
+$$\begin{split} \boldsymbol{\beta} = \begin{bmatrix} \beta_0 \\ \beta_1 \end{bmatrix} = (A^T A)^{-1} A^T \mathbf{y} = \begin{bmatrix} 1 \\ 2 \end{bmatrix} \end{split}$$
 
 我们通过求 \(A^T A\) 的逆并乘以 \(A^T \mathbf{y}\) 来解这个线性方程组。
 
 对 E2.5.7 的答案和解释：
 
-\[\begin{split} A = \begin{bmatrix} 1 & -1 & 1 \\ 1 & 0 & 0 \\ 1 & 1 & 1 \end{bmatrix} \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 1 & -1 & 1 \\ 1 & 0 & 0 \\ 1 & 1 & 1 \end{bmatrix} \end{split}$$
 
 对于一个二次模型，我们需要为 \(1\)、\(x\) 和 \(x²\) 准备列。
 
 对 E2.5.9 的答案和解释：我们解正则方程 \(A^T A \boldsymbol{\beta} = A^T \mathbf{y}\)。
 
-\[\begin{align*} A^T A &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{pmatrix} = \begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix}, \\ A^T \mathbf{y} &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} A^T A &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{pmatrix} = \begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix}, \\ A^T \mathbf{y} &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}. \end{align*}$$
 
 解方程 \(\begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix} \boldsymbol{\beta} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}\)：
 
-\[\begin{align*} \boldsymbol{\beta} &= \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 0 \\ 1 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} \boldsymbol{\beta} &= \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 0 \\ 1 \end{pmatrix}. \end{align*}$$
 
 回答并证明 E2.5.11：计算预测的 \(y\) 值：
 
-\[\begin{align*} \hat{y}_1 &= 2(1) + 1 = 3, \\ \hat{y}_2 &= 2(2) + 1 = 5, \\ \hat{y}_3 &= 2(3) + 1 = 7. \end{align*}\]
+$$\begin{align*} \hat{y}_1 &= 2(1) + 1 = 3, \\ \hat{y}_2 &= 2(2) + 1 = 5, \\ \hat{y}_3 &= 2(3) + 1 = 7. \end{align*}$$
 
 计算残差：
 
-\[\begin{align*} r_1 &= 3 - 3 = 0, \\ r_2 &= 5 - 5 = 0, \\ r_3 &= 7 - 7 = 0. \end{align*}\]
+$$\begin{align*} r_1 &= 3 - 3 = 0, \\ r_2 &= 5 - 5 = 0, \\ r_3 &= 7 - 7 = 0. \end{align*}$$
 
 RSS 是：
 
-\[\begin{align*} \mathrm{RSS} &= 0² + 0² + 0² = 0. \end{align*}\]
+$$\begin{align*} \mathrm{RSS} &= 0² + 0² + 0² = 0. \end{align*}$$
 
 ### 2.7.1.5\. 学习成果#
 
@@ -348,7 +348,7 @@ RSS 是：
 
 **定理** **（高维正交性）** 设 \(\mathcal{S} = \{\mathbf{x}\in \mathbb{R}^d:\|\mathbf{x}\|=1\}\) 和 \(\mathbf{Y} \sim \mathrm{U}[\mathcal{S}]\)。那么对于任意 \(\varepsilon > 0\)，当 \(d \to +\infty\) 时，
 
-\[ \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] \to 0. \]
+$$ \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] \to 0. $$
 
 \(\sharp\)
 
@@ -356,25 +356,25 @@ RSS 是：
 
 *证明:* 回想一下，\(\mathbf{Y}\) 是 \(\frac{\mathbf{X}}{\|\mathbf{X}\|}\)，其中 \(\mathbf{X}\) 是标准正态 \(d\) 向量。我们想要界定的概率可以重新写为
 
-\[\begin{align*} \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] &= \mathbb{P}\left[\left|\left\langle\frac{\mathbf{X}}{\|\mathbf{X}\|}, \mathbf{e}_d\right\rangle\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\left|\frac{\langle\mathbf{X},\mathbf{e}_d\rangle}{\|\mathbf{X}\|}\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\frac{X_d²}{\sum_{j=1}^d X_j²} \geq \varepsilon²\right]\\ &= \mathbb{P}\left[X_d² \geq \varepsilon² \sum_{j=1}^d X_j²\right]\\ &= \mathbb{P}\left[\sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \geq 0\right]. \end{align*}\]
+$$\begin{align*} \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] &= \mathbb{P}\left[\left|\left\langle\frac{\mathbf{X}}{\|\mathbf{X}\|}, \mathbf{e}_d\right\rangle\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\left|\frac{\langle\mathbf{X},\mathbf{e}_d\rangle}{\|\mathbf{X}\|}\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\frac{X_d²}{\sum_{j=1}^d X_j²} \geq \varepsilon²\right]\\ &= \mathbb{P}\left[X_d² \geq \varepsilon² \sum_{j=1}^d X_j²\right]\\ &= \mathbb{P}\left[\sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \geq 0\right]. \end{align*}$$
 
 我们现在正在观察一个独立（但非同分布）的随机变量的和
 
-\[ Z = \sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \]
+$$ Z = \sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² $$
 
 我们可以求助于我们常用的切比雪夫工具。期望值，根据线性性质，
 
-\[ \mathbb{E}[Z] = - \sum_{j=1}^{d-1} \varepsilon² \mathbb{E}[X_j²] + (1-\varepsilon²) \mathbb{E}[X_d²] = \{- (d-1) \,\varepsilon² + (1-\varepsilon²)\} \]
+$$ \mathbb{E}[Z] = - \sum_{j=1}^{d-1} \varepsilon² \mathbb{E}[X_j²] + (1-\varepsilon²) \mathbb{E}[X_d²] = \{- (d-1) \,\varepsilon² + (1-\varepsilon²)\} $$
 
 其中我们使用了 \(X_1,\ldots,X_d\) 是标准正态变量，并且特别地，它们的均值是 \(0\)，它们的方差是 \(1\)，因此 \(\mathbb{E}[X_1²] = 1\)。
 
 方差是由 \(X_j\) 的独立性决定的，
 
-\[\begin{align*} \mathrm{Var}[Z] &= \sum_{j=1}^{d-1} \varepsilon⁴ \mathrm{Var}[X_j²] + (1-\varepsilon²)² \mathrm{Var}[X_d²]\\ &= \{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\}\mathrm{Var}[X_1²]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[Z] &= \sum_{j=1}^{d-1} \varepsilon⁴ \mathrm{Var}[X_j²] + (1-\varepsilon²)² \mathrm{Var}[X_d²]\\ &= \{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\}\mathrm{Var}[X_1²]. \end{align*}$$
 
 因此，通过切比雪夫不等式
 
-\[\begin{align*} \mathbb{P}\left[Z \geq 0\right] &\leq \mathbb{P}\left[\left|Z - \mathbb{E}[Z]\right|\geq |\mathbb{E}[Z]|\right]\\ &\leq \frac{\mathrm{Var}[Z]}{\mathbb{E}[Z]²}\\ &= \frac{\{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\} \mathrm{Var}[X_1²]}{\{- (d-1) \,\varepsilon² + (1-\varepsilon²)\}²}\\ &\to 0 \end{align*}\]
+$$\begin{align*} \mathbb{P}\left[Z \geq 0\right] &\leq \mathbb{P}\left[\left|Z - \mathbb{E}[Z]\right|\geq |\mathbb{E}[Z]|\right]\\ &\leq \frac{\mathrm{Var}[Z]}{\mathbb{E}[Z]²}\\ &= \frac{\{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\} \mathrm{Var}[X_1²]}{\{- (d-1) \,\varepsilon² + (1-\varepsilon²)\}²}\\ &\to 0 \end{align*}$$
 
 当 \(d \to +\infty\) 时。为了得到我们观察到的极限，我们注意到，对于大的 \(d\)，分母的规模类似于 \(d²\)，而分子仅类似于 \(d\)。 \(\square\)
 
@@ -532,75 +532,75 @@ plt.show()
 
 对 E2.2.1 的答案和解释：是的，\(U\) 是 \(\mathbb{R}³\) 的线性子空间。设 \(u_1 = (x_1, y_1, z_1), u_2 = (x_2, y_2, z_2) \in U\) 且 \(\alpha \in \mathbb{R}\)。那么
 
-\[\begin{align*} x_1 + 2y_1 - z_1 &= 0 \\ x_2 + 2y_2 - z_2 &= 0 \\ \alpha(x_1 + 2y_1 - z_1) + (x_2 + 2y_2 - z_2) &= 0 \\ (\alpha x_1 + x_2) + 2(\alpha y_1 + y_2) - (\alpha z_1 + z_2) &= 0 \end{align*}\]
+$$\begin{align*} x_1 + 2y_1 - z_1 &= 0 \\ x_2 + 2y_2 - z_2 &= 0 \\ \alpha(x_1 + 2y_1 - z_1) + (x_2 + 2y_2 - z_2) &= 0 \\ (\alpha x_1 + x_2) + 2(\alpha y_1 + y_2) - (\alpha z_1 + z_2) &= 0 \end{align*}$$
 
 因此，\(\alpha u_1 + u_2 \in U\)，这证明了 \(U\) 是一个线性子空间。
 
 E2.2.3 的答案和解释：\(U\) 的一个基是 \(\{(1, 1, 0), (-1, 0, 1)\}\)。任何属于 \(U\) 的向量 \((x, y, z)\) 可以表示为
 
-\[\begin{align*} (x, y, z) &= (y-z, y, z) \\ &= y(1, 1, 0) + z(-1, 0, 1) \end{align*}\]
+$$\begin{align*} (x, y, z) &= (y-z, y, z) \\ &= y(1, 1, 0) + z(-1, 0, 1) \end{align*}$$
 
 因此，\(\{(1, 1, 0), (-1, 0, 1)\}\) 张成 \(U\)。它们也是线性无关的，因为 \(\alpha(1, 1, 0) + \beta(-1, 0, 1) = \mathbf{0}\) 意味着 \(\alpha = \beta = 0\)。因此，这是 \(U\) 的一个基。
 
 E2.2.5 的答案和解释：是的，\(u_1\) 和 \(u_2\) 形成一个正交归一列表。我们有
 
-\[\begin{align*} \|u_1\| &= \sqrt{(1/\sqrt{2})² + (1/\sqrt{2})²} = 1 \\ \|u_2\| &= \sqrt{(1/\sqrt{2})² + (-1/\sqrt{2})²} = 1 \\ \langle u_1, u_2 \rangle &= (1/\sqrt{2})(1/\sqrt{2}) + (1/\sqrt{2})(-1/\sqrt{2}) = 0 \end{align*}\]
+$$\begin{align*} \|u_1\| &= \sqrt{(1/\sqrt{2})² + (1/\sqrt{2})²} = 1 \\ \|u_2\| &= \sqrt{(1/\sqrt{2})² + (-1/\sqrt{2})²} = 1 \\ \langle u_1, u_2 \rangle &= (1/\sqrt{2})(1/\sqrt{2}) + (1/\sqrt{2})(-1/\sqrt{2}) = 0 \end{align*}$$
 
 所以 \(u_1\) 和 \(u_2\) 是单位向量，并且彼此正交。
 
 E2.2.7 的答案和解释：\(A\) 是非奇异的。它的列是 \((1, 3)\) 和 \((2, 4)\)，它们是线性无关的
 
-\[\begin{align*} \alpha(1, 3) + \beta(2, 4) &= (0, 0) \\ \alpha + 2\beta &= 0 \\ 3\alpha + 4\beta &= 0 \end{align*}\]
+$$\begin{align*} \alpha(1, 3) + \beta(2, 4) &= (0, 0) \\ \alpha + 2\beta &= 0 \\ 3\alpha + 4\beta &= 0 \end{align*}$$
 
 这个系统只有一个平凡解 \(\alpha = \beta = 0\)。所以 \(A\) 的列是线性无关的，并且由于 \(A\) 是一个 \(2 \times 2\) 矩阵，这意味着它有秩 2 并且是非奇异的。
 
 E2.2.9 的答案和解释：
 
-\[ \mathbf{v} = \alpha \mathbf{w}_1 + \beta \mathbf{w}_2 \implies (2, 3, 5) = \alpha (1, 0, 1) + \beta (0, 1, 1). \]
+$$ \mathbf{v} = \alpha \mathbf{w}_1 + \beta \mathbf{w}_2 \implies (2, 3, 5) = \alpha (1, 0, 1) + \beta (0, 1, 1). $$
 
 解这个方程组
 
-\[ 2 = \alpha, \quad 3 = \beta, \quad 5 = \alpha + \beta. \]
+$$ 2 = \alpha, \quad 3 = \beta, \quad 5 = \alpha + \beta. $$
 
 将 \(\alpha = 2\) 和 \(\beta = 3\) 代入第三个方程
 
-\[ 5 = 2 + 3 \implies \alpha = 2, \beta = 3. \]
+$$ 5 = 2 + 3 \implies \alpha = 2, \beta = 3. $$
 
 因此，\(\mathbf{v} = 2\mathbf{w}_1 + 3\mathbf{w}_2\).
 
 E2.2.11 的答案和解释：为了找到零空间，我们需要解齐次系统 \(B\mathbf{x} = \mathbf{0}\)：
 
-\[\begin{split} \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix} \end{split}\]
+$$\begin{split} \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix} \end{split}$$
 
 这给我们带来了两个未知数的两个方程：
 
-\[\begin{align*} x_1 + 2x_2 + 3x_3 &= 0 \tag{1}\\ 4x_1 + 5x_2 + 6x_3 &= 0 \tag{2} \end{align*}\]
+$$\begin{align*} x_1 + 2x_2 + 3x_3 &= 0 \tag{1}\\ 4x_1 + 5x_2 + 6x_3 &= 0 \tag{2} \end{align*}$$
 
 将方程 (1) 乘以 4：
 
-\[ 4x_1 + 8x_2 + 12x_3 = 0 \tag{3} \]
+$$ 4x_1 + 8x_2 + 12x_3 = 0 \tag{3} $$
 
 从方程 (3) 中减去方程 (2)：
 
-\[ (5-8)x_2 + (6-12)x_3 = 0 \]
+$$ (5-8)x_2 + (6-12)x_3 = 0 $$
 
 这简化为：
 
-\[ -3x_2 - 6x_3 = 0 \]
+$$ -3x_2 - 6x_3 = 0 $$
 
 除以 -3：\( x_2 = -2x_3 \)$
 
 现在，将这个结果代入方程 (1)：
 
-\[\begin{align*} x_1 + 2(-2x_3) + 3x_3 &= 0 \\ x_1 - 4x_3 + 3x_3 &= 0 \\ x_1 - x_3 &= 0 \end{align*}\]
+$$\begin{align*} x_1 + 2(-2x_3) + 3x_3 &= 0 \\ x_1 - 4x_3 + 3x_3 &= 0 \\ x_1 - x_3 &= 0 \end{align*}$$
 
 因此：
 
-\[ x_1 = x_3 \]
+$$ x_1 = x_3 $$
 
 设 \(x_3 = t\)（一个自由参数），我们得到：
 
-\[\begin{split} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} t \\ -2t \\ t \end{pmatrix} = t \begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix} \end{split}\]
+$$\begin{split} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} t \\ -2t \\ t \end{pmatrix} = t \begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix} \end{split}$$
 
 \(B\)的零空间是向量\(\begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix}\)的生成空间。
 
@@ -608,31 +608,31 @@ E2.2.13 的答案和证明：为了确定线性无关性，我们需要检查\(\
 
 让我们写出这个向量方程：
 
-\[\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 2 \\ -1 \\ 0 \end{pmatrix} + \alpha_3 \begin{pmatrix} 1 \\ 8 \\ 6 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}\]
+$$\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 2 \\ -1 \\ 0 \end{pmatrix} + \alpha_3 \begin{pmatrix} 1 \\ 8 \\ 6 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}$$
 
 这给我们一个包含三个方程的系统：
 
-\[\begin{align*} \alpha_1 + 2\alpha_2 + \alpha_3 &= 0 \tag{1}\\ 2\alpha_1 - \alpha_2 + 8\alpha_3 &= 0 \tag{2}\\ 3\alpha_1 + 0\alpha_2 + 6\alpha_3 &= 0 \tag{3} \end{align*}\]
+$$\begin{align*} \alpha_1 + 2\alpha_2 + \alpha_3 &= 0 \tag{1}\\ 2\alpha_1 - \alpha_2 + 8\alpha_3 &= 0 \tag{2}\\ 3\alpha_1 + 0\alpha_2 + 6\alpha_3 &= 0 \tag{3} \end{align*}$$
 
 从方程(3)：
 
-\[ 3\alpha_1 + 6\alpha_3 = 0 \]
+$$ 3\alpha_1 + 6\alpha_3 = 0 $$
 
 这给我们：
 
-\[ \alpha_1 = -2\alpha_3 \tag{4} \]
+$$ \alpha_1 = -2\alpha_3 \tag{4} $$
 
 将这个代入方程(1)：
 
-\[\begin{align*} -2\alpha_3 + 2\alpha_2 + \alpha_3 &= 0\\ 2\alpha_2 - \alpha_3 &= 0\\ \alpha_2 &= \frac{\alpha_3}{2} \tag{5} \end{align*}\]
+$$\begin{align*} -2\alpha_3 + 2\alpha_2 + \alpha_3 &= 0\\ 2\alpha_2 - \alpha_3 &= 0\\ \alpha_2 &= \frac{\alpha_3}{2} \tag{5} \end{align*}$$
 
 现在我们通过代入方程(4)和(5)来检查方程(2)：
 
-\[\begin{align*} 2(-2\alpha_3) - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \end{align*}\]
+$$\begin{align*} 2(-2\alpha_3) - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \end{align*}$$
 
 简化：
 
-\[\begin{align*} -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \frac{-8\alpha_3 - \alpha_3 + 16\alpha_3}{2} &= 0\\ \frac{7\alpha_3}{2} &= 0 \end{align*}\]
+$$\begin{align*} -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \frac{-8\alpha_3 - \alpha_3 + 16\alpha_3}{2} &= 0\\ \frac{7\alpha_3}{2} &= 0 \end{align*}$$
 
 由于\(\frac{7\alpha_3}{2} = 0\)意味着\(\alpha_3 = 0\)，并且从方程(4)和(5)中，我们得到\(\alpha_1 = 0\)和\(\alpha_2 = 0\)。
 
@@ -640,7 +640,7 @@ E2.2.13 的答案和证明：为了确定线性无关性，我们需要检查\(\
 
 考虑方程\(\alpha_1\mathbf{u}_1 + \alpha_2\mathbf{u}_2 + \alpha_3\mathbf{u}_3 = 0\)。这导致以下方程组
 
-\[ \alpha_1 + 2\alpha_2 + \alpha_3 = 0 \]\[ 2\alpha_1 - \alpha_2 + 8\alpha_3 = 0 \]\[ 3\alpha_1 + 6\alpha_3 = 0 \]
+$$ \alpha_1 + 2\alpha_2 + \alpha_3 = 0 $$$$ 2\alpha_1 - \alpha_2 + 8\alpha_3 = 0 $$$$ 3\alpha_1 + 6\alpha_3 = 0 $$
 
 解这个系统，我们得到\(\alpha_1 = -2\alpha_3\)和\(\alpha_2 = \alpha_3\)。选择\(\alpha_3 = 1\)，我们得到一个非平凡解\(\alpha_1 = -2\)、\(\alpha_2 = 1\)、\(\alpha_3 = 1\)。因此，这些向量是线性相关的。
 
@@ -648,31 +648,31 @@ E2.2.15 的答案和证明：我们可以将这个系统写成\(A\mathbf{x} = \m
 
 然后，解是
 
-\[\begin{split} \mathbf{x} = A^{-1}\mathbf{b} = \frac{1}{-3} \begin{bmatrix} -1 & -1 \\ -1 & 2 \end{bmatrix} \begin{bmatrix} 3 \\ 1 \end{bmatrix} = \begin{bmatrix} \frac{4}{3} \\ -\frac{1}{3} \end{bmatrix}. \end{split}\]
+$$\begin{split} \mathbf{x} = A^{-1}\mathbf{b} = \frac{1}{-3} \begin{bmatrix} -1 & -1 \\ -1 & 2 \end{bmatrix} \begin{bmatrix} 3 \\ 1 \end{bmatrix} = \begin{bmatrix} \frac{4}{3} \\ -\frac{1}{3} \end{bmatrix}. \end{split}$$
 
 E2.3.1 的答案和解释：虽然
 
-\[\begin{split} Q^T Q = \begin{pmatrix} 1 & 0\\ 0 & 1 \end{pmatrix} = I_{2 \times 2}, \end{split}\]
+$$\begin{split} Q^T Q = \begin{pmatrix} 1 & 0\\ 0 & 1 \end{pmatrix} = I_{2 \times 2}, \end{split}$$
 
 矩阵\(Q\)不是方阵。因此，\(Q\)不是一个正交矩阵。
 
 E2.3.3 的答案和解释：
 
-\[ \mathrm{proj}_{U} \mathbf{v} = \frac{\langle \mathbf{v}, \mathbf{u} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(2 \cdot 1 + 3 \cdot 1)}{(1² + 1²)} \mathbf{u} = \frac{5}{2} (1, 1) = \left(\frac{5}{2}, \frac{5}{2}\right). \]
+$$ \mathrm{proj}_{U} \mathbf{v} = \frac{\langle \mathbf{v}, \mathbf{u} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(2 \cdot 1 + 3 \cdot 1)}{(1² + 1²)} \mathbf{u} = \frac{5}{2} (1, 1) = \left(\frac{5}{2}, \frac{5}{2}\right). $$
 
 E2.3.5 的答案和解释：向量\(\mathbf{v}\)在\(\mathbf{u}\)上的投影由
 
-\[\begin{split} \text{proj}_{\mathbf{u}} \mathbf{v} = \frac{\langle \mathbf{u}, \mathbf{v} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(1)(1) + (1)(2) + (0)(1)}{1² + 1² + 0²} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \frac{3}{2} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \begin{bmatrix} \frac{3}{2} \\ \frac{3}{2} \\ 0 \end{bmatrix}. \end{split}\]
+$$\begin{split} \text{proj}_{\mathbf{u}} \mathbf{v} = \frac{\langle \mathbf{u}, \mathbf{v} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(1)(1) + (1)(2) + (0)(1)}{1² + 1² + 0²} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \frac{3}{2} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \begin{bmatrix} \frac{3}{2} \\ \frac{3}{2} \\ 0 \end{bmatrix}. \end{split}$$
 
 E2.3.7 的答案和解释：使用文本中给出的\(U\)的正交基\(\{\mathbf{q}_1, \mathbf{q}_2\}\)，我们有：$\(\mathrm{proj}_U \mathbf{v} = \langle \mathbf{v}, \mathbf{q}_1 \rangle \mathbf{q}_1 + \langle \mathbf{v}, \mathbf{q}_2 \rangle \mathbf{q}_2 = \frac{4}{\sqrt{2}} \cdot \frac{1}{\sqrt{2}}(1, 0, 1) + \frac{5}{\sqrt{6}} \cdot \frac{1}{\sqrt{6}}(-1, 2, 1) = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}).\)$
 
 E2.3.9 的答案和解释：从 E2.3.7 和 E2.3.8 中，我们有：
 
-\[ \mathrm{proj}_U \mathbf{v} = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}), \quad \mathbf{v} - \mathrm{proj}_U \mathbf{v} = (-\frac{1}{3}, -\frac{1}{3}, \frac{2}{3}). \]
+$$ \mathrm{proj}_U \mathbf{v} = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}), \quad \mathbf{v} - \mathrm{proj}_U \mathbf{v} = (-\frac{1}{3}, -\frac{1}{3}, \frac{2}{3}). $$
 
 计算平方范数：
 
-\[ \|\mathbf{v}\|² = 1² + 2² + 3² = 14, \quad \|\mathrm{proj}_U \mathbf{v}\|² = (\frac{7}{3})² + (\frac{10}{3})² + (\frac{13}{3})² = \frac{146}{3}, \quad \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|² = (-\frac{1}{3})² + (-\frac{1}{3})² + (\frac{2}{3})² = \frac{2}{3}. \]
+$$ \|\mathbf{v}\|² = 1² + 2² + 3² = 14, \quad \|\mathrm{proj}_U \mathbf{v}\|² = (\frac{7}{3})² + (\frac{10}{3})² + (\frac{13}{3})² = \frac{146}{3}, \quad \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|² = (-\frac{1}{3})² + (-\frac{1}{3})² + (\frac{2}{3})² = \frac{2}{3}. $$
 
 事实上，\(\|\mathbf{v}\|² = 14 = \frac{146}{3} + \frac{2}{3} = \|\mathrm{proj}_U \mathbf{v}\|² + \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|²\)，验证了勾股定理。
 
@@ -682,7 +682,7 @@ E2.3.11 的答案和解释：由于\(\mathbf{u}_1\)不是一个单位向量，�
 
 对 E2.3.15 的答案和解释：
 
-\[\begin{split} A^T A = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}, \quad A^T \mathbf{b} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 3 \\ 1 \end{pmatrix} = \begin{pmatrix} 4 \\ 2 \end{pmatrix}. \end{split}\]
+$$\begin{split} A^T A = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}, \quad A^T \mathbf{b} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 3 \\ 1 \end{pmatrix} = \begin{pmatrix} 4 \\ 2 \end{pmatrix}. \end{split}$$
 
 因此，\(\mathbf{x} = (A^T A)^{-1} A^T \mathbf{b} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}^{-1} \begin{pmatrix} 4 \\ 2 \end{pmatrix} = \begin{pmatrix} 2 \\ 1 \end{pmatrix}\).
 
@@ -690,7 +690,7 @@ E2.3.11 的答案和解释：由于\(\mathbf{u}_1\)不是一个单位向量，�
 
 对 E2.4.3 的答案和解释：设 \(\mathbf{w}_1 = (1, 1)\) 和 \(\mathbf{w}_2 = (1, 0)\)。然后
 
-\[\begin{align*} \mathbf{q}_1 &= \frac{\mathbf{w}_1}{\|\mathbf{w}_1\|} = (\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}) \\ \mathbf{q}_2 &= \frac{\mathbf{w}_2 - \langle \mathbf{w}_2, \mathbf{q}_1 \rangle \mathbf{q}_1}{\|\mathbf{w}_2 - \langle \mathbf{w}_2, q_1 \rangle q_1\|} \\ &= \frac{(1, 0) - (\frac{1}{\sqrt{2}})(\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}})}{\sqrt{1 - (\frac{1}{\sqrt{2}})²}} \\ &= (\frac{1}{\sqrt{2}}, -\frac{1}{\sqrt{2}}) \end{align*}\]
+$$\begin{align*} \mathbf{q}_1 &= \frac{\mathbf{w}_1}{\|\mathbf{w}_1\|} = (\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}) \\ \mathbf{q}_2 &= \frac{\mathbf{w}_2 - \langle \mathbf{w}_2, \mathbf{q}_1 \rangle \mathbf{q}_1}{\|\mathbf{w}_2 - \langle \mathbf{w}_2, q_1 \rangle q_1\|} \\ &= \frac{(1, 0) - (\frac{1}{\sqrt{2}})(\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}})}{\sqrt{1 - (\frac{1}{\sqrt{2}})²}} \\ &= (\frac{1}{\sqrt{2}}, -\frac{1}{\sqrt{2}}) \end{align*}$$
 
 因此，\(\{\mathbf{q}_1, \mathbf{q}_2\}\) 是一个正交基。
 
@@ -702,7 +702,7 @@ E2.3.11 的答案和解释：由于\(\mathbf{u}_1\)不是一个单位向量，�
 
 对 E2.4.11 的答案和解释：为了验证 \(H_1\) 是正交的，我们检查 \(H_1^T H_1 = I_{2 \times 2}\):
 
-\[\begin{split} H_1^T H_1 = \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = I_{2 \times 2}. \end{split}\]
+$$\begin{split} H_1^T H_1 = \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = I_{2 \times 2}. \end{split}$$
 
 为了验证 \(H_1\) 是否对称，我们检查 \(H_1^T = H_1\)，通过观察可知这是真的。
 
@@ -712,55 +712,55 @@ E2.4.15 的答案和解释：设 \(\mathbf{y}_1 = (3, 4)^T\) 为 \(A\) 的第一
 
 E2.4.17 的答案和解释：
 
-\[\begin{align*} Q &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix}, \\ R &= Q^T A = \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix}, \\ Q^T \mathbf{b} &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix} \begin{pmatrix} 2 \\ 0 \end{pmatrix} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ R \mathbf{x} &= Q^T \mathbf{b}, \quad \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix} \mathbf{x} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ \mathbf{x} &= \begin{pmatrix} 1 \\ 1 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} Q &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix}, \\ R &= Q^T A = \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix}, \\ Q^T \mathbf{b} &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix} \begin{pmatrix} 2 \\ 0 \end{pmatrix} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ R \mathbf{x} &= Q^T \mathbf{b}, \quad \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix} \mathbf{x} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ \mathbf{x} &= \begin{pmatrix} 1 \\ 1 \end{pmatrix}. \end{align*}$$
 
 解是 \(\mathbf{x} = \begin{pmatrix} 1 \\ 1 \end{pmatrix}\)。
 
 E2.5.1 的答案和解释：
 
-\[\begin{split} A = \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \\ 1 & 4 \end{pmatrix}, \quad \mathbf{y} = \begin{pmatrix} 2 \\ 4 \\ 5 \\ 7 \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \\ 1 & 4 \end{pmatrix}, \quad \mathbf{y} = \begin{pmatrix} 2 \\ 4 \\ 5 \\ 7 \end{pmatrix}. \end{split}$$
 
 正则方程是：
 
-\[\begin{split} A^T A \boldsymbol{\beta} = A^T \mathbf{y} \Rightarrow \begin{pmatrix} 4 & 10 \\ 10 & 30 \end{pmatrix} \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 18 \\ 47 \end{pmatrix}. \end{split}\]
+$$\begin{split} A^T A \boldsymbol{\beta} = A^T \mathbf{y} \Rightarrow \begin{pmatrix} 4 & 10 \\ 10 & 30 \end{pmatrix} \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 18 \\ 47 \end{pmatrix}. \end{split}$$
 
 解这个方程组得到 \(\beta_0 = \frac{1}{2}\) 和 \(\beta_1 = \frac{3}{2}\)。
 
 E2.5.3 的答案和解释：
 
-\[\begin{split} A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{bmatrix} \quad \mathbf{y} = \begin{bmatrix} 3 \\ 5 \\ 8 \end{bmatrix} \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{bmatrix} \quad \mathbf{y} = \begin{bmatrix} 3 \\ 5 \\ 8 \end{bmatrix} \end{split}$$
 
 E2.5.5 的答案和解释：
 
-\[\begin{split} \boldsymbol{\beta} = \begin{bmatrix} \beta_0 \\ \beta_1 \end{bmatrix} = (A^T A)^{-1} A^T \mathbf{y} = \begin{bmatrix} 1 \\ 2 \end{bmatrix} \end{split}\]
+$$\begin{split} \boldsymbol{\beta} = \begin{bmatrix} \beta_0 \\ \beta_1 \end{bmatrix} = (A^T A)^{-1} A^T \mathbf{y} = \begin{bmatrix} 1 \\ 2 \end{bmatrix} \end{split}$$
 
 我们通过求逆 \(A^T A\) 并乘以 \(A^T \mathbf{y}\) 来解这个线性方程组。
 
 E2.5.7 的答案和解释：
 
-\[\begin{split} A = \begin{bmatrix} 1 & -1 & 1 \\ 1 & 0 & 0 \\ 1 & 1 & 1 \end{bmatrix} \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 1 & -1 & 1 \\ 1 & 0 & 0 \\ 1 & 1 & 1 \end{bmatrix} \end{split}$$
 
 对于一个二次模型，我们需要 \(1\)、\(x\) 和 \(x²\) 的列。
 
 对 E2.5.9 的答案和证明：我们解正则方程 \(A^T A \boldsymbol{\beta} = A^T \mathbf{y}\)。
 
-\[\begin{align*} A^T A &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{pmatrix} = \begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix}, \\ A^T \mathbf{y} &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} A^T A &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{pmatrix} = \begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix}, \\ A^T \mathbf{y} &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}. \end{align*}$$
 
 解 \(\begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix} \boldsymbol{\beta} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}\)：
 
-\[\begin{align*} \boldsymbol{\beta} &= \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 0 \\ 1 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} \boldsymbol{\beta} &= \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 0 \\ 1 \end{pmatrix}. \end{align*}$$
 
 对 E2.5.11 的答案和证明：计算预测的 \(y\) 值：
 
-\[\begin{align*} \hat{y}_1 &= 2(1) + 1 = 3, \\ \hat{y}_2 &= 2(2) + 1 = 5, \\ \hat{y}_3 &= 2(3) + 1 = 7. \end{align*}\]
+$$\begin{align*} \hat{y}_1 &= 2(1) + 1 = 3, \\ \hat{y}_2 &= 2(2) + 1 = 5, \\ \hat{y}_3 &= 2(3) + 1 = 7. \end{align*}$$
 
 计算残差：
 
-\[\begin{align*} r_1 &= 3 - 3 = 0, \\ r_2 &= 5 - 5 = 0, \\ r_3 &= 7 - 7 = 0. \end{align*}\]
+$$\begin{align*} r_1 &= 3 - 3 = 0, \\ r_2 &= 5 - 5 = 0, \\ r_3 &= 7 - 7 = 0. \end{align*}$$
 
 RSS 是：
 
-\[\begin{align*} \mathrm{RSS} &= 0² + 0² + 0² = 0. \end{align*}\]
+$$\begin{align*} \mathrm{RSS} &= 0² + 0² + 0² = 0. \end{align*}$$
 
 ### 2.7.1.5\. 学习成果#
 
@@ -860,75 +860,75 @@ RSS 是：
 
 E2.2.1 的答案和解释：是的，\(U\)是\(\mathbb{R}³\)的一个线性子空间。设\(u_1 = (x_1, y_1, z_1), u_2 = (x_2, y_2, z_2) \in U\)且\(\alpha \in \mathbb{R}\)。那么
 
-\[\begin{align*} x_1 + 2y_1 - z_1 &= 0 \\ x_2 + 2y_2 - z_2 &= 0 \\ \alpha(x_1 + 2y_1 - z_1) + (x_2 + 2y_2 - z_2) &= 0 \\ (\alpha x_1 + x_2) + 2(\alpha y_1 + y_2) - (\alpha z_1 + z_2) &= 0 \end{align*}\]
+$$\begin{align*} x_1 + 2y_1 - z_1 &= 0 \\ x_2 + 2y_2 - z_2 &= 0 \\ \alpha(x_1 + 2y_1 - z_1) + (x_2 + 2y_2 - z_2) &= 0 \\ (\alpha x_1 + x_2) + 2(\alpha y_1 + y_2) - (\alpha z_1 + z_2) &= 0 \end{align*}$$
 
 所以\(\alpha u_1 + u_2 \in U\)，这证明了\(U\)是一个线性子空间。
 
 E2.2.3 的答案和解释：\(U\)的一个基是\(\{(1, 1, 0), (-1, 0, 1)\}\)。任何向量\((x, y, z) \in U\)都可以写成
 
-\[\begin{align*} (x, y, z) &= (y-z, y, z) \\ &= y(1, 1, 0) + z(-1, 0, 1) \end{align*}\]
+$$\begin{align*} (x, y, z) &= (y-z, y, z) \\ &= y(1, 1, 0) + z(-1, 0, 1) \end{align*}$$
 
 所以\(\{(1, 1, 0), (-1, 0, 1)\}\)张成\(U\)。它们也是线性无关的，因为\(\alpha(1, 1, 0) + \beta(-1, 0, 1) = \mathbf{0}\)意味着\(\alpha = \beta = 0\)。因此，这是\(U\)的一个基。
 
 E2.2.5 的答案和解释：是的，\(u_1\)和\(u_2\)构成一个正交归一列表。我们有
 
-\[\begin{align*} \|u_1\| &= \sqrt{(1/\sqrt{2})² + (1/\sqrt{2})²} = 1 \\ \|u_2\| &= \sqrt{(1/\sqrt{2})² + (-1/\sqrt{2})²} = 1 \\ \langle u_1, u_2 \rangle &= (1/\sqrt{2})(1/\sqrt{2}) + (1/\sqrt{2})(-1/\sqrt{2}) = 0 \end{align*}\]
+$$\begin{align*} \|u_1\| &= \sqrt{(1/\sqrt{2})² + (1/\sqrt{2})²} = 1 \\ \|u_2\| &= \sqrt{(1/\sqrt{2})² + (-1/\sqrt{2})²} = 1 \\ \langle u_1, u_2 \rangle &= (1/\sqrt{2})(1/\sqrt{2}) + (1/\sqrt{2})(-1/\sqrt{2}) = 0 \end{align*}$$
 
 因此，\(u_1\)和\(u_2\)是单位向量，并且彼此正交。
 
 E2.2.7 的答案和解释：\(A\)是非奇异的。它的列是\((1, 3)\)和\((2, 4)\)，它们是线性无关的。
 
-\[\begin{align*} \alpha(1, 3) + \beta(2, 4) &= (0, 0) \\ \alpha + 2\beta &= 0 \\ 3\alpha + 4\beta &= 0 \end{align*}\]
+$$\begin{align*} \alpha(1, 3) + \beta(2, 4) &= (0, 0) \\ \alpha + 2\beta &= 0 \\ 3\alpha + 4\beta &= 0 \end{align*}$$
 
 这个系统只有平凡解\(\alpha = \beta = 0\)。因此，\(A\)的列是线性无关的，由于\(A\)是一个\(2 \times 2\)矩阵，这意味着它的秩为 2，是非奇异的。
 
 E2.2.9 的答案和解释：
 
-\[ \mathbf{v} = \alpha \mathbf{w}_1 + \beta \mathbf{w}_2 \implies (2, 3, 5) = \alpha (1, 0, 1) + \beta (0, 1, 1). \]
+$$ \mathbf{v} = \alpha \mathbf{w}_1 + \beta \mathbf{w}_2 \implies (2, 3, 5) = \alpha (1, 0, 1) + \beta (0, 1, 1). $$
 
 解方程组
 
-\[ 2 = \alpha, \quad 3 = \beta, \quad 5 = \alpha + \beta. \]
+$$ 2 = \alpha, \quad 3 = \beta, \quad 5 = \alpha + \beta. $$
 
 将\(\alpha = 2\)和\(\beta = 3\)代入第三个方程
 
-\[ 5 = 2 + 3 \implies \alpha = 2, \beta = 3. \]
+$$ 5 = 2 + 3 \implies \alpha = 2, \beta = 3. $$
 
 因此，\(\mathbf{v} = 2\mathbf{w}_1 + 3\mathbf{w}_2\)。
 
 E2.2.11 的答案和解释：为了找到零空间，我们需要解齐次系统 \(B\mathbf{x} = \mathbf{0}\)：
 
-\[\begin{split} \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix} \end{split}\]
+$$\begin{split} \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix} \end{split}$$
 
 这给我们两个方程和三个未知数：
 
-\[\begin{align*} x_1 + 2x_2 + 3x_3 &= 0 \tag{1}\\ 4x_1 + 5x_2 + 6x_3 &= 0 \tag{2} \end{align*}\]
+$$\begin{align*} x_1 + 2x_2 + 3x_3 &= 0 \tag{1}\\ 4x_1 + 5x_2 + 6x_3 &= 0 \tag{2} \end{align*}$$
 
 将方程（1）乘以 4：
 
-\[ 4x_1 + 8x_2 + 12x_3 = 0 \tag{3} \]
+$$ 4x_1 + 8x_2 + 12x_3 = 0 \tag{3} $$
 
 从方程（2）中减去方程（3）：
 
-\[ (5-8)x_2 + (6-12)x_3 = 0 \]
+$$ (5-8)x_2 + (6-12)x_3 = 0 $$
 
 这简化为：
 
-\[ -3x_2 - 6x_3 = 0 \]
+$$ -3x_2 - 6x_3 = 0 $$
 
 除以-3：\( x_2 = -2x_3 \)
 
 现在，将这个结果代入方程（1）：
 
-\[\begin{align*} x_1 + 2(-2x_3) + 3x_3 &= 0 \\ x_1 - 4x_3 + 3x_3 &= 0 \\ x_1 - x_3 &= 0 \end{align*}\]
+$$\begin{align*} x_1 + 2(-2x_3) + 3x_3 &= 0 \\ x_1 - 4x_3 + 3x_3 &= 0 \\ x_1 - x_3 &= 0 \end{align*}$$
 
 因此：
 
-\[ x_1 = x_3 \]
+$$ x_1 = x_3 $$
 
 设置 \(x_3 = t\)（一个自由参数），我们得到：
 
-\[\begin{split} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} t \\ -2t \\ t \end{pmatrix} = t \begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix} \end{split}\]
+$$\begin{split} \begin{pmatrix} x_1 \\ x_2 \\ x_3 \end{pmatrix} = \begin{pmatrix} t \\ -2t \\ t \end{pmatrix} = t \begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix} \end{split}$$
 
 \(B\) 的零空间是向量 \(\begin{pmatrix} 1 \\ -2 \\ 1 \end{pmatrix}\) 的张成。
 
@@ -936,31 +936,31 @@ E2.2.13 的答案和解释：为了确定线性无关性，我们需要检查 \(
 
 让我们写出这个向量方程：
 
-\[\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 2 \\ -1 \\ 0 \end{pmatrix} + \alpha_3 \begin{pmatrix} 1 \\ 8 \\ 6 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}\]
+$$\begin{split} \alpha_1 \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} + \alpha_2 \begin{pmatrix} 2 \\ -1 \\ 0 \end{pmatrix} + \alpha_3 \begin{pmatrix} 1 \\ 8 \\ 6 \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \\ 0 \end{pmatrix} \end{split}$$
 
 这给我们一个由三个方程组成的系统：
 
-\[\begin{align*} \alpha_1 + 2\alpha_2 + \alpha_3 &= 0 \tag{1}\\ 2\alpha_1 - \alpha_2 + 8\alpha_3 &= 0 \tag{2}\\ 3\alpha_1 + 0\alpha_2 + 6\alpha_3 &= 0 \tag{3} \end{align*}\]
+$$\begin{align*} \alpha_1 + 2\alpha_2 + \alpha_3 &= 0 \tag{1}\\ 2\alpha_1 - \alpha_2 + 8\alpha_3 &= 0 \tag{2}\\ 3\alpha_1 + 0\alpha_2 + 6\alpha_3 &= 0 \tag{3} \end{align*}$$
 
 从方程（3）：
 
-\[ 3\alpha_1 + 6\alpha_3 = 0 \]
+$$ 3\alpha_1 + 6\alpha_3 = 0 $$
 
 这给我们：
 
-\[ \alpha_1 = -2\alpha_3 \tag{4} \]
+$$ \alpha_1 = -2\alpha_3 \tag{4} $$
 
 将这个结果代入方程（1）：
 
-\[\begin{align*} -2\alpha_3 + 2\alpha_2 + \alpha_3 &= 0\\ 2\alpha_2 - \alpha_3 &= 0\\ \alpha_2 &= \frac{\alpha_3}{2} \tag{5} \end{align*}\]
+$$\begin{align*} -2\alpha_3 + 2\alpha_2 + \alpha_3 &= 0\\ 2\alpha_2 - \alpha_3 &= 0\\ \alpha_2 &= \frac{\alpha_3}{2} \tag{5} \end{align*}$$
 
 现在，通过代入方程（4）和（5）来检查方程（2）：
 
-\[\begin{align*} 2(-2\alpha_3) - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \end{align*}\]
+$$\begin{align*} 2(-2\alpha_3) - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \end{align*}$$
 
 简化：
 
-\[\begin{align*} -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \frac{-8\alpha_3 - \alpha_3 + 16\alpha_3}{2} &= 0\\ \frac{7\alpha_3}{2} &= 0 \end{align*}\]
+$$\begin{align*} -4\alpha_3 - \frac{\alpha_3}{2} + 8\alpha_3 &= 0\\ \frac{-8\alpha_3 - \alpha_3 + 16\alpha_3}{2} &= 0\\ \frac{7\alpha_3}{2} &= 0 \end{align*}$$
 
 由于 \(\frac{7\alpha_3}{2} = 0\) 意味着 \(\alpha_3 = 0\)，并且从方程（4）和（5）中，我们得到 \(\alpha_1 = 0\) 和 \(\alpha_2 = 0\)。
 
@@ -968,7 +968,7 @@ E2.2.13 的答案和解释：为了确定线性无关性，我们需要检查 \(
 
 考虑方程 \(\alpha_1\mathbf{u}_1 + \alpha_2\mathbf{u}_2 + \alpha_3\mathbf{u}_3 = 0\)。这导致以下方程组
 
-\[ \alpha_1 + 2\alpha_2 + \alpha_3 = 0 \]\[ 2\alpha_1 - \alpha_2 + 8\alpha_3 = 0 \]\[ 3\alpha_1 + 6\alpha_3 = 0 \]
+$$ \alpha_1 + 2\alpha_2 + \alpha_3 = 0 $$$$ 2\alpha_1 - \alpha_2 + 8\alpha_3 = 0 $$$$ 3\alpha_1 + 6\alpha_3 = 0 $$
 
 解这个系统，我们得到 \(\alpha_1 = -2\alpha_3\) 和 \(\alpha_2 = \alpha_3\)。选择 \(\alpha_3 = 1\)，我们得到一个非平凡解 \(\alpha_1 = -2\)，\(\alpha_2 = 1\)，\(\alpha_3 = 1\)。因此，这些向量是线性相关的。
 
@@ -976,31 +976,31 @@ E2.2.13 的答案和解释：为了确定线性无关性，我们需要检查 \(
 
 然后，解是
 
-\[\begin{split} \mathbf{x} = A^{-1}\mathbf{b} = \frac{1}{-3} \begin{bmatrix} -1 & -1 \\ -1 & 2 \end{bmatrix} \begin{bmatrix} 3 \\ 1 \end{bmatrix} = \begin{bmatrix} \frac{4}{3} \\ -\frac{1}{3} \end{bmatrix}. \end{split}\]
+$$\begin{split} \mathbf{x} = A^{-1}\mathbf{b} = \frac{1}{-3} \begin{bmatrix} -1 & -1 \\ -1 & 2 \end{bmatrix} \begin{bmatrix} 3 \\ 1 \end{bmatrix} = \begin{bmatrix} \frac{4}{3} \\ -\frac{1}{3} \end{bmatrix}. \end{split}$$
 
 对 E2.3.1 的答案和解释：虽然
 
-\[\begin{split} Q^T Q = \begin{pmatrix} 1 & 0\\ 0 & 1 \end{pmatrix} = I_{2 \times 2}, \end{split}\]
+$$\begin{split} Q^T Q = \begin{pmatrix} 1 & 0\\ 0 & 1 \end{pmatrix} = I_{2 \times 2}, \end{split}$$
 
 矩阵 \(Q\) 不是方阵。因此，\(Q\) 不是一个正交矩阵。
 
 对 E2.3.3 的答案和解释：
 
-\[ \mathrm{proj}_{U} \mathbf{v} = \frac{\langle \mathbf{v}, \mathbf{u} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(2 \cdot 1 + 3 \cdot 1)}{(1² + 1²)} \mathbf{u} = \frac{5}{2} (1, 1) = \left(\frac{5}{2}, \frac{5}{2}\right). \]
+$$ \mathrm{proj}_{U} \mathbf{v} = \frac{\langle \mathbf{v}, \mathbf{u} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(2 \cdot 1 + 3 \cdot 1)}{(1² + 1²)} \mathbf{u} = \frac{5}{2} (1, 1) = \left(\frac{5}{2}, \frac{5}{2}\right). $$
 
 对 E2.3.5 的答案和解释：\(\mathbf{v}\) 在 \(\mathbf{u}\) 上的投影由以下给出
 
-\[\begin{split} \text{proj}_{\mathbf{u}} \mathbf{v} = \frac{\langle \mathbf{u}, \mathbf{v} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(1)(1) + (1)(2) + (0)(1)}{1² + 1² + 0²} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \frac{3}{2} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \begin{bmatrix} \frac{3}{2} \\ \frac{3}{2} \\ 0 \end{bmatrix}. \end{split}\]
+$$\begin{split} \text{proj}_{\mathbf{u}} \mathbf{v} = \frac{\langle \mathbf{u}, \mathbf{v} \rangle}{\|\mathbf{u}\|²} \mathbf{u} = \frac{(1)(1) + (1)(2) + (0)(1)}{1² + 1² + 0²} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \frac{3}{2} \begin{bmatrix} 1 \\ 1 \\ 0 \end{bmatrix} = \begin{bmatrix} \frac{3}{2} \\ \frac{3}{2} \\ 0 \end{bmatrix}. \end{split}$$
 
 对 E2.3.7 的答案和解释：使用文本中给出的 \(U\) 的正交基 \(\{\mathbf{q}_1, \mathbf{q}_2\}\)，我们有：$\(\mathrm{proj}_U \mathbf{v} = \langle \mathbf{v}, \mathbf{q}_1 \rangle \mathbf{q}_1 + \langle \mathbf{v}, \mathbf{q}_2 \rangle \mathbf{q}_2 = \frac{4}{\sqrt{2}} \cdot \frac{1}{\sqrt{2}}(1, 0, 1) + \frac{5}{\sqrt{6}} \cdot \frac{1}{\sqrt{6}}(-1, 2, 1) = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}).\)$
 
 对 E2.3.9 的答案和解释：从 E2.3.7 和 E2.3.8，我们有：
 
-\[ \mathrm{proj}_U \mathbf{v} = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}), \quad \mathbf{v} - \mathrm{proj}_U \mathbf{v} = (-\frac{1}{3}, -\frac{1}{3}, \frac{2}{3}). \]
+$$ \mathrm{proj}_U \mathbf{v} = (\frac{7}{3}, \frac{10}{3}, \frac{13}{3}), \quad \mathbf{v} - \mathrm{proj}_U \mathbf{v} = (-\frac{1}{3}, -\frac{1}{3}, \frac{2}{3}). $$
 
 计算平方范数：
 
-\[ \|\mathbf{v}\|² = 1² + 2² + 3² = 14, \quad \|\mathrm{proj}_U \mathbf{v}\|² = (\frac{7}{3})² + (\frac{10}{3})² + (\frac{13}{3})² = \frac{146}{3}, \quad \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|² = (-\frac{1}{3})² + (-\frac{1}{3})² + (\frac{2}{3})² = \frac{2}{3}. \]
+$$ \|\mathbf{v}\|² = 1² + 2² + 3² = 14, \quad \|\mathrm{proj}_U \mathbf{v}\|² = (\frac{7}{3})² + (\frac{10}{3})² + (\frac{13}{3})² = \frac{146}{3}, \quad \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|² = (-\frac{1}{3})² + (-\frac{1}{3})² + (\frac{2}{3})² = \frac{2}{3}. $$
 
 事实上，\(\|\mathbf{v}\|² = 14 = \frac{146}{3} + \frac{2}{3} = \|\mathrm{proj}_U \mathbf{v}\|² + \|\mathbf{v} - \mathrm{proj}_U \mathbf{v}\|²\)，验证了勾股定理。
 
@@ -1010,7 +1010,7 @@ E2.2.13 的答案和解释：为了确定线性无关性，我们需要检查 \(
 
 对 E2.3.15 的答案和解释：
 
-\[\begin{split} A^T A = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}, \quad A^T \mathbf{b} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 3 \\ 1 \end{pmatrix} = \begin{pmatrix} 4 \\ 2 \end{pmatrix}. \end{split}\]
+$$\begin{split} A^T A = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}, \quad A^T \mathbf{b} = \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}^T \begin{pmatrix} 3 \\ 1 \end{pmatrix} = \begin{pmatrix} 4 \\ 2 \end{pmatrix}. \end{split}$$
 
 因此，\(\mathbf{x} = (A^T A)^{-1} A^T \mathbf{b} = \begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix}^{-1} \begin{pmatrix} 4 \\ 2 \end{pmatrix} = \begin{pmatrix} 2 \\ 1 \end{pmatrix}\)。
 
@@ -1018,7 +1018,7 @@ E2.2.13 的答案和解释：为了确定线性无关性，我们需要检查 \(
 
 对 E2.4.3 的答案和解释：令 \(\mathbf{w}_1 = (1, 1)\) 和 \(\mathbf{w}_2 = (1, 0)\)。然后
 
-\[\begin{align*} \mathbf{q}_1 &= \frac{\mathbf{w}_1}{\|\mathbf{w}_1\|} = (\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}) \\ \mathbf{q}_2 &= \frac{\mathbf{w}_2 - \langle \mathbf{w}_2, \mathbf{q}_1 \rangle \mathbf{q}_1}{\|\mathbf{w}_2 - \langle \mathbf{w}_2, q_1 \rangle q_1\|} \\ &= \frac{(1, 0) - (\frac{1}{\sqrt{2}})(\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}})}{\sqrt{1 - (\frac{1}{\sqrt{2}})²}} \\ &= (\frac{1}{\sqrt{2}}, -\frac{1}{\sqrt{2}}) \end{align*}\]
+$$\begin{align*} \mathbf{q}_1 &= \frac{\mathbf{w}_1}{\|\mathbf{w}_1\|} = (\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}) \\ \mathbf{q}_2 &= \frac{\mathbf{w}_2 - \langle \mathbf{w}_2, \mathbf{q}_1 \rangle \mathbf{q}_1}{\|\mathbf{w}_2 - \langle \mathbf{w}_2, q_1 \rangle q_1\|} \\ &= \frac{(1, 0) - (\frac{1}{\sqrt{2}})(\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}})}{\sqrt{1 - (\frac{1}{\sqrt{2}})²}} \\ &= (\frac{1}{\sqrt{2}}, -\frac{1}{\sqrt{2}}) \end{align*}$$
 
 所以 \(\{\mathbf{q}_1, \mathbf{q}_2\}\) 是一个正交归一基。
 
@@ -1030,7 +1030,7 @@ E2.4.9 的答案和证明：\(H = I_{3 \times 3} - 2\mathbf{z}\mathbf{z}^T/\|\ma
 
 E2.4.11 的答案和证明：为了验证\(H_1\)是正交的，我们检查\(H_1^T H_1 = I_{2 \times 2}\)：
 
-\[\begin{split} H_1^T H_1 = \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = I_{2 \times 2}. \end{split}\]
+$$\begin{split} H_1^T H_1 = \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} \begin{pmatrix} \frac{7}{5} & -\frac{6}{5} \\ -\frac{6}{5} & -\frac{1}{5} \end{pmatrix} = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix} = I_{2 \times 2}. \end{split}$$
 
 为了验证\(H_1\)是对称的，我们检查\(H_1^T = H_1\)，这是通过观察得出的。
 
@@ -1040,55 +1040,55 @@ E2.4.15 的答案和证明：设\(\mathbf{y}_1 = (3, 4)^T\)为\(A\)的第一列�
 
 E2.4.17 的答案和证明：
 
-\[\begin{align*} Q &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix}, \\ R &= Q^T A = \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix}, \\ Q^T \mathbf{b} &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix} \begin{pmatrix} 2 \\ 0 \end{pmatrix} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ R \mathbf{x} &= Q^T \mathbf{b}, \quad \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix} \mathbf{x} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ \mathbf{x} &= \begin{pmatrix} 1 \\ 1 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} Q &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix}, \\ R &= Q^T A = \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix}, \\ Q^T \mathbf{b} &= \begin{pmatrix} \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} & -\frac{1}{\sqrt{2}} \end{pmatrix} \begin{pmatrix} 2 \\ 0 \end{pmatrix} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ R \mathbf{x} &= Q^T \mathbf{b}, \quad \begin{pmatrix} \sqrt{2} & 0 \\ 0 & \sqrt{2} \end{pmatrix} \mathbf{x} = \begin{pmatrix} \sqrt{2} \\ \sqrt{2} \end{pmatrix}, \\ \mathbf{x} &= \begin{pmatrix} 1 \\ 1 \end{pmatrix}. \end{align*}$$
 
 解是\(\mathbf{x} = \begin{pmatrix} 1 \\ 1 \end{pmatrix}\)。
 
 E2.5.1 的答案和证明：
 
-\[\begin{split} A = \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \\ 1 & 4 \end{pmatrix}, \quad \mathbf{y} = \begin{pmatrix} 2 \\ 4 \\ 5 \\ 7 \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \\ 1 & 4 \end{pmatrix}, \quad \mathbf{y} = \begin{pmatrix} 2 \\ 4 \\ 5 \\ 7 \end{pmatrix}. \end{split}$$
 
 正则方程是：
 
-\[\begin{split} A^T A \boldsymbol{\beta} = A^T \mathbf{y} \Rightarrow \begin{pmatrix} 4 & 10 \\ 10 & 30 \end{pmatrix} \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 18 \\ 47 \end{pmatrix}. \end{split}\]
+$$\begin{split} A^T A \boldsymbol{\beta} = A^T \mathbf{y} \Rightarrow \begin{pmatrix} 4 & 10 \\ 10 & 30 \end{pmatrix} \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 18 \\ 47 \end{pmatrix}. \end{split}$$
 
 解这个方程组得到 \(\beta_0 = \frac{1}{2}\) 和 \(\beta_1 = \frac{3}{2}\)。
 
 对 E2.5.3 的答案和解释：
 
-\[\begin{split} A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{bmatrix} \quad \mathbf{y} = \begin{bmatrix} 3 \\ 5 \\ 8 \end{bmatrix} \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{bmatrix} \quad \mathbf{y} = \begin{bmatrix} 3 \\ 5 \\ 8 \end{bmatrix} \end{split}$$
 
 对 E2.5.5 的答案和解释：
 
-\[\begin{split} \boldsymbol{\beta} = \begin{bmatrix} \beta_0 \\ \beta_1 \end{bmatrix} = (A^T A)^{-1} A^T \mathbf{y} = \begin{bmatrix} 1 \\ 2 \end{bmatrix} \end{split}\]
+$$\begin{split} \boldsymbol{\beta} = \begin{bmatrix} \beta_0 \\ \beta_1 \end{bmatrix} = (A^T A)^{-1} A^T \mathbf{y} = \begin{bmatrix} 1 \\ 2 \end{bmatrix} \end{split}$$
 
 我们通过求 \(A^T A\) 的逆并乘以 \(A^T \mathbf{y}\) 来解线性方程组。
 
 对 E2.5.7 的答案和解释：
 
-\[\begin{split} A = \begin{bmatrix} 1 & -1 & 1 \\ 1 & 0 & 0 \\ 1 & 1 & 1 \end{bmatrix} \end{split}\]
+$$\begin{split} A = \begin{bmatrix} 1 & -1 & 1 \\ 1 & 0 & 0 \\ 1 & 1 & 1 \end{bmatrix} \end{split}$$
 
 对于一个二次模型，我们需要 \(1\)、\(x\) 和 \(x²\) 的列。
 
 对 E2.5.9 的答案和解释：我们解正则方程 \(A^T A \boldsymbol{\beta} = A^T \mathbf{y}\)。
 
-\[\begin{align*} A^T A &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{pmatrix} = \begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix}, \\ A^T \mathbf{y} &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} A^T A &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 & 1 \\ 1 & 2 \\ 1 & 3 \end{pmatrix} = \begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix}, \\ A^T \mathbf{y} &= \begin{pmatrix} 1 & 1 & 1 \\ 1 & 2 & 3 \end{pmatrix} \begin{pmatrix} 1 \\ 2 \\ 3 \end{pmatrix} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}. \end{align*}$$
 
 解方程 \(\begin{pmatrix} 3 & 6 \\ 6 & 14 \end{pmatrix} \boldsymbol{\beta} = \begin{pmatrix} 6 \\ 14 \end{pmatrix}\):
 
-\[\begin{align*} \boldsymbol{\beta} &= \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 0 \\ 1 \end{pmatrix}. \end{align*}\]
+$$\begin{align*} \boldsymbol{\beta} &= \begin{pmatrix} \beta_0 \\ \beta_1 \end{pmatrix} = \begin{pmatrix} 0 \\ 1 \end{pmatrix}. \end{align*}$$
 
 对 E2.5.11 的答案和解释：计算预测的 \(y\) 值：
 
-\[\begin{align*} \hat{y}_1 &= 2(1) + 1 = 3, \\ \hat{y}_2 &= 2(2) + 1 = 5, \\ \hat{y}_3 &= 2(3) + 1 = 7. \end{align*}\]
+$$\begin{align*} \hat{y}_1 &= 2(1) + 1 = 3, \\ \hat{y}_2 &= 2(2) + 1 = 5, \\ \hat{y}_3 &= 2(3) + 1 = 7. \end{align*}$$
 
 计算残差：
 
-\[\begin{align*} r_1 &= 3 - 3 = 0, \\ r_2 &= 5 - 5 = 0, \\ r_3 &= 7 - 7 = 0. \end{align*}\]
+$$\begin{align*} r_1 &= 3 - 3 = 0, \\ r_2 &= 5 - 5 = 0, \\ r_3 &= 7 - 7 = 0. \end{align*}$$
 
 均方误差（RSS）是：
 
-\[\begin{align*} \mathrm{RSS} &= 0² + 0² + 0² = 0. \end{align*}\]
+$$\begin{align*} \mathrm{RSS} &= 0² + 0² + 0² = 0. \end{align*}$$
 
 ### 2.7.1.5\. 学习成果#
 
@@ -1172,7 +1172,7 @@ E2.5.1 的答案和证明：
 
 **定理** **(高维正交性)** 设 \(\mathcal{S} = \{\mathbf{x}\in \mathbb{R}^d:\|\mathbf{x}\|=1\}\) 和 \(\mathbf{Y} \sim \mathrm{U}[\mathcal{S}]\)。那么对于任意 \(\varepsilon > 0\)，当 \(d \to +\infty\) 时，
 
-\[ \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] \to 0. \]
+$$ \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] \to 0. $$
 
 \(\sharp\)
 
@@ -1180,25 +1180,25 @@ E2.5.1 的答案和证明：
 
 *证明:* 回想一下，\(\mathbf{Y}\) 是 \(\frac{\mathbf{X}}{\|\mathbf{X}\|}\)，其中 \(\mathbf{X}\) 是标准正态 \(d\) 向量。我们想要界定的概率可以重新写为
 
-\[\begin{align*} \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] &= \mathbb{P}\left[\left|\left\langle\frac{\mathbf{X}}{\|\mathbf{X}\|}, \mathbf{e}_d\right\rangle\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\left|\frac{\langle\mathbf{X},\mathbf{e}_d\rangle}{\|\mathbf{X}\|}\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\frac{X_d²}{\sum_{j=1}^d X_j²} \geq \varepsilon²\right]\\ &= \mathbb{P}\left[X_d² \geq \varepsilon² \sum_{j=1}^d X_j²\right]\\ &= \mathbb{P}\left[\sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \geq 0\right]. \end{align*}\]
+$$\begin{align*} \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] &= \mathbb{P}\left[\left|\left\langle\frac{\mathbf{X}}{\|\mathbf{X}\|}, \mathbf{e}_d\right\rangle\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\left|\frac{\langle\mathbf{X},\mathbf{e}_d\rangle}{\|\mathbf{X}\|}\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\frac{X_d²}{\sum_{j=1}^d X_j²} \geq \varepsilon²\right]\\ &= \mathbb{P}\left[X_d² \geq \varepsilon² \sum_{j=1}^d X_j²\right]\\ &= \mathbb{P}\left[\sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \geq 0\right]. \end{align*}$$
 
 我们现在正在观察一组独立的（但不是同分布的）随机变量的和
 
-\[ Z = \sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \]
+$$ Z = \sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² $$
 
 我们可以求助于我们常用的切比雪夫工具。期望值，根据线性性质，
 
-\[ \mathbb{E}[Z] = - \sum_{j=1}^{d-1} \varepsilon² \mathbb{E}[X_j²] + (1-\varepsilon²) \mathbb{E}[X_d²] = \{- (d-1) \,\varepsilon² + (1-\varepsilon²)\} \]
+$$ \mathbb{E}[Z] = - \sum_{j=1}^{d-1} \varepsilon² \mathbb{E}[X_j²] + (1-\varepsilon²) \mathbb{E}[X_d²] = \{- (d-1) \,\varepsilon² + (1-\varepsilon²)\} $$
 
 在这里，我们使用了 \(X_1,\ldots,X_d\) 是标准正态变量的假设，并且特别地，它们的均值是 \(0\)，方差是 \(1\)，因此 \(\mathbb{E}[X_1²] = 1\)。
 
 方差，由于 \(X_j\) 的独立性，
 
-\[\begin{align*} \mathrm{Var}[Z] &= \sum_{j=1}^{d-1} \varepsilon⁴ \mathrm{Var}[X_j²] + (1-\varepsilon²)² \mathrm{Var}[X_d²]\\ &= \{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\}\mathrm{Var}[X_1²]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[Z] &= \sum_{j=1}^{d-1} \varepsilon⁴ \mathrm{Var}[X_j²] + (1-\varepsilon²)² \mathrm{Var}[X_d²]\\ &= \{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\}\mathrm{Var}[X_1²]. \end{align*}$$
 
 因此，根据切比雪夫不等式
 
-\[\begin{align*} \mathbb{P}\left[Z \geq 0\right] &\leq \mathbb{P}\left[\left|Z - \mathbb{E}[Z]\right|\geq |\mathbb{E}[Z]|\right]\\ &\leq \frac{\mathrm{Var}[Z]}{\mathbb{E}[Z]²}\\ &= \frac{\{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\} \mathrm{Var}[X_1²]}{\{- (d-1) \,\varepsilon² + (1-\varepsilon²)\}²}\\ &\to 0 \end{align*}\]
+$$\begin{align*} \mathbb{P}\left[Z \geq 0\right] &\leq \mathbb{P}\left[\left|Z - \mathbb{E}[Z]\right|\geq |\mathbb{E}[Z]|\right]\\ &\leq \frac{\mathrm{Var}[Z]}{\mathbb{E}[Z]²}\\ &= \frac{\{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\} \mathrm{Var}[X_1²]}{\{- (d-1) \,\varepsilon² + (1-\varepsilon²)\}²}\\ &\to 0 \end{align*}$$
 
 当 \(d \to +\infty\) 时。为了得到观察到的极限，我们注意到，对于大的 \(d\)，分母的规模类似于 \(d²\)，而分子仅类似于 \(d\)。 \(\square\)
 
@@ -1336,7 +1336,7 @@ plt.show()
 
 **定理** **(高维正交性)** 设 \(\mathcal{S} = \{\mathbf{x}\in \mathbb{R}^d:\|\mathbf{x}\|=1\}\) 和 \(\mathbf{Y} \sim \mathrm{U}[\mathcal{S}]\)。那么对于任意 \(\varepsilon > 0\)，当 \(d \to +\infty\) 时，
 
-\[ \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] \to 0. \]
+$$ \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] \to 0. $$
 
 \(\sharp\)
 
@@ -1344,25 +1344,25 @@ plt.show()
 
 *证明：* 回想一下，\(\mathbf{Y}\) 是 \(\frac{\mathbf{X}}{\|\mathbf{X}\|}\)，其中 \(\mathbf{X}\) 是标准正态 \(d\) 向量。我们想要界定的概率可以重新写为
 
-\[\begin{align*} \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] &= \mathbb{P}\left[\left|\left\langle\frac{\mathbf{X}}{\|\mathbf{X}\|}, \mathbf{e}_d\right\rangle\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\left|\frac{\langle\mathbf{X},\mathbf{e}_d\rangle}{\|\mathbf{X}\|}\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\frac{X_d²}{\sum_{j=1}^d X_j²} \geq \varepsilon²\right]\\ &= \mathbb{P}\left[X_d² \geq \varepsilon² \sum_{j=1}^d X_j²\right]\\ &= \mathbb{P}\left[\sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \geq 0\right]. \end{align*}\]
+$$\begin{align*} \mathbb{P}[|\langle\mathbf{Y}, \mathbf{e}_d\rangle| \geq \varepsilon] &= \mathbb{P}\left[\left|\left\langle\frac{\mathbf{X}}{\|\mathbf{X}\|}, \mathbf{e}_d\right\rangle\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\left|\frac{\langle\mathbf{X},\mathbf{e}_d\rangle}{\|\mathbf{X}\|}\right|² \geq \varepsilon²\right]\\ &= \mathbb{P}\left[\frac{X_d²}{\sum_{j=1}^d X_j²} \geq \varepsilon²\right]\\ &= \mathbb{P}\left[X_d² \geq \varepsilon² \sum_{j=1}^d X_j²\right]\\ &= \mathbb{P}\left[\sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \geq 0\right]. \end{align*}$$
 
 我们现在正在观察独立随机变量之和（但不是同分布）
 
-\[ Z = \sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² \]
+$$ Z = \sum_{j=1}^{d-1} (-\varepsilon² X_j²) + (1-\varepsilon²) X_d² $$
 
 我们可以求助于我们常用的切比雪夫工具。期望值，根据线性，
 
-\[ \mathbb{E}[Z] = - \sum_{j=1}^{d-1} \varepsilon² \mathbb{E}[X_j²] + (1-\varepsilon²) \mathbb{E}[X_d²] = \{- (d-1) \,\varepsilon² + (1-\varepsilon²)\} \]
+$$ \mathbb{E}[Z] = - \sum_{j=1}^{d-1} \varepsilon² \mathbb{E}[X_j²] + (1-\varepsilon²) \mathbb{E}[X_d²] = \{- (d-1) \,\varepsilon² + (1-\varepsilon²)\} $$
 
 其中我们使用了 \(X_1,\ldots,X_d\) 是标准正态变量，并且特别地，它们的均值是 \(0\)，它们的方差是 \(1\)，因此 \(\mathbb{E}[X_1²] = 1\)。
 
 由于 \(X_j\) 的独立性，
 
-\[\begin{align*} \mathrm{Var}[Z] &= \sum_{j=1}^{d-1} \varepsilon⁴ \mathrm{Var}[X_j²] + (1-\varepsilon²)² \mathrm{Var}[X_d²]\\ &= \{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\}\mathrm{Var}[X_1²]. \end{align*}\]
+$$\begin{align*} \mathrm{Var}[Z] &= \sum_{j=1}^{d-1} \varepsilon⁴ \mathrm{Var}[X_j²] + (1-\varepsilon²)² \mathrm{Var}[X_d²]\\ &= \{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\}\mathrm{Var}[X_1²]. \end{align*}$$
 
 因此，根据切比雪夫不等式
 
-\[\begin{align*} \mathbb{P}\left[Z \geq 0\right] &\leq \mathbb{P}\left[\left|Z - \mathbb{E}[Z]\right|\geq |\mathbb{E}[Z]|\right]\\ &\leq \frac{\mathrm{Var}[Z]}{\mathbb{E}[Z]²}\\ &= \frac{\{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\} \mathrm{Var}[X_1²]}{\{- (d-1) \,\varepsilon² + (1-\varepsilon²)\}²}\\ &\to 0 \end{align*}\]
+$$\begin{align*} \mathbb{P}\left[Z \geq 0\right] &\leq \mathbb{P}\left[\left|Z - \mathbb{E}[Z]\right|\geq |\mathbb{E}[Z]|\right]\\ &\leq \frac{\mathrm{Var}[Z]}{\mathbb{E}[Z]²}\\ &= \frac{\{(d-1) \,\varepsilon⁴ + (1-\varepsilon²)²\} \mathrm{Var}[X_1²]}{\{- (d-1) \,\varepsilon² + (1-\varepsilon²)\}²}\\ &\to 0 \end{align*}$$
 
 当 \(d \to +\infty\)。为了得到我们观察到的极限，我们注意到，对于大的 \(d\)，分母的规模类似于 \(d²\)，而分子仅类似于 \(d\)。\(\square\)
 

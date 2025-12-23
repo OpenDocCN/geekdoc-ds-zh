@@ -1,4 +1,4 @@
-# 1.3\. 聚类：一个目标、一个算法和一个保证#
+# 1.3\. 聚类：一个目标、一个算法和一个保证
 
 > 原文：[`mmids-textbook.github.io/chap01_intro/03_clustering/roch-mmids-intro-clustering.html`](https://mmids-textbook.github.io/chap01_intro/03_clustering/roch-mmids-intro-clustering.html)
 
@@ -26,11 +26,11 @@
 
 **示例:** 假设我们被给出 \(\mathbb{R}²\) 中的 \(8\) 个数据点，如下所示：
 
-\[\begin{align*} &\mathbf{x}_1 = \begin{pmatrix}1\\0\end{pmatrix}, \mathbf{x}_2 = \begin{pmatrix}-2\\0\end{pmatrix}, \mathbf{x}_3 = \begin{pmatrix}-2\\1\end{pmatrix}, \mathbf{x}_4 = \begin{pmatrix}1\\-3\end{pmatrix},\\ &\mathbf{x}_5 = \begin{pmatrix}-10\\10\end{pmatrix}, \mathbf{x}_6 = \begin{pmatrix}2\\-2\end{pmatrix}, \mathbf{x}_7 = \begin{pmatrix}-3\\1\end{pmatrix}, \mathbf{x}_8 = \begin{pmatrix}3\\-1\end{pmatrix}. \end{align*}\]
+$$\begin{align*} &\mathbf{x}_1 = \begin{pmatrix}1\\0\end{pmatrix}, \mathbf{x}_2 = \begin{pmatrix}-2\\0\end{pmatrix}, \mathbf{x}_3 = \begin{pmatrix}-2\\1\end{pmatrix}, \mathbf{x}_4 = \begin{pmatrix}1\\-3\end{pmatrix},\\ &\mathbf{x}_5 = \begin{pmatrix}-10\\10\end{pmatrix}, \mathbf{x}_6 = \begin{pmatrix}2\\-2\end{pmatrix}, \mathbf{x}_7 = \begin{pmatrix}-3\\1\end{pmatrix}, \mathbf{x}_8 = \begin{pmatrix}3\\-1\end{pmatrix}. \end{align*}$$
 
 因此这里 \(n=8\) 且 \(d = 2\)。假设我们寻找 \(k = 3\) 个聚类。那么一个有效的聚类可以是例如：
 
-\[ C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}, \]
+$$ C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}, $$
 
 这对应于将数据点\(\mathbf{x}_1, \mathbf{x}_4, \mathbf{x}_6, \mathbf{x}_8\)分配到第一个簇，数据点\(\mathbf{x}_2, \mathbf{x}_3, \mathbf{x}_7\)分配到第二个簇，数据点\(\mathbf{x}_5\)分配到第三个簇。特别注意的是，集合\(C_1, C_2, C_3\)满足划分的条件，即它们是互斥的，并且覆盖了所有\([8] = \{1,2,\ldots,8\}\)。或者换句话说，每个数据点被分配到且仅分配到一个簇。\(\lhd\)
 
@@ -40,13 +40,13 @@
 
 在\(k\)-means 目标函数\(\idx{k-means objective}\xdi\)下，\(C_1,\ldots,C_k\)的“成本”定义为
 
-\[ \mathcal{G}(C_1,\ldots,C_k) = \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|². \]
+$$ \mathcal{G}(C_1,\ldots,C_k) = \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|². $$
 
 这里\(\boldsymbol{\mu}_i \in \mathbb{R}^d\)是簇\(C_i\)的代表或中心。注意\(\boldsymbol{\mu}_i\)不必是\(\mathbf{x}_j\)之一。
 
 我们的目标是找到一个划分\(C_1,\ldots,C_k\)，使得\(\mathcal{G}(C_1,\ldots,C_k)\)最小化，即解决以下问题
 
-\[ \min_{C_1,\ldots,C_k} \mathcal{G}(C_1,\ldots,C_k) \]
+$$ \min_{C_1,\ldots,C_k} \mathcal{G}(C_1,\ldots,C_k) $$
 
 在\([n]\)的所有大小为\(k\)的划分中。这是一个有限的优化问题，因为这样的划分数量是有限的。然而，需要注意的是，目标函数本身是在\(\mathbb{R}^d \times \cdots \times \mathbb{R}^{d}\)上的优化问题，即\(d\)个\(\mathbb{R}^d\)的副本。
 
@@ -64,7 +64,7 @@
 
 然后交替进行两次（或许直到进步低于容差）。这是合理的，因为我们的目标，如我们上面指出的，是解决最小化问题
 
-\[ \min_{C_1,\ldots,C_k} \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² \]
+$$ \min_{C_1,\ldots,C_k} \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² $$
 
 其中 \(C_1,\ldots,C_k\) 范围是 \([n]\) 的所有大小为 \(k\) 的划分。固定划分 \(C_1,\ldots,C_k\) 并在 \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d\) 上进行最小化对应于解决上面的问题，而固定 \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d\) 并在划分 \(C_1,\ldots,C_k\) 上进行最小化对应于解决第二个问题。
 
@@ -74,27 +74,27 @@
 
 *最小化二次函数*: 为了阐述上面的第一步，我们回顾一个关于[二次函数](https://en.wikipedia.org/wiki/Quadratic_function)的基本事实。考虑函数
 
-\[ q(x) = a x² + b x + c. \]
+$$ q(x) = a x² + b x + c. $$
 
 当 \(a > 0\) 时，\(q\) 有一个唯一的极小值。
 
 **引理** **(二次函数的最小值)** \(\idx{二次函数的最小值}\xdi\) 设 \(q(x) = a x² + b x + c\)，其中 \(a > 0\) 且 \(x \in \mathbb{R}\)。\(q\) 的唯一全局最小值在
 
-\[ x^* = -\frac{b}{2a}. \]
+$$ x^* = -\frac{b}{2a}. $$
 
 \(\flat\)
 
 *证明*: 根据*一阶必要最优性条件*，\(q\) 的全局极小化器（必然是局部极小化器）满足条件
 
-\[ \frac{\mathrm{d}}{\mathrm{d}x} q(x) = 2 a x + b = 0, \]
+$$ \frac{\mathrm{d}}{\mathrm{d}x} q(x) = 2 a x + b = 0, $$
 
 其唯一的解是
 
-\[ x^*= -\frac{b}{2a}. \]
+$$ x^*= -\frac{b}{2a}. $$
 
 为了看出 \(x^*\) 确实是一个全局极小化器，我们将 \(q\) 重新写为
 
-\[\begin{align*} q(x) &= a \left(x² + 2 \left[\frac{b}{2a}\right] x\right) + c\\ &= a \left(x² + 2 \left[\frac{b}{2a}\right] x + \left[\frac{b}{2a}\right]²\right) - a \left[\frac{b}{2a}\right]² + c\\ &= a (x - x^*)² + \left[c - \frac{b²}{4a}\right]. \end{align*}\]
+$$\begin{align*} q(x) &= a \left(x² + 2 \left[\frac{b}{2a}\right] x\right) + c\\ &= a \left(x² + 2 \left[\frac{b}{2a}\right] x + \left[\frac{b}{2a}\right]²\right) - a \left[\frac{b}{2a}\right]² + c\\ &= a (x - x^*)² + \left[c - \frac{b²}{4a}\right]. \end{align*}$$
 
 显然，任何其他的 \(x\) 都会给 \(q\) 带来更高的值。上面第二行的步骤被称为[*完成平方*](https://en.wikipedia.org/wiki/Completing_the_square)。 \(\square\)
 
@@ -126,7 +126,7 @@ plt.show()
 
 **引理** **(优化可分离函数)** \(\idx{优化可分离函数引理}\xdi\) 假设 \(\mathbf{z} \in \mathbb{R}^d\) 可以分解为子向量 \(\mathbf{x}_i \in \mathbb{R}^{d_i}\)，其中 \(i \in [\ell]\)，且 \(\sum_{i=1}^\ell d_i = d\)，如下所示 \(\mathbf{z} = (\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\)。假设实值函数 \(h : \mathbb{R}^d \to \mathbb{R}\) 可以写成加性可分离的形式
 
-\[ h(\mathbf{z}) = f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell), \]
+$$ h(\mathbf{z}) = f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell), $$
 
 对于函数集合 \(f_i : \mathbb{R}^{d_i} \to \mathbb{R}\)，其中 \(i \in [\ell]\)。如果对于每个 \(i \in [\ell]\)，\(\mathbf{x}_i^*\) 是 \(f_i\) 的全局最小值，那么 \(\mathbf{z}^* = (\mathbf{x}_1^*, \ldots, \mathbf{x}_\ell^*)\) 是 \(h\) 的全局最小值。 \(\flat\)
 
@@ -134,13 +134,13 @@ plt.show()
 
 *证明：* 设 \(\mathbf{z} = (\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\)。由于 \(\mathbf{x}_i^*\) 是 \(f_i\) 的全局最小值，因此对于所有 \(i\)，有 \(f_i(\mathbf{x}_i^*) \leq f_i(\mathbf{x}_i)\)。因此，
 
-\[ h(\mathbf{z}^*) = f_1(\mathbf{x}_1^*) + \cdots + f_\ell(\mathbf{x}_\ell^*) \leq f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell) = h(\mathbf{z}). \]
+$$ h(\mathbf{z}^*) = f_1(\mathbf{x}_1^*) + \cdots + f_\ell(\mathbf{x}_\ell^*) \leq f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell) = h(\mathbf{z}). $$
 
 由于 \(\mathbf{z}\) 是任意的，我们已经证明了该命题。 \(\square\)
 
 *与非递减函数组合：* 回想一下，一个单变量实值函数 \(f\) 如果满足
 
-\[ x \leq y \implies f(x) \leq f(y). \]
+$$ x \leq y \implies f(x) \leq f(y). $$
 
 **引理** **(与非递减函数组合)** \(\idx{与非递减函数组合引理}\xdi\) 设 \(f : \mathbb{R} \to \mathbb{R}\) 是非递减的，设 \(g : \mathbb{R}^d \to \mathbb{R}\)，并定义 \(h(\mathbf{x}) = f(g(\mathbf{x}))\)。如果 \(\mathbf{x}^*\) 是 \(g\) 的全局最小值，那么它也是 \(h\) 的全局最小值。 \(\flat\)
 
@@ -148,7 +148,7 @@ plt.show()
 
 *证明：* 设 \(\mathbf{x} \in \mathbb{R}^d\)。因为 \(\mathbf{x}^*\) 是 \(g\) 的全局最小值，所以 \(g(\mathbf{x}^*) \leq g(\mathbf{x})\)。进一步地，由于 \(f\) 是非递减的，
 
-\[ h(\mathbf{x}^*) = f(g(\mathbf{x}^*)) \leq f(g(\mathbf{x})) = h(\mathbf{x}). \]
+$$ h(\mathbf{x}^*) = f(g(\mathbf{x}^*)) \leq f(g(\mathbf{x})) = h(\mathbf{x}). $$
 
 由于 \(\mathbf{x}\) 是任意的，我们已经证明了该命题。 \(\square\)
 
@@ -158,11 +158,11 @@ plt.show()
 
 **引理** **(最优代表)** \(\idx{optimal representatives lemma}\xdi\) 固定一个划分 \(C_1,\ldots,C_k\)。在目标
 
-\[ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|², \]
+$$ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|², $$
 
 是 [质心](https://en.wikipedia.org/wiki/Centroid)\(\idx{centroid}\xdi\)
 
-\[ \boldsymbol{\mu}_i^* = \frac{1}{|C_i|} \sum_{j\in C_i} \mathbf{x}_j. \]
+$$ \boldsymbol{\mu}_i^* = \frac{1}{|C_i|} \sum_{j\in C_i} \mathbf{x}_j. $$
 
 \(\flat\)
 
@@ -170,21 +170,21 @@ plt.show()
 
 **示例：** **(继续)** 继续上一个示例，我们计算固定划分 \(C_1, C_2, C_3\) 的最优代表。我们得到
 
-\[\begin{align*} \boldsymbol{\mu}_1^* &= \frac{1}{4}[\mathbf{x}_1 + \mathbf{x}_4 + \mathbf{x}_6 + \mathbf{x}_8]\\ &= \frac{1}{4}\left[\begin{pmatrix}1\\0\end{pmatrix} + \begin{pmatrix}1\\-3\end{pmatrix} + \begin{pmatrix}2\\-2\end{pmatrix} + \begin{pmatrix}3\\-1\end{pmatrix} \right] = \begin{pmatrix}7/4\\-3/2\end{pmatrix},\\ \boldsymbol{\mu}_2^* &= \frac{1}{3}[\mathbf{x}_2 + \mathbf{x}_3 + \mathbf{x}_7]\\ &= \frac{1}{3}\left[\begin{pmatrix}-2\\0\end{pmatrix}+ \begin{pmatrix}-2\\1\end{pmatrix}+ \begin{pmatrix}-3\\1\end{pmatrix} \right] = \begin{pmatrix}-7/3\\2/3\end{pmatrix},\\ \boldsymbol{\mu}_3^* &= \frac{1}{1}[\mathbf{x}_5] = \begin{pmatrix}-10\\10\end{pmatrix}. \end{align*}\]
+$$\begin{align*} \boldsymbol{\mu}_1^* &= \frac{1}{4}[\mathbf{x}_1 + \mathbf{x}_4 + \mathbf{x}_6 + \mathbf{x}_8]\\ &= \frac{1}{4}\left[\begin{pmatrix}1\\0\end{pmatrix} + \begin{pmatrix}1\\-3\end{pmatrix} + \begin{pmatrix}2\\-2\end{pmatrix} + \begin{pmatrix}3\\-1\end{pmatrix} \right] = \begin{pmatrix}7/4\\-3/2\end{pmatrix},\\ \boldsymbol{\mu}_2^* &= \frac{1}{3}[\mathbf{x}_2 + \mathbf{x}_3 + \mathbf{x}_7]\\ &= \frac{1}{3}\left[\begin{pmatrix}-2\\0\end{pmatrix}+ \begin{pmatrix}-2\\1\end{pmatrix}+ \begin{pmatrix}-3\\1\end{pmatrix} \right] = \begin{pmatrix}-7/3\\2/3\end{pmatrix},\\ \boldsymbol{\mu}_3^* &= \frac{1}{1}[\mathbf{x}_5] = \begin{pmatrix}-10\\10\end{pmatrix}. \end{align*}$$
 
 \(\lhd\)
 
 *证明：* *(最优代表)* 使用符号 \(\mathbf{x}_j = (x_{j1},\ldots,x_{jd})\) 以及类似地对于 \(\boldsymbol{\mu}_i\)，注意我们可以将 \(k\)-means 目标函数展开为
 
-\[\begin{align*} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² &= \sum_{i=1}^k \sum_{j \in C_i} \sum_{m=1}^d (x_{jm} - \mu_{im})²\\ &= \sum_{i=1}^k \sum_{m=1}^d \left[\sum_{j \in C_i} (x_{jm} - \mu_{im})²\right]. \end{align*}\]
+$$\begin{align*} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² &= \sum_{i=1}^k \sum_{j \in C_i} \sum_{m=1}^d (x_{jm} - \mu_{im})²\\ &= \sum_{i=1}^k \sum_{m=1}^d \left[\sum_{j \in C_i} (x_{jm} - \mu_{im})²\right]. \end{align*}$$
 
 方括号中的表达式是 \(\mu_{im}\) 上的二次函数
 
-\[\begin{align*} q_{im}(\mu_{im}) &= \sum_{j \in C_i} (x_{jm} - \mu_{im})²\\ &= \left\{\sum_{j \in C_i} x_{jm}²\right\} + \left\{- 2 \sum_{j \in C_i} x_{jm}\right\} \mu_{im} + \left\{|C_i| \right\} \mu_{im}². \end{align*}\]
+$$\begin{align*} q_{im}(\mu_{im}) &= \sum_{j \in C_i} (x_{jm} - \mu_{im})²\\ &= \left\{\sum_{j \in C_i} x_{jm}²\right\} + \left\{- 2 \sum_{j \in C_i} x_{jm}\right\} \mu_{im} + \left\{|C_i| \right\} \mu_{im}². \end{align*}$$
 
 因此，根据二次函数的最小值公式，最小值在
 
-\[ \mu_{im}^* = - \frac{- 2 \sum_{j \in C_i} x_{jm}}{2 |C_i|} = \frac{1}{|C_i|} \sum_{j \in C_i} x_{jm}. \]
+$$ \mu_{im}^* = - \frac{- 2 \sum_{j \in C_i} x_{jm}}{2 |C_i|} = \frac{1}{|C_i|} \sum_{j \in C_i} x_{jm}. $$
 
 由于目标函数 \(G\) 中由 \(i, m\) 组成的求和中的每个项 \(q_{im}(\mu_{im})\) 都在 \(\boldsymbol{\mu}_1^*,\ldots, \boldsymbol{\mu}_k^*\) 处最小化，因此根据 *可分离函数优化*，\(G\) 也最小化。\(\square\)
 
@@ -194,29 +194,29 @@ plt.show()
 
 **示例：** **（继续）** 继续上面的例子，簇 \(C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}\) 对应的分配为
 
-\[ c(1) = 1, c(2) = 2, c(3) = 2, c(4) = 1, c(5) = 3, c(6) = 1, c(7) = (2), c(8) = 1\. \]
+$$ c(1) = 1, c(2) = 2, c(3) = 2, c(4) = 1, c(5) = 3, c(6) = 1, c(7) = (2), c(8) = 1\. $$
 
 \(\lhd\)
 
 **引理** **（最优聚类）** \(\idx{optimal clustering lemma}\xdi\) 固定代表 \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k\)。在目标函数下找到一个最优划分
 
-\[ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|², \]
+$$ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|², $$
 
 如下获得。对于每个 \(j\)，找到使 \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|\) 最小的 \(\boldsymbol{\mu}_i\)（在存在平局的情况下任意选择一个）并将 \(\mathbf{x}_j\) 分配给 \(C_i\)（即，将 \(j\) 添加到 \(C_i\)）。\(\flat\)
 
 *证明：* 如果 \(c\) 是与 \(C_1,\ldots,C_k\) 相关的簇分配，那么我们可以将目标函数重新写为
 
-\[ \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² = \sum_{j=1}^n \|\mathbf{x}_j - \boldsymbol{\mu}_{c(j)}\|², \]
+$$ \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² = \sum_{j=1}^n \|\mathbf{x}_j - \boldsymbol{\mu}_{c(j)}\|², $$
 
 根据定义，当 \(\boldsymbol{\mu}_i\) 固定时，右侧求和中的每一项都通过陈述中的分配单独最小化。因此，根据 *可分离函数优化引理*，总和本身也最小化。注意，我们使用了平方根（以及平方）是非递减的事实，根据 *与一个非递减函数组合引理*，得出最小化 \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|²\) 或其平方根 \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|\) 是等价的。\(\square\)
 
 **示例：** **（继续）** 继续上面的例子，假设我们选择了代表
 
-\[\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2 = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}. \end{split}\]
+$$\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2 = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}. \end{split}$$
 
 然后我们通过计算 \(\mathbf{x}_1\) 与每个代表之间的平方距离来找到其簇分配：
 
-\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_1\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}-2\\1\end{pmatrix}\right\| = \sqrt{(1-(-2))² + (0-1)²} = \sqrt{10}, \end{split}\]\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_2\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}2\\-1\end{pmatrix}\right\| = \sqrt{(1-2)² + (0-(-1))²} = \sqrt{2}, \end{split}\]\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_3\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}-10\\10\end{pmatrix}\right\| = \sqrt{(1-(-10))² + (0-10)²} = \sqrt{221}. \end{split}\]
+$$\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_1\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}-2\\1\end{pmatrix}\right\| = \sqrt{(1-(-2))² + (0-1)²} = \sqrt{10}, \end{split}$$$$\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_2\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}2\\-1\end{pmatrix}\right\| = \sqrt{(1-2)² + (0-(-1))²} = \sqrt{2}, \end{split}$$$$\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_3\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}-10\\10\end{pmatrix}\right\| = \sqrt{(1-(-10))² + (0-10)²} = \sqrt{221}. \end{split}$$
 
 最小值是在 \(\boldsymbol{\mu}_2\) 处实现的，因此我们将 \(\mathbf{x}_1\) 分配给 \(C_2\)，即 \(1 \in C_2\) 且 \(c(1) = 2\)。\(\lhd\)
 
@@ -321,15 +321,15 @@ Lloyd 算法只是一个启发式算法。特别是，它不能保证找到 \(k\
 
 *证明*：设 \(C_1',\ldots,C_k'\) 是当前的聚类，其代表为 \(\boldsymbol{\mu}_1',\ldots,\boldsymbol{\mu}_k'\)。在步骤 1 之后，新的代表是 \(\boldsymbol{\mu}_1'',\ldots,\boldsymbol{\mu}_k''\)。根据**最优代表引理**，它们满足
 
-\[ \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|². \]
+$$ \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|². $$
 
 在步骤 2 之后，新的聚类是 \(C_1'',\ldots,C_k''\)。根据**最优聚类引理**，它们满足
 
-\[ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|². \]
+$$ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|². $$
 
 结合这两个不等式得到
 
-\[ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|², \]
+$$ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|², $$
 
 如预期所示。\(\square\)
 
@@ -609,51 +609,51 @@ plt.show()
 
 如我们之前所述，对于 \(\mathbb{R}^d\) 中的 \(n\) 个数据向量 \(\mathbf{x}_1, \ldots, \mathbf{x}_n\)，将它们堆叠成一个矩阵通常很方便。
 
-\[\begin{split} X = \begin{bmatrix} \mathbf{x}_1^T \\ \mathbf{x}_2^T \\ \vdots \\ \mathbf{x}_n^T \\ \end{bmatrix} = \begin{bmatrix} x_{11} & x_{12} & \cdots & x_{1d} \\ x_{21} & x_{22} & \cdots & x_{2d} \\ \vdots & \vdots & \ddots & \vdots \\ x_{n1} & x_{n2} & \cdots & x_{nd} \\ \end{bmatrix}. \end{split}\]
+$$\begin{split} X = \begin{bmatrix} \mathbf{x}_1^T \\ \mathbf{x}_2^T \\ \vdots \\ \mathbf{x}_n^T \\ \end{bmatrix} = \begin{bmatrix} x_{11} & x_{12} & \cdots & x_{1d} \\ x_{21} & x_{22} & \cdots & x_{2d} \\ \vdots & \vdots & \ddots & \vdots \\ x_{n1} & x_{n2} & \cdots & x_{nd} \\ \end{bmatrix}. \end{split}$$
 
 我们可以用同样的方法处理簇代表。给定 \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k\) 也位于 \(\mathbb{R}^d\) 中，我们形成矩阵
 
-\[\begin{split} U = \begin{bmatrix} \boldsymbol{\mu}_1^T \\ \boldsymbol{\mu}_2^T \\ \vdots \\ \boldsymbol{\mu}_k^T \\ \end{bmatrix} = \begin{bmatrix} \mu_{11} & \mu_{12} & \cdots & \mu_{1d} \\ \mu_{21} & \mu_{22} & \cdots & \mu_{2d} \\ \vdots & \vdots & \ddots & \vdots \\ \mu_{k1} & \mu_{k2} & \cdots & \mu_{kd} \\ \end{bmatrix}. \end{split}\]
+$$\begin{split} U = \begin{bmatrix} \boldsymbol{\mu}_1^T \\ \boldsymbol{\mu}_2^T \\ \vdots \\ \boldsymbol{\mu}_k^T \\ \end{bmatrix} = \begin{bmatrix} \mu_{11} & \mu_{12} & \cdots & \mu_{1d} \\ \mu_{21} & \mu_{22} & \cdots & \mu_{2d} \\ \vdots & \vdots & \ddots & \vdots \\ \mu_{k1} & \mu_{k2} & \cdots & \mu_{kd} \\ \end{bmatrix}. \end{split}$$
 
 也许不那么明显的是，簇分配也可以用矩阵形式表示。回想一下，给定 \([n]\) 的划分 \(C_1,\ldots,C_k\)，我们定义 \(c(j) = i\) 如果 \(j \in C_i\)。对于 \(j=1,\ldots,n\) 和 \(\ell=1,\ldots,k\)，如果 \(c(j) = \ell\) 则设置 \(Z_{j\ell} = 1\)，否则为 \(0\)，并让 \(Z\) 是一个 \(n \times k\) 的矩阵，其元素 \(Z = [Z_{j\ell}]_{j,\ell}\)。也就是说，行 \(j\) 有且仅有一个值为 \(1\) 的元素，对应于数据点 \(\mathbf{x}_j\) 分配的簇 \(c(j)\)，其他所有元素为 \(0\)。
 
 使用这个记号，数据点 \(\mathbf{x}_j\) 分配的簇的代表通过矩阵乘积得到
 
-\[ \boldsymbol{\mu}_{c(j)}^T = \sum_{\ell = 1}^k Z_{j\ell} \boldsymbol{\mu}_{\ell}^T = \sum_{\ell = 1}^k Z_{j\ell} U_{\ell,\cdot} = \left(Z U\right)_{j,\cdot} \]
+$$ \boldsymbol{\mu}_{c(j)}^T = \sum_{\ell = 1}^k Z_{j\ell} \boldsymbol{\mu}_{\ell}^T = \sum_{\ell = 1}^k Z_{j\ell} U_{\ell,\cdot} = \left(Z U\right)_{j,\cdot} $$
 
 其中我们使用了矩阵乘积的第 \(j\) 行是第二个矩阵行的线性组合的性质，其中系数是第一个矩阵第 \(j\) 行的元素。
 
 **EXAMPLE:** **(continued)** 继续我们之前的例子，簇 \(C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}\) 被编码为矩阵
 
-\[\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix}. \end{split}\]
+$$\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix}. \end{split}$$
 
 假设再次，代表是
 
-\[\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2 = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}. \end{split}\]
+$$\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2 = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}. \end{split}$$
 
 相应的矩阵 \(U\) 是
 
-\[\begin{split} U = \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix}. \end{split}\]
+$$\begin{split} U = \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix}. \end{split}$$
 
 因此，乘以 \(Z\) 和 \(U\) 得到的矩阵中，每一行都是对应数据点分配簇的代表
 
-\[\begin{split} ZU = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix} \, \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix} = \begin{bmatrix} -2 & 1\\ 2 & -1\\ 2 & -1\\ -2 & 1\\ -10 & 10\\ -2 & 1\\ 2 & -1\\ -2 & 1 \end{bmatrix}. \end{split}\]
+$$\begin{split} ZU = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix} \, \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix} = \begin{bmatrix} -2 & 1\\ 2 & -1\\ 2 & -1\\ -2 & 1\\ -10 & 10\\ -2 & 1\\ 2 & -1\\ -2 & 1 \end{bmatrix}. \end{split}$$
 
 \(\lhd\)
 
 回想一下，\(n \times m\) 矩阵 \(A \in \mathbb{R}^{n \times m}\) 的 Frobenius 范数定义为
 
-\[ \|A\|_F = \sqrt{\sum_{i=1}^n \sum_{j=1}^m A_{ij}²}. \]
+$$ \|A\|_F = \sqrt{\sum_{i=1}^n \sum_{j=1}^m A_{ij}²}. $$
 
 使用行表示法，它可以写成行欧几里得范数的平方和
 
-\[ \|A\|_F² = \sum_{i=1}^n \|A_{i,\cdot}\|². \]
+$$ \|A\|_F² = \sum_{i=1}^n \|A_{i,\cdot}\|². $$
 
 对于两个矩阵 \(A, B \in \mathbb{R}^{n \times m}\)，它们的差 \(\|A - B\|_F\) 的 Frobenius 范数可以解释为 \(A\) 和 \(B\) 之间的距离，即它们差异的度量。
 
 最后，我们回到 \(k\)-means 目标函数。使用本节中引入的符号和证明 *最优聚类引理* 中推导出的目标 \(G\) 的等价公式，我们注意到
 
-\[\begin{align*} G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) &= \sum_{i=1}^n \|\mathbf{x}_i - \boldsymbol{\mu}_{c(i)}\|²\\ &= \sum_{i=1}^n \sum_{\ell=1}^d \left(x_{i\ell} - (Z U)_{i\ell}\right)²\\ &= \|X - Z U \|²_F, \end{align*}\]
+$$\begin{align*} G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) &= \sum_{i=1}^n \|\mathbf{x}_i - \boldsymbol{\mu}_{c(i)}\|²\\ &= \sum_{i=1}^n \sum_{\ell=1}^d \left(x_{i\ell} - (Z U)_{i\ell}\right)²\\ &= \|X - Z U \|²_F, \end{align*}$$
 
 其中我们使用了 Frobenius 范数的定义。
 
@@ -725,13 +725,13 @@ d) 它代表数据的协方差矩阵。
 
 在 k-means 目标函数\(\idx{k-means objective}\xdi\) 下，\(C_1,\ldots,C_k\) 的“成本”定义为
 
-\[ \mathcal{G}(C_1,\ldots,C_k) = \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|². \]
+$$ \mathcal{G}(C_1,\ldots,C_k) = \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|². $$
 
 这里 \(\boldsymbol{\mu}_i \in \mathbb{R}^d\) 是簇 \(C_i\) 的代表或中心。注意，\(\boldsymbol{\mu}_i\) 不一定是 \(\mathbf{x}_j\) 中的一个。
 
 我们的目标是找到一个划分 \(C_1,\ldots,C_k\)，使得 \(\mathcal{G}(C_1,\ldots,C_k)\) 最小化，即解决以下问题
 
-\[ \min_{C_1,\ldots,C_k} \mathcal{G}(C_1,\ldots,C_k) \]
+$$ \min_{C_1,\ldots,C_k} \mathcal{G}(C_1,\ldots,C_k) $$
 
 在所有大小为 \(k\) 的 \([n]\) 的划分中。这是一个有限优化问题，因为这样的划分数量是有限的。然而，请注意，目标函数本身是在 \(\mathbb{R}^d \times \cdots \times \mathbb{R}^{d}\) 上的优化问题，即 \(k\) 个 \(\mathbb{R}^d\) 的副本。
 
@@ -749,7 +749,7 @@ d) 它代表数据的协方差矩阵。
 
 然后，在两个子问题之间交替（可能直到进步低于容差）。这是合理的，因为我们的目标，如我们上面所指出的，是解决最小化问题
 
-\[ \min_{C_1,\ldots,C_k} \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² \]
+$$ \min_{C_1,\ldots,C_k} \min_{\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² $$
 
 其中 \(C_1,\ldots,C_k\) 范围涵盖所有大小为\(k\)的\([n]\)的划分。固定划分 \(C_1,\ldots,C_k\) 并在 \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d\) 上进行最小化对应于解决上述第一个问题，而固定 \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k \in \mathbb{R}^d\) 并在划分 \(C_1,\ldots,C_k\) 上进行最小化对应于解决第二个问题。
 
@@ -759,27 +759,27 @@ d) 它代表数据的协方差矩阵。
 
 *最小化二次函数:* 为了详细说明上述第一步，我们回顾关于[二次函数](https://en.wikipedia.org/wiki/Quadratic_function)的一个基本事实。考虑函数
 
-\[ q(x) = a x² + b x + c. \]
+$$ q(x) = a x² + b x + c. $$
 
 当 \(a > 0\) 时，\(q\) 有一个唯一的极小值。
 
 **引理** **（二次函数的最小值）** \(\idx{二次函数的最小值}\xdi\) 设 \(q(x) = a x² + b x + c\)，其中 \(a > 0\) 且 \(x \in \mathbb{R}\)。\(q\) 的唯一全局最小值在
 
-\[ x^* = -\frac{b}{2a}. \]
+$$ x^* = -\frac{b}{2a}. $$
 
 \(\flat\)
 
 *证明:* 根据**一阶必要最优性条件**，\(q\)的全局最小值（必然是局部最小值）满足该条件
 
-\[ \frac{\mathrm{d}}{\mathrm{d}x} q(x) = 2 a x + b = 0, \]
+$$ \frac{\mathrm{d}}{\mathrm{d}x} q(x) = 2 a x + b = 0, $$
 
 其唯一解为
 
-\[ x^*= -\frac{b}{2a}. \]
+$$ x^*= -\frac{b}{2a}. $$
 
 为了证明\(x^*\)确实是一个全局最小值，我们将\(q\)重新写为
 
-\[\begin{align*} q(x) &= a \left(x² + 2 \left[\frac{b}{2a}\right] x\right) + c\\ &= a \left(x² + 2 \left[\frac{b}{2a}\right] x + \left[\frac{b}{2a}\right]²\right) - a \left[\frac{b}{2a}\right]² + c\\ &= a (x - x^*)² + \left[c - \frac{b²}{4a}\right]. \end{align*}\]
+$$\begin{align*} q(x) &= a \left(x² + 2 \left[\frac{b}{2a}\right] x\right) + c\\ &= a \left(x² + 2 \left[\frac{b}{2a}\right] x + \left[\frac{b}{2a}\right]²\right) - a \left[\frac{b}{2a}\right]² + c\\ &= a (x - x^*)² + \left[c - \frac{b²}{4a}\right]. \end{align*}$$
 
 显然，任何其他的 \(x\) 都会给 \(q\) 带来更高的值。上面第二行的步骤被称为[*配方法*](https://en.wikipedia.org/wiki/Completing_the_square)。\(\square\)
 
@@ -811,7 +811,7 @@ plt.show()
 
 **引理** **(优化可分离函数)** \(\idx{optimizing a separable function lemma}\xdi\) 假设 \(\mathbf{z} \in \mathbb{R}^d\) 可以分解为子向量 \(\mathbf{x}_i \in \mathbb{R}^{d_i}\)，\(i \in [\ell]\)，且 \(\sum_{i=1}^\ell d_i = d\)，如下所示 \(\mathbf{z} = (\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\)。假设实值函数 \(h : \mathbb{R}^d \to \mathbb{R}\) 可以写成可加分离形式
 
-\[ h(\mathbf{z}) = f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell), \]
+$$ h(\mathbf{z}) = f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell), $$
 
 对于一个函数集合 \(f_i : \mathbb{R}^{d_i} \to \mathbb{R}\)，\(i \in [\ell]\)。如果对于每个 \(i \in [\ell]\)，\(\mathbf{x}_i^*\) 是 \(f_i\) 的全局最小值，那么 \(\mathbf{z}^* = (\mathbf{x}_1^*, \ldots, \mathbf{x}_\ell^*)\) 是 \(h\) 的全局最小值。 \(\flat\)
 
@@ -819,13 +819,13 @@ plt.show()
 
 *证明：* 令 \(\mathbf{z} = (\mathbf{x}_1, \ldots, \mathbf{x}_\ell)\)。由于 \(\mathbf{x}_i^*\) 是 \(f_i\) 的全局最小值，因此对于所有 \(i\)，有 \(f_i(\mathbf{x}_i^*) \leq f_i(\mathbf{x}_i)\)。因此，
 
-\[ h(\mathbf{z}^*) = f_1(\mathbf{x}_1^*) + \cdots + f_\ell(\mathbf{x}_\ell^*) \leq f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell) = h(\mathbf{z}). \]
+$$ h(\mathbf{z}^*) = f_1(\mathbf{x}_1^*) + \cdots + f_\ell(\mathbf{x}_\ell^*) \leq f_1(\mathbf{x}_1) + \cdots + f_\ell(\mathbf{x}_\ell) = h(\mathbf{z}). $$
 
 由于 \(\mathbf{z}\) 是任意的，我们已经证明了该命题。 \(\square\)
 
 *使用非递减函数进行创作：* 回想一下，一个单变量实值函数 \(f\) 如果满足以下条件，则称为非递减函数：
 
-\[ x \leq y \implies f(x) \leq f(y). \]
+$$ x \leq y \implies f(x) \leq f(y). $$
 
 **引理** **(与非递减函数的组合)** \(\idx{composing with a non-decreasing function lemma}\xdi\) 设 \(f : \mathbb{R} \to \mathbb{R}\) 是非递减的，设 \(g : \mathbb{R}^d \to \mathbb{R}\)，并定义 \(h(\mathbf{x}) = f(g(\mathbf{x}))\)。如果 \(\mathbf{x}^*\) 是 \(g\) 的全局最小值，那么它也是 \(h\) 的全局最小值。\(\flat\)
 
@@ -833,7 +833,7 @@ plt.show()
 
 *证明:* 设 \(\mathbf{x} \in \mathbb{R}^d\)。因为 \(\mathbf{x}^*\) 是 \(g\) 的全局最小值，所以 \(g(\mathbf{x}^*) \leq g(\mathbf{x})\)。进一步，由于 \(f\) 是非递减的，
 
-\[ h(\mathbf{x}^*) = f(g(\mathbf{x}^*)) \leq f(g(\mathbf{x})) = h(\mathbf{x}). \]
+$$ h(\mathbf{x}^*) = f(g(\mathbf{x}^*)) \leq f(g(\mathbf{x})) = h(\mathbf{x}). $$
 
 由于 \(\mathbf{x}\) 是任意的，我们已经证明了该命题。\(\square\)
 
@@ -843,11 +843,11 @@ plt.show()
 
 **引理** **(最优代表)** \(\idx{optimal representatives lemma}\xdi\) 固定一个划分 \(C_1,\ldots,C_k\)。在目标函数下，最优代表是
 
-\[ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|², \]
+$$ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|², $$
 
 是 [质心](https://en.wikipedia.org/wiki/Centroid)\(\idx{centroid}\xdi\)
 
-\[ \boldsymbol{\mu}_i^* = \frac{1}{|C_i|} \sum_{j\in C_i} \mathbf{x}_j. \]
+$$ \boldsymbol{\mu}_i^* = \frac{1}{|C_i|} \sum_{j\in C_i} \mathbf{x}_j. $$
 
 \(\flat\)
 
@@ -855,21 +855,21 @@ plt.show()
 
 **示例:** **(继续)** 继续上一个示例，我们计算固定划分 \(C_1, C_2, C_3\) 的最优代表。我们得到
 
-\[\begin{align*} \boldsymbol{\mu}_1^* &= \frac{1}{4}[\mathbf{x}_1 + \mathbf{x}_4 + \mathbf{x}_6 + \mathbf{x}_8]\\ &= \frac{1}{4}\left[\begin{pmatrix}1\\0\end{pmatrix} + \begin{pmatrix}1\\-3\end{pmatrix} + \begin{pmatrix}2\\-2\end{pmatrix} + \begin{pmatrix}3\\-1\end{pmatrix} \right] = \begin{pmatrix}7/4\\-3/2\end{pmatrix},\\ \boldsymbol{\mu}_2^* &= \frac{1}{3}[\mathbf{x}_2 + \mathbf{x}_3 + \mathbf{x}_7]\\ &= \frac{1}{3}\left[\begin{pmatrix}-2\\0\end{pmatrix}+ \begin{pmatrix}-2\\1\end{pmatrix}+ \begin{pmatrix}-3\\1\end{pmatrix} \right] = \begin{pmatrix}-7/3\\2/3\end{pmatrix},\\ \boldsymbol{\mu}_3^* &= \frac{1}{1}[\mathbf{x}_5] = \begin{pmatrix}-10\\10\end{pmatrix}. \end{align*}\]
+$$\begin{align*} \boldsymbol{\mu}_1^* &= \frac{1}{4}[\mathbf{x}_1 + \mathbf{x}_4 + \mathbf{x}_6 + \mathbf{x}_8]\\ &= \frac{1}{4}\left[\begin{pmatrix}1\\0\end{pmatrix} + \begin{pmatrix}1\\-3\end{pmatrix} + \begin{pmatrix}2\\-2\end{pmatrix} + \begin{pmatrix}3\\-1\end{pmatrix} \right] = \begin{pmatrix}7/4\\-3/2\end{pmatrix},\\ \boldsymbol{\mu}_2^* &= \frac{1}{3}[\mathbf{x}_2 + \mathbf{x}_3 + \mathbf{x}_7]\\ &= \frac{1}{3}\left[\begin{pmatrix}-2\\0\end{pmatrix}+ \begin{pmatrix}-2\\1\end{pmatrix}+ \begin{pmatrix}-3\\1\end{pmatrix} \right] = \begin{pmatrix}-7/3\\2/3\end{pmatrix},\\ \boldsymbol{\mu}_3^* &= \frac{1}{1}[\mathbf{x}_5] = \begin{pmatrix}-10\\10\end{pmatrix}. \end{align*}$$
 
 \(\lhd\)
 
 *证明:* *(最优代表)* 使用符号 \(\mathbf{x}_j = (x_{j1},\ldots,x_{jd})\) 和类似地对于 \(\boldsymbol{\mu}_i\)，注意我们可以将 \(k\)-means 目标展开为
 
-\[\begin{align*} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² &= \sum_{i=1}^k \sum_{j \in C_i} \sum_{m=1}^d (x_{jm} - \mu_{im})²\\ &= \sum_{i=1}^k \sum_{m=1}^d \left[\sum_{j \in C_i} (x_{jm} - \mu_{im})²\right]. \end{align*}\]
+$$\begin{align*} \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² &= \sum_{i=1}^k \sum_{j \in C_i} \sum_{m=1}^d (x_{jm} - \mu_{im})²\\ &= \sum_{i=1}^k \sum_{m=1}^d \left[\sum_{j \in C_i} (x_{jm} - \mu_{im})²\right]. \end{align*}$$
 
 方括号中的表达式是 \(\mu_{im}\) 的二次函数
 
-\[\begin{align*} q_{im}(\mu_{im}) &= \sum_{j \in C_i} (x_{jm} - \mu_{im})²\\ &= \left\{\sum_{j \in C_i} x_{jm}²\right\} + \left\{- 2 \sum_{j \in C_i} x_{jm}\right\} \mu_{im} + \left\{|C_i| \right\} \mu_{im}². \end{align*}\]
+$$\begin{align*} q_{im}(\mu_{im}) &= \sum_{j \in C_i} (x_{jm} - \mu_{im})²\\ &= \left\{\sum_{j \in C_i} x_{jm}²\right\} + \left\{- 2 \sum_{j \in C_i} x_{jm}\right\} \mu_{im} + \left\{|C_i| \right\} \mu_{im}². \end{align*}$$
 
 因此，根据**二次函数最小值**的公式，最小值在
 
-\[ \mu_{im}^* = - \frac{- 2 \sum_{j \in C_i} x_{jm}}{2 |C_i|} = \frac{1}{|C_i|} \sum_{j \in C_i} x_{jm}. \]
+$$ \mu_{im}^* = - \frac{- 2 \sum_{j \in C_i} x_{jm}}{2 |C_i|} = \frac{1}{|C_i|} \sum_{j \in C_i} x_{jm}. $$
 
 由于目标函数 \(G\) 中构成总和的每个项 \(q_{im}(\mu_{im})\) 都在 \(\boldsymbol{\mu}_1^*,\ldots, \boldsymbol{\mu}_k^*\) 处最小化，因此通过**优化可分离函数**，\(G\) 也最小化。 \(\square\)
 
@@ -879,29 +879,29 @@ plt.show()
 
 **示例：** **（继续）** 继续上面的例子，聚类 \(C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}\) 对应的分配
 
-\[ c(1) = 1, c(2) = 2, c(3) = 2, c(4) = 1, c(5) = 3, c(6) = 1, c(7) = (2), c(8) = 1\. \]
+$$ c(1) = 1, c(2) = 2, c(3) = 2, c(4) = 1, c(5) = 3, c(6) = 1, c(7) = (2), c(8) = 1\. $$
 
 \(\lhd\)
 
 **引理** **（最优聚类）** \(\idx{optimal clustering lemma}\xdi\) 固定代表 \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k\)。在目标
 
-\[ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|², \]
+$$ G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) = \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|², $$
 
 获得如下。对于每个 \(j\)，找到使 \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|\) 最小的 \(\boldsymbol{\mu}_i\)（在存在平局时任意选择一个）并将 \(\mathbf{x}_j\) 分配给 \(C_i\)（即，将 \(j\) 添加到 \(C_i\) 中）。\(\flat\)
 
 *证明：* 如果 \(c\) 是与 \(C_1,\ldots,C_k\) 相关的聚类分配，那么我们可以将目标重新写为
 
-\[ \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² = \sum_{j=1}^n \|\mathbf{x}_j - \boldsymbol{\mu}_{c(j)}\|², \]
+$$ \sum_{i=1}^k \sum_{j \in C_i} \|\mathbf{x}_j - \boldsymbol{\mu}_i\|² = \sum_{j=1}^n \|\mathbf{x}_j - \boldsymbol{\mu}_{c(j)}\|², $$
 
 根据定义，当 \(\boldsymbol{\mu}_i\) 固定时，右侧求和中的每一项都通过语句中的分配单独最小化。因此，根据*可分离函数优化引理*，求和本身也是最小化的。注意，我们使用了平方根（以及平方）是非递减的事实，根据*与非递减函数组合引理*，得出最小化 \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|²\) 或其平方根 \(\|\mathbf{x}_j - \boldsymbol{\mu}_i\|\) 是等价的。\(\square\)
 
 **示例：** **（继续）** 继续上面的例子，假设我们选择代表
 
-\[\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2 = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}. \end{split}\]
+$$\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2 = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}. \end{split}$$
 
 然后我们通过计算 \(\mathbf{x}_1\) 与每个代表之间的平方距离来找到其簇分配：
 
-\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_1\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}-2\\1\end{pmatrix}\right\| = \sqrt{(1-(-2))² + (0-1)²} = \sqrt{10}, \end{split}\]\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_2\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}2\\-1\end{pmatrix}\right\| = \sqrt{(1-2)² + (0-(-1))²} = \sqrt{2}, \end{split}\]\[\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_3\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}-10\\10\end{pmatrix}\right\| = \sqrt{(1-(-10))² + (0-10)²} = \sqrt{221}. \end{split}\]
+$$\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_1\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}-2\\1\end{pmatrix}\right\| = \sqrt{(1-(-2))² + (0-1)²} = \sqrt{10}, \end{split}$$$$\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_2\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}2\\-1\end{pmatrix}\right\| = \sqrt{(1-2)² + (0-(-1))²} = \sqrt{2}, \end{split}$$$$\begin{split} \|\mathbf{x}_1 - \boldsymbol{\mu}_3\| = \left\|\begin{pmatrix}1\\0\end{pmatrix} - \begin{pmatrix}-10\\10\end{pmatrix}\right\| = \sqrt{(1-(-10))² + (0-10)²} = \sqrt{221}. \end{split}$$
 
 最小值对应于 \(\boldsymbol{\mu}_2\)，因此我们将 \(\mathbf{x}_1\) 分配给 \(C_2\)，即 \(1 \in C_2\) 且 \(c(1) = 2\)。 \(\lhd\)
 
@@ -1006,15 +1006,15 @@ Lloyd 算法只是一个启发式算法。特别是，它不能保证找到\(k\)
 
 *证明*：设 \(C_1',\ldots,C_k'\) 为当前聚类，其代表为 \(\boldsymbol{\mu}_1',\ldots,\boldsymbol{\mu}_k'\)。在第一步之后，新的代表为 \(\boldsymbol{\mu}_1'',\ldots,\boldsymbol{\mu}_k''\)。根据*最优代表引理*，它们满足
 
-\[ \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|². \]
+$$ \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|². $$
 
 在第二步之后，新的聚类为 \(C_1'',\ldots,C_k''\)。根据*最优聚类引理*，它们满足
 
-\[ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|². \]
+$$ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|². $$
 
 将这两个不等式结合给出
 
-\[ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|², \]
+$$ \sum_{i=1}^k \sum_{j \in C_i''} \|\mathbf{x}_j - \boldsymbol{\mu}_i''\|² \leq \sum_{i=1}^k \sum_{j \in C_i'} \|\mathbf{x}_j - \boldsymbol{\mu}_i'\|², $$
 
 如所声称。 \(\square\)
 
@@ -1294,51 +1294,51 @@ plt.show()
 
 如我们之前所指示的，对于一组 \(n\) 个数据向量 \(\mathbf{x}_1, \ldots, \mathbf{x}_n\) 在 \(\mathbb{R}^d\) 中，将它们堆叠成一个矩阵通常很方便
 
-\[\begin{split} X = \begin{bmatrix} \mathbf{x}_1^T \\ \mathbf{x}_2^T \\ \vdots \\ \mathbf{x}_n^T \\ \end{bmatrix} = \begin{bmatrix} x_{11} & x_{12} & \cdots & x_{1d} \\ x_{21} & x_{22} & \cdots & x_{2d} \\ \vdots & \vdots & \ddots & \vdots \\ x_{n1} & x_{n2} & \cdots & x_{nd} \\ \end{bmatrix}. \end{split}\]
+$$\begin{split} X = \begin{bmatrix} \mathbf{x}_1^T \\ \mathbf{x}_2^T \\ \vdots \\ \mathbf{x}_n^T \\ \end{bmatrix} = \begin{bmatrix} x_{11} & x_{12} & \cdots & x_{1d} \\ x_{21} & x_{22} & \cdots & x_{2d} \\ \vdots & \vdots & \ddots & \vdots \\ x_{n1} & x_{n2} & \cdots & x_{nd} \\ \end{bmatrix}. \end{split}$$
 
 我们也可以用簇代表来做同样的事情。给定 \(\boldsymbol{\mu}_1,\ldots,\boldsymbol{\mu}_k\) 也位于 \(\mathbb{R}^d\) 中，我们形成矩阵
 
-\[\begin{split} U = \begin{bmatrix} \boldsymbol{\mu}_1^T \\ \boldsymbol{\mu}_2^T \\ \vdots \\ \boldsymbol{\mu}_k^T \\ \end{bmatrix} = \begin{bmatrix} \mu_{11} & \mu_{12} & \cdots & \mu_{1d} \\ \mu_{21} & \mu_{22} & \cdots & \mu_{2d} \\ \vdots & \vdots & \ddots & \vdots \\ \mu_{k1} & \mu_{k2} & \cdots & \mu_{kd} \\ \end{bmatrix}. \end{split}\]
+$$\begin{split} U = \begin{bmatrix} \boldsymbol{\mu}_1^T \\ \boldsymbol{\mu}_2^T \\ \vdots \\ \boldsymbol{\mu}_k^T \\ \end{bmatrix} = \begin{bmatrix} \mu_{11} & \mu_{12} & \cdots & \mu_{1d} \\ \mu_{21} & \mu_{22} & \cdots & \mu_{2d} \\ \vdots & \vdots & \ddots & \vdots \\ \mu_{k1} & \mu_{k2} & \cdots & \mu_{kd} \\ \end{bmatrix}. \end{split}$$
 
 可能不那么明显的是，簇分配也可以用矩阵形式表示。回想一下，给定 \([n]\) 的划分 \(C_1,\ldots,C_k\)，我们定义 \(c(j) = i\) 如果 \(j \in C_i\)。对于 \(j=1,\ldots,n\) 和 \(\ell=1,\ldots,k\)，如果 \(c(j) = \ell\) 则设置 \(Z_{j\ell} = 1\)，否则为 \(0\)，让 \(Z\) 是一个 \(n \times k\) 的矩阵，其元素 \(Z = [Z_{j\ell}]_{j,\ell}\)。也就是说，行 \(j\) 有且只有一个值为 \(1\) 的元素，对应于数据点 \(\mathbf{x}_j\) 分配的簇 \(c(j)\)，其他所有元素为 \(0\)。
 
 使用这个符号，分配给数据点 \(\mathbf{x}_j\) 的簇的代表通过矩阵乘积获得
 
-\[ \boldsymbol{\mu}_{c(j)}^T = \sum_{\ell = 1}^k Z_{j\ell} \boldsymbol{\mu}_{\ell}^T = \sum_{\ell = 1}^k Z_{j\ell} U_{\ell,\cdot} = \left(Z U\right)_{j,\cdot} \]
+$$ \boldsymbol{\mu}_{c(j)}^T = \sum_{\ell = 1}^k Z_{j\ell} \boldsymbol{\mu}_{\ell}^T = \sum_{\ell = 1}^k Z_{j\ell} U_{\ell,\cdot} = \left(Z U\right)_{j,\cdot} $$
 
 其中我们使用了矩阵乘积的第 \(j\) 行是第二个矩阵的行的线性组合的性质，其中系数是第一个矩阵第 \(j\) 行的元素。
 
 **示例：** **（继续）** 继续使用我们之前的例子，簇 \(C_1 = \{1, 4, 6, 8\}, C_2 = \{2, 3, 7\}, C_3 = \{5\}\) 被编码为矩阵
 
-\[\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix}. \end{split}\]
+$$\begin{split} Z = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix}. \end{split}$$
 
 再次假设代表者是
 
-\[\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2 = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}. \end{split}\]
+$$\begin{split} \boldsymbol{\mu}_1 = \begin{pmatrix}-2\\1\end{pmatrix}, \boldsymbol{\mu}_2 = \begin{pmatrix}2\\-1\end{pmatrix}, \boldsymbol{\mu}_3 = \begin{pmatrix}-10\\10\end{pmatrix}. \end{split}$$
 
 那么相应的矩阵 \(U\) 是
 
-\[\begin{split} U = \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix}. \end{split}\]
+$$\begin{split} U = \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix}. \end{split}$$
 
 因此，乘以 \(Z\) 和 \(U\) 产生一个矩阵，其中每一行是相应数据点分配的簇的代表
 
-\[\begin{split} ZU = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix} \, \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix} = \begin{bmatrix} -2 & 1\\ 2 & -1\\ 2 & -1\\ -2 & 1\\ -10 & 10\\ -2 & 1\\ 2 & -1\\ -2 & 1 \end{bmatrix}. \end{split}\]
+$$\begin{split} ZU = \begin{bmatrix} 1 & 0 & 0\\ 0 & 1 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0\\ 0 & 0 & 1\\ 1 & 0 & 0\\ 0 & 1 & 0\\ 1 & 0 & 0 \end{bmatrix} \, \begin{bmatrix} -2 & 1\\ 2 & -1\\ -10 & 10 \end{bmatrix} = \begin{bmatrix} -2 & 1\\ 2 & -1\\ 2 & -1\\ -2 & 1\\ -10 & 10\\ -2 & 1\\ 2 & -1\\ -2 & 1 \end{bmatrix}. \end{split}$$
 
 \(\lhd\)
 
 回想一下，\(n \times m\) 矩阵 \(A \in \mathbb{R}^{n \times m}\) 的 Frobenius 范数定义为
 
-\[ \|A\|_F = \sqrt{\sum_{i=1}^n \sum_{j=1}^m A_{ij}²}. \]
+$$ \|A\|_F = \sqrt{\sum_{i=1}^n \sum_{j=1}^m A_{ij}²}. $$
 
 使用行表示法，它可以写成行平方欧几里得范数的和
 
-\[ \|A\|_F² = \sum_{i=1}^n \|A_{i,\cdot}\|². \]
+$$ \|A\|_F² = \sum_{i=1}^n \|A_{i,\cdot}\|². $$
 
 对于两个矩阵 \(A, B \in \mathbb{R}^{n \times m}\)，它们的差 \(A - B\) 的 Frobenius 范数 \(\|A - B\|_F\) 可以解释为 \(A\) 和 \(B\) 之间的距离，即它们差异的度量。
 
 最后，我们回到 \(k\)-means 目标。使用本节中引入的符号和证明 *最优聚类引理* 中推导出的目标 \(G\) 的等价公式，我们注意到
 
-\[\begin{align*} G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) &= \sum_{i=1}^n \|\mathbf{x}_i - \boldsymbol{\mu}_{c(i)}\|²\\ &= \sum_{i=1}^n \sum_{\ell=1}^d \left(x_{i\ell} - (Z U)_{i\ell}\right)²\\ &= \|X - Z U \|²_F, \end{align*}\]
+$$\begin{align*} G(C_1,\ldots,C_k; \boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) &= \sum_{i=1}^n \|\mathbf{x}_i - \boldsymbol{\mu}_{c(i)}\|²\\ &= \sum_{i=1}^n \sum_{\ell=1}^d \left(x_{i\ell} - (Z U)_{i\ell}\right)²\\ &= \|X - Z U \|²_F, \end{align*}$$
 
 其中我们使用了 Frobenius 范数的定义。
 

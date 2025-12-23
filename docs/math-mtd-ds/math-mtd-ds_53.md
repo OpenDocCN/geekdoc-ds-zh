@@ -1,4 +1,4 @@
-# 7.1. 激励示例：发现数学主题#
+# 7.1. 激励示例：发现数学主题
 
 > 原文：[`mmids-textbook.github.io/chap07_rwmc/01_motiv/roch-mmids-rwmc-motiv.html`](https://mmids-textbook.github.io/chap07_rwmc/01_motiv/roch-mmids-rwmc-motiv.html)
 
@@ -10,7 +10,7 @@
 
 如果图是定向的，事情就会变得稍微复杂一些。例如，现在不仅有入度，还有出度。
 
-让我们看看一个具有实际重要性的特定例子，即万维网（从现在起，简称 Web）。在这种情况下，顶点是网页，从 \(u\) 到 \(v\) 的有向边表示从页面 \(u\) 到页面 \(v\) 的超链接。Web 太大，无法在此分析。相反，我们将考虑它的一个微小（但仍然有趣！）的子集，即[Wolfram 的 MathWorld](https://mathworld.wolfram.com)的页面，这是一个出色的数学资源。
+让我们看看一个具有实际重要性的特定例子，即万维网（从现在起，简称 Web）。在这种情况下，顶点是网页，从 $u$ 到 $v$ 的有向边表示从页面 $u$ 到页面 $v$ 的超链接。Web 太大，无法在此分析。相反，我们将考虑它的一个微小（但仍然有趣！）的子集，即[Wolfram 的 MathWorld](https://mathworld.wolfram.com)的页面，这是一个出色的数学资源。
 
 MathWorld 的每一页都关注一个特定的数学概念，例如[无标度网络](https://mathworld.wolfram.com/Scale-FreeNetwork.html)。描述了定义和显著性质。对我们来说重要的是，在“参见”部分列出了其他相关的数学概念，并附有它们在 MathWorld 页面的链接。在无标度网络的情况下，[小世界网络](https://mathworld.wolfram.com/SmallWorldNetwork.html)主题被引用，以及其他主题。
 
@@ -31,7 +31,7 @@ data_edges.head()
 
 它由一系列有向边组成。例如，第一个是从顶点`0`到顶点`2`的边。第二个是从`1`到`47`等等。
 
-总共有 \(49069\) 条边。
+总共有 $49069$ 条边。
 
 ```py
 data_edges.shape[0] 
@@ -58,7 +58,7 @@ data_titles.head()
 
 因此，上面的第一条边是从`亚历山大角形球体`到`安托万角形球体`。也就是说，[后者](https://mathworld.wolfram.com/AntoinesHornedSphere.html)被列在[前者](https://mathworld.wolfram.com/AlexandersHornedSphere.html)的“参见”部分。
 
-有 \(12362\) 个主题。
+有 $12362$ 个主题。
 
 ```py
 n = data_titles.shape[0]

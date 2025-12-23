@@ -1,4 +1,4 @@
-# 2.4\. QR 分解和 Householder 变换#
+# 2.4\. QR 分解和 Householder 变换
 
 > 原文：[`mmids-textbook.github.io/chap02_ls/04_qr/roch-mmids-ls-qr.html`](https://mmids-textbook.github.io/chap02_ls/04_qr/roch-mmids-ls-qr.html)
 
@@ -20,15 +20,15 @@
 
 *证明：* *(Gram-Schmidt)* 归纳的第一步已在上面描述。然后一般的归纳步骤如下。假设我们已经构造了正交归一向量 \(\mathbf{q}_1,\ldots,\mathbf{q}_{j-1}\)，使得
 
-\[ U_{j-1} := \mathrm{span}(\mathbf{q}_1,\ldots,\mathbf{q}_{j-1}) = \mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j-1}). \]
+$$ U_{j-1} := \mathrm{span}(\mathbf{q}_1,\ldots,\mathbf{q}_{j-1}) = \mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j-1}). $$
 
 *构造 \(\mathbf{q}_j\):* 根据正交归一列表的性质，\(\{\mathbf{q}\}_{i=1}^{j-1}\) 是一个独立的列表，因此它形成了 \(U_{j-1}\) 的正交归一基。因此，我们可以计算 \(\mathbf{a}_j\) 在 \(U_{j-1}\) 上的正交投影。
 
-\[ \mathrm{proj}_{U_{j-1}}\mathbf{a}_j = \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i, \]
+$$ \mathrm{proj}_{U_{j-1}}\mathbf{a}_j = \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i, $$
 
 其中我们定义 \(r_{ij} = \langle \mathbf{q}_i , \mathbf{a}_j\rangle\)。并且我们设定
 
-\[ \mathbf{v}_j = \mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j = \mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i \quad \text{and} \quad \mathbf{q}_j = \frac{\mathbf{v}_j}{\|\mathbf{v}_j\|}. \]
+$$ \mathbf{v}_j = \mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j = \mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i \quad \text{and} \quad \mathbf{q}_j = \frac{\mathbf{v}_j}{\|\mathbf{v}_j\|}. $$
 
 最后一步之所以可能，是因为：
 
@@ -44,11 +44,11 @@
 
 *证明：* 通过构造，
 
-\[ \mathbf{q}_j = \frac{1}{\|\mathbf{v}_j\|} \left\{\mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j\right\} = \frac{1}{\|\mathbf{v}_j\|} \mathbf{a}_j + \frac{1}{\|\mathbf{v}_j\|} \mathrm{proj}_{U_{j-1}}\mathbf{a}_j. \]
+$$ \mathbf{q}_j = \frac{1}{\|\mathbf{v}_j\|} \left\{\mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j\right\} = \frac{1}{\|\mathbf{v}_j\|} \mathbf{a}_j + \frac{1}{\|\mathbf{v}_j\|} \mathrm{proj}_{U_{j-1}}\mathbf{a}_j. $$
 
 根据正交投影的定义，
 
-\[ \mathrm{proj}_{U_{j-1}}\mathbf{a}_j \in U_{j-1}= \mathrm{span} (\mathbf{a}_1,\ldots,\mathbf{a}_{j-1}) \subseteq \mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j}). \]
+$$ \mathrm{proj}_{U_{j-1}}\mathbf{a}_j \in U_{j-1}= \mathrm{span} (\mathbf{a}_1,\ldots,\mathbf{a}_{j-1}) \subseteq \mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j}). $$
 
 因此，我们将 \(\mathbf{q}_j\) 写成了 \(\mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j})\) 中向量的线性组合。这证明了命题。\(\square\)
 
@@ -56,7 +56,7 @@
 
 *证明：* 展开上述计算，\(\mathbf{a}_j\) 可以重新表示为以下 \(\mathbf{q}_1,\ldots,\mathbf{q}_j\) 的线性组合
 
-\[\begin{align*} \mathbf{a}_j &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \mathbf{v}_j\\ &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \|\mathbf{v}_j\| \mathbf{q}_j\\ &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \|\mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j\| \mathbf{q}_j\\ &= \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + \left\|\mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij}\,\mathbf{q}_i\right\| \,\mathbf{q}_j\\ &= \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + r_{jj} \,\mathbf{q}_j, \end{align*}\]
+$$\begin{align*} \mathbf{a}_j &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \mathbf{v}_j\\ &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \|\mathbf{v}_j\| \mathbf{q}_j\\ &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \|\mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j\| \mathbf{q}_j\\ &= \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + \left\|\mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij}\,\mathbf{q}_i\right\| \,\mathbf{q}_j\\ &= \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + r_{jj} \,\mathbf{q}_j, \end{align*}$$
 
 其中我们定义 \(r_{jj} = \left\|\mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij}\,\mathbf{q}_i\right\| = \|\mathbf{v}_j\|\)。 \(\square\)
 
@@ -120,15 +120,15 @@ print(R)
 
 让
 
-\[\begin{split} A = \begin{pmatrix} | & & | \\ \mathbf{a}_1 & \ldots & \mathbf{a}_m \\ | & & | \end{pmatrix} \quad \text{和} \quad Q = \begin{pmatrix} | & & | \\ \mathbf{q}_1 & \ldots & \mathbf{q}_m \\ | & & | \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} | & & | \\ \mathbf{a}_1 & \ldots & \mathbf{a}_m \\ | & & | \end{pmatrix} \quad \text{和} \quad Q = \begin{pmatrix} | & & | \\ \mathbf{q}_1 & \ldots & \mathbf{q}_m \\ | & & | \end{pmatrix}. \end{split}$$
 
 回想一下，对于所有 \(j\)，
 
-\[ \mathbf{a}_j = \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + r_{jj} \,\mathbf{q}_j, \]
+$$ \mathbf{a}_j = \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + r_{jj} \,\mathbf{q}_j, $$
 
 Gram-Schmidt 算法的输出可以写成以下紧凑形式，称为 [QR 分解](https://en.wikipedia.org/wiki/QR_decomposition)\(\idx{QR decomposition}\xdi\)，
 
-\[ A = QR \]
+$$ A = QR $$
 
 矩阵 \(R\) 的第 \(i\) 列包含 \(\mathbf{q}_j\) 的线性组合系数，该组合产生 \(\mathbf{a}_i\)。
 
@@ -138,7 +138,7 @@ Gram-Schmidt 算法的输出可以写成以下紧凑形式，称为 [QR 分解](
 
 上三角矩阵看起来是这样的
 
-\[\begin{split} R = \begin{bmatrix} r_{1,1} & r_{1,2} & r_{1,3} & \ldots & r_{1,n} \\ 0 & r_{2,2} & r_{2,3} & \ldots & r_{2,n} \\ & 0 & \ddots & \ddots & \vdots \\ & & \ddots & \ddots & r_{n-1,n} \\ 0 & & & 0 & r_{n,n} \end{bmatrix}. \end{split}\]
+$$\begin{split} R = \begin{bmatrix} r_{1,1} & r_{1,2} & r_{1,3} & \ldots & r_{1,n} \\ 0 & r_{2,2} & r_{2,3} & \ldots & r_{2,n} \\ & 0 & \ddots & \ddots & \vdots \\ & & \ddots & \ddots & r_{n-1,n} \\ 0 & & & 0 & r_{n,n} \end{bmatrix}. \end{split}$$
 
 **备注：**
 
@@ -146,7 +146,7 @@ a) 如果输入向量 \(\mathbf{a}_1,\ldots,\mathbf{a}_m\) 不是线性无关的
 
 b) 我们在这里推导出的 QR 分解在技术上称为简化 QR 分解。在完全 QR 分解\(\idx{full QR decomposition}\xdi\) 中，矩阵 \(Q\) 是方阵且正交。换句话说，这样的 \(Q\) 的列构成了 \(\mathbb{R}^n\) 的完整空间的正交基。设 \(A = Q_1 R_1\) 是通过克莱姆-施密特算法获得的简化 QR 分解。那么 \(Q_1\) 的列构成了 \(\mathrm{col}(A)\) 的正交基，并且可以通过添加更多的向量 \(\mathbf{q}_{m+1},\ldots,\mathbf{q}_{n}\) 来完成 \(\mathbb{R}^n\) 的正交基。设 \(Q_2\) 是具有列 \(\mathbf{q}_{m+1},\ldots,\mathbf{q}_{n}\) 的矩阵。那么 \(A\) 的完全 QR 分解是
 
-\[\begin{split} Q = \begin{pmatrix} Q_1 & Q_2 \end{pmatrix} \qquad R = \begin{pmatrix} R_1\\ \mathbf{0}_{(n-m)\times m} \end{pmatrix} \end{split}\]
+$$\begin{split} Q = \begin{pmatrix} Q_1 & Q_2 \end{pmatrix} \qquad R = \begin{pmatrix} R_1\\ \mathbf{0}_{(n-m)\times m} \end{pmatrix} \end{split}$$
 
 其中 \(\mathbf{0}_{(n-m)\times m}\) 是大小为 \((n-m)\times m\) 的全零矩阵。在后面的子节中，将介绍计算完全 QR 分解的数值方法。
 
@@ -156,11 +156,11 @@ c) 克莱姆-施密特算法在几何上很有吸引力，但众所周知，它�
 
 设 \(A \in \mathbb{R}^{n\times m}\) 是一个 \(n\times m\) 的矩阵，其列线性无关，并且设 \(\mathbf{b} \in \mathbb{R}^n\) 是一个向量。回忆一下，线性最小二乘问题的解 \(\mathbf{x}^*\) 是
 
-\[ \min_{\mathbf{x} \in \mathbb{R}^m} \|A \mathbf{x} - \mathbf{b}\|² \]
+$$ \min_{\mathbf{x} \in \mathbb{R}^m} \|A \mathbf{x} - \mathbf{b}\|² $$
 
 满足正则方程
 
-\[ A^T A \mathbf{x}^* = A^T \mathbf{b}. \]
+$$ A^T A \mathbf{x}^* = A^T \mathbf{b}. $$
 
 **求解正则方程** 在第一门线性代数课程中，人们学习如何求解如正则方程之类的线性系统。为此，一个常见的方法是高斯消元法或行简化。引用 [维基百科](https://en.wikipedia.org/wiki/Gaussian_elimination)：
 
@@ -176,17 +176,17 @@ c) 克莱姆-施密特算法在几何上很有吸引力，但众所周知，它�
 
 **示例：**以下是一个回代的具体例子。考虑方程组 \(R \mathbf{x} = \mathbf{b}\) 与
 
-\[\begin{split} R = \begin{pmatrix} 2 & -1 & 2\\ 0 & 1 & 1\\ 0 & 0 & 2 \end{pmatrix} \qquad \mathbf{b} = \begin{pmatrix} 0\\ -2\\ 0 \end{pmatrix}. \end{split}\]
+$$\begin{split} R = \begin{pmatrix} 2 & -1 & 2\\ 0 & 1 & 1\\ 0 & 0 & 2 \end{pmatrix} \qquad \mathbf{b} = \begin{pmatrix} 0\\ -2\\ 0 \end{pmatrix}. \end{split}$$
 
 这对应于线性方程
 
-\[\begin{align*} &2 x_1 - x_2 + 2x_3 = 0\\ &x_2 + x_3 = -2\\ &2 x_3 = 0 \end{align*}\]
+$$\begin{align*} &2 x_1 - x_2 + 2x_3 = 0\\ &x_2 + x_3 = -2\\ &2 x_3 = 0 \end{align*}$$
 
 第三个方程给出 \(x_3 = 0/2 = 0\)。将其代入第二个方程，我们得到 \(x_2 = -2 - x_3 = -2\)。将其代入第一个方程，我们最终得到 \(x_1 = (x_2 - 2 x_3)/2 = -1\)。因此，解为 \(\mathbf{x} = (-1,-2,0)\)。 \(\lhd\)
 
 通常，解三角方程组的工作方式如下。设 \(R = (r_{i,j})_{i,j} \in \mathbb{R}^{m \times m}\) 为上三角矩阵，设 \(\mathbf{b} \in \mathbb{R}^m\) 为左侧向量，即我们想要解的方程组
 
-\[ R \mathbf{x} = \mathbf{b}. \]
+$$ R \mathbf{x} = \mathbf{b}. $$
 
 从系统的最后一行开始，\(r_{m,m} x_m = b_m\) 或 \(x_m = b_m/r_{m,m}\)，假设 \(r_{m,m} \neq 0\)。移动到倒数第二行，\(r_{m-1,m-1} x_{m-1} + r_{m-1,m} x_m = b_{m-1}\) 或 \(x_{m-1} = (b_{m-1} - r_{m-1,m} x_m)/r_{m-1,m-1}\)，假设 \(r_{m-1,m-1} \neq 0\)。依此类推。这个过程被称为[回代](https://en.wikipedia.org/wiki/Triangular_matrix#Forward_and_back_substitution)。
 
@@ -218,33 +218,33 @@ def forwardsubs(L,b):
 
 1- 通过 QR 分解构建 \(\mathrm{col}(A)\) 的一个正交基
 
-\[ A = QR. \]
+$$ A = QR. $$
 
 2- 通过 QR 分解形成一个 \(\mathrm{col}(A)\) 的正交基
 
-\[ P = Q Q^T. \]
+$$ P = Q Q^T. $$
 
 3- 将投影应用于 \(\mathbf{b}\)，并观察到，根据 *正则方程* 的证明，\(\mathbf{x}^*\) 满足
 
-\[ A \mathbf{x}^* = Q Q^T \mathbf{b}. \]
+$$ A \mathbf{x}^* = Q Q^T \mathbf{b}. $$
 
 4- 将 \(A\) 的 QR 分解代入以获得
 
-\[ QR \mathbf{x}^* = Q Q^T \mathbf{b}. \]
+$$ QR \mathbf{x}^* = Q Q^T \mathbf{b}. $$
 
 5- 两边乘以 \(Q^T\) 并使用 \(Q^T Q = I_{m \times m}\)
 
-\[ R \mathbf{x}^* = Q^T \mathbf{b}. \]
+$$ R \mathbf{x}^* = Q^T \mathbf{b}. $$
 
 6- 解这个系统以获得 \(\mathbf{x}^*\) 是直接的，因为通过回代 \(R\) 是上三角矩阵。
 
 **定理** **(通过 QR 的最小二乘法)** \(\idx{least squares via QR}\xdi\) 设 \(A \in \mathbb{R}^{n\times m}\) 是一个 \(n\times m\) 矩阵，其列线性无关，设 \(\mathbf{b} \in \mathbb{R}^n\) 是一个向量，设 \(A = QR\) 是 \(A\) 的 QR 分解。线性最小二乘问题的解
 
-\[ \min_{\mathbf{x} \in \mathbb{R}^m} \|A \mathbf{x} - \mathbf{b}\|². \]
+$$ \min_{\mathbf{x} \in \mathbb{R}^m} \|A \mathbf{x} - \mathbf{b}\|². $$
 
 满足
 
-\[ R \mathbf{x}^* = Q^T \mathbf{b}. \]
+$$ R \mathbf{x}^* = Q^T \mathbf{b}. $$
 
 \(\sharp\)
 
@@ -290,7 +290,7 @@ print(x)
 
 正交矩阵的一个重要性质是它们保持内积：如果 \(Q \in \mathbb{R}^{m\times m}\) 是正交的，那么对于任何 \(\mathbf{x}, \mathbf{y} \in \mathbb{R}^m\)
 
-\[ \langle Q \mathbf{x}, Q \mathbf{y} \rangle = (Q \mathbf{x})^T Q \mathbf{y} = \mathbf{x}^T Q^T Q \mathbf{y} = \mathbf{x}^T \mathbf{y} = \langle \mathbf{x}, \mathbf{y} \rangle. \]
+$$ \langle Q \mathbf{x}, Q \mathbf{y} \rangle = (Q \mathbf{x})^T Q \mathbf{y} = \mathbf{x}^T Q^T Q \mathbf{y} = \mathbf{x}^T \mathbf{y} = \langle \mathbf{x}, \mathbf{y} \rangle. $$
 
 特别地，正交矩阵保持范数和角度。
 
@@ -300,7 +300,7 @@ print(x)
 
 **定义** **(豪斯霍尔德反射)** \(\idx{Householder reflection}\xdi\) 设 \(\mathbf{z} \in \mathbb{R}^m\) 为一个单位向量，设 \(W\) 为与它正交的超平面。\(W\) 上的反射由以下公式给出
 
-\[ H = I_{m \times m} - 2 \mathbf{z} \mathbf{z}^T. \]
+$$ H = I_{m \times m} - 2 \mathbf{z} \mathbf{z}^T. $$
 
 这被称为豪斯霍尔德反射。\(\natural\)
 
@@ -312,29 +312,29 @@ print(x)
 
 *证明:* 我们检查定义：
 
-\[\begin{align*} H^T H &= (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)^T (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)\\ &= (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T) (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)\\ &= I_{m\times m} - 2\mathbf{z}\mathbf{z}^T - 2\mathbf{z}\mathbf{z}^T + 4 \mathbf{z}\mathbf{z}^T\mathbf{z}\mathbf{z}^T\\ &= I_{m\times m} - 2\mathbf{z}\mathbf{z}^T - 2\mathbf{z}\mathbf{z}^T + 4 \mathbf{z}\mathbf{z}^T \end{align*}\]
+$$\begin{align*} H^T H &= (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)^T (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)\\ &= (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T) (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)\\ &= I_{m\times m} - 2\mathbf{z}\mathbf{z}^T - 2\mathbf{z}\mathbf{z}^T + 4 \mathbf{z}\mathbf{z}^T\mathbf{z}\mathbf{z}^T\\ &= I_{m\times m} - 2\mathbf{z}\mathbf{z}^T - 2\mathbf{z}\mathbf{z}^T + 4 \mathbf{z}\mathbf{z}^T \end{align*}$$
 
 这等于 \(I_{m\times m}\)。\(H H^T\) 的计算是相同的。\(\square\)
 
 **通过引入零的 QR 分解** 我们回到 QR 分解。构造矩阵 \(A \in \mathbb{R}^{n \times m}\) 的 (满) QR 分解的一种方法是通过找到一个正交矩阵序列 \(H_1, \ldots, H_m\)，使得 \(A\) 三角化：
 
-\[ H_m \cdots H_2 H_1 A = R \]
+$$ H_m \cdots H_2 H_1 A = R $$
 
 对于一个上三角矩阵 \(R\)。实际上，根据正交矩阵的性质，我们随后有
 
-\[ A = H_1^T H_2^T \cdots H_m^T H_m \cdots H_2 H_1 A = H_1^T H_2^T \cdots H_m^T R \]
+$$ A = H_1^T H_2^T \cdots H_m^T H_m \cdots H_2 H_1 A = H_1^T H_2^T \cdots H_m^T R $$
 
 其中 \(Q = H_1^T H_2^T \cdots H_m^T\) 本身作为正交矩阵的乘积也是正交的。因此，为了继续进行，我们需要识别出那些能够引入对角线下方零的正交矩阵，如图所示：
 
-\[\begin{split} H_2 H_1 A = \begin{pmatrix} \times & \times & \times & \times & \times\\ 0 & \times & \times & \times & \times\\ 0 & 0 & \times & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ \end{pmatrix}. \end{split}\]
+$$\begin{split} H_2 H_1 A = \begin{pmatrix} \times & \times & \times & \times & \times\\ 0 & \times & \times & \times & \times\\ 0 & 0 & \times & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ \end{pmatrix}. \end{split}$$
 
 结果表明，一个精心选择的 Householder 反射可以完成这项工作。设 \(\mathbf{y}_1\) 为 \(A\) 的第一列，并取
 
-\[ \mathbf{z}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|} \quad \text{和} \quad H_1 = I_{n\times n} - 2\mathbf{z}_1\mathbf{z}_1^T \]
+$$ \mathbf{z}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|} \quad \text{和} \quad H_1 = I_{n\times n} - 2\mathbf{z}_1\mathbf{z}_1^T $$
 
 其中 \(\mathbf{e}_1^{(n)}\) 是 \(\mathbb{R}^n\) 的标准基中的第一个向量。如图所示，这个选择将 \(\mathbf{y}_1\) 映射到
 
-\[\begin{split} \|\mathbf{y}_1\| \mathbf{e}_1^{(n)} = \begin{pmatrix} \|\mathbf{y}_1\|\\ 0 \\ \vdots \\ 0 \end{pmatrix}. \end{split}\]
+$$\begin{split} \|\mathbf{y}_1\| \mathbf{e}_1^{(n)} = \begin{pmatrix} \|\mathbf{y}_1\|\\ 0 \\ \vdots \\ 0 \end{pmatrix}. \end{split}$$
 
 （显然，如果 \(H_1 \mathbf{y}_1\) 与 \(\mathbf{e}_1^{(n)}\) 成比例，那么它只能是 \(\|\mathbf{y}_1\| \mathbf{e}_1^{(n)}\) 或 \(-\|\mathbf{y}_1\| \mathbf{e}_1^{(n)}\)。证明它！）
 
@@ -342,7 +342,7 @@ print(x)
 
 **引理** **(Householder)** \(\idx{Householder lemma}\xdi\) 设 \(\mathbf{y}_1\), \(\mathbf{z}_1\) 和 \(H_1\) 如上所述。那么
 
-\[ H_1 \mathbf{y}_1 = \|\mathbf{y}_1\| \mathbf{e}_1^{(n)}. \]
+$$ H_1 \mathbf{y}_1 = \|\mathbf{y}_1\| \mathbf{e}_1^{(n)}. $$
 
 \(\flat\)
 
@@ -350,71 +350,71 @@ print(x)
 
 *证明:* 注意到
 
-\[\begin{align*} \|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|² &= (\|\mathbf{y}_1\| - y_{1,1})² + \sum_{j=2}^n y_{1,j}²\\ &= \|\mathbf{y}_1\|² -2 \|\mathbf{y}_1\| y_{1,1} + y_{1,1}² + \sum_{j=2}^n y_{1,j}²\\ &= 2(\|\mathbf{y}_1\|² - \|\mathbf{y}_1\| y_{1,1}) \end{align*}\]
+$$\begin{align*} \|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|² &= (\|\mathbf{y}_1\| - y_{1,1})² + \sum_{j=2}^n y_{1,j}²\\ &= \|\mathbf{y}_1\|² -2 \|\mathbf{y}_1\| y_{1,1} + y_{1,1}² + \sum_{j=2}^n y_{1,j}²\\ &= 2(\|\mathbf{y}_1\|² - \|\mathbf{y}_1\| y_{1,1}) \end{align*}$$
 
 并且
 
-\[\begin{align*} 2 \mathbf{z}_1 \mathbf{z}_1^T \mathbf{y}_1 &= 2 \mathbf{z}_1 \frac{\|\mathbf{y}_1\| \,(\mathbf{e}_1^{(n)})^T \mathbf{y}_1 - \mathbf{y}_1^T \mathbf{y}_1}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|}\\ &= 2 \frac{\|\mathbf{y}_1\| y_{1,1} - \|\mathbf{y}_1\|²}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|²} (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1)\\ &= - (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1) \end{align*}\]
+$$\begin{align*} 2 \mathbf{z}_1 \mathbf{z}_1^T \mathbf{y}_1 &= 2 \mathbf{z}_1 \frac{\|\mathbf{y}_1\| \,(\mathbf{e}_1^{(n)})^T \mathbf{y}_1 - \mathbf{y}_1^T \mathbf{y}_1}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|}\\ &= 2 \frac{\|\mathbf{y}_1\| y_{1,1} - \|\mathbf{y}_1\|²}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|²} (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1)\\ &= - (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1) \end{align*}$$
 
 其中我们使用了之前的方程。因此
 
-\[ H_1 \mathbf{y}_1 = (I_{n\times n} - 2\mathbf{z}_1\mathbf{z}_1^T) \,\mathbf{y}_1 = \mathbf{y}_1 + (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1) = \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}. \]
+$$ H_1 \mathbf{y}_1 = (I_{n\times n} - 2\mathbf{z}_1\mathbf{z}_1^T) \,\mathbf{y}_1 = \mathbf{y}_1 + (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1) = \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}. $$
 
 这就证明了命题。 \(\square\)
 
 结果是，将 \(A\) 乘以 \(H_1\) 在第一列的下方引入了零。为了看到这一点，回忆矩阵-矩阵乘积的一种解释是，第二个矩阵的每一列都乘以第一个矩阵。根据 *Householder 引理*，将 \(H_1\) 应用到 \(A\) 上给出
 
-\[ H_1 A = \begin{pmatrix} H_1 \mathbf{y}_1 & H_1 A_{\cdot,2} & \cdots & H_1 A_{\cdot,m} \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_1\| \mathbf{e}_1^{(n)} & H_1 A_{\cdot,2} & \cdots & H_1 A_{\cdot,m} \end{pmatrix} \]
+$$ H_1 A = \begin{pmatrix} H_1 \mathbf{y}_1 & H_1 A_{\cdot,2} & \cdots & H_1 A_{\cdot,m} \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_1\| \mathbf{e}_1^{(n)} & H_1 A_{\cdot,2} & \cdots & H_1 A_{\cdot,m} \end{pmatrix} $$
 
 因此，第一列现在与 \(\mathbf{e}_1\) 成比例，除了第一个元素外，其余元素都是零。（如果 \(\mathbf{y}_1\) 已经等于 \(\|\mathbf{y}_1\| \mathbf{e}_1^{(n)}\)，我们应该怎么办？）
 
 结果表明，还有另一种 Householder 反射的选择。实际上，可以证明
 
-\[ \tilde{\mathbf{z}}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1}{\| \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1\|} \quad \text{和} \quad \tilde{H}_1 = I_{n\times n} - 2\tilde{\mathbf{z}}_1 \tilde{\mathbf{z}}_1^T \]
+$$ \tilde{\mathbf{z}}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1}{\| \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1\|} \quad \text{和} \quad \tilde{H}_1 = I_{n\times n} - 2\tilde{\mathbf{z}}_1 \tilde{\mathbf{z}}_1^T $$
 
 是这样的，使得 \(\tilde{H}_1 \mathbf{y}_1 = - \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}\)（试试看！）。
 
 **综合以上内容** 我们已经展示了如何在矩阵的第一列下方引入零。为了在第二列下方引入零，我们使用分块矩阵。回想一下，如果 \(A_{ij} \in \mathbb{R}^{n_i \times m_j}\) 和 \(B_{ij} \in \mathbb{R}^{m_i \times p_j}\) 对于 \(i,j = 1, 2\)，那么我们有以下公式
 
-\[\begin{split} \begin{pmatrix} A_{11} & A_{12}\\ A_{21} & A_{22} \end{pmatrix} \begin{pmatrix} B_{11} & B_{12}\\ B_{21} & B_{22} \end{pmatrix} = \begin{pmatrix} A_{11} B_{11} + A_{12} B_{21} & A_{11} B_{12} + A_{12} B_{22}\\ A_{21} B_{11} + A_{22} B_{21} & A_{21} B_{12} + A_{22} B_{22} \end{pmatrix}. \end{split}\]
+$$\begin{split} \begin{pmatrix} A_{11} & A_{12}\\ A_{21} & A_{22} \end{pmatrix} \begin{pmatrix} B_{11} & B_{12}\\ B_{21} & B_{22} \end{pmatrix} = \begin{pmatrix} A_{11} B_{11} + A_{12} B_{21} & A_{11} B_{12} + A_{12} B_{22}\\ A_{21} B_{11} + A_{22} B_{21} & A_{21} B_{12} + A_{22} B_{22} \end{pmatrix}. \end{split}$$
 
 现在考虑以下分块矩阵
 
-\[\begin{split} H_2 = \begin{pmatrix} 1 & \mathbf{0} \\ \mathbf{0} & F_2 \end{pmatrix} \end{split}\]
+$$\begin{split} H_2 = \begin{pmatrix} 1 & \mathbf{0} \\ \mathbf{0} & F_2 \end{pmatrix} \end{split}$$
 
 其中 \(F_2\) 是以下 Householder 反射。将 \(H_1 A\) 的第二列写成 \((y^{(2)}, \mathbf{y}_2)\)。也就是说，\(\mathbf{y}_2\) 是该列的 \(2,\ldots, n\) 个条目。定义
 
-\[ F_2 = I_{(n-1) \times (n-1)} - 2 \mathbf{z}_2 \mathbf{z}_2^T \quad \text{其中} \quad \mathbf{z}_2 = \frac{\|\mathbf{y}_2\| \,\mathbf{e}_1^{(n-1)} - \mathbf{y}_2}{\|\|\mathbf{y}_2\| \,\mathbf{e}_1^{(n-1)} - \mathbf{y}_2\|} \]
+$$ F_2 = I_{(n-1) \times (n-1)} - 2 \mathbf{z}_2 \mathbf{z}_2^T \quad \text{其中} \quad \mathbf{z}_2 = \frac{\|\mathbf{y}_2\| \,\mathbf{e}_1^{(n-1)} - \mathbf{y}_2}{\|\|\mathbf{y}_2\| \,\mathbf{e}_1^{(n-1)} - \mathbf{y}_2\|} $$
 
 其中现在 \(\mathbf{e}_1^{(n-1)} \in \mathbb{R}^{n-1}\)。根据 *Householder 引理*，我们有 \(F_2 \mathbf{y}_2 = \|\mathbf{y}_2\| \mathbf{e}_1^{(n-1)}\)。可以证明当 \(A\) 的列线性无关时，\(\mathbf{y}_2 \neq \mathbf{0}\)。（试试看！）
 
 将 \(H_2\) 应用到 \(H_1 A\) 上保持第一行和第一列，并在第二列下方引入零。为了看到这一点，首先将 \(H_1 A\) 重写为分块形式
 
-\[\begin{split} H_1 A = \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & G_2 \end{pmatrix} \end{split}\]
+$$\begin{split} H_1 A = \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & G_2 \end{pmatrix} \end{split}$$
 
 其中我们使用了关于 \(H_1 A\) 的第一列的先前观察，并且 \(\mathbf{g}_2 \in \mathbb{R}^{m-1}\)，\(G_2 \in \mathbb{R}^{(n-1)\times (m-1)}\)。一个需要注意的重要点是：\(G_2\) 的第一列等于 \(\mathbf{y}_2\)。现在乘以 \(H_2\) 来得到
 
-\[\begin{split} H_2 H_1 A = \begin{pmatrix} 1 & \mathbf{0} \\ \mathbf{0} & F_2 \end{pmatrix} \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & G_2 \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & F_2 G_2 \end{pmatrix}. \end{split}\]
+$$\begin{split} H_2 H_1 A = \begin{pmatrix} 1 & \mathbf{0} \\ \mathbf{0} & F_2 \end{pmatrix} \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & G_2 \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & F_2 G_2 \end{pmatrix}. \end{split}$$
 
 通过逐列计算 \(F_2 G_2\) 我们得到
 
-\[ F_2 G_2 = \begin{pmatrix} F_2 \mathbf{y}_2 & F_2 (G_2)_{\cdot,2} & \cdots & F_2 (G_2)_{\cdot,m-1} \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_2\| \mathbf{e}_1^{(n-1)} & F_2 (G_2)_{\cdot,2} & \cdots & F_2 (G_2)_{\cdot,m-1}, \end{pmatrix} \]
+$$ F_2 G_2 = \begin{pmatrix} F_2 \mathbf{y}_2 & F_2 (G_2)_{\cdot,2} & \cdots & F_2 (G_2)_{\cdot,m-1} \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_2\| \mathbf{e}_1^{(n-1)} & F_2 (G_2)_{\cdot,2} & \cdots & F_2 (G_2)_{\cdot,m-1}, \end{pmatrix} $$
 
 \((G_2)_{\cdot,j}\) 是 \(G_2\) 的第 \(j\) 列。因此，\(H_2 H_1 A\) 的第二列除了前两个元素外，其余都是零。
 
 以此类推。在第 \(k\) 步，我们将 \(H_{k-1} \cdots H_1 A\) 的第 \(k\) 列分为前 \(k-1\) 个和最后 \(n-k+1\) 个元素 \((\mathbf{y}^{(k)}, \mathbf{y}_k)\)，并形成矩阵
 
-\[\begin{split} H_k = \begin{pmatrix} I_{(k-1)\times (k-1)} & \mathbf{0} \\ \mathbf{0} & F_k \end{pmatrix} \end{split}\]
+$$\begin{split} H_k = \begin{pmatrix} I_{(k-1)\times (k-1)} & \mathbf{0} \\ \mathbf{0} & F_k \end{pmatrix} \end{split}$$
 
 其中
 
-\[ F_k = I_{(n-k+1) \times (n-k+1)} - 2 \mathbf{z}_k \mathbf{z}_k^T \quad \text{其中} \quad \mathbf{z}_k = \frac{\|\mathbf{y}_k\| \,\mathbf{e}_1^{(n-k+1)} - \mathbf{y}_k}{\|\|\mathbf{y}_k\| \,\mathbf{e}_1^{(n-k+1)} - \mathbf{y}_k\|}. \]
+$$ F_k = I_{(n-k+1) \times (n-k+1)} - 2 \mathbf{z}_k \mathbf{z}_k^T \quad \text{其中} \quad \mathbf{z}_k = \frac{\|\mathbf{y}_k\| \,\mathbf{e}_1^{(n-k+1)} - \mathbf{y}_k}{\|\|\mathbf{y}_k\| \,\mathbf{e}_1^{(n-k+1)} - \mathbf{y}_k\|}. $$
 
 这次保留了前 \(k-1\) 行和列，同时在第 \(k\) 列的对角线下方引入了零。我们省略了细节（试试看！）。
 
 我们在 Python 中实现上述过程。我们需要以下函数。对于 \(\alpha \in \mathbb{R}\)，令 \(\alpha\) 的符号为
 
-\[\begin{split} \mathrm{sign}(\alpha) = \begin{cases} 1 & \text{如果} \alpha > 0\\ 0 & \text{如果} \alpha = 0\\ -1 & \text{如果} \alpha < 0 \end{cases} \end{split}\]
+$$\begin{split} \mathrm{sign}(\alpha) = \begin{cases} 1 & \text{如果} \alpha > 0\\ 0 & \text{如果} \alpha = 0\\ -1 & \text{如果} \alpha < 0 \end{cases} \end{split}$$
 
 在 Python 中，这是通过使用函数 `numpy.sign` 来实现的。
 
@@ -578,15 +578,15 @@ d) 通过在矩阵\(A\)的整个矩阵中迭代引入零。
 
 *证明：* *(Gram-Schmidt)* 归纳的第一步已在上面描述。然后一般的归纳步骤如下。假设我们已经构造了正交向量 \(\mathbf{q}_1,\ldots,\mathbf{q}_{j-1}\)，使得
 
-\[ U_{j-1} := \mathrm{span}(\mathbf{q}_1,\ldots,\mathbf{q}_{j-1}) = \mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j-1}). \]
+$$ U_{j-1} := \mathrm{span}(\mathbf{q}_1,\ldots,\mathbf{q}_{j-1}) = \mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j-1}). $$
 
 *构造 \(\mathbf{q}_j\):* 根据 *正交列表的性质*，\(\{\mathbf{q}\}_{i=1}^{j-1}\) 是一个独立的列表，因此形成 \(U_{j-1}\) 的正交基。因此，我们可以计算 \(\mathbf{a}_j\) 在 \(U_{j-1}\) 上的正交投影：
 
-\[ \mathrm{proj}_{U_{j-1}}\mathbf{a}_j = \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i, \]
+$$ \mathrm{proj}_{U_{j-1}}\mathbf{a}_j = \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i, $$
 
 其中我们定义 \(r_{ij} = \langle \mathbf{q}_i , \mathbf{a}_j\rangle\)。并且我们设定
 
-\[ \mathbf{v}_j = \mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j = \mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i \quad \text{和} \quad \mathbf{q}_j = \frac{\mathbf{v}_j}{\|\mathbf{v}_j\|}. \]
+$$ \mathbf{v}_j = \mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j = \mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i \quad \text{和} \quad \mathbf{q}_j = \frac{\mathbf{v}_j}{\|\mathbf{v}_j\|}. $$
 
 最后一步之所以可能，是因为：
 
@@ -602,11 +602,11 @@ d) 通过在矩阵\(A\)的整个矩阵中迭代引入零。
 
 *证明：* 通过构造，
 
-\[ \mathbf{q}_j = \frac{1}{\|\mathbf{v}_j\|} \left\{\mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j\right\} = \frac{1}{\|\mathbf{v}_j\|} \mathbf{a}_j + \frac{1}{\|\mathbf{v}_j\|} \mathrm{proj}_{U_{j-1}}\mathbf{a}_j. \]
+$$ \mathbf{q}_j = \frac{1}{\|\mathbf{v}_j\|} \left\{\mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j\right\} = \frac{1}{\|\mathbf{v}_j\|} \mathbf{a}_j + \frac{1}{\|\mathbf{v}_j\|} \mathrm{proj}_{U_{j-1}}\mathbf{a}_j. $$
 
 根据正交投影的定义，
 
-\[ \mathrm{proj}_{U_{j-1}}\mathbf{a}_j \in U_{j-1}= \mathrm{span} (\mathbf{a}_1,\ldots,\mathbf{a}_{j-1}) \subseteq \mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j}). \]
+$$ \mathrm{proj}_{U_{j-1}}\mathbf{a}_j \in U_{j-1}= \mathrm{span} (\mathbf{a}_1,\ldots,\mathbf{a}_{j-1}) \subseteq \mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j}). $$
 
 因此，我们将 \(\mathbf{q}_j\) 写成了 \(\mathrm{span}(\mathbf{a}_1,\ldots,\mathbf{a}_{j})\) 中向量的线性组合。这就证明了该命题。 \(\square\)
 
@@ -614,7 +614,7 @@ d) 通过在矩阵\(A\)的整个矩阵中迭代引入零。
 
 *证明：* 展开上述计算，\(\mathbf{a}_j\) 可以重新写成以下 \(\mathbf{q}_1,\ldots,\mathbf{q}_j\) 的线性组合
 
-\[\begin{align*} \mathbf{a}_j &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \mathbf{v}_j\\ &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \|\mathbf{v}_j\| \mathbf{q}_j\\ &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \|\mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j\| \mathbf{q}_j\\ &= \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + \left\|\mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij}\,\mathbf{q}_i\right\| \,\mathbf{q}_j\\ &= \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + r_{jj} \,\mathbf{q}_j, \end{align*}\]
+$$\begin{align*} \mathbf{a}_j &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \mathbf{v}_j\\ &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \|\mathbf{v}_j\| \mathbf{q}_j\\ &= \mathrm{proj}_{U_{j-1}}\mathbf{a}_j + \|\mathbf{a}_j - \mathrm{proj}_{U_{j-1}}\mathbf{a}_j\| \mathbf{q}_j\\ &= \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + \left\|\mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij}\,\mathbf{q}_i\right\| \,\mathbf{q}_j\\ &= \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + r_{jj} \,\mathbf{q}_j, \end{align*}$$
 
 其中我们定义了 \(r_{jj} = \left\|\mathbf{a}_j - \sum_{i=1}^{j-1} r_{ij}\,\mathbf{q}_i\right\| = \|\mathbf{v}_j\|\). \(\square\)
 
@@ -678,15 +678,15 @@ print(R)
 
 让
 
-\[\begin{split} A = \begin{pmatrix} | & & | \\ \mathbf{a}_1 & \ldots & \mathbf{a}_m \\ | & & | \end{pmatrix} \quad \text{和} \quad Q = \begin{pmatrix} | & & | \\ \mathbf{q}_1 & \ldots & \mathbf{q}_m \\ | & & | \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} | & & | \\ \mathbf{a}_1 & \ldots & \mathbf{a}_m \\ | & & | \end{pmatrix} \quad \text{和} \quad Q = \begin{pmatrix} | & & | \\ \mathbf{q}_1 & \ldots & \mathbf{q}_m \\ | & & | \end{pmatrix}. \end{split}$$
 
 回想一下，对于所有的 \(j\)，
 
-\[ \mathbf{a}_j = \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + r_{jj} \,\mathbf{q}_j, \]
+$$ \mathbf{a}_j = \sum_{i=1}^{j-1} r_{ij} \,\mathbf{q}_i + r_{jj} \,\mathbf{q}_j, $$
 
 Gram-Schmidt 算法的输出可以写成以下紧凑形式，称为 [QR 分解](https://en.wikipedia.org/wiki/QR_decomposition)\(\idx{QR decomposition}\xdi\)。
 
-\[ A = QR \]
+$$ A = QR $$
 
 其中 \(m \times m\) 矩阵 \(R\) 的第 \(i\) 列包含产生 \(\mathbf{a}_i\) 的 \(\mathbf{q}_j\) 的线性组合的系数。
 
@@ -696,7 +696,7 @@ Gram-Schmidt 算法的输出可以写成以下紧凑形式，称为 [QR 分解](
 
 一个上三角矩阵看起来是这样的
 
-\[\begin{split} R = \begin{bmatrix} r_{1,1} & r_{1,2} & r_{1,3} & \ldots & r_{1,n} \\ 0 & r_{2,2} & r_{2,3} & \ldots & r_{2,n} \\ & 0 & \ddots & \ddots & \vdots \\ & & \ddots & \ddots & r_{n-1,n} \\ 0 & & & 0 & r_{n,n} \end{bmatrix}. \end{split}\]
+$$\begin{split} R = \begin{bmatrix} r_{1,1} & r_{1,2} & r_{1,3} & \ldots & r_{1,n} \\ 0 & r_{2,2} & r_{2,3} & \ldots & r_{2,n} \\ & 0 & \ddots & \ddots & \vdots \\ & & \ddots & \ddots & r_{n-1,n} \\ 0 & & & 0 & r_{n,n} \end{bmatrix}. \end{split}$$
 
 **备注：**
 
@@ -704,7 +704,7 @@ a) 如果输入向量 \(\mathbf{a}_1,\ldots,\mathbf{a}_m\) 不是线性无关的
 
 b) 我们在这里推导出的 QR 分解在技术上称为简化 QR 分解。在完全 QR 分解\(\idx{full QR decomposition}\xdi\)中，矩阵 \(Q\) 是方阵且正交。换句话说，这样的 \(Q\) 的列构成了 \(\mathbb{R}^n\) 的完整空间的正交基。设 \(A = Q_1 R_1\) 是通过 Gram-Schmidt 算法获得的简化 QR 分解。那么 \(Q_1\) 的列构成了 \(\mathrm{col}(A)\) 的正交基，并且可以通过添加更多的向量 \(\mathbf{q}_{m+1},\ldots,\mathbf{q}_{n}\) 来完成 \(\mathbb{R}^n\) 的正交基。设 \(Q_2\) 是列向量为 \(\mathbf{q}_{m+1},\ldots,\mathbf{q}_{n}\) 的矩阵。那么 \(A\) 的完全 QR 分解是
 
-\[\begin{split} Q = \begin{pmatrix} Q_1 & Q_2 \end{pmatrix} \qquad R = \begin{pmatrix} R_1\\ \mathbf{0}_{(n-m)\times m} \end{pmatrix} \end{split}\]
+$$\begin{split} Q = \begin{pmatrix} Q_1 & Q_2 \end{pmatrix} \qquad R = \begin{pmatrix} R_1\\ \mathbf{0}_{(n-m)\times m} \end{pmatrix} \end{split}$$
 
 其中 \(\mathbf{0}_{(n-m)\times m}\) 是大小为 \((n-m)\times m\) 的全零矩阵。计算完全 QR 分解的数值方法将在后面的子节中介绍。
 
@@ -714,11 +714,11 @@ c) 格拉姆-施密特算法在几何上很有吸引力，但众所周知，它�
 
 设 \(A \in \mathbb{R}^{n\times m}\) 为一个 \(n\times m\) 的矩阵，其列线性无关，且设 \(\mathbf{b} \in \mathbb{R}^n\) 为一个向量。回忆一下，线性最小二乘问题的解 \(\mathbf{x}^*\) 满足
 
-\[ \min_{\mathbf{x} \in \mathbb{R}^m} \|A \mathbf{x} - \mathbf{b}\|² \]
+$$ \min_{\mathbf{x} \in \mathbb{R}^m} \|A \mathbf{x} - \mathbf{b}\|² $$
 
 满足正则方程
 
-\[ A^T A \mathbf{x}^* = A^T \mathbf{b}. \]
+$$ A^T A \mathbf{x}^* = A^T \mathbf{b}. $$
 
 **求解正则方程** 在第一门线性代数课程中，人们学习如何求解线性系统，如正则方程。为此，一个常见的方法是高斯消元法或行简化。引用 [维基百科](https://en.wikipedia.org/wiki/Gaussian_elimination)：
 
@@ -734,17 +734,17 @@ c) 格拉姆-施密特算法在几何上很有吸引力，但众所周知，它�
 
 **示例：** 这里有一个回代的具体示例。考虑系统 \(R \mathbf{x} = \mathbf{b}\)，其中
 
-\[\begin{split} R = \begin{pmatrix} 2 & -1 & 2\\ 0 & 1 & 1\\ 0 & 0 & 2 \end{pmatrix} \qquad \mathbf{b} = \begin{pmatrix} 0\\ -2\\ 0 \end{pmatrix}. \end{split}\]
+$$\begin{split} R = \begin{pmatrix} 2 & -1 & 2\\ 0 & 1 & 1\\ 0 & 0 & 2 \end{pmatrix} \qquad \mathbf{b} = \begin{pmatrix} 0\\ -2\\ 0 \end{pmatrix}. \end{split}$$
 
 这对应于线性方程
 
-\[\begin{align*} &2 x_1 - x_2 + 2x_3 = 0\\ &x_2 + x_3 = -2\\ &2 x_3 = 0 \end{align*}\]
+$$\begin{align*} &2 x_1 - x_2 + 2x_3 = 0\\ &x_2 + x_3 = -2\\ &2 x_3 = 0 \end{align*}$$
 
 第三个方程给出 \(x_3 = 0/2 = 0\)。将其代入第二个方程，我们得到 \(x_2 = -2 - x_3 = -2\)。将其代入第一个方程，我们最终得到 \(x_1 = (x_2 - 2 x_3)/2 = -1\)。所以解是 \(\mathbf{x} = (-1,-2,0)\)。\(\lhd\)
 
 通常，解三角方程组的工作方式如下。设 \(R = (r_{i,j})_{i,j} \in \mathbb{R}^{m \times m}\) 是上三角矩阵，设 \(\mathbf{b} \in \mathbb{R}^m\) 是左端向量，即我们想要解这个系统
 
-\[ R \mathbf{x} = \mathbf{b}. \]
+$$ R \mathbf{x} = \mathbf{b}. $$
 
 从系统的最后一行开始，\(r_{m,m} x_m = b_m\) 或 \(x_m = b_m/r_{m,m}\)，假设 \(r_{m,m} \neq 0\)。移动到倒数第二行，\(r_{m-1,m-1} x_{m-1} + r_{m-1,m} x_m = b_{m-1}\) 或 \(x_{m-1} = (b_{m-1} - r_{m-1,m} x_m)/r_{m-1,m-1}\)，假设 \(r_{m-1,m-1} \neq 0\)。依此类推。这个过程被称为[回代](https://en.wikipedia.org/wiki/Triangular_matrix#Forward_and_back_substitution)。
 
@@ -776,33 +776,33 @@ def forwardsubs(L,b):
 
 1- 通过 QR 分解构造 \(\mathrm{col}(A)\) 的正交基
 
-\[ A = QR. \]
+$$ A = QR. $$
 
 2- 构造正交投影矩阵
 
-\[ P = Q Q^T. \]
+$$ P = Q Q^T. $$
 
 3- 将投影应用于 \(\mathbf{b}\) 并观察，根据正则方程的证明，\(\mathbf{x}^*\) 满足
 
-\[ A \mathbf{x}^* = Q Q^T \mathbf{b}. \]
+$$ A \mathbf{x}^* = Q Q^T \mathbf{b}. $$
 
 4- 将 \(A\) 的 QR 分解代入以得到
 
-\[ QR \mathbf{x}^* = Q Q^T \mathbf{b}. \]
+$$ QR \mathbf{x}^* = Q Q^T \mathbf{b}. $$
 
 5- 两边乘以 \(Q^T\) 并使用 \(Q^T Q = I_{m \times m}\)
 
-\[ R \mathbf{x}^* = Q^T \mathbf{b}. \]
+$$ R \mathbf{x}^* = Q^T \mathbf{b}. $$
 
 6- 由于 \(R\) 通过回代是上三角的，解这个系统对于 \(\mathbf{x}^*\) 来说是直接的。
 
 **定理** **(通过 QR 的最小二乘法)** \(\idx{least squares via QR}\xdi\) 设 \(A \in \mathbb{R}^{n\times m}\) 是一个 \(n\times m\) 矩阵，其列线性无关，设 \(\mathbf{b} \in \mathbb{R}^n\) 是一个向量，设 \(A = QR\) 是 \(A\) 的 QR 分解。线性最小二乘问题的解
 
-\[ \min_{\mathbf{x} \in \mathbb{R}^m} \|A \mathbf{x} - \mathbf{b}\|². \]
+$$ \min_{\mathbf{x} \in \mathbb{R}^m} \|A \mathbf{x} - \mathbf{b}\|². $$
 
 满足
 
-\[ R \mathbf{x}^* = Q^T \mathbf{b}. \]
+$$ R \mathbf{x}^* = Q^T \mathbf{b}. $$
 
 \(\sharp\)
 
@@ -848,7 +848,7 @@ print(x)
 
 正交矩阵的一个重要性质是它们保持内积：如果 \(Q \in \mathbb{R}^{m\times m}\) 是正交的，那么对于任何 \(\mathbf{x}, \mathbf{y} \in \mathbb{R}^m\)
 
-\[ \langle Q \mathbf{x}, Q \mathbf{y} \rangle = (Q \mathbf{x})^T Q \mathbf{y} = \mathbf{x}^T Q^T Q \mathbf{y} = \mathbf{x}^T \mathbf{y} = \langle \mathbf{x}, \mathbf{y} \rangle. \]
+$$ \langle Q \mathbf{x}, Q \mathbf{y} \rangle = (Q \mathbf{x})^T Q \mathbf{y} = \mathbf{x}^T Q^T Q \mathbf{y} = \mathbf{x}^T \mathbf{y} = \langle \mathbf{x}, \mathbf{y} \rangle. $$
 
 特别地，正交矩阵保持范数和角度。
 
@@ -858,7 +858,7 @@ print(x)
 
 **定义** **(Householder 反射)** \(\idx{Householder reflection}\xdi\) 设 \(\mathbf{z} \in \mathbb{R}^m\) 为一个单位向量，设 \(W\) 为与它正交的超平面。通过 \(W\) 的反射由以下给出
 
-\[ H = I_{m \times m} - 2 \mathbf{z} \mathbf{z}^T. \]
+$$ H = I_{m \times m} - 2 \mathbf{z} \mathbf{z}^T. $$
 
 这被称为 Householder 反射。\(\natural\)
 
@@ -870,29 +870,29 @@ print(x)
 
 *证明* 我们检查定义：
 
-\[\begin{align*} H^T H &= (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)^T (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)\\ &= (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T) (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)\\ &= I_{m\times m} - 2\mathbf{z}\mathbf{z}^T - 2\mathbf{z}\mathbf{z}^T + 4 \mathbf{z}\mathbf{z}^T\mathbf{z}\mathbf{z}^T\\ &= I_{m\times m} - 2\mathbf{z}\mathbf{z}^T - 2\mathbf{z}\mathbf{z}^T + 4 \mathbf{z}\mathbf{z}^T \end{align*}\]
+$$\begin{align*} H^T H &= (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)^T (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)\\ &= (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T) (I_{m\times m} - 2\mathbf{z}\mathbf{z}^T)\\ &= I_{m\times m} - 2\mathbf{z}\mathbf{z}^T - 2\mathbf{z}\mathbf{z}^T + 4 \mathbf{z}\mathbf{z}^T\mathbf{z}\mathbf{z}^T\\ &= I_{m\times m} - 2\mathbf{z}\mathbf{z}^T - 2\mathbf{z}\mathbf{z}^T + 4 \mathbf{z}\mathbf{z}^T \end{align*}$$
 
 这等于 \(I_{m\times m}\)。计算 \(H H^T\) 的过程是相同的。\(\square\)
 
 **通过引入零进行 QR 分解** 我们回到 QR 分解。构造矩阵 \(A \in \mathbb{R}^{n \times m}\) 的 (满) QR 分解的一种方法是找到一个正交矩阵序列 \(H_1, \ldots, H_m\)，使得 \(A\) 三角化：
 
-\[ H_m \cdots H_2 H_1 A = R \]
+$$ H_m \cdots H_2 H_1 A = R $$
 
 对于上三角矩阵 \(R\)。事实上，根据正交矩阵的性质，我们随后有
 
-\[ A = H_1^T H_2^T \cdots H_m^T H_m \cdots H_2 H_1 A = H_1^T H_2^T \cdots H_m^T R \]
+$$ A = H_1^T H_2^T \cdots H_m^T H_m \cdots H_2 H_1 A = H_1^T H_2^T \cdots H_m^T R $$
 
 其中 \(Q = H_1^T H_2^T \cdots H_m^T\) 本身作为正交矩阵的乘积也是正交的。因此，为了继续进行，我们需要识别出具有在主对角线下方引入零的效果的正交矩阵，如图所示：
 
-\[\begin{split} H_2 H_1 A = \begin{pmatrix} \times & \times & \times & \times & \times\\ 0 & \times & \times & \times & \times\\ 0 & 0 & \times & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ \end{pmatrix}. \end{split}\]
+$$\begin{split} H_2 H_1 A = \begin{pmatrix} \times & \times & \times & \times & \times\\ 0 & \times & \times & \times & \times\\ 0 & 0 & \times & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ 0 & 0 & \boxed{\times} & \times & \times\\ \end{pmatrix}. \end{split}$$
 
 结果表明，一个精心选择的豪斯霍尔德反射可以做到这一点。设 \(\mathbf{y}_1\) 为 \(A\) 的第一列，并取
 
-\[ \mathbf{z}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|} \quad \text{and} \quad H_1 = I_{n\times n} - 2\mathbf{z}_1\mathbf{z}_1^T \]
+$$ \mathbf{z}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|} \quad \text{and} \quad H_1 = I_{n\times n} - 2\mathbf{z}_1\mathbf{z}_1^T $$
 
 其中 \(\mathbf{e}_1^{(n)}\) 是 \(\mathbb{R}^n\) 的标准基中的第一个向量。如图所示，这个选择将 \(\mathbf{y}_1\) 映射到
 
-\[\begin{split} \|\mathbf{y}_1\| \mathbf{e}_1^{(n)} = \begin{pmatrix} \|\mathbf{y}_1\|\\ 0 \\ \vdots \\ 0 \end{pmatrix}. \end{split}\]
+$$\begin{split} \|\mathbf{y}_1\| \mathbf{e}_1^{(n)} = \begin{pmatrix} \|\mathbf{y}_1\|\\ 0 \\ \vdots \\ 0 \end{pmatrix}. \end{split}$$
 
 (显然，如果 \(H_1 \mathbf{y}_1\) 与 \(\mathbf{e}_1^{(n)}\) 成比例，那么它只能是 \(\|\mathbf{y}_1\| \mathbf{e}_1^{(n)}\) 或 \(-\|\mathbf{y}_1\| \mathbf{e}_1^{(n)}\)。证明它！)
 
@@ -900,7 +900,7 @@ print(x)
 
 **引理** **(豪斯霍尔德)** \(\idx{Householder lemma}\xdi\) 设 \(\mathbf{y}_1\), \(\mathbf{z}_1\) 和 \(H_1\) 如上所述。那么
 
-\[ H_1 \mathbf{y}_1 = \|\mathbf{y}_1\| \mathbf{e}_1^{(n)}. \]
+$$ H_1 \mathbf{y}_1 = \|\mathbf{y}_1\| \mathbf{e}_1^{(n)}. $$
 
 \(\flat\)
 
@@ -908,71 +908,71 @@ print(x)
 
 *证明：* 注意到
 
-\[\begin{align*} \|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|² &= (\|\mathbf{y}_1\| - y_{1,1})² + \sum_{j=2}^n y_{1,j}²\\ &= \|\mathbf{y}_1\|² -2 \|\mathbf{y}_1\| y_{1,1} + y_{1,1}² + \sum_{j=2}^n y_{1,j}²\\ &= 2(\|\mathbf{y}_1\|² - \|\mathbf{y}_1\| y_{1,1}) \end{align*}\]
+$$\begin{align*} \|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|² &= (\|\mathbf{y}_1\| - y_{1,1})² + \sum_{j=2}^n y_{1,j}²\\ &= \|\mathbf{y}_1\|² -2 \|\mathbf{y}_1\| y_{1,1} + y_{1,1}² + \sum_{j=2}^n y_{1,j}²\\ &= 2(\|\mathbf{y}_1\|² - \|\mathbf{y}_1\| y_{1,1}) \end{align*}$$
 
 和
 
-\[\begin{align*} 2 \mathbf{z}_1 \mathbf{z}_1^T \mathbf{y}_1 &= 2 \mathbf{z}_1 \frac{\|\mathbf{y}_1\| \,(\mathbf{e}_1^{(n)})^T \mathbf{y}_1 - \mathbf{y}_1^T \mathbf{y}_1}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|}\\ &= 2 \frac{\|\mathbf{y}_1\| y_{1,1} - \|\mathbf{y}_1\|²}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|²} (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1)\\ &= - (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1) \end{align*}\]
+$$\begin{align*} 2 \mathbf{z}_1 \mathbf{z}_1^T \mathbf{y}_1 &= 2 \mathbf{z}_1 \frac{\|\mathbf{y}_1\| \,(\mathbf{e}_1^{(n)})^T \mathbf{y}_1 - \mathbf{y}_1^T \mathbf{y}_1}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|}\\ &= 2 \frac{\|\mathbf{y}_1\| y_{1,1} - \|\mathbf{y}_1\|²}{\|\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1\|²} (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1)\\ &= - (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1) \end{align*}$$
 
 其中我们使用了之前的方程。因此
 
-\[ H_1 \mathbf{y}_1 = (I_{n\times n} - 2\mathbf{z}_1\mathbf{z}_1^T) \,\mathbf{y}_1 = \mathbf{y}_1 + (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1) = \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}. \]
+$$ H_1 \mathbf{y}_1 = (I_{n\times n} - 2\mathbf{z}_1\mathbf{z}_1^T) \,\mathbf{y}_1 = \mathbf{y}_1 + (\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} - \mathbf{y}_1) = \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}. $$
 
 这就证明了该命题。 \(\square\)
 
 结果表明，将 \(A\) 乘以 \(H_1\) 在第一列下方引入了零。为了看到这一点，回想一下矩阵-矩阵乘积的一种解释是，第二个矩阵的每一列都乘以第一个矩阵。根据**豪斯霍尔德引理**，将 \(H_1\) 应用到 \(A\) 上给出
 
-\[ H_1 A = \begin{pmatrix} H_1 \mathbf{y}_1 & H_1 A_{\cdot,2} & \cdots & H_1 A_{\cdot,m} \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_1\| \mathbf{e}_1^{(n)} & H_1 A_{\cdot,2} & \cdots & H_1 A_{\cdot,m} \end{pmatrix} \]
+$$ H_1 A = \begin{pmatrix} H_1 \mathbf{y}_1 & H_1 A_{\cdot,2} & \cdots & H_1 A_{\cdot,m} \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_1\| \mathbf{e}_1^{(n)} & H_1 A_{\cdot,2} & \cdots & H_1 A_{\cdot,m} \end{pmatrix} $$
 
 因此，第一列现在与 \(\mathbf{e}_1\) 成正比，除了第一个元素外，其余元素都是零。（如果 \(\mathbf{y}_1\) 已经等于 \(\|\mathbf{y}_1\| \mathbf{e}_1^{(n)}\)，我们应该怎么办？）
 
 结果表明，还有另一种豪斯霍尔德反射的选择。实际上，可以证明
 
-\[ \tilde{\mathbf{z}}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1}{\| \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1\|} \quad \text{和} \quad \tilde{H}_1 = I_{n\times n} - 2\tilde{\mathbf{z}}_1 \tilde{\mathbf{z}}_1^T \]
+$$ \tilde{\mathbf{z}}_1 = \frac{\|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1}{\| \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)} + \mathbf{y}_1\|} \quad \text{和} \quad \tilde{H}_1 = I_{n\times n} - 2\tilde{\mathbf{z}}_1 \tilde{\mathbf{z}}_1^T $$
 
 \(\tilde{H}_1 \mathbf{y}_1 = - \|\mathbf{y}_1\| \,\mathbf{e}_1^{(n)}\)（试试看！）
 
 **将所有内容整合在一起** 我们已经展示了如何在矩阵的第一列下方引入零。要在第二列下方引入零，我们使用一个分块矩阵。回想一下，如果 \(A_{ij} \in \mathbb{R}^{n_i \times m_j}\) 且 \(B_{ij} \in \mathbb{R}^{m_i \times p_j}\) 对于 \(i,j = 1, 2\)，那么我们有以下公式
 
-\[\begin{split} \begin{pmatrix} A_{11} & A_{12}\\ A_{21} & A_{22} \end{pmatrix} \begin{pmatrix} B_{11} & B_{12}\\ B_{21} & B_{22} \end{pmatrix} = \begin{pmatrix} A_{11} B_{11} + A_{12} B_{21} & A_{11} B_{12} + A_{12} B_{22}\\ A_{21} B_{11} + A_{22} B_{21} & A_{21} B_{12} + A_{22} B_{22} \end{pmatrix}. \end{split}\]
+$$\begin{split} \begin{pmatrix} A_{11} & A_{12}\\ A_{21} & A_{22} \end{pmatrix} \begin{pmatrix} B_{11} & B_{12}\\ B_{21} & B_{22} \end{pmatrix} = \begin{pmatrix} A_{11} B_{11} + A_{12} B_{21} & A_{11} B_{12} + A_{12} B_{22}\\ A_{21} B_{11} + A_{22} B_{21} & A_{21} B_{12} + A_{22} B_{22} \end{pmatrix}. \end{split}$$
 
 现在考虑以下分块矩阵
 
-\[\begin{split} H_2 = \begin{pmatrix} 1 & \mathbf{0} \\ \mathbf{0} & F_2 \end{pmatrix} \end{split}\]
+$$\begin{split} H_2 = \begin{pmatrix} 1 & \mathbf{0} \\ \mathbf{0} & F_2 \end{pmatrix} \end{split}$$
 
 其中 \(F_2\) 是以下豪斯霍尔德反射。将 \(H_1 A\) 的第二列写成 \((y^{(2)}, \mathbf{y}_2)\)。也就是说，\(\mathbf{y}_2\) 是该列的第 \(2,\ldots, n\) 个条目。定义
 
-\[ F_2 = I_{(n-1) \times (n-1)} - 2 \mathbf{z}_2 \mathbf{z}_2^T \quad \text{with} \quad \mathbf{z}_2 = \frac{\|\mathbf{y}_2\| \,\mathbf{e}_1^{(n-1)} - \mathbf{y}_2}{\|\|\mathbf{y}_2\| \,\mathbf{e}_1^{(n-1)} - \mathbf{y}_2\|} \]
+$$ F_2 = I_{(n-1) \times (n-1)} - 2 \mathbf{z}_2 \mathbf{z}_2^T \quad \text{with} \quad \mathbf{z}_2 = \frac{\|\mathbf{y}_2\| \,\mathbf{e}_1^{(n-1)} - \mathbf{y}_2}{\|\|\mathbf{y}_2\| \,\mathbf{e}_1^{(n-1)} - \mathbf{y}_2\|} $$
 
 其中现在 \(\mathbf{e}_1^{(n-1)} \in \mathbb{R}^{n-1}\)。根据 *豪斯霍尔德引理*，我们有 \(F_2 \mathbf{y}_2 = \|\mathbf{y}_2\| \mathbf{e}_1^{(n-1)}\)。可以证明，当 \(A\) 的列线性无关时，\(\mathbf{y}_2 \neq \mathbf{0}\)。（试试看！）
 
 应用 \(H_2\) 到 \(H_1 A\) 保持第一行和列，并在第二列的下方引入零。为了看到这一点，首先将 \(H_1 A\) 重写为分块形式
 
-\[\begin{split} H_1 A = \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & G_2 \end{pmatrix} \end{split}\]
+$$\begin{split} H_1 A = \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & G_2 \end{pmatrix} \end{split}$$
 
 其中我们使用了我们之前关于 \(H_1 A\) 的第一列的观察，并且 \(\mathbf{g}_2 \in \mathbb{R}^{m-1}\)，\(G_2 \in \mathbb{R}^{(n-1)\times (m-1)}\)。一个需要注意的重要点是：\(G_2\) 的第一列等于 \(\mathbf{y}_2\)。现在乘以 \(H_2\) 得到
 
-\[\begin{split} H_2 H_1 A = \begin{pmatrix} 1 & \mathbf{0} \\ \mathbf{0} & F_2 \end{pmatrix} \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & G_2 \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & F_2 G_2 \end{pmatrix}. \end{split}\]
+$$\begin{split} H_2 H_1 A = \begin{pmatrix} 1 & \mathbf{0} \\ \mathbf{0} & F_2 \end{pmatrix} \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & G_2 \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_1\| & \mathbf{g}_2^T \\ \mathbf{0} & F_2 G_2 \end{pmatrix}. \end{split}$$
 
 按列计算分块 \(F_2 G_2\) 我们得到
 
-\[ F_2 G_2 = \begin{pmatrix} F_2 \mathbf{y}_2 & F_2 (G_2)_{\cdot,2} & \cdots & F_2 (G_2)_{\cdot,m-1} \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_2\| \mathbf{e}_1^{(n-1)} & F_2 (G_2)_{\cdot,2} & \cdots & F_2 (G_2)_{\cdot,m-1}, \end{pmatrix} \]
+$$ F_2 G_2 = \begin{pmatrix} F_2 \mathbf{y}_2 & F_2 (G_2)_{\cdot,2} & \cdots & F_2 (G_2)_{\cdot,m-1} \end{pmatrix} = \begin{pmatrix} \|\mathbf{y}_2\| \mathbf{e}_1^{(n-1)} & F_2 (G_2)_{\cdot,2} & \cdots & F_2 (G_2)_{\cdot,m-1}, \end{pmatrix} $$
 
 其中 \((G_2)_{\cdot,j}\) 是 \(G_2\) 的第 \(j\) 列。因此，\(H_2 H_1 A\) 的第二列除了前两个元素外都是零。
 
 以此类推。在第 \(k\) 步，我们将 \(H_{k-1} \cdots H_1 A\) 的第 \(k\) 列拆分为其前 \(k-1\) 个和最后 \(n-k+1\) 个条目 \((\mathbf{y}^{(k)}, \mathbf{y}_k)\)，并形成矩阵
 
-\[\begin{split} H_k = \begin{pmatrix} I_{(k-1)\times (k-1)} & \mathbf{0} \\ \mathbf{0} & F_k \end{pmatrix} \end{split}\]
+$$\begin{split} H_k = \begin{pmatrix} I_{(k-1)\times (k-1)} & \mathbf{0} \\ \mathbf{0} & F_k \end{pmatrix} \end{split}$$
 
 其中
 
-\[ F_k = I_{(n-k+1) \times (n-k+1)} - 2 \mathbf{z}_k \mathbf{z}_k^T \quad \text{with} \quad \mathbf{z}_k = \frac{\|\mathbf{y}_k\| \,\mathbf{e}_1^{(n-k+1)} - \mathbf{y}_k}{\|\|\mathbf{y}_k\| \,\mathbf{e}_1^{(n-k+1)} - \mathbf{y}_k\|}. \]
+$$ F_k = I_{(n-k+1) \times (n-k+1)} - 2 \mathbf{z}_k \mathbf{z}_k^T \quad \text{with} \quad \mathbf{z}_k = \frac{\|\mathbf{y}_k\| \,\mathbf{e}_1^{(n-k+1)} - \mathbf{y}_k}{\|\|\mathbf{y}_k\| \,\mathbf{e}_1^{(n-k+1)} - \mathbf{y}_k\|}. $$
 
 这次保留了前 \(k-1\) 行和列，而在第 \(k\) 列的下方引入了零。我们省略了细节（试试看！）
 
 我们在 Python 中实现上述过程。我们需要以下函数。对于 \(\alpha \in \mathbb{R}\)，让 \(\alpha\) 的符号为
 
-\[\begin{split} \mathrm{sign}(\alpha) = \begin{cases} 1 & \text{if $\alpha > 0$}\\ 0 & \text{if $\alpha = 0$}\\ -1 & \text{if $\alpha < 0$} \end{cases} \end{split}\]
+$$\begin{split} \mathrm{sign}(\alpha) = \begin{cases} 1 & \text{if $\alpha > 0$}\\ 0 & \text{if $\alpha = 0$}\\ -1 & \text{if $\alpha < 0$} \end{cases} \end{split}$$
 
 在 Python 中，这是通过使用函数 `numpy.sign` ([numpy.sign](https://numpy.org/doc/stable/reference/generated/numpy.sign.html)) 来实现的。
 

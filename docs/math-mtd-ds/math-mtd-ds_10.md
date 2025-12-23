@@ -1,4 +1,4 @@
-# 2.1. 激励示例：预测销售#
+# 2.1. 激励示例：预测销售
 
 > 原文：[`mmids-textbook.github.io/chap02_ls/01_motiv/roch-mmids-ls-motiv.html`](https://mmids-textbook.github.io/chap02_ls/01_motiv/roch-mmids-ls-motiv.html)
 
@@ -46,11 +46,11 @@ plt.show()
 
 看起来这两个变量之间确实存在某种关系。大致来说，较高的电视预算与较高的销售相关联，尽管这种对应关系并不完美。为了更定量地表达这种关系，我们寻求一个函数 \(f\)，使得
 
-\[ y \approx f(x) \]
+$$ y \approx f(x) $$
 
 其中 \(x\) 表示样本电视预算，\(y\) 是相应的观察销售。例如，我们可能假设存在一个真实的 \(f\)，并且每个观察值都受到一些噪声 \(\varepsilon\) 的干扰
 
-\[ y = f(x) + \varepsilon. \]
+$$ y = f(x) + \varepsilon. $$
 
 从数据中估计这样的 \(f\) 的一个自然方法是 [\(k\)-最近邻 (\(k\)-NN) 回归](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm#k-NN_regression)\(\idx{k-NN 回归}\xdi\)。让数据的形式为 \(\{(\mathbf{x}_i, y_i)\}_{i=1}^n\)，其中 \(\mathbf{x}_i \in \mathbb{R}^d\) 且 \(y_i \in \mathbb{R}\)。在我们的情况下，\(\mathbf{x}_i\) 是第 \(i\) 个样本的（实值）电视预算（因此 \(d=1\)），而 \(y_i\) 是相应的销售额。对于每个 \(\mathbf{x}\)（不一定在数据中），我们执行以下操作：
 
@@ -103,25 +103,25 @@ plt.show()
 
 一种解决方案是对函数 \(f\) 做出更强的假设。例如，我们可以假设真实关系是（近似）线性的，即 \(y \approx \beta_0 + \beta_1 x\)，或者如果我们有 \(d\) 个预测因子
 
-\[ y \approx \beta_0 + \sum_{j=1}^d \beta_j x_j. \]
+$$ y \approx \beta_0 + \sum_{j=1}^d \beta_j x_j. $$
 
 我们如何估计适当的截距和系数？标准方法是使平方误差之和最小化
 
-\[ \sum_{i=1}^n \left(y_i - \left\{\beta_0 + \sum_{j=1}^d \beta_j (\mathbf{x}_{i})_j\right\}\right)², \]
+$$ \sum_{i=1}^n \left(y_i - \left\{\beta_0 + \sum_{j=1}^d \beta_j (\mathbf{x}_{i})_j\right\}\right)², $$
 
 其中 \((\mathbf{x}_{i})_j\) 是输入向量 \(\mathbf{x}_i \in \mathbb{R}^d\) 的第 \(j\) 个元素，\(y_i \in \mathbb{R}\) 是相应的 \(y\) 值。这被称为[多元线性回归](https://en.wikipedia.org/wiki/Linear_regression)。
 
 这是一个[最小二乘问题](https://en.wikipedia.org/wiki/Least_squares)。我们将它重写为更方便的矩阵形式，并通过向每个样本添加一个虚拟预测因子将 \(\beta_0\) 与其他 \(\beta_i\) 结合起来。令
 
-\[\begin{split} \mathbf{y} = \begin{pmatrix} y_1 \\ y_2 \\ \vdots \\ y_n \end{pmatrix}, \quad\quad A = \begin{pmatrix} 1 & \mathbf{x}_1^T \\ 1 & \mathbf{x}_2^T \\ \vdots & \vdots \\ 1 & \mathbf{x}_n^T \end{pmatrix} \quad\text{and}\quad \boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_d \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{y} = \begin{pmatrix} y_1 \\ y_2 \\ \vdots \\ y_n \end{pmatrix}, \quad\quad A = \begin{pmatrix} 1 & \mathbf{x}_1^T \\ 1 & \mathbf{x}_2^T \\ \vdots & \vdots \\ 1 & \mathbf{x}_n^T \end{pmatrix} \quad\text{and}\quad \boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_d \end{pmatrix}. \end{split}$$
 
 然后，观察以下内容
 
-\[\begin{align*} \|\mathbf{y} - A \boldsymbol{\beta}\|² &= \sum_{i=1}^n \left(y_i - (A \boldsymbol{\beta})_i\right)²\\ &= \sum_{i=1}^n \left(y_i - \left\{\beta_0 + \sum_{j=1}^d \beta_j (\mathbf{x}_{i})_j\right\}\right)². \end{align*}\]
+$$\begin{align*} \|\mathbf{y} - A \boldsymbol{\beta}\|² &= \sum_{i=1}^n \left(y_i - (A \boldsymbol{\beta})_i\right)²\\ &= \sum_{i=1}^n \left(y_i - \left\{\beta_0 + \sum_{j=1}^d \beta_j (\mathbf{x}_{i})_j\right\}\right)². \end{align*}$$
 
 线性最小二乘问题随后被表述为
 
-\[ \min_{\boldsymbol{\beta} \in \mathbb{R}^{d+1}} \|\mathbf{y} - A \boldsymbol{\beta}\|². \]
+$$ \min_{\boldsymbol{\beta} \in \mathbb{R}^{d+1}} \|\mathbf{y} - A \boldsymbol{\beta}\|². $$
 
 用话来说，我们正在寻找 \(A\) 的列的线性组合，使其在欧几里得距离上最接近 \(\mathbf{y}\)。实际上，最小化平方欧几里得距离等同于最小化其平方根，因为后者是一个增函数。
 

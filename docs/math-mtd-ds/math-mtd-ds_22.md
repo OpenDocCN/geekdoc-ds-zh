@@ -1,4 +1,4 @@
-# 3.5\. 梯度下降及其收敛性分析#
+# 3.5\. 梯度下降及其收敛性分析
 
 > 原文：[`mmids-textbook.github.io/chap03_opt/05_gd/roch-mmids-opt-gd.html`](https://mmids-textbook.github.io/chap03_opt/05_gd/roch-mmids-opt-gd.html)
 
@@ -6,7 +6,7 @@
 
 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是连续可微的。我们限制自己于无约束最小化问题，形式如下
 
-\[ \min_{\mathbf{x} \in \mathbb{R}^d} f(\mathbf{x}). \]
+$$ \min_{\mathbf{x} \in \mathbb{R}^d} f(\mathbf{x}). $$
 
 理想情况下，人们希望识别 \(f\) 的全局最小值。一种天真（naive）的方法可能是评估 \(f\) 在大量点 \(\mathbf{x}\) 上的值，比如在一个密集的网格上。然而，即使我们满足于一个近似解，并限制自己只考虑 \(f\) 的定义域的一个有界子集，这种类型的 [穷举搜索](https://en.wikipedia.org/wiki/Brute-force_search) 在高维 \(d\) 的情况下也是浪费时间和不切实际的，因为被查询的点数会随着 \(d\) 的增长而指数级增长。
 
@@ -14,21 +14,21 @@
 
 **例（最小二乘法）** 再次考虑最小二乘问题（least squares problem）
 
-\[ \min_{\mathbf{x} \in \mathbb{R}^d} \|A \mathbf{x} - \mathbf{b}\|² \]
+$$ \min_{\mathbf{x} \in \mathbb{R}^d} \|A \mathbf{x} - \mathbf{b}\|² $$
 
 其中 \(A \in \mathbb{R}^{n \times d}\) 具有满列秩，\(\mathbf{b} \in \mathbb{R}^n\)。特别是，\(d \leq n\)。在先前的例子中，我们看到了目标函数是一个二次函数
 
-\[ f(\mathbf{x}) = \frac{1}{2} \mathbf{x}^T P \mathbf{x} + \mathbf{q}^T \mathbf{x} + r, \]
+$$ f(\mathbf{x}) = \frac{1}{2} \mathbf{x}^T P \mathbf{x} + \mathbf{q}^T \mathbf{x} + r, $$
 
 其中 \(P = 2 A^T A\) 是对称的，\(\mathbf{q} = - 2 A^T \mathbf{b}\)，且 \(r= \mathbf{b}^T \mathbf{b} = \|\mathbf{b}\|²\)。我们还证明了 \(f\) 是 \(\mu\)-强凸的。因此存在唯一的全局最小值。
 
 通过之前的计算，
 
-\[ \nabla f(\mathbf{x}) = P \mathbf{x} + \mathbf{q} = 2 A^T A \mathbf{x} - 2 A^T \mathbf{b}. \]
+$$ \nabla f(\mathbf{x}) = P \mathbf{x} + \mathbf{q} = 2 A^T A \mathbf{x} - 2 A^T \mathbf{b}. $$
 
 所以驻点满足
 
-\[ A^T A \mathbf{x} = A^T \mathbf{b} \]
+$$ A^T A \mathbf{x} = A^T \mathbf{b} $$
 
 这可能被你识别为最小二乘问题（least squares problem）的正则方程（normal equations）。\(\lhd\)
 
@@ -42,11 +42,11 @@
 
 **引理** **(最速下降)** \(\idx{steepest descent lemma}\xdi\) 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 在 \(\mathbf{x}_0\) 处是连续可微的。对于 \(\mathbb{R}^d\) 中的任意单位向量 \(\mathbf{v} \in \mathbb{R}^d\)，
 
-\[ \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}} \geq \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}^*} \]
+$$ \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}} \geq \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}^*} $$
 
 其中
 
-\[ \mathbf{v}^* = - \frac{\nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}. \]
+$$ \mathbf{v}^* = - \frac{\nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}. $$
 
 \(\flat\)
 
@@ -54,21 +54,21 @@
 
 *证明:* 通过**柯西-施瓦茨不等式**，由于 \(\mathbf{v}\) 的范数为单位，
 
-\[\begin{align*} \left|\frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}}\right| &= \left|\nabla f(\mathbf{x}_0)^T \mathbf{v}\right|\\ &\leq \|\nabla f(\mathbf{x}_0)\| \|\mathbf{v}\|\\ &= \|\nabla f(\mathbf{x}_0)\|. \end{align*}\]
+$$\begin{align*} \left|\frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}}\right| &= \left|\nabla f(\mathbf{x}_0)^T \mathbf{v}\right|\\ &\leq \|\nabla f(\mathbf{x}_0)\| \|\mathbf{v}\|\\ &= \|\nabla f(\mathbf{x}_0)\|. \end{align*}$$
 
 或者，换一种说法，
 
-\[ - \|\nabla f(\mathbf{x}_0)\| \leq \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}} \leq \|\nabla f(\mathbf{x}_0)\|. \]
+$$ - \|\nabla f(\mathbf{x}_0)\| \leq \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}} \leq \|\nabla f(\mathbf{x}_0)\|. $$
 
 另一方面，根据 \(\mathbf{v}^*\) 的选择，
 
-\[\begin{align*} \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}^*} &= \nabla f(\mathbf{x}_0)^T \left(- \frac{\nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \left(\frac{\nabla f(\mathbf{x}_0)^T \nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \left(\frac{\|\nabla f(\mathbf{x}_0)\|²}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \|\nabla f(\mathbf{x}_0)\|. \end{align*}\]
+$$\begin{align*} \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}^*} &= \nabla f(\mathbf{x}_0)^T \left(- \frac{\nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \left(\frac{\nabla f(\mathbf{x}_0)^T \nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \left(\frac{\|\nabla f(\mathbf{x}_0)\|²}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \|\nabla f(\mathbf{x}_0)\|. \end{align*}$$
 
 最后两个显示的结果合并给出。\(\square\)
 
 在梯度下降的每次迭代中，我们沿着梯度的负方向迈出一步，即，
 
-\[ \mathbf{x}^{t+1} = \mathbf{x}^t - \alpha_t \nabla f(\mathbf{x}^t), \quad t=0,1,2\ldots \]
+$$ \mathbf{x}^{t+1} = \mathbf{x}^t - \alpha_t \nabla f(\mathbf{x}^t), \quad t=0,1,2\ldots $$
 
 对于一系列步长 \(\alpha_t > 0\)。选择合适的步长（也称为步长或学习率）本身就是一个很大的主题。在这里，我们只考虑固定步长的情况。
 
@@ -199,21 +199,21 @@ gd(f, grad_f, -2, niters=100)
 
 **定义** **（光滑函数）** \(\idx{smooth function}\xdi\) 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是二阶连续可微的。我们说 \(f\) 是 \(L\)-光滑的，如果
 
-\[ - L I_{d \times d} \preceq H_f(\mathbf{x}) \preceq L I_{d \times d}, \quad \forall \mathbf{x} \in \mathbb{R}^d. \]
+$$ - L I_{d \times d} \preceq H_f(\mathbf{x}) \preceq L I_{d \times d}, \quad \forall \mathbf{x} \in \mathbb{R}^d. $$
 
 \(\natural\)
 
 在单变量情况下，这可以简化为对于所有 \(x \in \mathbb{R}\)，有 \(- L \leq f''(x) \leq L\)。更一般地，回忆一下
 
-\[ A \preceq B \iff \mathbf{z}^T A\mathbf{z} \leq \mathbf{z}^T B\mathbf{z}, \qquad \forall \mathbf{z} \in \mathbb{R}^{d}. \]
+$$ A \preceq B \iff \mathbf{z}^T A\mathbf{z} \leq \mathbf{z}^T B\mathbf{z}, \qquad \forall \mathbf{z} \in \mathbb{R}^{d}. $$
 
 因此，上述条件等价于
 
-\[ - L \|\mathbf{z}\|² \leq \mathbf{z}^T H_f(\mathbf{x}) \,\mathbf{z} \leq L \|\mathbf{z}\|², \quad \forall \mathbf{x}, \mathbf{z} \in \mathbb{R}^d. \]
+$$ - L \|\mathbf{z}\|² \leq \mathbf{z}^T H_f(\mathbf{x}) \,\mathbf{z} \leq L \|\mathbf{z}\|², \quad \forall \mathbf{x}, \mathbf{z} \in \mathbb{R}^d. $$
 
 另一种表述方式是，二阶方向导数满足
 
-\[ - L \leq \frac{\partial² f (\mathbf{x})}{\partial \mathbf{v}²} \leq L \]
+$$ - L \leq \frac{\partial² f (\mathbf{x})}{\partial \mathbf{v}²} \leq L $$
 
 对于所有 \(\mathbf{x} \in \mathbb{R}^d\) 和所有单位向量 \(\mathbf{v} \in \mathbb{R}^d\).
 
@@ -221,7 +221,7 @@ gd(f, grad_f, -2, niters=100)
 
 **引理** **（光滑函数的二次界限）** \(\idx{quadratic bound for smooth functions}\xdi\) 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是二阶连续可微的。那么 \(f\) 是 \(L\)-光滑的，当且仅当对于所有 \(\mathbf{x}, \mathbf{y} \in \mathbb{R}^d\)，它满足
 
-\[ \left|f(\mathbf{y}) - \{f(\mathbf{x}) + \nabla f(\mathbf{x})^T(\mathbf{y} - \mathbf{x})\}\right| \leq \frac{L}{2} \|\mathbf{y} - \mathbf{x}\|². \]
+$$ \left|f(\mathbf{y}) - \{f(\mathbf{x}) + \nabla f(\mathbf{x})^T(\mathbf{y} - \mathbf{x})\}\right| \leq \frac{L}{2} \|\mathbf{y} - \mathbf{x}\|². $$
 
 \(\flat\)
 
@@ -229,23 +229,23 @@ gd(f, grad_f, -2, niters=100)
 
 *证明:* 通过 *泰勒定理*，对于任意 \(\alpha > 0\)，存在 \(\xi_\alpha \in (0,1)\)
 
-\[ f(\mathbf{x} + \alpha \mathbf{p}) = f(\mathbf{x}) + \alpha \nabla f(\mathbf{x})^T \mathbf{p} + \frac{1}{2} \alpha² \mathbf{p}^T \,H_f(\mathbf{x} + \xi_\alpha \alpha \mathbf{p}) \,\mathbf{p} \]
+$$ f(\mathbf{x} + \alpha \mathbf{p}) = f(\mathbf{x}) + \alpha \nabla f(\mathbf{x})^T \mathbf{p} + \frac{1}{2} \alpha² \mathbf{p}^T \,H_f(\mathbf{x} + \xi_\alpha \alpha \mathbf{p}) \,\mathbf{p} $$
 
 其中 \(\mathbf{p} = \mathbf{y} - \mathbf{x}\).
 
 如果 \(f\) 是 \(L\)-平滑的，那么在 \(\alpha = 1\) 时，通过上述观察
 
-\[ - L \|\mathbf{p}\|² \leq \mathbf{p}^T \,H_f(\mathbf{x} + \xi_1 \mathbf{p}) \,\mathbf{p} \leq L \|\mathbf{p}\|². \]
+$$ - L \|\mathbf{p}\|² \leq \mathbf{p}^T \,H_f(\mathbf{x} + \xi_1 \mathbf{p}) \,\mathbf{p} \leq L \|\mathbf{p}\|². $$
 
 这意味着陈述中的不等式。
 
 另一方面，如果这个不等式成立，通过结合上述泰勒展开，我们得到
 
-\[ \left|\,\frac{1}{2} \alpha² \mathbf{p}^T \,H_f(\mathbf{x} + \xi_\alpha \alpha \mathbf{p}) \,\mathbf{p}\,\right| \leq \frac{L}{2} \alpha² \|\mathbf{p}\|² \]
+$$ \left|\,\frac{1}{2} \alpha² \mathbf{p}^T \,H_f(\mathbf{x} + \xi_\alpha \alpha \mathbf{p}) \,\mathbf{p}\,\right| \leq \frac{L}{2} \alpha² \|\mathbf{p}\|² $$
 
 其中我们使用了由范数的绝对齐次性得出的 \(\|\alpha \mathbf{p}\| = \alpha \|\mathbf{p}\|\)。除以 \(\alpha²/2\)，然后取 \(\alpha \to 0\) 并使用 Hessian 的连续性给出
 
-\[ \left|\, \mathbf{p}^T \,H_f(\mathbf{x}) \,\mathbf{p} \,\right| \leq L \|\mathbf{p}\|². \]
+$$ \left|\, \mathbf{p}^T \,H_f(\mathbf{x}) \,\mathbf{p} \,\right| \leq L \|\mathbf{p}\|². $$
 
 通过上述观察再次，这意味着 \(f\) 是 \(L\)-平滑的。 \(\square\)
 
@@ -253,15 +253,15 @@ gd(f, grad_f, -2, niters=100)
 
 **定理** **(平滑情况下梯度下降的收敛性)** \(\idx{convergence of gradient descent in the smooth case}\xdi\) 假设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是 \(L\)-平滑且有下界，即存在 \(\bar{f} > - \infty\) 使得 \(f(\mathbf{x}) \geq \bar{f}\)，\(\forall \mathbf{x} \in \mathbb{R}^d\)。那么从任意 \(\mathbf{x}⁰\) 开始的梯度下降法，步长为 \(\alpha_t = \alpha := 1/L\)，将产生一个序列 \(\mathbf{x}^t\)，\(t=1,2,\ldots\)，使得
 
-\[ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t), \quad \forall t \]
+$$ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t), \quad \forall t $$
 
 并且
 
-\[ \lim_{t \to +\infty} \|\nabla f(\mathbf{x}^t)\| = 0. \]
+$$ \lim_{t \to +\infty} \|\nabla f(\mathbf{x}^t)\| = 0. $$
 
 此外，在 \(S\) 步之后，存在一个 \(t\) 在 \(\{0,\ldots,S\}\) 中，使得
 
-\[ \|\nabla f(\mathbf{x}^t)\| \leq \sqrt{\frac{2 L \left[\,f(\mathbf{x}⁰) - \bar{f}\,\right]}{S}}. \]
+$$ \|\nabla f(\mathbf{x}^t)\| \leq \sqrt{\frac{2 L \left[\,f(\mathbf{x}⁰) - \bar{f}\,\right]}{S}}. $$
 
 \(\sharp\)
 
@@ -269,17 +269,17 @@ gd(f, grad_f, -2, niters=100)
 
 关于上述收敛率的另一种表述方式如下。取任意 \(\epsilon > 0\)。如果我们的目标是找到一个点 \(\mathbf{x}\)，使得 \(\|\nabla f(\mathbf{x})\| \leq \epsilon\)，那么如果我们执行 \(S\) 步，就能保证找到这样一个点。
 
-\[ \min_{t = 0,\ldots, S-1} \|\nabla f(\mathbf{x}^t)\| \leq \sqrt{\frac{2 L \left[\,f(\mathbf{x}⁰) - \bar{f}\,\right]}{S}} \leq \epsilon, \]
+$$ \min_{t = 0,\ldots, S-1} \|\nabla f(\mathbf{x}^t)\| \leq \sqrt{\frac{2 L \left[\,f(\mathbf{x}⁰) - \bar{f}\,\right]}{S}} \leq \epsilon, $$
 
 即，重新排列后，
 
-\[ S \geq \frac{2L [f(\mathbf{x}⁰) - \bar{f}]}{\epsilon²}. \]
+$$ S \geq \frac{2L [f(\mathbf{x}⁰) - \bar{f}]}{\epsilon²}. $$
 
 证明的核心是以下基本不等式。它还说明了步长的选择。
 
 **引理** **(光滑情况下的下降保证)** \(\idx{descent guarantee in the smooth case}\xdi\) 假设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是 \(L\)-光滑的。对于任何 \(\mathbf{x} \in \mathbb{R}^d\)，
 
-\[ f\left(\mathbf{x} - \frac{1}{L} \nabla f(\mathbf{x})\right) \leq f(\mathbf{x}) - \frac{1}{2 L} \|\nabla f(\mathbf{x})\|². \]
+$$ f\left(\mathbf{x} - \frac{1}{L} \nabla f(\mathbf{x})\right) \leq f(\mathbf{x}) - \frac{1}{2 L} \|\nabla f(\mathbf{x})\|². $$
 
 \(\flat\)
 
@@ -287,15 +287,15 @@ gd(f, grad_f, -2, niters=100)
 
 *证明：* *(光滑情况下的下降保证)* 根据 *光滑函数的二次界*，令 \(\mathbf{p} = - \nabla f(\mathbf{x})\)
 
-\[\begin{align*} f(\mathbf{x} + \alpha \mathbf{p}) &\leq f(\mathbf{x}) + \nabla f(\mathbf{x})^T (\alpha \mathbf{p}) + \frac{L}{2} \|\alpha \mathbf{p}\|²\\ &= f(\mathbf{x}) - \alpha \|\nabla f(\mathbf{x})\|² + \alpha² \frac{L}{2} \|\nabla f(\mathbf{x})\|²\\ &= f(\mathbf{x}) + \left( - \alpha + \alpha² \frac{L}{2} \right) \|\nabla f(\mathbf{x})\|². \end{align*}\]
+$$\begin{align*} f(\mathbf{x} + \alpha \mathbf{p}) &\leq f(\mathbf{x}) + \nabla f(\mathbf{x})^T (\alpha \mathbf{p}) + \frac{L}{2} \|\alpha \mathbf{p}\|²\\ &= f(\mathbf{x}) - \alpha \|\nabla f(\mathbf{x})\|² + \alpha² \frac{L}{2} \|\nabla f(\mathbf{x})\|²\\ &= f(\mathbf{x}) + \left( - \alpha + \alpha² \frac{L}{2} \right) \|\nabla f(\mathbf{x})\|². \end{align*}$$
 
 括号中的二次函数是凸函数，并在满足 \(\alpha\) 的驻点处最小化
 
-\[ \frac{\mathrm{d}}{\mathrm{d} \alpha}\left( - \alpha + \alpha² \frac{L}{2} \right) = -1 + \alpha L = 0\. \]
+$$ \frac{\mathrm{d}}{\mathrm{d} \alpha}\left( - \alpha + \alpha² \frac{L}{2} \right) = -1 + \alpha L = 0\. $$
 
 取 \(\alpha = 1/L\)，其中 \(-\alpha + \alpha² \frac{L}{2} = - \frac{1}{2L}\)，并将此代入上述不等式中给出
 
-\[ f\left(\mathbf{x} - \frac{1}{L} \nabla f(\mathbf{x})\right) \leq f(\mathbf{x}) - \frac{1}{2L}\|\nabla f(\mathbf{x})\|², \]
+$$ f\left(\mathbf{x} - \frac{1}{L} \nabla f(\mathbf{x})\right) \leq f(\mathbf{x}) - \frac{1}{2L}\|\nabla f(\mathbf{x})\|², $$
 
 如所声称。 \(\square\)
 
@@ -305,19 +305,19 @@ gd(f, grad_f, -2, niters=100)
 
 *证明：* *(光滑情况下的梯度下降收敛)* 根据 *光滑情况下的下降保证*，
 
-\[ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t) - \frac{1}{2 L}\|\nabla f(\mathbf{x}^t)\|² \leq f(\mathbf{x}^t), \quad \forall t. \]
+$$ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t) - \frac{1}{2 L}\|\nabla f(\mathbf{x}^t)\|² \leq f(\mathbf{x}^t), \quad \forall t. $$
 
 此外，使用望远镜求和，我们得到
 
-\[\begin{align*} f(\mathbf{x}^S) &= f(\mathbf{x}⁰) + \sum_{t=0}^{S-1} [f(\mathbf{x}^{t+1}) - f(\mathbf{x}^t)]\\ &\leq f(\mathbf{x}⁰) - \frac{1}{2 L}\sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|²\. \end{align*}\]
+$$\begin{align*} f(\mathbf{x}^S) &= f(\mathbf{x}⁰) + \sum_{t=0}^{S-1} [f(\mathbf{x}^{t+1}) - f(\mathbf{x}^t)]\\ &\leq f(\mathbf{x}⁰) - \frac{1}{2 L}\sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|²\. \end{align*}$$
 
 通过重新排列并使用 \(f(\mathbf{x}^S) \geq \bar{f}\) 得到
 
-\[ \sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|² \leq 2L [f(\mathbf{x}⁰) - \bar{f}]. \]
+$$ \sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|² \leq 2L [f(\mathbf{x}⁰) - \bar{f}]. $$
 
 我们得到一个定量的界
 
-\[\begin{align*} \min_{t=0,\ldots, S-1} \|\nabla f(\mathbf{x}^t)\|² & \leq \frac{1}{S} \sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|²\\ &\leq \frac{2L [f(\mathbf{x}⁰) - \bar{f}]}{S} \end{align*}\]
+$$\begin{align*} \min_{t=0,\ldots, S-1} \|\nabla f(\mathbf{x}^t)\|² & \leq \frac{1}{S} \sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|²\\ &\leq \frac{2L [f(\mathbf{x}⁰) - \bar{f}]}{S} \end{align*}$$
 
 因为最小值必然小于或等于平均值。此外，当 \(S \to +\infty\) 时，根据标准的 [分析](https://math.stackexchange.com/questions/62389/relationships-between-bounded-and-convergent-series) [论证](https://math.stackexchange.com/questions/107961/if-a-series-converges-then-the-sequence-of-terms-converges-to-0)，我们必须有 \(\|\nabla f(\mathbf{x}^S)\|² \to 0\)。这证明了该命题。 \(\square\)
 
@@ -327,23 +327,23 @@ gd(f, grad_f, -2, niters=100)
 
 **引理** **(函数及其梯度的关系)** \(\idx{relating a function and its gradient lemma}\xdi\) 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是二阶连续可微的，\(m\)-强凸，并在 \(\mathbf{x}^*\) 处有全局最小值。那么对于任意的 \(\mathbf{x} \in \mathbb{R}^d\)
 
-\[ f(\mathbf{x}) - f(\mathbf{x}^*) \leq \frac{\|\nabla f(\mathbf{x})\|²}{2 m}. \]
+$$ f(\mathbf{x}) - f(\mathbf{x}^*) \leq \frac{\|\nabla f(\mathbf{x})\|²}{2 m}. $$
 
 \(\flat\)
 
 *证明:* 根据 *强凸函数的二次界*，
 
-\[\begin{align*} f(\mathbf{x}^*) &\geq f(\mathbf{x}) + \nabla f(\mathbf{x})^T (\mathbf{x}^* - \mathbf{x}) + \frac{m}{2} \|\mathbf{x}^* - \mathbf{x}\|²\\ &= f(\mathbf{x}) + \nabla f(\mathbf{x})^T \mathbf{w} + \frac{1}{2} \mathbf{w}^T (m I_{d \times d}) \,\mathbf{w}\\ &=: r + \mathbf{q}^T \mathbf{w} + \frac{1}{2} \mathbf{w}^T P \,\mathbf{w} \end{align*}\]
+$$\begin{align*} f(\mathbf{x}^*) &\geq f(\mathbf{x}) + \nabla f(\mathbf{x})^T (\mathbf{x}^* - \mathbf{x}) + \frac{m}{2} \|\mathbf{x}^* - \mathbf{x}\|²\\ &= f(\mathbf{x}) + \nabla f(\mathbf{x})^T \mathbf{w} + \frac{1}{2} \mathbf{w}^T (m I_{d \times d}) \,\mathbf{w}\\ &=: r + \mathbf{q}^T \mathbf{w} + \frac{1}{2} \mathbf{w}^T P \,\mathbf{w} \end{align*}$$
 
 其中在第二行我们定义了 \(\mathbf{w} = \mathbf{x}^* - \mathbf{x}\)。右侧是一个关于 \(\mathbf{w}\) 的二次函数（对于固定的 \(\mathbf{x}\)），在第三行我们使用了我们之前的符号 \(P\)，\(\mathbf{q}\) 和 \(r\) 来表示这样的函数。因此，如果我们用全局最小值 \(\mathbf{w}^*\) 替换 \(\mathbf{w}\)，不等式仍然成立。
 
 矩阵 \(P = m I_{d \times d}\) 是正定的。通过之前的例子，我们知道当梯度 \(\frac{1}{2}[P + P^T]\mathbf{w}^* + \mathbf{q} = \mathbf{0}\) 时，最小值被达到，这等价于
 
-\[ \mathbf{w}^* = - (m I_{d \times d})^{-1} \nabla f(\mathbf{x}) = - (m^{-1} I_{d \times d}) \nabla f(\mathbf{x}) = - \frac{1}{m} \nabla f(\mathbf{x}). \]
+$$ \mathbf{w}^* = - (m I_{d \times d})^{-1} \nabla f(\mathbf{x}) = - (m^{-1} I_{d \times d}) \nabla f(\mathbf{x}) = - \frac{1}{m} \nabla f(\mathbf{x}). $$
 
 因此，用 \(\mathbf{w}^*\) 替换 \(\mathbf{w}\)，我们得到不等式
 
-\[\begin{align*} f(\mathbf{x}^*) & \geq f(\mathbf{x}) + \nabla f(\mathbf{x})^T \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}\\ & \quad \quad+ \frac{1}{2} \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}^T (m I_{d \times d}) \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}\\ & = f(\mathbf{x}) - \frac{1}{2m} \|\nabla f(\mathbf{x})\|². \end{align*}\]
+$$\begin{align*} f(\mathbf{x}^*) & \geq f(\mathbf{x}) + \nabla f(\mathbf{x})^T \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}\\ & \quad \quad+ \frac{1}{2} \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}^T (m I_{d \times d}) \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}\\ & = f(\mathbf{x}) - \frac{1}{2m} \|\nabla f(\mathbf{x})\|². \end{align*}$$
 
 重新排列后得到结论。 \(\square\)
 
@@ -351,11 +351,11 @@ gd(f, grad_f, -2, niters=100)
 
 **定理** **(强凸情况下梯度下降的收敛性)** \(\idx{强凸情况下梯度下降的收敛性}\xdi\) 假设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是 \(L\)-光滑和 \(m\)-强凸的，并且全局最小值在 \(\mathbf{x}^*\) 处。那么从任意 \(\mathbf{x}⁰\) 开始的步长为 \(\alpha = 1/L\) 的梯度下降算法会产生一个序列 \(\mathbf{x}^t\)，\(t=1,2,\ldots\)，使得
 
-\[ \lim_{t \to +\infty} f(\mathbf{x}^t) = f(\mathbf{x}^*). \]
+$$ \lim_{t \to +\infty} f(\mathbf{x}^t) = f(\mathbf{x}^*). $$
 
 此外，经过 \(S\) 次迭代后，我们有
 
-\[ f(\mathbf{x}^S) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)^S [f(\mathbf{x}⁰) - f(\mathbf{x}^*)]. \]
+$$ f(\mathbf{x}^S) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)^S [f(\mathbf{x}⁰) - f(\mathbf{x}^*)]. $$
 
 \(\sharp\)
 
@@ -363,25 +363,25 @@ gd(f, grad_f, -2, niters=100)
 
 换句话说，固定任意 \(\epsilon > 0\)。如果我们的目标是找到一个点 \(\mathbf{x}\)，使得 \(f(\mathbf{x}) - f(\mathbf{x}^*) \leq \epsilon\)，那么如果我们执行 \(S\) 次迭代，我们就能保证找到这样一个点
 
-\[ f(\mathbf{x}^S) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)^S [f(\mathbf{x}⁰) - f(\mathbf{x}^*)] \leq \epsilon \]
+$$ f(\mathbf{x}^S) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)^S [f(\mathbf{x}⁰) - f(\mathbf{x}^*)] \leq \epsilon $$
 
 即，重新排列后，
 
-\[ S \geq \frac{\log \epsilon^{-1} + \log(f(\mathbf{x}⁰) - \bar{f})}{\log \left(1 - \frac{m}{L}\right)^{-1}}. \]
+$$ S \geq \frac{\log \epsilon^{-1} + \log(f(\mathbf{x}⁰) - \bar{f})}{\log \left(1 - \frac{m}{L}\right)^{-1}}. $$
 
 *证明思路（强凸情况下梯度下降的收敛性）:* 我们将应用 *光滑函数的下降保证* 以及上述引理。
 
 *证明:* *(强凸情况下梯度下降的收敛性)* 通过 *光滑函数的下降保证* 以及上述引理，对于所有 \(t\)，我们有
 
-\[ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t) - \frac{1}{2L} \|\nabla f(\mathbf{x}^t)\|² \leq f(\mathbf{x}^t) - \frac{m}{L} [f(\mathbf{x}^t) - f(\mathbf{x}^*)]. \]
+$$ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t) - \frac{1}{2L} \|\nabla f(\mathbf{x}^t)\|² \leq f(\mathbf{x}^t) - \frac{m}{L} [f(\mathbf{x}^t) - f(\mathbf{x}^*)]. $$
 
 两边减去 \(f(\mathbf{x}^*)\) 得到
 
-\[ f(\mathbf{x}^{t+1}) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)[f(\mathbf{x}^t) - f(\mathbf{x}^*)]. \]
+$$ f(\mathbf{x}^{t+1}) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)[f(\mathbf{x}^t) - f(\mathbf{x}^*)]. $$
 
 递归这个过程
 
-\[ \leq \left(1 - \frac{m}{L}\right)²[f(\mathbf{x}^{t-1}) - f(\mathbf{x}^*)], \]
+$$ \leq \left(1 - \frac{m}{L}\right)²[f(\mathbf{x}^{t-1}) - f(\mathbf{x}^*)], $$
 
 等等。这给出了结论。 \(\square\)
 
@@ -397,7 +397,7 @@ def grad_f(x):
 
 二阶导数是 \(f''(x) = 2\)。因此，这个 \(f\) 是 \(L\)-平滑和 \(m\)-强凸的，\(L = m = 2\)。我们发展的理论建议取步长 \(\alpha_t = \alpha = 1/L = 1/2\)。这也意味着
 
-\[ f(x¹) - f(x^*) \leq \left(1 - \frac{m}{L}\right) [f(x⁰) - f(x^*)] = 0. \]
+$$ f(x¹) - f(x^*) \leq \left(1 - \frac{m}{L}\right) [f(x⁰) - f(x^*)] = 0. $$
 
 我们一步就收敛了！这对于任何起始点 \(x⁰\) 都成立。
 
@@ -493,11 +493,11 @@ d) 它总是在原点发生。
 
 **引理** **(最速下降)** \(\idx{steepest descent lemma}\xdi\) 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 在 \(\mathbf{x}_0\) 处是连续可微的。对于任何单位向量 \(\mathbf{v} \in \mathbb{R}^d\)，
 
-\[ \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}} \geq \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}^*} \]
+$$ \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}} \geq \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}^*} $$
 
 在哪里
 
-\[ \mathbf{v}^* = - \frac{\nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}. \]
+$$ \mathbf{v}^* = - \frac{\nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}. $$
 
 \(\flat\)
 
@@ -505,21 +505,21 @@ d) 它总是在原点发生。
 
 *证明:* 通过**柯西-施瓦茨不等式**，由于 \(\mathbf{v}\) 的范数为单位，
 
-\[\begin{align*} \left|\frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}}\right| &= \left|\nabla f(\mathbf{x}_0)^T \mathbf{v}\right|\\ &\leq \|\nabla f(\mathbf{x}_0)\| \|\mathbf{v}\|\\ &= \|\nabla f(\mathbf{x}_0)\|. \end{align*}\]
+$$\begin{align*} \left|\frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}}\right| &= \left|\nabla f(\mathbf{x}_0)^T \mathbf{v}\right|\\ &\leq \|\nabla f(\mathbf{x}_0)\| \|\mathbf{v}\|\\ &= \|\nabla f(\mathbf{x}_0)\|. \end{align*}$$
 
 或者，换一种说法，
 
-\[ - \|\nabla f(\mathbf{x}_0)\| \leq \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}} \leq \|\nabla f(\mathbf{x}_0)\|. \]
+$$ - \|\nabla f(\mathbf{x}_0)\| \leq \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}} \leq \|\nabla f(\mathbf{x}_0)\|. $$
 
 另一方面，根据 \(\mathbf{v}^*\) 的选择，
 
-\[\begin{align*} \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}^*} &= \nabla f(\mathbf{x}_0)^T \left(- \frac{\nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \left(\frac{\nabla f(\mathbf{x}_0)^T \nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \left(\frac{\|\nabla f(\mathbf{x}_0)\|²}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \|\nabla f(\mathbf{x}_0)\|. \end{align*}\]
+$$\begin{align*} \frac{\partial f (\mathbf{x}_0)}{\partial \mathbf{v}^*} &= \nabla f(\mathbf{x}_0)^T \left(- \frac{\nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \left(\frac{\nabla f(\mathbf{x}_0)^T \nabla f(\mathbf{x}_0)}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \left(\frac{\|\nabla f(\mathbf{x}_0)\|²}{\|\nabla f(\mathbf{x}_0)\|}\right)\\ &= - \|\nabla f(\mathbf{x}_0)\|. \end{align*}$$
 
 最后两个显示结合给出了结果。\(\square\)
 
 在梯度下降的每次迭代中，我们沿着梯度的负方向迈出一步，即，
 
-\[ \mathbf{x}^{t+1} = \mathbf{x}^t - \alpha_t \nabla f(\mathbf{x}^t), \quad t=0,1,2\ldots \]
+$$ \mathbf{x}^{t+1} = \mathbf{x}^t - \alpha_t \nabla f(\mathbf{x}^t), \quad t=0,1,2\ldots $$
 
 对于一系列步长\(\alpha_t > 0\)。选择合适的步长（也称为步长或学习率）本身就是一个很大的主题。在这里，我们只考虑固定步长的情况。
 
@@ -650,21 +650,21 @@ gd(f, grad_f, -2, niters=100)
 
 **定义** **（光滑函数）** \(\idx{smooth function}\xdi\) 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是二阶连续可微的。我们说 \(f\) 是 \(L\)-光滑的，如果
 
-\[ - L I_{d \times d} \preceq H_f(\mathbf{x}) \preceq L I_{d \times d}, \quad \forall \mathbf{x} \in \mathbb{R}^d. \]
+$$ - L I_{d \times d} \preceq H_f(\mathbf{x}) \preceq L I_{d \times d}, \quad \forall \mathbf{x} \in \mathbb{R}^d. $$
 
 \(\natural\)
 
 在单变量情况下，这简化为对于所有 \(x \in \mathbb{R}\)，有 \(- L \leq f''(x) \leq L\)。更一般地，回忆一下
 
-\[ A \preceq B \iff \mathbf{z}^T A\mathbf{z} \leq \mathbf{z}^T B\mathbf{z}, \qquad \forall \mathbf{z} \in \mathbb{R}^{d}. \]
+$$ A \preceq B \iff \mathbf{z}^T A\mathbf{z} \leq \mathbf{z}^T B\mathbf{z}, \qquad \forall \mathbf{z} \in \mathbb{R}^{d}. $$
 
 因此，上述条件等价于
 
-\[ - L \|\mathbf{z}\|² \leq \mathbf{z}^T H_f(\mathbf{x}) \,\mathbf{z} \leq L \|\mathbf{z}\|², \quad \forall \mathbf{x}, \mathbf{z} \in \mathbb{R}^d. \]
+$$ - L \|\mathbf{z}\|² \leq \mathbf{z}^T H_f(\mathbf{x}) \,\mathbf{z} \leq L \|\mathbf{z}\|², \quad \forall \mathbf{x}, \mathbf{z} \in \mathbb{R}^d. $$
 
 另一种表述方式是，二阶方向导数满足
 
-\[ - L \leq \frac{\partial² f (\mathbf{x})}{\partial \mathbf{v}²} \leq L \]
+$$ - L \leq \frac{\partial² f (\mathbf{x})}{\partial \mathbf{v}²} \leq L $$
 
 对于所有 \(\mathbf{x} \in \mathbb{R}^d\) 和所有单位向量 \(\mathbf{v} \in \mathbb{R}^d\)。
 
@@ -672,7 +672,7 @@ gd(f, grad_f, -2, niters=100)
 
 **引理** **（光滑函数的二次界定）** \(\idx{quadratic bound for smooth functions}\xdi\) 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是二阶连续可微的。那么 \(f\) 是 \(L\)-光滑的，当且仅当对于所有 \(\mathbf{x}, \mathbf{y} \in \mathbb{R}^d\)，它满足
 
-\[ \left|f(\mathbf{y}) - \{f(\mathbf{x}) + \nabla f(\mathbf{x})^T(\mathbf{y} - \mathbf{x})\}\right| \leq \frac{L}{2} \|\mathbf{y} - \mathbf{x}\|². \]
+$$ \left|f(\mathbf{y}) - \{f(\mathbf{x}) + \nabla f(\mathbf{x})^T(\mathbf{y} - \mathbf{x})\}\right| \leq \frac{L}{2} \|\mathbf{y} - \mathbf{x}\|². $$
 
 \(\flat\)
 
@@ -680,23 +680,23 @@ gd(f, grad_f, -2, niters=100)
 
 **证明**：通过 **泰勒定理**，对于任何 \(\alpha > 0\)，存在 \(\xi_\alpha \in (0,1)\)
 
-\[ f(\mathbf{x} + \alpha \mathbf{p}) = f(\mathbf{x}) + \alpha \nabla f(\mathbf{x})^T \mathbf{p} + \frac{1}{2} \alpha² \mathbf{p}^T \,H_f(\mathbf{x} + \xi_\alpha \alpha \mathbf{p}) \,\mathbf{p} \]
+$$ f(\mathbf{x} + \alpha \mathbf{p}) = f(\mathbf{x}) + \alpha \nabla f(\mathbf{x})^T \mathbf{p} + \frac{1}{2} \alpha² \mathbf{p}^T \,H_f(\mathbf{x} + \xi_\alpha \alpha \mathbf{p}) \,\mathbf{p} $$
 
 其中 \(\mathbf{p} = \mathbf{y} - \mathbf{x}\)。
 
 如果 \(f\) 是 \(L\)-光滑的，那么在 \(\alpha = 1\) 时，根据上述观察
 
-\[ - L \|\mathbf{p}\|² \leq \mathbf{p}^T \,H_f(\mathbf{x} + \xi_1 \mathbf{p}) \,\mathbf{p} \leq L \|\mathbf{p}\|². \]
+$$ - L \|\mathbf{p}\|² \leq \mathbf{p}^T \,H_f(\mathbf{x} + \xi_1 \mathbf{p}) \,\mathbf{p} \leq L \|\mathbf{p}\|². $$
 
 这意味着陈述中的不等式。
 
 另一方面，如果该不等式成立，通过结合上述泰勒展开，我们得到
 
-\[ \left|\,\frac{1}{2} \alpha² \mathbf{p}^T \,H_f(\mathbf{x} + \xi_\alpha \alpha \mathbf{p}) \,\mathbf{p}\,\right| \leq \frac{L}{2} \alpha² \|\mathbf{p}\|² \]
+$$ \left|\,\frac{1}{2} \alpha² \mathbf{p}^T \,H_f(\mathbf{x} + \xi_\alpha \alpha \mathbf{p}) \,\mathbf{p}\,\right| \leq \frac{L}{2} \alpha² \|\mathbf{p}\|² $$
 
 其中我们使用了范数的绝对齐次性，即 \(\|\alpha \mathbf{p}\| = \alpha \|\mathbf{p}\|\)。除以 \(\alpha²/2\)，然后取 \(\alpha \to 0\) 并利用 Hessian 的连续性给出
 
-\[ \left|\, \mathbf{p}^T \,H_f(\mathbf{x}) \,\mathbf{p} \,\right| \leq L \|\mathbf{p}\|². \]
+$$ \left|\, \mathbf{p}^T \,H_f(\mathbf{x}) \,\mathbf{p} \,\right| \leq L \|\mathbf{p}\|². $$
 
 根据上述观察，这意味着 \(f\) 是 \(L\)-光滑。 \(\square\)
 
@@ -704,15 +704,15 @@ gd(f, grad_f, -2, niters=100)
 
 **定理** **(光滑情况下梯度下降的收敛性)** \(\idx{光滑情况下梯度下降的收敛性}\xdi\) 假设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是 \(L\)-光滑且有下界，即存在 \(\bar{f} > - \infty\) 使得 \(f(\mathbf{x}) \geq \bar{f}\)，对所有 \(\mathbf{x} \in \mathbb{R}^d\) 成立。那么从任意 \(\mathbf{x}⁰\) 开始的步长为 \(\alpha_t = \alpha := 1/L\) 的梯度下降法会产生一个序列 \(\mathbf{x}^t\)，\(t=1,2,\ldots\)，使得
 
-\[ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t), \quad \forall t \]
+$$ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t), \quad \forall t $$
 
 and
 
-\[ \lim_{t \to +\infty} \|\nabla f(\mathbf{x}^t)\| = 0. \]
+$$ \lim_{t \to +\infty} \|\nabla f(\mathbf{x}^t)\| = 0. $$
 
 此外，经过 \(S\) 步后，存在一个 \(t\) 在 \(\{0,\ldots,S\}\) 中，使得
 
-\[ \|\nabla f(\mathbf{x}^t)\| \leq \sqrt{\frac{2 L \left[\,f(\mathbf{x}⁰) - \bar{f}\,\right]}{S}}. \]
+$$ \|\nabla f(\mathbf{x}^t)\| \leq \sqrt{\frac{2 L \left[\,f(\mathbf{x}⁰) - \bar{f}\,\right]}{S}}. $$
 
 \(\sharp\)
 
@@ -720,17 +720,17 @@ and
 
 关于收敛速度的上述断言的另一种表述方式如下。取任意 \(\epsilon > 0\)。如果我们的目标是找到一个点 \(\mathbf{x}\) 使得 \(\|\nabla f(\mathbf{x})\| \leq \epsilon\)，那么如果我们执行 \(S\) 步，我们就能保证找到这样一个点，
 
-\[ \min_{t = 0,\ldots, S-1} \|\nabla f(\mathbf{x}^t)\| \leq \sqrt{\frac{2 L \left[\,f(\mathbf{x}⁰) - \bar{f}\,\right]}{S}} \leq \epsilon, \]
+$$ \min_{t = 0,\ldots, S-1} \|\nabla f(\mathbf{x}^t)\| \leq \sqrt{\frac{2 L \left[\,f(\mathbf{x}⁰) - \bar{f}\,\right]}{S}} \leq \epsilon, $$
 
 即，经过重新排列后，
 
-\[ S \geq \frac{2L [f(\mathbf{x}⁰) - \bar{f}]}{\epsilon²}. \]
+$$ S \geq \frac{2L [f(\mathbf{x}⁰) - \bar{f}]}{\epsilon²}. $$
 
 证明的核心是以下基本不等式。它也说明了步长的选择。
 
 **引理** **(光滑情况下的下降保证)** \(\idx{光滑情况下的下降保证}\xdi\) 假设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是 \(L\)-光滑。对于任意 \(\mathbf{x} \in \mathbb{R}^d\)，
 
-\[ f\left(\mathbf{x} - \frac{1}{L} \nabla f(\mathbf{x})\right) \leq f(\mathbf{x}) - \frac{1}{2 L} \|\nabla f(\mathbf{x})\|². \]
+$$ f\left(\mathbf{x} - \frac{1}{L} \nabla f(\mathbf{x})\right) \leq f(\mathbf{x}) - \frac{1}{2 L} \|\nabla f(\mathbf{x})\|². $$
 
 \(\flat\)
 
@@ -738,15 +738,15 @@ and
 
 *证明:* *(光滑情况下的下降保证)* 根据 *光滑函数的二次界限*，令 \(\mathbf{p} = - \nabla f(\mathbf{x})\)
 
-\[\begin{align*} f(\mathbf{x} + \alpha \mathbf{p}) &\leq f(\mathbf{x}) + \nabla f(\mathbf{x})^T (\alpha \mathbf{p}) + \frac{L}{2} \|\alpha \mathbf{p}\|²\\ &= f(\mathbf{x}) - \alpha \|\nabla f(\mathbf{x})\|² + \alpha² \frac{L}{2} \|\nabla f(\mathbf{x})\|²\\ &= f(\mathbf{x}) + \left( - \alpha + \alpha² \frac{L}{2} \right) \|\nabla f(\mathbf{x})\|². \end{align*}\]
+$$\begin{align*} f(\mathbf{x} + \alpha \mathbf{p}) &\leq f(\mathbf{x}) + \nabla f(\mathbf{x})^T (\alpha \mathbf{p}) + \frac{L}{2} \|\alpha \mathbf{p}\|²\\ &= f(\mathbf{x}) - \alpha \|\nabla f(\mathbf{x})\|² + \alpha² \frac{L}{2} \|\nabla f(\mathbf{x})\|²\\ &= f(\mathbf{x}) + \left( - \alpha + \alpha² \frac{L}{2} \right) \|\nabla f(\mathbf{x})\|². \end{align*}$$
 
 括号中的二次函数是凸函数，并在满足
 
-\[ \frac{\mathrm{d}}{\mathrm{d} \alpha}\left( - \alpha + \alpha² \frac{L}{2} \right) = -1 + \alpha L = 0\. \]
+$$ \frac{\mathrm{d}}{\mathrm{d} \alpha}\left( - \alpha + \alpha² \frac{L}{2} \right) = -1 + \alpha L = 0\. $$
 
 取 \(\alpha = 1/L\)，其中 \(-\alpha + \alpha² \frac{L}{2} = - \frac{1}{2L}\)，并将此代入上述不等式中给出
 
-\[ f\left(\mathbf{x} - \frac{1}{L} \nabla f(\mathbf{x})\right) \leq f(\mathbf{x}) - \frac{1}{2L}\|\nabla f(\mathbf{x})\|², \]
+$$ f\left(\mathbf{x} - \frac{1}{L} \nabla f(\mathbf{x})\right) \leq f(\mathbf{x}) - \frac{1}{2L}\|\nabla f(\mathbf{x})\|², $$
 
 如所声称。 \(\square\)
 
@@ -756,19 +756,19 @@ and
 
 *证明:* *(光滑情况下的梯度下降收敛)* 根据 *光滑情况下的下降保证*，
 
-\[ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t) - \frac{1}{2 L}\|\nabla f(\mathbf{x}^t)\|² \leq f(\mathbf{x}^t), \quad \forall t. \]
+$$ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t) - \frac{1}{2 L}\|\nabla f(\mathbf{x}^t)\|² \leq f(\mathbf{x}^t), \quad \forall t. $$
 
 此外，使用望远镜求和，我们得到
 
-\[\begin{align*} f(\mathbf{x}^S) &= f(\mathbf{x}⁰) + \sum_{t=0}^{S-1} [f(\mathbf{x}^{t+1}) - f(\mathbf{x}^t)]\\ &\leq f(\mathbf{x}⁰) - \frac{1}{2 L}\sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|²\. \end{align*}\]
+$$\begin{align*} f(\mathbf{x}^S) &= f(\mathbf{x}⁰) + \sum_{t=0}^{S-1} [f(\mathbf{x}^{t+1}) - f(\mathbf{x}^t)]\\ &\leq f(\mathbf{x}⁰) - \frac{1}{2 L}\sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|²\. \end{align*}$$
 
 重新排列并使用 \(f(\mathbf{x}^S) \geq \bar{f}\) 导致
 
-\[ \sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|² \leq 2L [f(\mathbf{x}⁰) - \bar{f}]. \]
+$$ \sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|² \leq 2L [f(\mathbf{x}⁰) - \bar{f}]. $$
 
 我们得到定量界限
 
-\[\begin{align*} \min_{t=0,\ldots, S-1} \|\nabla f(\mathbf{x}^t)\|² & \leq \frac{1}{S} \sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|²\\ &\leq \frac{2L [f(\mathbf{x}⁰) - \bar{f}]}{S} \end{align*}\]
+$$\begin{align*} \min_{t=0,\ldots, S-1} \|\nabla f(\mathbf{x}^t)\|² & \leq \frac{1}{S} \sum_{t=0}^{S-1} \|\nabla f(\mathbf{x}^t)\|²\\ &\leq \frac{2L [f(\mathbf{x}⁰) - \bar{f}]}{S} \end{align*}$$
 
 因为最小值必然小于或等于平均值。此外，当 \(S \to +\infty\) 时，根据标准的 [分析](https://math.stackexchange.com/questions/62389/relationships-between-bounded-and-convergent-series) [论证](https://math.stackexchange.com/questions/107961/if-a-series-converges-then-the-sequence-of-terms-converges-to-0)，我们必须有 \(\|\nabla f(\mathbf{x}^S)\|² \to 0\)。这证明了该命题。 \(\square\)
 
@@ -778,23 +778,23 @@ and
 
 **引理** **(函数及其梯度的关系)** \(\idx{relating a function and its gradient lemma}\xdi\) 设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是二阶连续可微的，\(m\)-强凸，并在 \(\mathbf{x}^*\) 处有全局最小值。那么对于任何 \(\mathbf{x} \in \mathbb{R}^d\)
 
-\[ f(\mathbf{x}) - f(\mathbf{x}^*) \leq \frac{\|\nabla f(\mathbf{x})\|²}{2 m}. \]
+$$ f(\mathbf{x}) - f(\mathbf{x}^*) \leq \frac{\|\nabla f(\mathbf{x})\|²}{2 m}. $$
 
 \(\flat\)
 
 *证明:* 通过 *强凸函数的二次界*，
 
-\[\begin{align*} f(\mathbf{x}^*) &\geq f(\mathbf{x}) + \nabla f(\mathbf{x})^T (\mathbf{x}^* - \mathbf{x}) + \frac{m}{2} \|\mathbf{x}^* - \mathbf{x}\|²\\ &= f(\mathbf{x}) + \nabla f(\mathbf{x})^T \mathbf{w} + \frac{1}{2} \mathbf{w}^T (m I_{d \times d}) \,\mathbf{w}\\ &=: r + \mathbf{q}^T \mathbf{w} + \frac{1}{2} \mathbf{w}^T P \,\mathbf{w} \end{align*}\]
+$$\begin{align*} f(\mathbf{x}^*) &\geq f(\mathbf{x}) + \nabla f(\mathbf{x})^T (\mathbf{x}^* - \mathbf{x}) + \frac{m}{2} \|\mathbf{x}^* - \mathbf{x}\|²\\ &= f(\mathbf{x}) + \nabla f(\mathbf{x})^T \mathbf{w} + \frac{1}{2} \mathbf{w}^T (m I_{d \times d}) \,\mathbf{w}\\ &=: r + \mathbf{q}^T \mathbf{w} + \frac{1}{2} \mathbf{w}^T P \,\mathbf{w} \end{align*}$$
 
 在第二行中，我们定义了 \(\mathbf{w} = \mathbf{x}^* - \mathbf{x}\)。右侧是 \(\mathbf{w}\) 的二次函数（对于固定的 \(\mathbf{x}\)），在第三行中，我们使用了我们之前为这种函数定义的 \(P\)、\(\mathbf{q}\) 和 \(r\)。因此，如果我们用那个二次函数的全局最小值 \(\mathbf{w}^*\) 替换 \(\mathbf{w}\)，不等式仍然成立。
 
 矩阵 \(P = m I_{d \times d}\) 是正定的。通过之前的例子，我们知道当梯度 \(\frac{1}{2}[P + P^T]\mathbf{w}^* + \mathbf{q} = \mathbf{0}\) 时，最小值被实现，这等价于
 
-\[ \mathbf{w}^* = - (m I_{d \times d})^{-1} \nabla f(\mathbf{x}) = - (m^{-1} I_{d \times d}) \nabla f(\mathbf{x}) = - \frac{1}{m} \nabla f(\mathbf{x}). \]
+$$ \mathbf{w}^* = - (m I_{d \times d})^{-1} \nabla f(\mathbf{x}) = - (m^{-1} I_{d \times d}) \nabla f(\mathbf{x}) = - \frac{1}{m} \nabla f(\mathbf{x}). $$
 
 因此，用 \(\mathbf{w}^*\) 替换 \(\mathbf{w}\)，我们得到不等式
 
-\[\begin{align*} f(\mathbf{x}^*) & \geq f(\mathbf{x}) + \nabla f(\mathbf{x})^T \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}\\ & \quad \quad+ \frac{1}{2} \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}^T (m I_{d \times d}) \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}\\ & = f(\mathbf{x}) - \frac{1}{2m} \|\nabla f(\mathbf{x})\|². \end{align*}\]
+$$\begin{align*} f(\mathbf{x}^*) & \geq f(\mathbf{x}) + \nabla f(\mathbf{x})^T \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}\\ & \quad \quad+ \frac{1}{2} \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}^T (m I_{d \times d}) \left\{- \frac{1}{m} \nabla f(\mathbf{x})\right\}\\ & = f(\mathbf{x}) - \frac{1}{2m} \|\nabla f(\mathbf{x})\|². \end{align*}$$
 
 重新排列后给出结论。 \(\square\)
 
@@ -802,11 +802,11 @@ and
 
 **定理** **(强凸情况下梯度下降的收敛性)** \(\idx{梯度下降在强凸情况下的收敛性}\xdi\) 假设 \(f : \mathbb{R}^d \to \mathbb{R}\) 是 \(L\)-光滑和 \(m\)-强凸的，并且全局最小值在 \(\mathbf{x}^*\) 处。那么从任意 \(\mathbf{x}⁰\) 开始的步长为 \(\alpha = 1/L\) 的梯度下降会产生一个序列 \(\mathbf{x}^t\)，\(t=1,2,\ldots\)，使得
 
-\[ \lim_{t \to +\infty} f(\mathbf{x}^t) = f(\mathbf{x}^*). \]
+$$ \lim_{t \to +\infty} f(\mathbf{x}^t) = f(\mathbf{x}^*). $$
 
 此外，经过 \(S\) 步后，我们有
 
-\[ f(\mathbf{x}^S) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)^S [f(\mathbf{x}⁰) - f(\mathbf{x}^*)]. \]
+$$ f(\mathbf{x}^S) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)^S [f(\mathbf{x}⁰) - f(\mathbf{x}^*)]. $$
 
 \(\sharp\)
 
@@ -814,25 +814,25 @@ and
 
 换句话说，固定任意 \(\epsilon > 0\)。如果我们的目标是找到一个点 \(\mathbf{x}\)，使得 \(f(\mathbf{x}) - f(\mathbf{x}^*) \leq \epsilon\)，那么如果我们执行 \(S\) 步，我们就能保证找到这样一个点，
 
-\[ f(\mathbf{x}^S) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)^S [f(\mathbf{x}⁰) - f(\mathbf{x}^*)] \leq \epsilon \]
+$$ f(\mathbf{x}^S) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)^S [f(\mathbf{x}⁰) - f(\mathbf{x}^*)] \leq \epsilon $$
 
 即，重新排列后，
 
-\[ S \geq \frac{\log \epsilon^{-1} + \log(f(\mathbf{x}⁰) - \bar{f})}{\log \left(1 - \frac{m}{L}\right)^{-1}}. \]
+$$ S \geq \frac{\log \epsilon^{-1} + \log(f(\mathbf{x}⁰) - \bar{f})}{\log \left(1 - \frac{m}{L}\right)^{-1}}. $$
 
 *证明思路（强凸情况下梯度下降的收敛性）：* 我们应用平滑函数的下降保证和上述引理。
 
 *证明：* *(强凸情况下梯度下降的收敛性)* 通过结合平滑函数的下降保证和上述引理，对于所有的 \(t\)，我们有
 
-\[ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t) - \frac{1}{2L} \|\nabla f(\mathbf{x}^t)\|² \leq f(\mathbf{x}^t) - \frac{m}{L} [f(\mathbf{x}^t) - f(\mathbf{x}^*)]. \]
+$$ f(\mathbf{x}^{t+1}) \leq f(\mathbf{x}^t) - \frac{1}{2L} \|\nabla f(\mathbf{x}^t)\|² \leq f(\mathbf{x}^t) - \frac{m}{L} [f(\mathbf{x}^t) - f(\mathbf{x}^*)]. $$
 
 两边减去 \(f(\mathbf{x}^*)\) 得到
 
-\[ f(\mathbf{x}^{t+1}) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)[f(\mathbf{x}^t) - f(\mathbf{x}^*)]. \]
+$$ f(\mathbf{x}^{t+1}) - f(\mathbf{x}^*) \leq \left(1 - \frac{m}{L}\right)[f(\mathbf{x}^t) - f(\mathbf{x}^*)]. $$
 
 递归这个不等式，
 
-\[ \leq \left(1 - \frac{m}{L}\right)²[f(\mathbf{x}^{t-1}) - f(\mathbf{x}^*)], \]
+$$ \leq \left(1 - \frac{m}{L}\right)²[f(\mathbf{x}^{t-1}) - f(\mathbf{x}^*)], $$
 
 以此类推。这证明了我们的结论。 \(\square\)
 
@@ -848,7 +848,7 @@ def grad_f(x):
 
 二阶导数是 \(f''(x) = 2\)。因此，这个 \(f\) 是 \(L\)-光滑和 \(m\)-强凸的，其中 \(L = m = 2\)。我们发展的理论建议取步长 \(\alpha_t = \alpha = 1/L = 1/2\)。这也意味着
 
-\[ f(x¹) - f(x^*) \leq \left(1 - \frac{m}{L}\right) [f(x⁰) - f(x^*)] = 0. \]
+$$ f(x¹) - f(x^*) \leq \left(1 - \frac{m}{L}\right) [f(x⁰) - f(x^*)] = 0. $$
 
 我们一步就收敛了！这对于任何起始点 \(x⁰\) 都成立。
 

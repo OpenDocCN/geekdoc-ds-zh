@@ -1,4 +1,4 @@
-# 2.5\. 应用：回归分析#
+# 2.5\. 应用：回归分析
 
 > 原文：[`mmids-textbook.github.io/chap02_ls/05_regression/roch-mmids-ls-regression.html`](https://mmids-textbook.github.io/chap02_ls/05_regression/roch-mmids-ls-regression.html)
 
@@ -8,7 +8,7 @@
 
 **线性回归** \(\idx{linear regression}\xdi\) 我们寻求一个仿射函数来拟合输入数据点 \(\{(\mathbf{x}_i, y_i)\}_{i=1}^n\)，其中 \(\mathbf{x}_i = (x_{i,1}, \ldots, x_{i,d}) \in \mathbb{R}^d\) 且 \(y_i \in \mathbb{R}\) 对所有 \(i\) 都成立。常见的方法是找到系数 \(\beta_j\)，使得标准最小化
 
-\[ \sum_{i=1}^n \left(y_i - \left\{\beta_0 + \sum_{j=1}^d \beta_j x_{i,j}\right\}\right)². \]
+$$ \sum_{i=1}^n \left(y_i - \left\{\beta_0 + \sum_{j=1}^d \beta_j x_{i,j}\right\}\right)². $$
 
 这确实是一个线性最小二乘问题。
 
@@ -16,35 +16,35 @@
 
 以矩阵形式，设
 
-\[\begin{split} \mathbf{y} = \begin{pmatrix} y_1 \\ y_2 \\ \vdots \\ y_n \end{pmatrix}, \quad\quad A = \begin{pmatrix} 1 & \mathbf{x}_1^T \\ 1 & \mathbf{x}_2^T \\ \vdots & \vdots \\ 1 & \mathbf{x}_n^T \end{pmatrix} \quad\text{and}\quad \boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_d \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{y} = \begin{pmatrix} y_1 \\ y_2 \\ \vdots \\ y_n \end{pmatrix}, \quad\quad A = \begin{pmatrix} 1 & \mathbf{x}_1^T \\ 1 & \mathbf{x}_2^T \\ \vdots & \vdots \\ 1 & \mathbf{x}_n^T \end{pmatrix} \quad\text{and}\quad \boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_d \end{pmatrix}. \end{split}$$
 
 然后问题变为
 
-\[ \min_{\boldsymbol{\beta} \in \mathbb{R}^{d+1}} \|\mathbf{y} - A \boldsymbol{\beta}\|². \]
+$$ \min_{\boldsymbol{\beta} \in \mathbb{R}^{d+1}} \|\mathbf{y} - A \boldsymbol{\beta}\|². $$
 
 我们假设 \(A\) 的列线性无关，这在实际数据中通常是情况（除非某些列之间存在代数关系）。因此，正则方程如下
 
-\[ A^T A \boldsymbol{\beta} = A^T \mathbf{y}. \]
+$$ A^T A \boldsymbol{\beta} = A^T \mathbf{y}. $$
 
 设 \(\boldsymbol{\hat\beta} = (\hat{\beta}_0,\ldots,\hat{\beta}_d)\) 为该系统的唯一解。它给出了我们拟合模型中的系数向量。我们称之为
 
-\[ \hat{y}_i = \beta_0 + \sum_{j=1}^d \beta_j x_{i,j}, \quad i = 1,\ldots,n \]
+$$ \hat{y}_i = \beta_0 + \sum_{j=1}^d \beta_j x_{i,j}, \quad i = 1,\ldots,n $$
 
 作为拟合值，并到
 
-\[ r_i = y_i - \hat{y}_i, \quad i = 1,\ldots,n \]
+$$ r_i = y_i - \hat{y}_i, \quad i = 1,\ldots,n $$
 
 作为残差\(\idx{residuals}\xdi\). 以向量形式，我们得到 \(\hat{\mathbf{y}} = (\hat{y}_1,\ldots,\hat{y}_n)\) 和 \(\mathbf{r} = (r_1,\ldots,r_n)\) 如下
 
-\[ \hat{\mathbf{y}} = A \boldsymbol{\hat\beta} \quad \text{and} \quad \mathbf{r} = \mathbf{y} - \hat{\mathbf{y}}. \]
+$$ \hat{\mathbf{y}} = A \boldsymbol{\hat\beta} \quad \text{and} \quad \mathbf{r} = \mathbf{y} - \hat{\mathbf{y}}. $$
 
 残差平方和（RSS）\(\idx{residual sum of squares}\xdi\) 由以下给出
 
-\[ \sum_{i=1}^n r_i² = \sum_{i=1}^n \left(y_i - \left\{\hat{\beta}_0 + \sum_{j=1}^d \hat{\beta}_j x_{i,j}\right\}\right)² \]
+$$ \sum_{i=1}^n r_i² = \sum_{i=1}^n \left(y_i - \left\{\hat{\beta}_0 + \sum_{j=1}^d \hat{\beta}_j x_{i,j}\right\}\right)² $$
 
 或者，以向量形式，
 
-\[ \|\mathbf{r}\|² = \|\mathbf{y} - \hat{\mathbf{y}}\|² = \|\mathbf{y} - A \boldsymbol{\hat\beta}\|². \]
+$$ \|\mathbf{r}\|² = \|\mathbf{y} - \hat{\mathbf{y}}\|² = \|\mathbf{y} - A \boldsymbol{\hat\beta}\|². $$
 
 **数值角:** 我们在我们的模拟数据上测试我们的最小二乘法。这有一个优点，即我们知道真实值。
 
@@ -101,17 +101,17 @@ plt.show()
 
 **超越线性** \(\idx{多项式回归}\xdi\) 线性假设并不像最初看起来那么严格。同样的方法可以简单地扩展到拟合多项式或更复杂的函数组合。例如，假设 \(d=1\)。为了将二次多项式拟合到数据 \(\{(x_i, y_i)\}_{i=1}^n\)，我们在 \(A\) 矩阵中添加一个列，包含 \(x_i\) 的平方。也就是说，我们让
 
-\[\begin{split} A = \begin{pmatrix} 1 & x_1 & x_1² \\ 1 & x_2 & x_2² \\ \vdots & \vdots & \vdots \\ 1 & x_n & x_n² \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 1 & x_1 & x_1² \\ 1 & x_2 & x_2² \\ \vdots & \vdots & \vdots \\ 1 & x_n & x_n² \end{pmatrix}. \end{split}$$
 
 然后，我们确实是在拟合以下二次多项式
 
-\[ (A \boldsymbol{\beta})_i = \beta_0 + \beta_1 x_i + \beta_2 x_i². \]
+$$ (A \boldsymbol{\beta})_i = \beta_0 + \beta_1 x_i + \beta_2 x_i². $$
 
 解决方案保持不变。
 
 这种添加列的想法也可以用来建模预测变量之间的交互。假设 \(d=2\)。那么我们可以考虑以下 \(A\) 矩阵，其中最后一列将两个预测变量组合成它们的乘积，
 
-\[\begin{split} A = \begin{pmatrix} 1 & x_{11} & x_{12} & x_{11} x_{12} \\ 1 & x_{21} & x_{22} & x_{21} x_{22} \\ \vdots & \vdots & \vdots & \vdots\\ 1 & x_{n1} & x_{n2} & x_{n1} x_{n2} \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 1 & x_{11} & x_{12} & x_{11} x_{12} \\ 1 & x_{21} & x_{22} & x_{21} x_{22} \\ \vdots & \vdots & \vdots & \vdots\\ 1 & x_{n1} & x_{n2} & x_{n1} x_{n2} \end{pmatrix}. \end{split}$$
 
 **数值角**: 假设真实情况实际上是一个一变量的二次多项式，带有高斯噪声。
 
@@ -308,7 +308,7 @@ d) 模型忽略了训练数据中的随机噪声。
 
 **线性回归** \(\idx{linear regression}\xdi\) 我们寻求一个仿射函数来拟合输入数据点 \(\{(\mathbf{x}_i, y_i)\}_{i=1}^n\)，其中 \(\mathbf{x}_i = (x_{i,1}, \ldots, x_{i,d}) \in \mathbb{R}^d\) 且 \(y_i \in \mathbb{R}\) 对所有 \(i\) 都成立。常见的方法是找到系数 \(\beta_j\)，以最小化以下标准
 
-\[ \sum_{i=1}^n \left(y_i - \left\{\beta_0 + \sum_{j=1}^d \beta_j x_{i,j}\right\}\right)². \]
+$$ \sum_{i=1}^n \left(y_i - \left\{\beta_0 + \sum_{j=1}^d \beta_j x_{i,j}\right\}\right)². $$
 
 这确实是一个线性最小二乘问题。
 
@@ -316,35 +316,35 @@ d) 模型忽略了训练数据中的随机噪声。
 
 以矩阵形式，设
 
-\[\begin{split} \mathbf{y} = \begin{pmatrix} y_1 \\ y_2 \\ \vdots \\ y_n \end{pmatrix}, \quad\quad A = \begin{pmatrix} 1 & \mathbf{x}_1^T \\ 1 & \mathbf{x}_2^T \\ \vdots & \vdots \\ 1 & \mathbf{x}_n^T \end{pmatrix} \quad\text{and}\quad \boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_d \end{pmatrix}. \end{split}\]
+$$\begin{split} \mathbf{y} = \begin{pmatrix} y_1 \\ y_2 \\ \vdots \\ y_n \end{pmatrix}, \quad\quad A = \begin{pmatrix} 1 & \mathbf{x}_1^T \\ 1 & \mathbf{x}_2^T \\ \vdots & \vdots \\ 1 & \mathbf{x}_n^T \end{pmatrix} \quad\text{and}\quad \boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_d \end{pmatrix}. \end{split}$$
 
 然后，问题变为
 
-\[ \min_{\boldsymbol{\beta} \in \mathbb{R}^{d+1}} \|\mathbf{y} - A \boldsymbol{\beta}\|². \]
+$$ \min_{\boldsymbol{\beta} \in \mathbb{R}^{d+1}} \|\mathbf{y} - A \boldsymbol{\beta}\|². $$
 
 我们假设 \(A\) 的列线性无关，这在真实数据中通常是情况（除非某些列之间存在代数关系）。因此，正则方程是
 
-\[ A^T A \boldsymbol{\beta} = A^T \mathbf{y}. \]
+$$ A^T A \boldsymbol{\beta} = A^T \mathbf{y}. $$
 
 令 \(\boldsymbol{\hat\beta} = (\hat{\beta}_0,\ldots,\hat{\beta}_d)\) 为该系统的唯一解。它给出了我们拟合模型中的系数向量。我们称之为
 
-\[ \hat{y}_i = \beta_0 + \sum_{j=1}^d \beta_j x_{i,j}, \quad i = 1,\ldots,n \]
+$$ \hat{y}_i = \beta_0 + \sum_{j=1}^d \beta_j x_{i,j}, \quad i = 1,\ldots,n $$
 
 作为拟合值，并且到
 
-\[ r_i = y_i - \hat{y}_i, \quad i = 1,\ldots,n \]
+$$ r_i = y_i - \hat{y}_i, \quad i = 1,\ldots,n $$
 
 作为残差\(\idx{residuals}\xdi\)。以向量形式，我们得到 \(\hat{\mathbf{y}} = (\hat{y}_1,\ldots,\hat{y}_n)\) 和 \(\mathbf{r} = (r_1,\ldots,r_n)\) 如下
 
-\[ \hat{\mathbf{y}} = A \boldsymbol{\hat\beta} \quad \text{and} \quad \mathbf{r} = \mathbf{y} - \hat{\mathbf{y}}. \]
+$$ \hat{\mathbf{y}} = A \boldsymbol{\hat\beta} \quad \text{and} \quad \mathbf{r} = \mathbf{y} - \hat{\mathbf{y}}. $$
 
 残差平方和（RSS）\(\idx{residual sum of squares}\xdi\) 由下式给出
 
-\[ \sum_{i=1}^n r_i² = \sum_{i=1}^n \left(y_i - \left\{\hat{\beta}_0 + \sum_{j=1}^d \hat{\beta}_j x_{i,j}\right\}\right)² \]
+$$ \sum_{i=1}^n r_i² = \sum_{i=1}^n \left(y_i - \left\{\hat{\beta}_0 + \sum_{j=1}^d \hat{\beta}_j x_{i,j}\right\}\right)² $$
 
 或者，以向量形式，
 
-\[ \|\mathbf{r}\|² = \|\mathbf{y} - \hat{\mathbf{y}}\|² = \|\mathbf{y} - A \boldsymbol{\hat\beta}\|². \]
+$$ \|\mathbf{r}\|² = \|\mathbf{y} - \hat{\mathbf{y}}\|² = \|\mathbf{y} - A \boldsymbol{\hat\beta}\|². $$
 
 **数值角落：** 我们在模拟数据上测试我们的最小二乘法。这有一个优点，即我们知道真相。
 
@@ -401,17 +401,17 @@ plt.show()
 
 **超越线性** \(\idx{多项式回归}\xdi\) 线性假设并不像最初看起来那么严格。同样的方法可以简单地扩展到拟合多项式或更复杂的函数组合。例如，假设 \(d=1\)。为了将二次多项式拟合到数据 \(\{(x_i, y_i)\}_{i=1}^n\)，我们在 \(A\) 矩阵中添加一个列，包含 \(x_i\) 的平方。也就是说，我们让
 
-\[\begin{split} A = \begin{pmatrix} 1 & x_1 & x_1² \\ 1 & x_2 & x_2² \\ \vdots & \vdots & \vdots \\ 1 & x_n & x_n² \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 1 & x_1 & x_1² \\ 1 & x_2 & x_2² \\ \vdots & \vdots & \vdots \\ 1 & x_n & x_n² \end{pmatrix}. \end{split}$$
 
 然后，我们确实在以下方式中拟合了一个二次多项式
 
-\[ (A \boldsymbol{\beta})_i = \beta_0 + \beta_1 x_i + \beta_2 x_i². \]
+$$ (A \boldsymbol{\beta})_i = \beta_0 + \beta_1 x_i + \beta_2 x_i². $$
 
 解决方案否则保持不变。
 
 这种添加列的想法也可以用来建模预测变量之间的交互。假设 \(d=2\)。那么我们可以考虑以下 \(A\) 矩阵，其中最后一列将两个预测变量组合成它们的乘积，
 
-\[\begin{split} A = \begin{pmatrix} 1 & x_{11} & x_{12} & x_{11} x_{12} \\ 1 & x_{21} & x_{22} & x_{21} x_{22} \\ \vdots & \vdots & \vdots & \vdots\\ 1 & x_{n1} & x_{n2} & x_{n1} x_{n2} \end{pmatrix}. \end{split}\]
+$$\begin{split} A = \begin{pmatrix} 1 & x_{11} & x_{12} & x_{11} x_{12} \\ 1 & x_{21} & x_{22} & x_{21} x_{22} \\ \vdots & \vdots & \vdots & \vdots\\ 1 & x_{n1} & x_{n2} & x_{n1} x_{n2} \end{pmatrix}. \end{split}$$
 
 **数值角落**：假设真相实际上是一个变量的二次多项式，带有高斯噪声。
 

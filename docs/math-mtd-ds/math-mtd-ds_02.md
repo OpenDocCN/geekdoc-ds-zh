@@ -1,4 +1,4 @@
-# 1\. 简介：第一个数据科学问题#
+# 1\. 简介：第一个数据科学问题
 
 > 原文：[`mmids-textbook.github.io/chap01_intro/00_intro/roch-mmids-intro-intro.html`](https://mmids-textbook.github.io/chap01_intro/00_intro/roch-mmids-intro-intro.html)
 
