@@ -18,4 +18,5 @@
 +   [光线追踪之一周末的指南](docs/ray-trc-1wk/README.md)
 +   [SeaseIO 博客中文翻译](docs/seaseio-blog/README.md)
 +   [SciPy 秘籍](docs/sp-cb-fix1/README.md)
++   [数学与机器思维的小编年史](docs/tlc3m/README.md)
 +   [理解模型-视图-控制器](docs/udstd-mvc/README.md)
