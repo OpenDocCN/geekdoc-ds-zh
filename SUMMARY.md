@@ -12,6 +12,7 @@
 +   [GPU 编程：何时、为何以及如何？](docs/gpu-prog-wwh/README.md)
 +   [数据科学简介](docs/intro-ds/README.md)
 +   [TouchDesigner 入门指南](docs/intro-tchdsn/README.md)
++   [线性代数小书](docs/ltl-bk-linalg/README.md)
 +   [极简数学指南](docs/math-ln/README.md)
 +   [数据科学中的数学方法](docs/math-mtd-ds/README.md)
 +   [基于物理的模拟](docs/phy-sim/README.md)
