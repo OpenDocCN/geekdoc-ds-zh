@@ -1,0 +1,171 @@
+# 3.1. 激励示例：分析客户满意度#
+
+> 原文：[`mmids-textbook.github.io/chap03_opt/01_motiv/roch-mmids-opt-motiv.html`](https://mmids-textbook.github.io/chap03_opt/01_motiv/roch-mmids-opt-motiv.html)
+
+**图示：scikit-learn 提供的 ML 有帮助的地图（来源：[scikit-learn.org/stable/tutorial/machine_learning_map/index.html](https://scikit-learn.org/stable/tutorial/machine_learning_map/index.html)**
+
+![ml-cheat-sheet](img/19ac9e49b2f297976e40fee63e1c4ba0.png)
+
+\(\bowtie\)
+
+我们现在转向分类（\(idx{classification}\xdi\)）。
+
+引用[维基百科](https://en.wikipedia.org/wiki/Statistical_classification)：
+
+> 在机器学习和统计学中，分类是根据包含已知类别成员资格的观察（或实例）的训练数据集，确定新观察属于一组类别（子群体）中的哪一个的问题。例如，将给定的电子邮件分配到“垃圾邮件”或“非垃圾邮件”类别，以及根据患者的观察特征（性别、血压、某些症状的有无等）对给定的患者进行诊断。分类是模式识别的一个例子。在机器学习的术语中，分类被认为是监督学习的一个实例，即存在一个包含正确识别观察的训练集的学习。
+
+我们将在[Kaggle](https://www.kaggle.com)上可用的[航空公司客户满意度](https://www.kaggle.com/datasets/sjleshrac/airlines-customer-satisfaction)数据集上说明这个问题，Kaggle 是一个优秀的数据来源和社区贡献的分析平台。背景如下：
+
+> 该数据集包含已经与他们一起飞行的客户的详细信息。客户对各种情境的反馈以及他们的飞行数据已经汇总。该数据集的主要目的是根据其他参数值的详细信息预测未来客户是否会对其服务感到满意。
+
+我们首先加载数据并将其转换为适当的矩阵表示。我们（或者更准确地说，ChatGPT）预处理了原始文件，以删除包含缺失数据或 0 评分的行，将分类变量转换为 one-hot 编码，并仅保留行和列的子集。您可以在本[聊天记录](https://chatgpt.com/share/c5070b9c-f33f-4a37-a793-fde0d7cb7b06)中查看预处理的详细信息。
+
+```py
+data = pd.read_csv('customer_airline_satisfaction.csv') 
+```
+
+这是一个大型数据集。以下是前五行和前六列。
+
+```py
+print(data.iloc[:5, :6]) 
+```
+
+```py
+ Satisfied  Age  Class_Business  Class_Eco  Class_Eco Plus  Business travel
+0          0   63               1          0               0                1
+1          0   34               1          0               0                1
+2          0   52               0          1               0                0
+3          0   40               0          1               0                1
+4          1   46               0          1               0                1 
+```
+
+它有 100,000 行和 24 列。
+
+```py
+data.shape 
+```
+
+```py
+(100000, 24) 
+```
+
+列名如下：
+
+```py
+print(data.columns.tolist()) 
+```
+
+```py
+['Satisfied', 'Age', 'Class_Business', 'Class_Eco', 'Class_Eco Plus', 'Business travel', 'Loyal customer', 'Flight Distance', 'Departure Delay in Minutes', 'Arrival Delay in Minutes', 'Seat comfort', 'Departure/Arrival time convenient', 'Food and drink', 'Gate location', 'Inflight wifi service', 'Inflight entertainment', 'Online support', 'Ease of Online booking', 'On-board service', 'Leg room service', 'Baggage handling', 'Checkin service', 'Cleanliness', 'Online boarding'] 
+```
+
+第一列表示客户是否满意（`1`表示满意）。接下来的 6 列提供有关客户的一些信息，例如他们的年龄或他们是否是航空公司的忠诚度计划成员。接下来的三列提供有关航班的信息，名称应该是自解释的：`Flight Distance`（航班距离）、`Departure Delay in Minutes`（出发延误分钟）和`Arrival Delay in Minutes`（到达延误分钟）。剩余的列提供客户对各种特征的评分，评分在`1`到`5`之间，例如`Baggage handling`（行李处理）、`Checkin service`（登机服务）。
+
+我们的目标将是预测第一列，`Satisfied`，从其余的列中。为此，我们将数据转换为 NumPy 数组。
+
+```py
+y = data['Satisfied'].to_numpy()
+X = data.drop(columns=['Satisfied']).to_numpy()
+print(y) 
+```
+
+```py
+[0 0 0 ... 0 1 0] 
+```
+
+```py
+print(X) 
+```
+
+```py
+[[63  1  0 ...  3  3  4]
+ [34  1  0 ...  2  3  4]
+ [52  0  1 ...  4  3  4]
+ ...
+ [39  0  1 ...  4  1  1]
+ [25  0  0 ...  5  3  1]
+ [44  1  0 ...  1  2  2]] 
+```
+
+一些特征可能比其他特征对满意度的影响更大。以年龄为例，以下代码从`X`（即列\(0\)）中提取`Age`列，并计算几个年龄区间的满意客户比例。
+
+ChatGPT（编写了代码）的解释：
+
+1.  [`numpy.digitize`](https://numpy.org/doc/stable/reference/generated/numpy.digitize.html) 将年龄数据划分到指定的年龄区间。`-1`调整是为了匹配零基索引。
+
+1.  [`numpy.bincount`](https://numpy.org/doc/stable/reference/generated/numpy.bincount.html) 计算每个区间的出现次数。`minlength`参数确保结果数组的长度与年龄区间的数量（`age_labels`）相匹配。如果某些区间计数为零，这确保计数数组覆盖所有区间。
+
+1.  `freq_satisfied = counts_satisfied / counts_all` 通过将满意客户的计数除以每个年龄组的总计数来计算每个年龄组的满意度频率。
+
+```py
+age_col_index = 0
+age_data = X[:, age_col_index]
+age_bins = [0, 18, 25, 35, 45, 55, 65, 100]
+age_labels = ['0-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+']
+age_bin_indices = np.digitize(age_data, bins=age_bins) - 1
+counts_all = np.bincount(age_bin_indices, minlength=len(age_labels))
+counts_satisfied = np.bincount(age_bin_indices[y == 1], minlength=len(age_labels))
+freq_satisfied = counts_satisfied / counts_all
+age_group_labels = np.array(age_labels) 
+```
+
+结果使用 matplotlib 的`matplotlib.pyplot.bar`函数绘制。我们特别看到，年轻人往往更容易不满意。当然，这可能是因为他们负担不起最昂贵的服务。
+
+```py
+plt.figure(figsize=(4, 4))
+plt.bar(age_group_labels, freq_satisfied, color='lightblue', edgecolor='black')
+plt.xlabel('Age Group'), plt.ylabel('Frequency of Satisfied Customers')
+plt.show() 
+```
+
+![../../_images/67ecfc3b63a5bad3ac48daf7707938436d621202289556c52f6b1fd57d71f323.png](img/d5cb3f8cc065e1efab42d21f968d71b5.png)
+
+输入数据现在具有以下形式 \(\{(\mathbf{x}_i, y_i) : i=1,\ldots, n\}\)，其中 \(\mathbf{x}_i \in \mathbb{R}^d\) 是特征，\(y_i \in \{0,1\}\) 是标签。上面我们使用矩阵表示 \(X \in \mathbb{R}^{n \times d}\)，其中行 \(\mathbf{x}_i^T\)，\(i = 1,\ldots, n\)，以及 \(\mathbf{y} = (y_1, \ldots, y_n) \in \{0,1\}^n\)。
+
+我们的目标：
+
+> 从示例 \(\{(\mathbf{x}_i, y_i) : i=1,\ldots, n\}\) 中学习一个分类器，即一个函数 \(\hat{f} : \mathbb{R}^d \to \mathbb{R}\)，使得 \(\hat{f}(\mathbf{x}_i) \approx y_i\)。
+
+我们可能希望强制输出也在 \(\{0,1\}\) 中。这个问题被称为[二元分类](https://en.wikipedia.org/wiki/Binary_classification)。
+
+对于这种[监督学习](https://en.wikipedia.org/wiki/Supervised_learning)\(\idx{supervised learning}\xdi\)问题的一个自然方法是定义两个对象：
+
+1.  **分类器族：** 从中选择 \(\hat{f}\) 的一个分类器类 \(\widehat{\mathcal{F}}\)。
+
+1.  **损失函数：** 一个损失函数 \(\ell(\hat{f}, (\mathbf{x},y))\)，它量化了 \(\hat{f}(\mathbf{x})\) 与 \(y\) 的拟合程度。
+
+因此，我们的目标是解决
+
+\[ \min_{\hat{f} \in \widehat{\mathcal{F}}} \frac{1}{n} \sum_{i=1}^n \ell(\hat{f}, (\mathbf{x}_i, y_i)), \]
+
+即，我们寻求在 \(\widehat{\mathcal{F}}\) 中找到一个分类器，以最小化示例的平均损失。
+
+例如，在[逻辑回归](https://en.wikipedia.org/wiki/Logistic_regression)中，我们考虑形式为线性分类器
+
+\[ \hat{f}(\mathbf{x}) = \sigma(\mathbf{x}^T \boldsymbol{\theta}) \qquad \text{with} \qquad \sigma(t) = \frac{1}{1 + e^{-t}} \]
+
+其中 \(\boldsymbol{\theta} \in \mathbb{R}^d\) 是一个参数向量。我们使用[交叉熵损失](https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_loss_function_and_logistic_regression)。
+
+\[ \ell(\hat{f}, (\mathbf{x}, y)) = - y \log(\sigma(\mathbf{x}^T \boldsymbol{\theta})) - (1-y) \log(1- \sigma(\mathbf{x}^T \boldsymbol{\theta})). \]
+
+在参数形式下，问题简化为
+
+\[ \min_{\boldsymbol{\theta} \in \mathbb{R}^d} - \frac{1}{n} \sum_{i=1}^n y_i \log(\sigma(\mathbf{x}_i^T \boldsymbol{\theta})) - \frac{1}{n} \sum_{i=1}^n (1-y_i) \log(1- \sigma(\mathbf{x}_i^T \boldsymbol{\theta})). \]
+
+为了在这里获得 \(\{0,1\}\) 的预测，我们可以在阈值 \(\tau \in [0,1]\) 处截断 \(\hat{f}(\mathbf{x})\)，即返回 \(\mathbf{1}\{\hat{f}(\mathbf{x}) > \tau\}\)。
+
+我们将在后面的章节中解释这个选择从何而来。
+
+本章的目的是发展一些解决此类优化公式的数学理论和算法。
+
+**CHAT & LEARN** 请您最喜欢的 AI 聊天机器人帮助您探索关于此数据集的以下假设：
+
+> 年轻人往往更不满意，因为他们负担不起最好的服务。
+
+例如，考虑年龄、满意度和类别（例如，经济、商业等）之间的关系。具体来说：
+
+1.  比较不同年龄组中类别类型的分布。
+
+1.  比较不同年龄组中每个类别类型的满意度水平。
+
+([在 Colab 中打开](https://colab.research.google.com/github/MMiDS-textbook/MMiDS-textbook.github.io/blob/main/just_the_code/roch_mmids_chap_opt_notebook.ipynb)) \(\ddagger\)
