@@ -1,0 +1,3467 @@
+- en: 10\. Linear algebra
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://leanprover-community.github.io/mathematics_in_lean/C10_Linear_Algebra.html](https://leanprover-community.github.io/mathematics_in_lean/C10_Linear_Algebra.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*[Mathematics in Lean](index.html)* **   10\. Linear algebra'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[View page source](_sources/C10_Linear_Algebra.rst.txt)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '## 10.1\. Vector spaces and linear maps[](#vector-spaces-and-linear-maps "Link
+    to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.1.1\. Vector spaces[](#vector-spaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will start directly abstract linear algebra, taking place in a vector space
+    over any field. However you can find information about matrices in [Section 10.4.1](#matrices)
+    which does not logically depend on this abstract theory. Mathlib actually deals
+    with a more general version of linear algebra involving the word module, but for
+    now we will pretend this is only an eccentric spelling habit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The way to say “let \(K\) be a field and let \(V\) be a vector space over \(K\)”
+    (and make them implicit arguments to later results) is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We explained in [Chapter 8](C08_Hierarchies.html#hierarchies) why we need two
+    separate typeclasses `[AddCommGroup V] [Module K V]`. The short version is the
+    following. Mathematically we want to say that having a \(K\)-vector space structure
+    implies having an additive commutative group structure. We could tell this to
+    Lean. But then whenever Lean would need to find such a group structure on a type
+    \(V\), it would go hunting for vector space structures using a *completely unspecified*
+    field \(K\) that cannot be inferred from \(V\). This would be very bad for the
+    type class synthesis system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The multiplication of a vector v by a scalar a is denoted by a • v. We list
+    a couple of algebraic rules about the interaction of this operation with addition
+    in the following examples. Of course simp or apply? would find those proofs. There
+    is also a module tactic that solves goals following from the axioms of vector
+    spaces and fields, in the same way the ring tactic is used in commutative rings
+    or the group tactic is used in groups. But it is still useful to remember that
+    scalar multiplication is abbreviated smul in lemma names.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As a quick note for more advanced readers, let us point out that, as suggested
+    by terminology, Mathlib’s linear algebra also covers modules over (not necessarily
+    commutative) rings. In fact it even covers semi-modules over semi-rings. If you
+    think you do not need this level of generality, you can meditate the following
+    example that nicely captures a lot of algebraic rules about ideals acting on submodules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.1.2\. Linear maps[](#linear-maps "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Next we need linear maps. Like group morphisms, linear maps in Mathlib are bundled
+    maps, i.e. packages made of a map and proofs of its linearity properties. Those
+    bundled maps are converted to ordinary functions when applied. See [Chapter 8](C08_Hierarchies.html#hierarchies)
+    for more information about this design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of linear maps between two `K`-vector spaces `V` and `W` is denoted
+    by `V →ₗ[K] W`. The subscript l stands for linear. At first it may feel odd to
+    specify `K` in this notation. But this is crucial when several fields come into
+    play. For instance real-linear maps from \(ℂ\) to \(ℂ\) are every map \(z ↦ az
+    + b\bar{z}\) while only the maps \(z ↦ az\) are complex linear, and this difference
+    is crucial in complex analysis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `V →ₗ[K] W` itself carries interesting algebraic structures (this
+    is part of the motivation for bundling those maps). It is a `K`-vector space so
+    we can add linear maps and multiply them by scalars.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: One downside of using bundled maps is that we cannot use ordinary function composition.
+    We need to use `LinearMap.comp` or the notation `∘ₗ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are two main ways to construct linear maps. First we can build the structure
+    by providing the function and the linearity proof. As usual, this is facilitated
+    by the structure code action: you can type `example : V →ₗ[K] V := _` and use
+    the code action “Generate a skeleton” attached to the underscore.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: You may wonder why the proof fields of `LinearMap` have names ending with a
+    prime. This is because they are defined before the coercion to functions is defined,
+    hence they are phrased in terms of `LinearMap.toFun`. Then they are restated as
+    `LinearMap.map_add` and `LinearMap.map_smul` in terms of the coercion to function.
+    This is not yet the end of the story. One also wants a version of `map_add` that
+    applies to any (bundled) map preserving addition, such as additive group morphisms,
+    linear maps, continuous linear maps, `K`-algebra maps etc… This one is `map_add`
+    (in the root namespace). The intermediate version, `LinearMap.map_add` is a bit
+    redundant but allows to use dot notation, which can be nice sometimes. A similar
+    story exists for `map_smul`, and the general framework is explained in [Chapter
+    8](C08_Hierarchies.html#hierarchies).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One can also build linear maps from the ones that are already defined in Mathlib
+    using various combinators. For instance the above example is already known as
+    `LinearMap.lsmul K V 3`. There are several reason why `K` and `V` are explicit
+    arguments here. The most pressing one is that from a bare `LinearMap.lsmul 3`
+    there would be no way for Lean to infer `V` or even `K`. But also `LinearMap.lsmul
+    K V` is an interesting object by itself: it has type `K →ₗ[K] V →ₗ[K] V`, meaning
+    it is a `K`-linear map from `K` —seen as a vector space over itself— to the space
+    of `K`-linear maps from `V` to `V`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There is also a type `LinearEquiv` of linear isomorphisms denoted by `V ≃ₗ[K]
+    W`. The inverse of `f : V ≃ₗ[K] W` is `f.symm : W ≃ₗ[K] V`, composition of `f`
+    and `g` is `f.trans g` also denoted by `f ≪≫ₗ g`, and the identity isomorphism
+    of `V` is `LinearEquiv.refl K V`. Elements of this type are automatically coerced
+    to morphisms and functions when necessary.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: One can use `LinearEquiv.ofBijective` to build an isomorphism from a bijective
+    morphism. Doing so makes the inverse function noncomputable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that in the above example, Lean uses the announced type to understand that
+    `.ofBijective` refers to `LinearEquiv.ofBijective` (without needing to open any
+    namespace).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.1.3\. Sums and products of vector spaces[](#sums-and-products-of-vector-spaces
+    "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We can build new vector spaces out of old ones using direct sums and direct
+    products. Let us start with two vectors spaces. In this case there is no difference
+    between sum and product, and we can simply use the product type. In the following
+    snippet of code we simply show how to get all the structure maps (inclusions and
+    projections) as linear maps, as well as the universal properties constructing
+    linear maps into products and out of sums (if you are not familiar with the category-theoretic
+    distinction between sums and products, you can simply ignore the universal property
+    vocabulary and focus on the types of the following examples).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us now turn to sums and products of arbitrary families of vector spaces.
+    Here we will simply see how to define a family of vector spaces and access the
+    universal properties of sums and products. Note that the direct sum notation is
+    scoped to the `DirectSum` namespace, and that the universal property of direct
+    sums requires decidable equality on the indexing type (this is somehow an implementation
+    accident).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '## 10.2\. Subspaces and quotients[](#subspaces-and-quotients "Link to this
+    heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.2.1\. Subspaces[](#subspaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Just as linear maps are bundled, a linear subspace of `V` is also a bundled
+    structure consisting of a set in `V`, called the carrier of the subspace, with
+    the relevant closure properties. Again the word module appears instead of vector
+    space because of the more general context that Mathlib actually uses for linear
+    algebra.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the example above, it is important to understand that `Submodule K V` is
+    the type of `K`-linear subspaces of `V`, rather than a predicate `IsSubmodule
+    U` where `U` is an element of `Set V`. `Submodule K V` is endowed with a coercion
+    to `Set V` and a membership predicate on `V`. See [Section 8.3](C08_Hierarchies.html#section-hierarchies-subobjects)
+    for an explanation of how and why this is done.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, two subspaces are the same if and only if they have the same elements.
+    This fact is registered for use with the `ext` tactic, which can be used to prove
+    two subspaces are equal in the same way it is used to prove that two sets are
+    equal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To state and prove, for example, that `ℝ` is a `ℝ`-linear subspace of `ℂ`, what
+    we really want is to construct a term of type `Submodule ℝ ℂ` whose projection
+    to `Set ℂ` is `ℝ`, or, more precisely, the image of `ℝ` in `ℂ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The prime at the end of proof fields in `Submodule` are analogous to the one
+    in `LinearMap`. Those fields are stated in terms of the `carrier` field because
+    they are defined before the `MemberShip` instance. They are then superseded by
+    `Submodule.add_mem`, `Submodule.zero_mem` and `Submodule.smul_mem` that we saw
+    above.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise in manipulating subspaces and linear maps, you will define the
+    pre-image of a subspace by a linear map (of course we will see below that Mathlib
+    already knows about this). Remember that `Set.mem_preimage` can be used to rewrite
+    a statement involving membership and preimage. This is the only lemma you will
+    need in addition to the lemmas discussed above about `LinearMap` and `Submodule`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using type classes, Mathlib knows that a subspace of a vector space inherits
+    a vector space structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This example is subtle. The object `U` is not a type, but Lean automatically
+    coerces it to a type by interpreting it as a subtype of `V`. So the above example
+    can be restated more explicitly as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.2\. Complete lattice structure and internal direct sums[](#complete-lattice-structure-and-internal-direct-sums
+    "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'An important benefit of having a type `Submodule K V` instead of a predicate
+    `IsSubmodule : Set V → Prop` is that one can easily endow `Submodule K V` with
+    additional structure. Importantly, it has the structure of a complete lattice
+    structure with respect to inclusion. For instance, instead of having a lemma stating
+    that an intersection of two subspaces of `V` is again a subspace, we use the lattice
+    operation `⊓` to construct the intersection. We can then apply arbitrary lemmas
+    about lattices to the construction.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us check that the set underlying the infimum of two subspaces is indeed,
+    by definition, their intersection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: It may look strange to have a different notation for what amounts to the intersection
+    of the underlying sets, but the correspondence does not carry over to the supremum
+    operation and set union, since a union of subspaces is not, in general, a subspace.
+    Instead one needs to use the subspace generated by the union, which is done using
+    `Submodule.span`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another subtlety is that `V` itself does not have type `Submodule K V`, so
+    we need a way to talk about `V` seen as a subspace of `V`. This is also provided
+    by the lattice structure: the full subspace is the top element of this lattice.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similarly the bottom element of this lattice is the subspace whose only element
+    is the zero element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: In particular we can discuss the case of subspaces that are in (internal) direct
+    sum. In the case of two subspaces, we use the general purpose predicate `IsCompl`
+    which makes sense for any bounded partially ordered type. In the case of general
+    families of subspaces we use `DirectSum.IsInternal`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.3\. Subspace spanned by a set[](#subspace-spanned-by-a-set "Link to this
+    heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In addition to building subspaces out of existing subspaces, we can build them
+    out of any set `s` using `Submodule.span K s` which builds the smallest subspace
+    containing `s`. On paper it is common to use that this space is made of all linear
+    combinations of elements of `s`. But it is often more efficient to use its universal
+    property expressed by `Submodule.span_le`, and the whole theory of Galois connections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: When those are not enough, one can use the relevant induction principle `Submodule.span_induction`
+    which ensures a property holds for every element of the span of `s` as long as
+    it holds on `zero` and elements of `s` and is stable under sum and scalar multiplication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise, let us reprove one implication of `Submodule.mem_sup`. Remember
+    that you can use the module tactic to close goals that follow from the axioms
+    relating the various algebraic operations on `V`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.4\. Pushing and pulling subspaces[](#pushing-and-pulling-subspaces "Link
+    to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As promised earlier, we now describe how to push and pull subspaces by linear
+    maps. As usual in Mathlib, the first operation is called `map` and the second
+    one is called `comap`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note those live in the `Submodule` namespace so one can use dot notation and
+    write `E.map φ` instead of `Submodule.map φ E`, but this is pretty awkward to
+    read (although some Mathlib contributors use this spelling).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In particular the range and kernel of a linear map are subspaces. Those special
+    cases are important enough to get declarations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we cannot write `φ.ker` instead of `LinearMap.ker φ` because `LinearMap.ker`
+    also applies to classes of maps preserving more structure, hence it does not expect
+    an argument whose type starts with `LinearMap`, hence dot notation doesn’t work
+    here. However we were able to use the other flavor of dot notation in the right-hand
+    side. Because Lean expects a term with type `Submodule K V` after elaborating
+    the left-hand side, it interprets `.comap` as `Submodule.comap`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following lemmas give the key relations between those submodule and the
+    properties of `φ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, let us prove the Galois connection property for `map` and `comap`.
+    One can use the following lemmas but this is not required since they are true
+    by definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.5\. Quotient spaces[](#quotient-spaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Quotient vector spaces use the general quotient notation (typed with `\quot`,
+    not the ordinary `/`). The projection onto a quotient space is `Submodule.mkQ`
+    and the universal property is `Submodule.liftQ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, let us prove the correspondence theorem for subspaces of quotient
+    spaces. Mathlib knows a slightly more precise version as `Submodule.comapMkQRelIso`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.3\. Endomorphisms[](#endomorphisms "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'An important special case of linear maps are endomorphisms: linear maps from
+    a vector space to itself. They are interesting because they form a `K`-algebra.
+    In particular we can evaluate polynomials with coefficients in `K` on them, and
+    they can have eigenvalues and eigenvectors.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mathlib uses the abbreviation `Module.End K V := V →ₗ[K] V` which is convenient
+    when using a lot of these (especially after opening the `Module` namespace).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As an exercise manipulating endomorphisms, subspaces and polynomials, let us
+    prove the (binary) kernels lemma: for any endomorphism \(φ\) and any two relatively
+    prime polynomials \(P\) and \(Q\), we have \(\ker P(φ) ⊕ \ker Q(φ) = \ker \big(PQ(φ)\big)\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that `IsCoprime x y` is defined as `∃ a b, a * x + b * y = 1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now move to the discussions of eigenspaces and eigenvalues. The eigenspace
+    associated to an endomorphism \(φ\) and a scalar \(a\) is the kernel of \(φ -
+    aId\). Eigenspaces are defined for all values of `a`, although they are interesting
+    only when they are non-zero. However an eigenvector is, by definition, a non-zero
+    element of an eigenspace. The corresponding predicate is `End.HasEigenvector`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then there is a predicate `End.HasEigenvalue` and the corresponding subtype
+    `End.Eigenvalues`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '## 10.4\. Matrices, bases and dimension[](#matrices-bases-and-dimension "Link
+    to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### 10.4.1\. Matrices[](#matrices "Link to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before introducing bases for abstract vector spaces, we go back to the much
+    more elementary setup of linear algebra in \(K^n\) for some field \(K\). Here
+    the main objects are vectors and matrices. For concrete vectors, one can use the
+    `![…]` notation, where components are separated by commas. For concrete matrices
+    we can use the `!![…]` notation, lines are separated by semi-colons and components
+    of lines are separated by colons. When entries have a computable type such as
+    `ℕ` or `ℚ`, we can use the `eval` command to play with basic operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is important to understand that this use of `#eval` is interesting only for
+    exploration, it is not meant to replace a computer algebra system such as Sage.
+    The data representation used here for matrices is *not* computationally efficient
+    in any way. It uses functions instead of arrays and is optimized for proving,
+    not computing. The virtual machine used by `#eval` is also not optimized for this
+    use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beware the matrix notation list rows but the vector notation is neither a row
+    vector nor a column vector. Multiplication of a matrix with a vector from the
+    left (resp. right) interprets the vector as a row (resp. column) vector. This
+    corresponds to operations `Matrix.vecMul`, with notation `ᵥ*` and `Matrix.mulVec`,
+    with notation ` *ᵥ`. Those notations are scoped in the `Matrix` namespace that
+    we therefore need to open.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to generate matrices with identical rows or columns specified by a
+    vector, we use `Matrix.replicateRow` and `Matrix.replicateCol`, with arguments
+    the type indexing the rows or columns and the vector. For instance one can get
+    single row or single column matrixes (more precisely matrices whose rows or columns
+    are indexed by `Fin 1`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: Other familiar operations include the vector dot product, matrix transpose,
+    and, for square matrices, determinant and trace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: When entries do not have a computable type, for instance if they are real numbers,
+    we cannot hope that `#eval` can help. Also this kind of evaluation cannot be used
+    in proofs without considerably expanding the trusted code base (i.e. the part
+    of Lean that you need to trust when checking proofs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So it is good to also use the `simp` and `norm_num` tactics in proofs, or their
+    command counter-part for quick exploration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: The next important operation on square matrices is inversion. In the same way
+    as division of numbers is always defined and returns the artificial value zero
+    for division by zero, the inversion operation is defined on all matrices and returns
+    the zero matrix for non-invertible matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More precisely, there is general function `Ring.inverse` that does this in any
+    ring, and, for any matrix `A`, `A⁻¹` is defined as `Ring.inverse A.det • A.adjugate`.
+    According to Cramer’s rule, this is indeed the inverse of `A` when the determinant
+    of `A` is not zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: Of course this definition is really useful only for invertible matrices. There
+    is a general type class `Invertible` that helps recording this. For instance,
+    the `simp` call in the next example will use the `inv_mul_of_invertible` lemma
+    which has an `Invertible` type-class assumption, so it will trigger only if this
+    can be found by the type-class synthesis system. Here we make this fact available
+    using a `have` statement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this fully concrete case, we could also use the `norm_num` machinery, and
+    `apply?` to find the final line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: All the concrete matrices above have their rows and columns indexed by `Fin
+    n` for some `n` (not necessarily the same for rows and columns). But sometimes
+    it is more convenient to index matrices using arbitrary finite types. For instance
+    the adjacency matrix of a finite graph has rows and columns naturally indexed
+    by the vertices of the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact when simply wants to define matrices without defining any operation
+    on them, finiteness of the indexing types are not even needed, and coefficients
+    can have any type, without any algebraic structure. So Mathlib simply defines
+    `Matrix m n α` to be `m → n → α` for any types `m`, `n` and `α`, and the matrices
+    we have been using so far had types such as `Matrix (Fin 2) (Fin 2) ℝ`. Of course
+    algebraic operations require more assumptions on `m`, `n` and `α`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the main reason why we do not use `m → n → α` directly is to allow the
+    type class system to understand what we want. For instance, for a ring `R`, the
+    type `n → R` is endowed with the point-wise multiplication operation, and similarly
+    `m → n → R` has this operation which is *not* the multiplication we want on matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the first example below, we force Lean to see through the definition of `Matrix`
+    and accept the statement as meaningful, and then prove it by checking all entries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But then the next two examples reveal that Lean uses the point-wise multiplication
+    on `Fin 2 → Fin 2 → ℤ` but the matrix multiplication on `Matrix (Fin 2) (Fin 2)
+    ℤ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to define matrices as functions without losing the benefits of `Matrix`
+    for type class synthesis, we can use the equivalence `Matrix.of` between functions
+    and matrices. This equivalence is secretly defined using `Equiv.refl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance we can define Vandermonde matrices corresponding to a vector `v`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.4.2\. Bases[](#bases "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We now want to discuss bases of vector spaces. Informally there are many ways
+    to define this notion. One can use a universal property. One can say a basis is
+    a family of vectors that is linearly independent and spanning. Or one can combine
+    those properties and directly say that a basis is a family of vectors such that
+    every vectors can be written uniquely as a linear combination of bases vectors.
+    Yet another way to say it is that a basis provides a linear isomorphism with a
+    power of the base field `K`, seen as a vector space over `K`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This isomorphism version is actually the one that Mathlib uses as a definition
+    under the hood, and other characterizations are proven from it. One must be slightly
+    careful with the “power of `K`” idea in the case of infinite bases. Indeed only
+    finite linear combinations make sense in this algebraic context. So what we need
+    as a reference vector space is not a direct product of copies of `K` but a direct
+    sum. We could use `⨁ i : ι, K` for some type `ι` indexing the basis But we rather
+    use the more specialized spelling `ι →₀ K` which means “functions from `ι` to
+    `K` with finite support”, i.e. functions which vanish outside a finite set in
+    `ι` (this finite set is not fixed, it depends on the function). Evaluating such
+    a function coming from a basis `B` at a vector `v` and `i : ι` returns the component
+    (or coordinate) of `v` on the `i`-th basis vector.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of bases indexed by a type `ι` of `V` as a `K` vector space is `Basis
+    ι K V`. The isomorphism is called `Basis.repr`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: Instead of starting with such an isomorphism, one can start with a family `b`
+    of vectors that is linearly independent and spanning, this is `Basis.mk`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The assumption that the family is spanning is spelled out as `⊤ ≤ Submodule.span
+    K (Set.range b)`. Here `⊤` is the top submodule of `V`, i.e. `V` seen as submodule
+    of itself. This spelling looks a bit tortuous, but we will see below that it is
+    almost equivalent by definition to the more readable `∀ v, v ∈ Submodule.span
+    K (Set.range b)` (the underscores in the snippet below refers to the useless information
+    `v ∈ ⊤`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In particular the model vector space `ι →₀ K` has a so-called canonical basis
+    whose `repr` function evaluated on any vector is the identity isomorphism. It
+    is called `Finsupp.basisSingleOne` where `Finsupp` means function with finite
+    support and `basisSingleOne` refers to the fact that basis vectors are functions
+    which vanish expect for a single input value. More precisely the basis vector
+    indexed by `i : ι` is `Finsupp.single i 1` which is the finitely supported function
+    taking value `1` at `i` and `0` everywhere else.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: The story of finitely supported functions is unneeded when the indexing type
+    is finite. In this case we can use the simpler `Pi.basisFun` which gives a basis
+    of the whole `ι → K`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Going back to the general case of bases of abstract vector spaces, we can express
+    any vector as a linear combination of basis vectors. Let us first see the easy
+    case of finite bases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When `ι` is not finite, the above statement makes no sense a priori: we cannot
+    take a sum over `ι`. However the support of the function being summed is finite
+    (it is the support of `B.repr v`). But we need to apply a construction that takes
+    this into account. Here Mathlib uses a special purpose function that requires
+    some time to get used to: `Finsupp.linearCombination` (which is built on top of
+    the more general `Finsupp.sum`). Given a finitely supported function `c` from
+    a type `ι` to the base field `K` and any function `f` from `ι` to `V`, `Finsupp.linearCombination
+    K f c` is the sum over the support of `c` of the scalar multiplication `c • f`.
+    In particular, we can replace it by a sum over any finite set containing the support
+    of `c`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: One could also assume that `f` is finitely supported and still get a well defined
+    sum. But the choice made by `Finsupp.linearCombination` is the one relevant to
+    our basis discussion since it allows to state the generalization of `Basis.sum_repr`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: One could wonder why `K` is an explicit argument here, despite the fact it can
+    be inferred from the type of `c`. The point is that the partially applied `Finsupp.linearCombination
+    K f` is interesting in itself. It is not a bare function from `ι →₀ K` to `V`
+    but a `K`-linear map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Returning to the mathematical discussion, it is important to understand that
+    the representation of vectors in a basis is less useful in formalized mathematics
+    than you may think. Indeed it is very often more efficient to directly use more
+    abstract properties of bases. In particular the universal property of bases connecting
+    them to other free objects in algebra allows to construct linear maps by specifying
+    the images of basis vectors. This is `Basis.constr`. For any `K`-vector space
+    `W`, our basis `B` gives a linear isomorphism `Basis.constr B K` from `ι → W`
+    to `V →ₗ[K] W`. This isomorphism is characterized by the fact that it sends any
+    function `u : ι → W` to a linear map sending the basis vector `B i` to `u i`,
+    for every `i : ι`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This property is indeed characteristic because linear maps are determined by
+    their values on bases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we also have a basis `B'` on the target space then we can identify linear
+    maps with matrices. This identification is a `K`-linear isomorphism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise on this topic, we will prove part of the theorem which guarantees
+    that endomorphisms have a well-defined determinant. Namely we want to prove that
+    when two bases are indexed by the same type, the matrices they attach to any endomorphism
+    have the same determinant. This would then need to be complemented using that
+    bases all have isomorphic indexing types to get the full result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course Mathlib already knows this, and `simp` can close the goal immediately,
+    so you shouldn’t use it too soon, but rather use the provided lemmas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.4.3\. Dimension[](#dimension "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Returning to the case of a single vector space, bases are also useful to define
+    the concept of dimension. Here again, there is the elementary case of finite-dimensional
+    vector spaces. For such spaces we expect a dimension which is a natural number.
+    This is `Module.finrank`. It takes the base field as an explicit argument since
+    a given abelian group can be a vector space over different fields.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `Module.finrank` is defined for any vector space. It returns zero
+    for infinite dimensional vector spaces, just as division by zero returns zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course many lemmas require a finite dimension assumption. This is the role
+    of the `FiniteDimensional` typeclass. For instance, think about how the next example
+    fails without this assumption.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the above statement, `Nontrivial V` means `V` has at least two different
+    elements. Note that `Module.finrank_pos_iff` has no explicit argument. This is
+    fine when using it from left to right, but not when using it from right to left
+    because Lean has no way to guess `K` from the statement `Nontrivial V`. In that
+    case it is useful to use the name argument syntax, after checking that the lemma
+    is stated over a ring named `R`. So we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: The above spelling is strange because we already have `h` as an assumption,
+    so we could just as well give the full proof `Module.finrank_pos_iff.1 h` but
+    it is good to know for more complicated cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By definition, `FiniteDimensional K V` can be read from any basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using that the subtype corresponding to a linear subspace has a vector space
+    structure, we can talk about the dimension of a subspace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the first statement above, the purpose of the type ascriptions is to make
+    sure that coercion to `Type*` does not trigger too early.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are now ready for an exercise about `finrank` and subspaces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us now move to the general case of dimension theory. In this case `finrank`
+    is useless, but we still have that, for any two bases of the same vector space,
+    there is a bijection between the types indexing those bases. So we can still hope
+    to define the rank as a cardinal, i.e. an element of the “quotient of the collection
+    of types under the existence of a bijection equivalence relation”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When discussing cardinal, it gets harder to ignore foundational issues around
+    Russel’s paradox like we do everywhere else in this book. There is no type of
+    all types because it would lead to logical inconsistencies. This issue is solved
+    by the hierarchy of universes that we usually try to ignore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each type has a universe level, and those levels behave similarly to natural
+    numbers. In particular there is zeroth level, and the corresponding universe `Type
+    0` is simply denoted by `Type`. This universe is enough to hold almost all of
+    classical mathematics. For instance `ℕ` and `ℝ` have type `Type`. Each level `u`
+    has a successor denoted by `u + 1`, and `Type u` has type `Type (u+1)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But universe levels are not natural numbers, they have a really different nature
+    and don’t have a type. In particular you cannot state in Lean something like `u
+    ≠ u + 1`. There is simply no type where this would take place. Even stating `Type
+    u ≠ Type (u+1)` does not make any sense since `Type u` and `Type (u+1)` have different
+    types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever we write `Type*`, Lean inserts a universe level variable named `u_n`
+    where `n` is a number. This allows definitions and statements to live in all universes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Given a universe level `u`, we can define an equivalence relation on `Type
+    u` saying two types `α` and `β` are equivalent if there is a bijection between
+    them. The quotient type `Cardinal.{u}` lives in `Type (u+1)`. The curly braces
+    denote a universe variable. The image of `α : Type u` in this quotient is `Cardinal.mk
+    α : Cardinal.{u}`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But we cannot directly compare cardinals in different universes. So technically
+    we cannot define the rank of a vector space `V` as the cardinal of all types indexing
+    a basis of `V`. So instead it is defined as the supremum `Module.rank K V` of
+    cardinals of all linearly independent sets in `V`. If `V` has universe level `u`
+    then its rank has type `Cardinal.{u}`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One can still relate this definition to bases. Indeed there is also a commutative
+    `max` operation on universe levels, and given two universe levels `u` and `v`
+    there is an operation `Cardinal.lift.{u, v} : Cardinal.{v} → Cardinal.{max v u}`
+    that allows to put cardinals in a common universe and state the dimension theorem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can relate the finite dimensional case to this discussion using the coercion
+    from natural numbers to finite cardinals (or more precisely the finite cardinals
+    which live in `Cardinal.{v}` where `v` is the universe level of `V`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE66] [Previous](C09_Groups_and_Rings.html "9\. Groups and Rings") [Next](C11_Topology.html
+    "11\. Topology")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: © Copyright 2020-2025, Jeremy Avigad, Patrick Massot. Text licensed under CC
+    BY 4.0.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Built with [Sphinx](https://www.sphinx-doc.org/) using a [theme](https://github.com/readthedocs/sphinx_rtd_theme)
+    provided by [Read the Docs](https://readthedocs.org). ## 10.1\. Vector spaces
+    and linear maps[](#vector-spaces-and-linear-maps "Link to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.1.1\. Vector spaces[](#vector-spaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will start directly abstract linear algebra, taking place in a vector space
+    over any field. However you can find information about matrices in [Section 10.4.1](#matrices)
+    which does not logically depend on this abstract theory. Mathlib actually deals
+    with a more general version of linear algebra involving the word module, but for
+    now we will pretend this is only an eccentric spelling habit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The way to say “let \(K\) be a field and let \(V\) be a vector space over \(K\)”
+    (and make them implicit arguments to later results) is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: We explained in [Chapter 8](C08_Hierarchies.html#hierarchies) why we need two
+    separate typeclasses `[AddCommGroup V] [Module K V]`. The short version is the
+    following. Mathematically we want to say that having a \(K\)-vector space structure
+    implies having an additive commutative group structure. We could tell this to
+    Lean. But then whenever Lean would need to find such a group structure on a type
+    \(V\), it would go hunting for vector space structures using a *completely unspecified*
+    field \(K\) that cannot be inferred from \(V\). This would be very bad for the
+    type class synthesis system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The multiplication of a vector v by a scalar a is denoted by a • v. We list
+    a couple of algebraic rules about the interaction of this operation with addition
+    in the following examples. Of course simp or apply? would find those proofs. There
+    is also a module tactic that solves goals following from the axioms of vector
+    spaces and fields, in the same way the ring tactic is used in commutative rings
+    or the group tactic is used in groups. But it is still useful to remember that
+    scalar multiplication is abbreviated smul in lemma names.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As a quick note for more advanced readers, let us point out that, as suggested
+    by terminology, Mathlib’s linear algebra also covers modules over (not necessarily
+    commutative) rings. In fact it even covers semi-modules over semi-rings. If you
+    think you do not need this level of generality, you can meditate the following
+    example that nicely captures a lot of algebraic rules about ideals acting on submodules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.1.2\. Linear maps[](#linear-maps "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Next we need linear maps. Like group morphisms, linear maps in Mathlib are bundled
+    maps, i.e. packages made of a map and proofs of its linearity properties. Those
+    bundled maps are converted to ordinary functions when applied. See [Chapter 8](C08_Hierarchies.html#hierarchies)
+    for more information about this design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of linear maps between two `K`-vector spaces `V` and `W` is denoted
+    by `V →ₗ[K] W`. The subscript l stands for linear. At first it may feel odd to
+    specify `K` in this notation. But this is crucial when several fields come into
+    play. For instance real-linear maps from \(ℂ\) to \(ℂ\) are every map \(z ↦ az
+    + b\bar{z}\) while only the maps \(z ↦ az\) are complex linear, and this difference
+    is crucial in complex analysis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `V →ₗ[K] W` itself carries interesting algebraic structures (this
+    is part of the motivation for bundling those maps). It is a `K`-vector space so
+    we can add linear maps and multiply them by scalars.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: One downside of using bundled maps is that we cannot use ordinary function composition.
+    We need to use `LinearMap.comp` or the notation `∘ₗ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are two main ways to construct linear maps. First we can build the structure
+    by providing the function and the linearity proof. As usual, this is facilitated
+    by the structure code action: you can type `example : V →ₗ[K] V := _` and use
+    the code action “Generate a skeleton” attached to the underscore.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: You may wonder why the proof fields of `LinearMap` have names ending with a
+    prime. This is because they are defined before the coercion to functions is defined,
+    hence they are phrased in terms of `LinearMap.toFun`. Then they are restated as
+    `LinearMap.map_add` and `LinearMap.map_smul` in terms of the coercion to function.
+    This is not yet the end of the story. One also wants a version of `map_add` that
+    applies to any (bundled) map preserving addition, such as additive group morphisms,
+    linear maps, continuous linear maps, `K`-algebra maps etc… This one is `map_add`
+    (in the root namespace). The intermediate version, `LinearMap.map_add` is a bit
+    redundant but allows to use dot notation, which can be nice sometimes. A similar
+    story exists for `map_smul`, and the general framework is explained in [Chapter
+    8](C08_Hierarchies.html#hierarchies).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One can also build linear maps from the ones that are already defined in Mathlib
+    using various combinators. For instance the above example is already known as
+    `LinearMap.lsmul K V 3`. There are several reason why `K` and `V` are explicit
+    arguments here. The most pressing one is that from a bare `LinearMap.lsmul 3`
+    there would be no way for Lean to infer `V` or even `K`. But also `LinearMap.lsmul
+    K V` is an interesting object by itself: it has type `K →ₗ[K] V →ₗ[K] V`, meaning
+    it is a `K`-linear map from `K` —seen as a vector space over itself— to the space
+    of `K`-linear maps from `V` to `V`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There is also a type `LinearEquiv` of linear isomorphisms denoted by `V ≃ₗ[K]
+    W`. The inverse of `f : V ≃ₗ[K] W` is `f.symm : W ≃ₗ[K] V`, composition of `f`
+    and `g` is `f.trans g` also denoted by `f ≪≫ₗ g`, and the identity isomorphism
+    of `V` is `LinearEquiv.refl K V`. Elements of this type are automatically coerced
+    to morphisms and functions when necessary.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: One can use `LinearEquiv.ofBijective` to build an isomorphism from a bijective
+    morphism. Doing so makes the inverse function noncomputable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that in the above example, Lean uses the announced type to understand that
+    `.ofBijective` refers to `LinearEquiv.ofBijective` (without needing to open any
+    namespace).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.1.3\. Sums and products of vector spaces[](#sums-and-products-of-vector-spaces
+    "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We can build new vector spaces out of old ones using direct sums and direct
+    products. Let us start with two vectors spaces. In this case there is no difference
+    between sum and product, and we can simply use the product type. In the following
+    snippet of code we simply show how to get all the structure maps (inclusions and
+    projections) as linear maps, as well as the universal properties constructing
+    linear maps into products and out of sums (if you are not familiar with the category-theoretic
+    distinction between sums and products, you can simply ignore the universal property
+    vocabulary and focus on the types of the following examples).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us now turn to sums and products of arbitrary families of vector spaces.
+    Here we will simply see how to define a family of vector spaces and access the
+    universal properties of sums and products. Note that the direct sum notation is
+    scoped to the `DirectSum` namespace, and that the universal property of direct
+    sums requires decidable equality on the indexing type (this is somehow an implementation
+    accident).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: '## 10.2\. Subspaces and quotients[](#subspaces-and-quotients "Link to this
+    heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.2.1\. Subspaces[](#subspaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Just as linear maps are bundled, a linear subspace of `V` is also a bundled
+    structure consisting of a set in `V`, called the carrier of the subspace, with
+    the relevant closure properties. Again the word module appears instead of vector
+    space because of the more general context that Mathlib actually uses for linear
+    algebra.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the example above, it is important to understand that `Submodule K V` is
+    the type of `K`-linear subspaces of `V`, rather than a predicate `IsSubmodule
+    U` where `U` is an element of `Set V`. `Submodule K V` is endowed with a coercion
+    to `Set V` and a membership predicate on `V`. See [Section 8.3](C08_Hierarchies.html#section-hierarchies-subobjects)
+    for an explanation of how and why this is done.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, two subspaces are the same if and only if they have the same elements.
+    This fact is registered for use with the `ext` tactic, which can be used to prove
+    two subspaces are equal in the same way it is used to prove that two sets are
+    equal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To state and prove, for example, that `ℝ` is a `ℝ`-linear subspace of `ℂ`, what
+    we really want is to construct a term of type `Submodule ℝ ℂ` whose projection
+    to `Set ℂ` is `ℝ`, or, more precisely, the image of `ℝ` in `ℂ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: The prime at the end of proof fields in `Submodule` are analogous to the one
+    in `LinearMap`. Those fields are stated in terms of the `carrier` field because
+    they are defined before the `MemberShip` instance. They are then superseded by
+    `Submodule.add_mem`, `Submodule.zero_mem` and `Submodule.smul_mem` that we saw
+    above.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise in manipulating subspaces and linear maps, you will define the
+    pre-image of a subspace by a linear map (of course we will see below that Mathlib
+    already knows about this). Remember that `Set.mem_preimage` can be used to rewrite
+    a statement involving membership and preimage. This is the only lemma you will
+    need in addition to the lemmas discussed above about `LinearMap` and `Submodule`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using type classes, Mathlib knows that a subspace of a vector space inherits
+    a vector space structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This example is subtle. The object `U` is not a type, but Lean automatically
+    coerces it to a type by interpreting it as a subtype of `V`. So the above example
+    can be restated more explicitly as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.2\. Complete lattice structure and internal direct sums[](#complete-lattice-structure-and-internal-direct-sums
+    "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'An important benefit of having a type `Submodule K V` instead of a predicate
+    `IsSubmodule : Set V → Prop` is that one can easily endow `Submodule K V` with
+    additional structure. Importantly, it has the structure of a complete lattice
+    structure with respect to inclusion. For instance, instead of having a lemma stating
+    that an intersection of two subspaces of `V` is again a subspace, we use the lattice
+    operation `⊓` to construct the intersection. We can then apply arbitrary lemmas
+    about lattices to the construction.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us check that the set underlying the infimum of two subspaces is indeed,
+    by definition, their intersection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: It may look strange to have a different notation for what amounts to the intersection
+    of the underlying sets, but the correspondence does not carry over to the supremum
+    operation and set union, since a union of subspaces is not, in general, a subspace.
+    Instead one needs to use the subspace generated by the union, which is done using
+    `Submodule.span`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another subtlety is that `V` itself does not have type `Submodule K V`, so
+    we need a way to talk about `V` seen as a subspace of `V`. This is also provided
+    by the lattice structure: the full subspace is the top element of this lattice.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE87]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similarly the bottom element of this lattice is the subspace whose only element
+    is the zero element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE88]'
+  prefs: []
+  type: TYPE_PRE
+- en: In particular we can discuss the case of subspaces that are in (internal) direct
+    sum. In the case of two subspaces, we use the general purpose predicate `IsCompl`
+    which makes sense for any bounded partially ordered type. In the case of general
+    families of subspaces we use `DirectSum.IsInternal`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE89]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.3\. Subspace spanned by a set[](#subspace-spanned-by-a-set "Link to this
+    heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In addition to building subspaces out of existing subspaces, we can build them
+    out of any set `s` using `Submodule.span K s` which builds the smallest subspace
+    containing `s`. On paper it is common to use that this space is made of all linear
+    combinations of elements of `s`. But it is often more efficient to use its universal
+    property expressed by `Submodule.span_le`, and the whole theory of Galois connections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE90]'
+  prefs: []
+  type: TYPE_PRE
+- en: When those are not enough, one can use the relevant induction principle `Submodule.span_induction`
+    which ensures a property holds for every element of the span of `s` as long as
+    it holds on `zero` and elements of `s` and is stable under sum and scalar multiplication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise, let us reprove one implication of `Submodule.mem_sup`. Remember
+    that you can use the module tactic to close goals that follow from the axioms
+    relating the various algebraic operations on `V`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE91]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.4\. Pushing and pulling subspaces[](#pushing-and-pulling-subspaces "Link
+    to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As promised earlier, we now describe how to push and pull subspaces by linear
+    maps. As usual in Mathlib, the first operation is called `map` and the second
+    one is called `comap`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE92]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note those live in the `Submodule` namespace so one can use dot notation and
+    write `E.map φ` instead of `Submodule.map φ E`, but this is pretty awkward to
+    read (although some Mathlib contributors use this spelling).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In particular the range and kernel of a linear map are subspaces. Those special
+    cases are important enough to get declarations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE93]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we cannot write `φ.ker` instead of `LinearMap.ker φ` because `LinearMap.ker`
+    also applies to classes of maps preserving more structure, hence it does not expect
+    an argument whose type starts with `LinearMap`, hence dot notation doesn’t work
+    here. However we were able to use the other flavor of dot notation in the right-hand
+    side. Because Lean expects a term with type `Submodule K V` after elaborating
+    the left-hand side, it interprets `.comap` as `Submodule.comap`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following lemmas give the key relations between those submodule and the
+    properties of `φ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE94]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, let us prove the Galois connection property for `map` and `comap`.
+    One can use the following lemmas but this is not required since they are true
+    by definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE95]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.5\. Quotient spaces[](#quotient-spaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Quotient vector spaces use the general quotient notation (typed with `\quot`,
+    not the ordinary `/`). The projection onto a quotient space is `Submodule.mkQ`
+    and the universal property is `Submodule.liftQ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE96]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, let us prove the correspondence theorem for subspaces of quotient
+    spaces. Mathlib knows a slightly more precise version as `Submodule.comapMkQRelIso`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE97]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.3\. Endomorphisms[](#endomorphisms "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'An important special case of linear maps are endomorphisms: linear maps from
+    a vector space to itself. They are interesting because they form a `K`-algebra.
+    In particular we can evaluate polynomials with coefficients in `K` on them, and
+    they can have eigenvalues and eigenvectors.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mathlib uses the abbreviation `Module.End K V := V →ₗ[K] V` which is convenient
+    when using a lot of these (especially after opening the `Module` namespace).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE98]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As an exercise manipulating endomorphisms, subspaces and polynomials, let us
+    prove the (binary) kernels lemma: for any endomorphism \(φ\) and any two relatively
+    prime polynomials \(P\) and \(Q\), we have \(\ker P(φ) ⊕ \ker Q(φ) = \ker \big(PQ(φ)\big)\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that `IsCoprime x y` is defined as `∃ a b, a * x + b * y = 1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE99]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now move to the discussions of eigenspaces and eigenvalues. The eigenspace
+    associated to an endomorphism \(φ\) and a scalar \(a\) is the kernel of \(φ -
+    aId\). Eigenspaces are defined for all values of `a`, although they are interesting
+    only when they are non-zero. However an eigenvector is, by definition, a non-zero
+    element of an eigenspace. The corresponding predicate is `End.HasEigenvector`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE100]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then there is a predicate `End.HasEigenvalue` and the corresponding subtype
+    `End.Eigenvalues`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE101]'
+  prefs: []
+  type: TYPE_PRE
+- en: '## 10.4\. Matrices, bases and dimension[](#matrices-bases-and-dimension "Link
+    to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### 10.4.1\. Matrices[](#matrices "Link to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before introducing bases for abstract vector spaces, we go back to the much
+    more elementary setup of linear algebra in \(K^n\) for some field \(K\). Here
+    the main objects are vectors and matrices. For concrete vectors, one can use the
+    `![…]` notation, where components are separated by commas. For concrete matrices
+    we can use the `!![…]` notation, lines are separated by semi-colons and components
+    of lines are separated by colons. When entries have a computable type such as
+    `ℕ` or `ℚ`, we can use the `eval` command to play with basic operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE102]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is important to understand that this use of `#eval` is interesting only for
+    exploration, it is not meant to replace a computer algebra system such as Sage.
+    The data representation used here for matrices is *not* computationally efficient
+    in any way. It uses functions instead of arrays and is optimized for proving,
+    not computing. The virtual machine used by `#eval` is also not optimized for this
+    use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beware the matrix notation list rows but the vector notation is neither a row
+    vector nor a column vector. Multiplication of a matrix with a vector from the
+    left (resp. right) interprets the vector as a row (resp. column) vector. This
+    corresponds to operations `Matrix.vecMul`, with notation `ᵥ*` and `Matrix.mulVec`,
+    with notation ` *ᵥ`. Those notations are scoped in the `Matrix` namespace that
+    we therefore need to open.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE103]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to generate matrices with identical rows or columns specified by a
+    vector, we use `Matrix.replicateRow` and `Matrix.replicateCol`, with arguments
+    the type indexing the rows or columns and the vector. For instance one can get
+    single row or single column matrixes (more precisely matrices whose rows or columns
+    are indexed by `Fin 1`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE104]'
+  prefs: []
+  type: TYPE_PRE
+- en: Other familiar operations include the vector dot product, matrix transpose,
+    and, for square matrices, determinant and trace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE105]'
+  prefs: []
+  type: TYPE_PRE
+- en: When entries do not have a computable type, for instance if they are real numbers,
+    we cannot hope that `#eval` can help. Also this kind of evaluation cannot be used
+    in proofs without considerably expanding the trusted code base (i.e. the part
+    of Lean that you need to trust when checking proofs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So it is good to also use the `simp` and `norm_num` tactics in proofs, or their
+    command counter-part for quick exploration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE106]'
+  prefs: []
+  type: TYPE_PRE
+- en: The next important operation on square matrices is inversion. In the same way
+    as division of numbers is always defined and returns the artificial value zero
+    for division by zero, the inversion operation is defined on all matrices and returns
+    the zero matrix for non-invertible matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More precisely, there is general function `Ring.inverse` that does this in any
+    ring, and, for any matrix `A`, `A⁻¹` is defined as `Ring.inverse A.det • A.adjugate`.
+    According to Cramer’s rule, this is indeed the inverse of `A` when the determinant
+    of `A` is not zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE107]'
+  prefs: []
+  type: TYPE_PRE
+- en: Of course this definition is really useful only for invertible matrices. There
+    is a general type class `Invertible` that helps recording this. For instance,
+    the `simp` call in the next example will use the `inv_mul_of_invertible` lemma
+    which has an `Invertible` type-class assumption, so it will trigger only if this
+    can be found by the type-class synthesis system. Here we make this fact available
+    using a `have` statement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE108]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this fully concrete case, we could also use the `norm_num` machinery, and
+    `apply?` to find the final line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE109]'
+  prefs: []
+  type: TYPE_PRE
+- en: All the concrete matrices above have their rows and columns indexed by `Fin
+    n` for some `n` (not necessarily the same for rows and columns). But sometimes
+    it is more convenient to index matrices using arbitrary finite types. For instance
+    the adjacency matrix of a finite graph has rows and columns naturally indexed
+    by the vertices of the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact when simply wants to define matrices without defining any operation
+    on them, finiteness of the indexing types are not even needed, and coefficients
+    can have any type, without any algebraic structure. So Mathlib simply defines
+    `Matrix m n α` to be `m → n → α` for any types `m`, `n` and `α`, and the matrices
+    we have been using so far had types such as `Matrix (Fin 2) (Fin 2) ℝ`. Of course
+    algebraic operations require more assumptions on `m`, `n` and `α`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the main reason why we do not use `m → n → α` directly is to allow the
+    type class system to understand what we want. For instance, for a ring `R`, the
+    type `n → R` is endowed with the point-wise multiplication operation, and similarly
+    `m → n → R` has this operation which is *not* the multiplication we want on matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the first example below, we force Lean to see through the definition of `Matrix`
+    and accept the statement as meaningful, and then prove it by checking all entries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But then the next two examples reveal that Lean uses the point-wise multiplication
+    on `Fin 2 → Fin 2 → ℤ` but the matrix multiplication on `Matrix (Fin 2) (Fin 2)
+    ℤ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE110]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to define matrices as functions without losing the benefits of `Matrix`
+    for type class synthesis, we can use the equivalence `Matrix.of` between functions
+    and matrices. This equivalence is secretly defined using `Equiv.refl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance we can define Vandermonde matrices corresponding to a vector `v`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE111]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.4.2\. Bases[](#bases "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We now want to discuss bases of vector spaces. Informally there are many ways
+    to define this notion. One can use a universal property. One can say a basis is
+    a family of vectors that is linearly independent and spanning. Or one can combine
+    those properties and directly say that a basis is a family of vectors such that
+    every vectors can be written uniquely as a linear combination of bases vectors.
+    Yet another way to say it is that a basis provides a linear isomorphism with a
+    power of the base field `K`, seen as a vector space over `K`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This isomorphism version is actually the one that Mathlib uses as a definition
+    under the hood, and other characterizations are proven from it. One must be slightly
+    careful with the “power of `K`” idea in the case of infinite bases. Indeed only
+    finite linear combinations make sense in this algebraic context. So what we need
+    as a reference vector space is not a direct product of copies of `K` but a direct
+    sum. We could use `⨁ i : ι, K` for some type `ι` indexing the basis But we rather
+    use the more specialized spelling `ι →₀ K` which means “functions from `ι` to
+    `K` with finite support”, i.e. functions which vanish outside a finite set in
+    `ι` (this finite set is not fixed, it depends on the function). Evaluating such
+    a function coming from a basis `B` at a vector `v` and `i : ι` returns the component
+    (or coordinate) of `v` on the `i`-th basis vector.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of bases indexed by a type `ι` of `V` as a `K` vector space is `Basis
+    ι K V`. The isomorphism is called `Basis.repr`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE112]'
+  prefs: []
+  type: TYPE_PRE
+- en: Instead of starting with such an isomorphism, one can start with a family `b`
+    of vectors that is linearly independent and spanning, this is `Basis.mk`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The assumption that the family is spanning is spelled out as `⊤ ≤ Submodule.span
+    K (Set.range b)`. Here `⊤` is the top submodule of `V`, i.e. `V` seen as submodule
+    of itself. This spelling looks a bit tortuous, but we will see below that it is
+    almost equivalent by definition to the more readable `∀ v, v ∈ Submodule.span
+    K (Set.range b)` (the underscores in the snippet below refers to the useless information
+    `v ∈ ⊤`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE113]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In particular the model vector space `ι →₀ K` has a so-called canonical basis
+    whose `repr` function evaluated on any vector is the identity isomorphism. It
+    is called `Finsupp.basisSingleOne` where `Finsupp` means function with finite
+    support and `basisSingleOne` refers to the fact that basis vectors are functions
+    which vanish expect for a single input value. More precisely the basis vector
+    indexed by `i : ι` is `Finsupp.single i 1` which is the finitely supported function
+    taking value `1` at `i` and `0` everywhere else.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE114]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE115]'
+  prefs: []
+  type: TYPE_PRE
+- en: The story of finitely supported functions is unneeded when the indexing type
+    is finite. In this case we can use the simpler `Pi.basisFun` which gives a basis
+    of the whole `ι → K`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE116]'
+  prefs: []
+  type: TYPE_PRE
+- en: Going back to the general case of bases of abstract vector spaces, we can express
+    any vector as a linear combination of basis vectors. Let us first see the easy
+    case of finite bases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE117]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When `ι` is not finite, the above statement makes no sense a priori: we cannot
+    take a sum over `ι`. However the support of the function being summed is finite
+    (it is the support of `B.repr v`). But we need to apply a construction that takes
+    this into account. Here Mathlib uses a special purpose function that requires
+    some time to get used to: `Finsupp.linearCombination` (which is built on top of
+    the more general `Finsupp.sum`). Given a finitely supported function `c` from
+    a type `ι` to the base field `K` and any function `f` from `ι` to `V`, `Finsupp.linearCombination
+    K f c` is the sum over the support of `c` of the scalar multiplication `c • f`.
+    In particular, we can replace it by a sum over any finite set containing the support
+    of `c`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE118]'
+  prefs: []
+  type: TYPE_PRE
+- en: One could also assume that `f` is finitely supported and still get a well defined
+    sum. But the choice made by `Finsupp.linearCombination` is the one relevant to
+    our basis discussion since it allows to state the generalization of `Basis.sum_repr`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE119]'
+  prefs: []
+  type: TYPE_PRE
+- en: One could wonder why `K` is an explicit argument here, despite the fact it can
+    be inferred from the type of `c`. The point is that the partially applied `Finsupp.linearCombination
+    K f` is interesting in itself. It is not a bare function from `ι →₀ K` to `V`
+    but a `K`-linear map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE120]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Returning to the mathematical discussion, it is important to understand that
+    the representation of vectors in a basis is less useful in formalized mathematics
+    than you may think. Indeed it is very often more efficient to directly use more
+    abstract properties of bases. In particular the universal property of bases connecting
+    them to other free objects in algebra allows to construct linear maps by specifying
+    the images of basis vectors. This is `Basis.constr`. For any `K`-vector space
+    `W`, our basis `B` gives a linear isomorphism `Basis.constr B K` from `ι → W`
+    to `V →ₗ[K] W`. This isomorphism is characterized by the fact that it sends any
+    function `u : ι → W` to a linear map sending the basis vector `B i` to `u i`,
+    for every `i : ι`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE121]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This property is indeed characteristic because linear maps are determined by
+    their values on bases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE122]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we also have a basis `B'` on the target space then we can identify linear
+    maps with matrices. This identification is a `K`-linear isomorphism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE123]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise on this topic, we will prove part of the theorem which guarantees
+    that endomorphisms have a well-defined determinant. Namely we want to prove that
+    when two bases are indexed by the same type, the matrices they attach to any endomorphism
+    have the same determinant. This would then need to be complemented using that
+    bases all have isomorphic indexing types to get the full result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course Mathlib already knows this, and `simp` can close the goal immediately,
+    so you shouldn’t use it too soon, but rather use the provided lemmas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE124]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.4.3\. Dimension[](#dimension "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Returning to the case of a single vector space, bases are also useful to define
+    the concept of dimension. Here again, there is the elementary case of finite-dimensional
+    vector spaces. For such spaces we expect a dimension which is a natural number.
+    This is `Module.finrank`. It takes the base field as an explicit argument since
+    a given abelian group can be a vector space over different fields.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE125]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `Module.finrank` is defined for any vector space. It returns zero
+    for infinite dimensional vector spaces, just as division by zero returns zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course many lemmas require a finite dimension assumption. This is the role
+    of the `FiniteDimensional` typeclass. For instance, think about how the next example
+    fails without this assumption.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE126]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the above statement, `Nontrivial V` means `V` has at least two different
+    elements. Note that `Module.finrank_pos_iff` has no explicit argument. This is
+    fine when using it from left to right, but not when using it from right to left
+    because Lean has no way to guess `K` from the statement `Nontrivial V`. In that
+    case it is useful to use the name argument syntax, after checking that the lemma
+    is stated over a ring named `R`. So we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE127]'
+  prefs: []
+  type: TYPE_PRE
+- en: The above spelling is strange because we already have `h` as an assumption,
+    so we could just as well give the full proof `Module.finrank_pos_iff.1 h` but
+    it is good to know for more complicated cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By definition, `FiniteDimensional K V` can be read from any basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE128]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using that the subtype corresponding to a linear subspace has a vector space
+    structure, we can talk about the dimension of a subspace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE129]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the first statement above, the purpose of the type ascriptions is to make
+    sure that coercion to `Type*` does not trigger too early.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are now ready for an exercise about `finrank` and subspaces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE130]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us now move to the general case of dimension theory. In this case `finrank`
+    is useless, but we still have that, for any two bases of the same vector space,
+    there is a bijection between the types indexing those bases. So we can still hope
+    to define the rank as a cardinal, i.e. an element of the “quotient of the collection
+    of types under the existence of a bijection equivalence relation”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When discussing cardinal, it gets harder to ignore foundational issues around
+    Russel’s paradox like we do everywhere else in this book. There is no type of
+    all types because it would lead to logical inconsistencies. This issue is solved
+    by the hierarchy of universes that we usually try to ignore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each type has a universe level, and those levels behave similarly to natural
+    numbers. In particular there is zeroth level, and the corresponding universe `Type
+    0` is simply denoted by `Type`. This universe is enough to hold almost all of
+    classical mathematics. For instance `ℕ` and `ℝ` have type `Type`. Each level `u`
+    has a successor denoted by `u + 1`, and `Type u` has type `Type (u+1)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But universe levels are not natural numbers, they have a really different nature
+    and don’t have a type. In particular you cannot state in Lean something like `u
+    ≠ u + 1`. There is simply no type where this would take place. Even stating `Type
+    u ≠ Type (u+1)` does not make any sense since `Type u` and `Type (u+1)` have different
+    types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever we write `Type*`, Lean inserts a universe level variable named `u_n`
+    where `n` is a number. This allows definitions and statements to live in all universes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Given a universe level `u`, we can define an equivalence relation on `Type
+    u` saying two types `α` and `β` are equivalent if there is a bijection between
+    them. The quotient type `Cardinal.{u}` lives in `Type (u+1)`. The curly braces
+    denote a universe variable. The image of `α : Type u` in this quotient is `Cardinal.mk
+    α : Cardinal.{u}`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But we cannot directly compare cardinals in different universes. So technically
+    we cannot define the rank of a vector space `V` as the cardinal of all types indexing
+    a basis of `V`. So instead it is defined as the supremum `Module.rank K V` of
+    cardinals of all linearly independent sets in `V`. If `V` has universe level `u`
+    then its rank has type `Cardinal.{u}`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE131]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One can still relate this definition to bases. Indeed there is also a commutative
+    `max` operation on universe levels, and given two universe levels `u` and `v`
+    there is an operation `Cardinal.lift.{u, v} : Cardinal.{v} → Cardinal.{max v u}`
+    that allows to put cardinals in a common universe and state the dimension theorem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE132]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can relate the finite dimensional case to this discussion using the coercion
+    from natural numbers to finite cardinals (or more precisely the finite cardinals
+    which live in `Cardinal.{v}` where `v` is the universe level of `V`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE133]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.1\. Vector spaces and linear maps[](#vector-spaces-and-linear-maps "Link
+    to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 10.1.1\. Vector spaces[](#vector-spaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will start directly abstract linear algebra, taking place in a vector space
+    over any field. However you can find information about matrices in [Section 10.4.1](#matrices)
+    which does not logically depend on this abstract theory. Mathlib actually deals
+    with a more general version of linear algebra involving the word module, but for
+    now we will pretend this is only an eccentric spelling habit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The way to say “let \(K\) be a field and let \(V\) be a vector space over \(K\)”
+    (and make them implicit arguments to later results) is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE134]'
+  prefs: []
+  type: TYPE_PRE
+- en: We explained in [Chapter 8](C08_Hierarchies.html#hierarchies) why we need two
+    separate typeclasses `[AddCommGroup V] [Module K V]`. The short version is the
+    following. Mathematically we want to say that having a \(K\)-vector space structure
+    implies having an additive commutative group structure. We could tell this to
+    Lean. But then whenever Lean would need to find such a group structure on a type
+    \(V\), it would go hunting for vector space structures using a *completely unspecified*
+    field \(K\) that cannot be inferred from \(V\). This would be very bad for the
+    type class synthesis system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The multiplication of a vector v by a scalar a is denoted by a • v. We list
+    a couple of algebraic rules about the interaction of this operation with addition
+    in the following examples. Of course simp or apply? would find those proofs. There
+    is also a module tactic that solves goals following from the axioms of vector
+    spaces and fields, in the same way the ring tactic is used in commutative rings
+    or the group tactic is used in groups. But it is still useful to remember that
+    scalar multiplication is abbreviated smul in lemma names.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE135]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As a quick note for more advanced readers, let us point out that, as suggested
+    by terminology, Mathlib’s linear algebra also covers modules over (not necessarily
+    commutative) rings. In fact it even covers semi-modules over semi-rings. If you
+    think you do not need this level of generality, you can meditate the following
+    example that nicely captures a lot of algebraic rules about ideals acting on submodules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE136]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.1.2\. Linear maps[](#linear-maps "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Next we need linear maps. Like group morphisms, linear maps in Mathlib are bundled
+    maps, i.e. packages made of a map and proofs of its linearity properties. Those
+    bundled maps are converted to ordinary functions when applied. See [Chapter 8](C08_Hierarchies.html#hierarchies)
+    for more information about this design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of linear maps between two `K`-vector spaces `V` and `W` is denoted
+    by `V →ₗ[K] W`. The subscript l stands for linear. At first it may feel odd to
+    specify `K` in this notation. But this is crucial when several fields come into
+    play. For instance real-linear maps from \(ℂ\) to \(ℂ\) are every map \(z ↦ az
+    + b\bar{z}\) while only the maps \(z ↦ az\) are complex linear, and this difference
+    is crucial in complex analysis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE137]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `V →ₗ[K] W` itself carries interesting algebraic structures (this
+    is part of the motivation for bundling those maps). It is a `K`-vector space so
+    we can add linear maps and multiply them by scalars.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE138]'
+  prefs: []
+  type: TYPE_PRE
+- en: One downside of using bundled maps is that we cannot use ordinary function composition.
+    We need to use `LinearMap.comp` or the notation `∘ₗ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE139]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are two main ways to construct linear maps. First we can build the structure
+    by providing the function and the linearity proof. As usual, this is facilitated
+    by the structure code action: you can type `example : V →ₗ[K] V := _` and use
+    the code action “Generate a skeleton” attached to the underscore.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE140]'
+  prefs: []
+  type: TYPE_PRE
+- en: You may wonder why the proof fields of `LinearMap` have names ending with a
+    prime. This is because they are defined before the coercion to functions is defined,
+    hence they are phrased in terms of `LinearMap.toFun`. Then they are restated as
+    `LinearMap.map_add` and `LinearMap.map_smul` in terms of the coercion to function.
+    This is not yet the end of the story. One also wants a version of `map_add` that
+    applies to any (bundled) map preserving addition, such as additive group morphisms,
+    linear maps, continuous linear maps, `K`-algebra maps etc… This one is `map_add`
+    (in the root namespace). The intermediate version, `LinearMap.map_add` is a bit
+    redundant but allows to use dot notation, which can be nice sometimes. A similar
+    story exists for `map_smul`, and the general framework is explained in [Chapter
+    8](C08_Hierarchies.html#hierarchies).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE141]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One can also build linear maps from the ones that are already defined in Mathlib
+    using various combinators. For instance the above example is already known as
+    `LinearMap.lsmul K V 3`. There are several reason why `K` and `V` are explicit
+    arguments here. The most pressing one is that from a bare `LinearMap.lsmul 3`
+    there would be no way for Lean to infer `V` or even `K`. But also `LinearMap.lsmul
+    K V` is an interesting object by itself: it has type `K →ₗ[K] V →ₗ[K] V`, meaning
+    it is a `K`-linear map from `K` —seen as a vector space over itself— to the space
+    of `K`-linear maps from `V` to `V`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE142]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There is also a type `LinearEquiv` of linear isomorphisms denoted by `V ≃ₗ[K]
+    W`. The inverse of `f : V ≃ₗ[K] W` is `f.symm : W ≃ₗ[K] V`, composition of `f`
+    and `g` is `f.trans g` also denoted by `f ≪≫ₗ g`, and the identity isomorphism
+    of `V` is `LinearEquiv.refl K V`. Elements of this type are automatically coerced
+    to morphisms and functions when necessary.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE143]'
+  prefs: []
+  type: TYPE_PRE
+- en: One can use `LinearEquiv.ofBijective` to build an isomorphism from a bijective
+    morphism. Doing so makes the inverse function noncomputable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE144]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that in the above example, Lean uses the announced type to understand that
+    `.ofBijective` refers to `LinearEquiv.ofBijective` (without needing to open any
+    namespace).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.1.3\. Sums and products of vector spaces[](#sums-and-products-of-vector-spaces
+    "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We can build new vector spaces out of old ones using direct sums and direct
+    products. Let us start with two vectors spaces. In this case there is no difference
+    between sum and product, and we can simply use the product type. In the following
+    snippet of code we simply show how to get all the structure maps (inclusions and
+    projections) as linear maps, as well as the universal properties constructing
+    linear maps into products and out of sums (if you are not familiar with the category-theoretic
+    distinction between sums and products, you can simply ignore the universal property
+    vocabulary and focus on the types of the following examples).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE145]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us now turn to sums and products of arbitrary families of vector spaces.
+    Here we will simply see how to define a family of vector spaces and access the
+    universal properties of sums and products. Note that the direct sum notation is
+    scoped to the `DirectSum` namespace, and that the universal property of direct
+    sums requires decidable equality on the indexing type (this is somehow an implementation
+    accident).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE146]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.1.1\. Vector spaces[](#vector-spaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will start directly abstract linear algebra, taking place in a vector space
+    over any field. However you can find information about matrices in [Section 10.4.1](#matrices)
+    which does not logically depend on this abstract theory. Mathlib actually deals
+    with a more general version of linear algebra involving the word module, but for
+    now we will pretend this is only an eccentric spelling habit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The way to say “let \(K\) be a field and let \(V\) be a vector space over \(K\)”
+    (and make them implicit arguments to later results) is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE147]'
+  prefs: []
+  type: TYPE_PRE
+- en: We explained in [Chapter 8](C08_Hierarchies.html#hierarchies) why we need two
+    separate typeclasses `[AddCommGroup V] [Module K V]`. The short version is the
+    following. Mathematically we want to say that having a \(K\)-vector space structure
+    implies having an additive commutative group structure. We could tell this to
+    Lean. But then whenever Lean would need to find such a group structure on a type
+    \(V\), it would go hunting for vector space structures using a *completely unspecified*
+    field \(K\) that cannot be inferred from \(V\). This would be very bad for the
+    type class synthesis system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The multiplication of a vector v by a scalar a is denoted by a • v. We list
+    a couple of algebraic rules about the interaction of this operation with addition
+    in the following examples. Of course simp or apply? would find those proofs. There
+    is also a module tactic that solves goals following from the axioms of vector
+    spaces and fields, in the same way the ring tactic is used in commutative rings
+    or the group tactic is used in groups. But it is still useful to remember that
+    scalar multiplication is abbreviated smul in lemma names.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE148]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As a quick note for more advanced readers, let us point out that, as suggested
+    by terminology, Mathlib’s linear algebra also covers modules over (not necessarily
+    commutative) rings. In fact it even covers semi-modules over semi-rings. If you
+    think you do not need this level of generality, you can meditate the following
+    example that nicely captures a lot of algebraic rules about ideals acting on submodules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE149]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.1.2\. Linear maps[](#linear-maps "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Next we need linear maps. Like group morphisms, linear maps in Mathlib are bundled
+    maps, i.e. packages made of a map and proofs of its linearity properties. Those
+    bundled maps are converted to ordinary functions when applied. See [Chapter 8](C08_Hierarchies.html#hierarchies)
+    for more information about this design.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of linear maps between two `K`-vector spaces `V` and `W` is denoted
+    by `V →ₗ[K] W`. The subscript l stands for linear. At first it may feel odd to
+    specify `K` in this notation. But this is crucial when several fields come into
+    play. For instance real-linear maps from \(ℂ\) to \(ℂ\) are every map \(z ↦ az
+    + b\bar{z}\) while only the maps \(z ↦ az\) are complex linear, and this difference
+    is crucial in complex analysis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE150]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `V →ₗ[K] W` itself carries interesting algebraic structures (this
+    is part of the motivation for bundling those maps). It is a `K`-vector space so
+    we can add linear maps and multiply them by scalars.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE151]'
+  prefs: []
+  type: TYPE_PRE
+- en: One downside of using bundled maps is that we cannot use ordinary function composition.
+    We need to use `LinearMap.comp` or the notation `∘ₗ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE152]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are two main ways to construct linear maps. First we can build the structure
+    by providing the function and the linearity proof. As usual, this is facilitated
+    by the structure code action: you can type `example : V →ₗ[K] V := _` and use
+    the code action “Generate a skeleton” attached to the underscore.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE153]'
+  prefs: []
+  type: TYPE_PRE
+- en: You may wonder why the proof fields of `LinearMap` have names ending with a
+    prime. This is because they are defined before the coercion to functions is defined,
+    hence they are phrased in terms of `LinearMap.toFun`. Then they are restated as
+    `LinearMap.map_add` and `LinearMap.map_smul` in terms of the coercion to function.
+    This is not yet the end of the story. One also wants a version of `map_add` that
+    applies to any (bundled) map preserving addition, such as additive group morphisms,
+    linear maps, continuous linear maps, `K`-algebra maps etc… This one is `map_add`
+    (in the root namespace). The intermediate version, `LinearMap.map_add` is a bit
+    redundant but allows to use dot notation, which can be nice sometimes. A similar
+    story exists for `map_smul`, and the general framework is explained in [Chapter
+    8](C08_Hierarchies.html#hierarchies).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE154]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One can also build linear maps from the ones that are already defined in Mathlib
+    using various combinators. For instance the above example is already known as
+    `LinearMap.lsmul K V 3`. There are several reason why `K` and `V` are explicit
+    arguments here. The most pressing one is that from a bare `LinearMap.lsmul 3`
+    there would be no way for Lean to infer `V` or even `K`. But also `LinearMap.lsmul
+    K V` is an interesting object by itself: it has type `K →ₗ[K] V →ₗ[K] V`, meaning
+    it is a `K`-linear map from `K` —seen as a vector space over itself— to the space
+    of `K`-linear maps from `V` to `V`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE155]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There is also a type `LinearEquiv` of linear isomorphisms denoted by `V ≃ₗ[K]
+    W`. The inverse of `f : V ≃ₗ[K] W` is `f.symm : W ≃ₗ[K] V`, composition of `f`
+    and `g` is `f.trans g` also denoted by `f ≪≫ₗ g`, and the identity isomorphism
+    of `V` is `LinearEquiv.refl K V`. Elements of this type are automatically coerced
+    to morphisms and functions when necessary.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE156]'
+  prefs: []
+  type: TYPE_PRE
+- en: One can use `LinearEquiv.ofBijective` to build an isomorphism from a bijective
+    morphism. Doing so makes the inverse function noncomputable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE157]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that in the above example, Lean uses the announced type to understand that
+    `.ofBijective` refers to `LinearEquiv.ofBijective` (without needing to open any
+    namespace).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.1.3\. Sums and products of vector spaces[](#sums-and-products-of-vector-spaces
+    "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We can build new vector spaces out of old ones using direct sums and direct
+    products. Let us start with two vectors spaces. In this case there is no difference
+    between sum and product, and we can simply use the product type. In the following
+    snippet of code we simply show how to get all the structure maps (inclusions and
+    projections) as linear maps, as well as the universal properties constructing
+    linear maps into products and out of sums (if you are not familiar with the category-theoretic
+    distinction between sums and products, you can simply ignore the universal property
+    vocabulary and focus on the types of the following examples).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE158]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us now turn to sums and products of arbitrary families of vector spaces.
+    Here we will simply see how to define a family of vector spaces and access the
+    universal properties of sums and products. Note that the direct sum notation is
+    scoped to the `DirectSum` namespace, and that the universal property of direct
+    sums requires decidable equality on the indexing type (this is somehow an implementation
+    accident).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE159]'
+  prefs: []
+  type: TYPE_PRE
+- en: '## 10.2\. Subspaces and quotients[](#subspaces-and-quotients "Link to this
+    heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 10.2.1\. Subspaces[](#subspaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Just as linear maps are bundled, a linear subspace of `V` is also a bundled
+    structure consisting of a set in `V`, called the carrier of the subspace, with
+    the relevant closure properties. Again the word module appears instead of vector
+    space because of the more general context that Mathlib actually uses for linear
+    algebra.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE160]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the example above, it is important to understand that `Submodule K V` is
+    the type of `K`-linear subspaces of `V`, rather than a predicate `IsSubmodule
+    U` where `U` is an element of `Set V`. `Submodule K V` is endowed with a coercion
+    to `Set V` and a membership predicate on `V`. See [Section 8.3](C08_Hierarchies.html#section-hierarchies-subobjects)
+    for an explanation of how and why this is done.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, two subspaces are the same if and only if they have the same elements.
+    This fact is registered for use with the `ext` tactic, which can be used to prove
+    two subspaces are equal in the same way it is used to prove that two sets are
+    equal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To state and prove, for example, that `ℝ` is a `ℝ`-linear subspace of `ℂ`, what
+    we really want is to construct a term of type `Submodule ℝ ℂ` whose projection
+    to `Set ℂ` is `ℝ`, or, more precisely, the image of `ℝ` in `ℂ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE161]'
+  prefs: []
+  type: TYPE_PRE
+- en: The prime at the end of proof fields in `Submodule` are analogous to the one
+    in `LinearMap`. Those fields are stated in terms of the `carrier` field because
+    they are defined before the `MemberShip` instance. They are then superseded by
+    `Submodule.add_mem`, `Submodule.zero_mem` and `Submodule.smul_mem` that we saw
+    above.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise in manipulating subspaces and linear maps, you will define the
+    pre-image of a subspace by a linear map (of course we will see below that Mathlib
+    already knows about this). Remember that `Set.mem_preimage` can be used to rewrite
+    a statement involving membership and preimage. This is the only lemma you will
+    need in addition to the lemmas discussed above about `LinearMap` and `Submodule`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE162]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using type classes, Mathlib knows that a subspace of a vector space inherits
+    a vector space structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE163]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This example is subtle. The object `U` is not a type, but Lean automatically
+    coerces it to a type by interpreting it as a subtype of `V`. So the above example
+    can be restated more explicitly as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE164]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.2\. Complete lattice structure and internal direct sums[](#complete-lattice-structure-and-internal-direct-sums
+    "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'An important benefit of having a type `Submodule K V` instead of a predicate
+    `IsSubmodule : Set V → Prop` is that one can easily endow `Submodule K V` with
+    additional structure. Importantly, it has the structure of a complete lattice
+    structure with respect to inclusion. For instance, instead of having a lemma stating
+    that an intersection of two subspaces of `V` is again a subspace, we use the lattice
+    operation `⊓` to construct the intersection. We can then apply arbitrary lemmas
+    about lattices to the construction.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us check that the set underlying the infimum of two subspaces is indeed,
+    by definition, their intersection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE165]'
+  prefs: []
+  type: TYPE_PRE
+- en: It may look strange to have a different notation for what amounts to the intersection
+    of the underlying sets, but the correspondence does not carry over to the supremum
+    operation and set union, since a union of subspaces is not, in general, a subspace.
+    Instead one needs to use the subspace generated by the union, which is done using
+    `Submodule.span`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE166]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another subtlety is that `V` itself does not have type `Submodule K V`, so
+    we need a way to talk about `V` seen as a subspace of `V`. This is also provided
+    by the lattice structure: the full subspace is the top element of this lattice.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE167]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similarly the bottom element of this lattice is the subspace whose only element
+    is the zero element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE168]'
+  prefs: []
+  type: TYPE_PRE
+- en: In particular we can discuss the case of subspaces that are in (internal) direct
+    sum. In the case of two subspaces, we use the general purpose predicate `IsCompl`
+    which makes sense for any bounded partially ordered type. In the case of general
+    families of subspaces we use `DirectSum.IsInternal`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE169]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.3\. Subspace spanned by a set[](#subspace-spanned-by-a-set "Link to this
+    heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In addition to building subspaces out of existing subspaces, we can build them
+    out of any set `s` using `Submodule.span K s` which builds the smallest subspace
+    containing `s`. On paper it is common to use that this space is made of all linear
+    combinations of elements of `s`. But it is often more efficient to use its universal
+    property expressed by `Submodule.span_le`, and the whole theory of Galois connections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE170]'
+  prefs: []
+  type: TYPE_PRE
+- en: When those are not enough, one can use the relevant induction principle `Submodule.span_induction`
+    which ensures a property holds for every element of the span of `s` as long as
+    it holds on `zero` and elements of `s` and is stable under sum and scalar multiplication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise, let us reprove one implication of `Submodule.mem_sup`. Remember
+    that you can use the module tactic to close goals that follow from the axioms
+    relating the various algebraic operations on `V`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE171]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.4\. Pushing and pulling subspaces[](#pushing-and-pulling-subspaces "Link
+    to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As promised earlier, we now describe how to push and pull subspaces by linear
+    maps. As usual in Mathlib, the first operation is called `map` and the second
+    one is called `comap`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE172]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note those live in the `Submodule` namespace so one can use dot notation and
+    write `E.map φ` instead of `Submodule.map φ E`, but this is pretty awkward to
+    read (although some Mathlib contributors use this spelling).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In particular the range and kernel of a linear map are subspaces. Those special
+    cases are important enough to get declarations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE173]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we cannot write `φ.ker` instead of `LinearMap.ker φ` because `LinearMap.ker`
+    also applies to classes of maps preserving more structure, hence it does not expect
+    an argument whose type starts with `LinearMap`, hence dot notation doesn’t work
+    here. However we were able to use the other flavor of dot notation in the right-hand
+    side. Because Lean expects a term with type `Submodule K V` after elaborating
+    the left-hand side, it interprets `.comap` as `Submodule.comap`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following lemmas give the key relations between those submodule and the
+    properties of `φ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE174]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, let us prove the Galois connection property for `map` and `comap`.
+    One can use the following lemmas but this is not required since they are true
+    by definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE175]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.5\. Quotient spaces[](#quotient-spaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Quotient vector spaces use the general quotient notation (typed with `\quot`,
+    not the ordinary `/`). The projection onto a quotient space is `Submodule.mkQ`
+    and the universal property is `Submodule.liftQ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE176]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, let us prove the correspondence theorem for subspaces of quotient
+    spaces. Mathlib knows a slightly more precise version as `Submodule.comapMkQRelIso`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE177]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.1\. Subspaces[](#subspaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Just as linear maps are bundled, a linear subspace of `V` is also a bundled
+    structure consisting of a set in `V`, called the carrier of the subspace, with
+    the relevant closure properties. Again the word module appears instead of vector
+    space because of the more general context that Mathlib actually uses for linear
+    algebra.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE178]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the example above, it is important to understand that `Submodule K V` is
+    the type of `K`-linear subspaces of `V`, rather than a predicate `IsSubmodule
+    U` where `U` is an element of `Set V`. `Submodule K V` is endowed with a coercion
+    to `Set V` and a membership predicate on `V`. See [Section 8.3](C08_Hierarchies.html#section-hierarchies-subobjects)
+    for an explanation of how and why this is done.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, two subspaces are the same if and only if they have the same elements.
+    This fact is registered for use with the `ext` tactic, which can be used to prove
+    two subspaces are equal in the same way it is used to prove that two sets are
+    equal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To state and prove, for example, that `ℝ` is a `ℝ`-linear subspace of `ℂ`, what
+    we really want is to construct a term of type `Submodule ℝ ℂ` whose projection
+    to `Set ℂ` is `ℝ`, or, more precisely, the image of `ℝ` in `ℂ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE179]'
+  prefs: []
+  type: TYPE_PRE
+- en: The prime at the end of proof fields in `Submodule` are analogous to the one
+    in `LinearMap`. Those fields are stated in terms of the `carrier` field because
+    they are defined before the `MemberShip` instance. They are then superseded by
+    `Submodule.add_mem`, `Submodule.zero_mem` and `Submodule.smul_mem` that we saw
+    above.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise in manipulating subspaces and linear maps, you will define the
+    pre-image of a subspace by a linear map (of course we will see below that Mathlib
+    already knows about this). Remember that `Set.mem_preimage` can be used to rewrite
+    a statement involving membership and preimage. This is the only lemma you will
+    need in addition to the lemmas discussed above about `LinearMap` and `Submodule`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE180]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using type classes, Mathlib knows that a subspace of a vector space inherits
+    a vector space structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE181]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This example is subtle. The object `U` is not a type, but Lean automatically
+    coerces it to a type by interpreting it as a subtype of `V`. So the above example
+    can be restated more explicitly as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE182]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.2\. Complete lattice structure and internal direct sums[](#complete-lattice-structure-and-internal-direct-sums
+    "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'An important benefit of having a type `Submodule K V` instead of a predicate
+    `IsSubmodule : Set V → Prop` is that one can easily endow `Submodule K V` with
+    additional structure. Importantly, it has the structure of a complete lattice
+    structure with respect to inclusion. For instance, instead of having a lemma stating
+    that an intersection of two subspaces of `V` is again a subspace, we use the lattice
+    operation `⊓` to construct the intersection. We can then apply arbitrary lemmas
+    about lattices to the construction.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let us check that the set underlying the infimum of two subspaces is indeed,
+    by definition, their intersection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE183]'
+  prefs: []
+  type: TYPE_PRE
+- en: It may look strange to have a different notation for what amounts to the intersection
+    of the underlying sets, but the correspondence does not carry over to the supremum
+    operation and set union, since a union of subspaces is not, in general, a subspace.
+    Instead one needs to use the subspace generated by the union, which is done using
+    `Submodule.span`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE184]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another subtlety is that `V` itself does not have type `Submodule K V`, so
+    we need a way to talk about `V` seen as a subspace of `V`. This is also provided
+    by the lattice structure: the full subspace is the top element of this lattice.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE185]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similarly the bottom element of this lattice is the subspace whose only element
+    is the zero element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE186]'
+  prefs: []
+  type: TYPE_PRE
+- en: In particular we can discuss the case of subspaces that are in (internal) direct
+    sum. In the case of two subspaces, we use the general purpose predicate `IsCompl`
+    which makes sense for any bounded partially ordered type. In the case of general
+    families of subspaces we use `DirectSum.IsInternal`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE187]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.3\. Subspace spanned by a set[](#subspace-spanned-by-a-set "Link to this
+    heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In addition to building subspaces out of existing subspaces, we can build them
+    out of any set `s` using `Submodule.span K s` which builds the smallest subspace
+    containing `s`. On paper it is common to use that this space is made of all linear
+    combinations of elements of `s`. But it is often more efficient to use its universal
+    property expressed by `Submodule.span_le`, and the whole theory of Galois connections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE188]'
+  prefs: []
+  type: TYPE_PRE
+- en: When those are not enough, one can use the relevant induction principle `Submodule.span_induction`
+    which ensures a property holds for every element of the span of `s` as long as
+    it holds on `zero` and elements of `s` and is stable under sum and scalar multiplication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an exercise, let us reprove one implication of `Submodule.mem_sup`. Remember
+    that you can use the module tactic to close goals that follow from the axioms
+    relating the various algebraic operations on `V`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE189]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.4\. Pushing and pulling subspaces[](#pushing-and-pulling-subspaces "Link
+    to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: As promised earlier, we now describe how to push and pull subspaces by linear
+    maps. As usual in Mathlib, the first operation is called `map` and the second
+    one is called `comap`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE190]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note those live in the `Submodule` namespace so one can use dot notation and
+    write `E.map φ` instead of `Submodule.map φ E`, but this is pretty awkward to
+    read (although some Mathlib contributors use this spelling).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In particular the range and kernel of a linear map are subspaces. Those special
+    cases are important enough to get declarations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE191]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we cannot write `φ.ker` instead of `LinearMap.ker φ` because `LinearMap.ker`
+    also applies to classes of maps preserving more structure, hence it does not expect
+    an argument whose type starts with `LinearMap`, hence dot notation doesn’t work
+    here. However we were able to use the other flavor of dot notation in the right-hand
+    side. Because Lean expects a term with type `Submodule K V` after elaborating
+    the left-hand side, it interprets `.comap` as `Submodule.comap`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following lemmas give the key relations between those submodule and the
+    properties of `φ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE192]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, let us prove the Galois connection property for `map` and `comap`.
+    One can use the following lemmas but this is not required since they are true
+    by definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE193]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.2.5\. Quotient spaces[](#quotient-spaces "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Quotient vector spaces use the general quotient notation (typed with `\quot`,
+    not the ordinary `/`). The projection onto a quotient space is `Submodule.mkQ`
+    and the universal property is `Submodule.liftQ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE194]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise, let us prove the correspondence theorem for subspaces of quotient
+    spaces. Mathlib knows a slightly more precise version as `Submodule.comapMkQRelIso`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE195]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.3\. Endomorphisms[](#endomorphisms "Link to this heading")
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'An important special case of linear maps are endomorphisms: linear maps from
+    a vector space to itself. They are interesting because they form a `K`-algebra.
+    In particular we can evaluate polynomials with coefficients in `K` on them, and
+    they can have eigenvalues and eigenvectors.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mathlib uses the abbreviation `Module.End K V := V →ₗ[K] V` which is convenient
+    when using a lot of these (especially after opening the `Module` namespace).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE196]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As an exercise manipulating endomorphisms, subspaces and polynomials, let us
+    prove the (binary) kernels lemma: for any endomorphism \(φ\) and any two relatively
+    prime polynomials \(P\) and \(Q\), we have \(\ker P(φ) ⊕ \ker Q(φ) = \ker \big(PQ(φ)\big)\).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that `IsCoprime x y` is defined as `∃ a b, a * x + b * y = 1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE197]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now move to the discussions of eigenspaces and eigenvalues. The eigenspace
+    associated to an endomorphism \(φ\) and a scalar \(a\) is the kernel of \(φ -
+    aId\). Eigenspaces are defined for all values of `a`, although they are interesting
+    only when they are non-zero. However an eigenvector is, by definition, a non-zero
+    element of an eigenspace. The corresponding predicate is `End.HasEigenvector`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE198]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then there is a predicate `End.HasEigenvalue` and the corresponding subtype
+    `End.Eigenvalues`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE199]'
+  prefs: []
+  type: TYPE_PRE
+- en: '## 10.4\. Matrices, bases and dimension[](#matrices-bases-and-dimension "Link
+    to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### 10.4.1\. Matrices[](#matrices "Link to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before introducing bases for abstract vector spaces, we go back to the much
+    more elementary setup of linear algebra in \(K^n\) for some field \(K\). Here
+    the main objects are vectors and matrices. For concrete vectors, one can use the
+    `![…]` notation, where components are separated by commas. For concrete matrices
+    we can use the `!![…]` notation, lines are separated by semi-colons and components
+    of lines are separated by colons. When entries have a computable type such as
+    `ℕ` or `ℚ`, we can use the `eval` command to play with basic operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE200]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is important to understand that this use of `#eval` is interesting only for
+    exploration, it is not meant to replace a computer algebra system such as Sage.
+    The data representation used here for matrices is *not* computationally efficient
+    in any way. It uses functions instead of arrays and is optimized for proving,
+    not computing. The virtual machine used by `#eval` is also not optimized for this
+    use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beware the matrix notation list rows but the vector notation is neither a row
+    vector nor a column vector. Multiplication of a matrix with a vector from the
+    left (resp. right) interprets the vector as a row (resp. column) vector. This
+    corresponds to operations `Matrix.vecMul`, with notation `ᵥ*` and `Matrix.mulVec`,
+    with notation ` *ᵥ`. Those notations are scoped in the `Matrix` namespace that
+    we therefore need to open.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE201]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to generate matrices with identical rows or columns specified by a
+    vector, we use `Matrix.replicateRow` and `Matrix.replicateCol`, with arguments
+    the type indexing the rows or columns and the vector. For instance one can get
+    single row or single column matrixes (more precisely matrices whose rows or columns
+    are indexed by `Fin 1`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE202]'
+  prefs: []
+  type: TYPE_PRE
+- en: Other familiar operations include the vector dot product, matrix transpose,
+    and, for square matrices, determinant and trace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE203]'
+  prefs: []
+  type: TYPE_PRE
+- en: When entries do not have a computable type, for instance if they are real numbers,
+    we cannot hope that `#eval` can help. Also this kind of evaluation cannot be used
+    in proofs without considerably expanding the trusted code base (i.e. the part
+    of Lean that you need to trust when checking proofs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So it is good to also use the `simp` and `norm_num` tactics in proofs, or their
+    command counter-part for quick exploration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE204]'
+  prefs: []
+  type: TYPE_PRE
+- en: The next important operation on square matrices is inversion. In the same way
+    as division of numbers is always defined and returns the artificial value zero
+    for division by zero, the inversion operation is defined on all matrices and returns
+    the zero matrix for non-invertible matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More precisely, there is general function `Ring.inverse` that does this in any
+    ring, and, for any matrix `A`, `A⁻¹` is defined as `Ring.inverse A.det • A.adjugate`.
+    According to Cramer’s rule, this is indeed the inverse of `A` when the determinant
+    of `A` is not zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE205]'
+  prefs: []
+  type: TYPE_PRE
+- en: Of course this definition is really useful only for invertible matrices. There
+    is a general type class `Invertible` that helps recording this. For instance,
+    the `simp` call in the next example will use the `inv_mul_of_invertible` lemma
+    which has an `Invertible` type-class assumption, so it will trigger only if this
+    can be found by the type-class synthesis system. Here we make this fact available
+    using a `have` statement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE206]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this fully concrete case, we could also use the `norm_num` machinery, and
+    `apply?` to find the final line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE207]'
+  prefs: []
+  type: TYPE_PRE
+- en: All the concrete matrices above have their rows and columns indexed by `Fin
+    n` for some `n` (not necessarily the same for rows and columns). But sometimes
+    it is more convenient to index matrices using arbitrary finite types. For instance
+    the adjacency matrix of a finite graph has rows and columns naturally indexed
+    by the vertices of the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact when simply wants to define matrices without defining any operation
+    on them, finiteness of the indexing types are not even needed, and coefficients
+    can have any type, without any algebraic structure. So Mathlib simply defines
+    `Matrix m n α` to be `m → n → α` for any types `m`, `n` and `α`, and the matrices
+    we have been using so far had types such as `Matrix (Fin 2) (Fin 2) ℝ`. Of course
+    algebraic operations require more assumptions on `m`, `n` and `α`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the main reason why we do not use `m → n → α` directly is to allow the
+    type class system to understand what we want. For instance, for a ring `R`, the
+    type `n → R` is endowed with the point-wise multiplication operation, and similarly
+    `m → n → R` has this operation which is *not* the multiplication we want on matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the first example below, we force Lean to see through the definition of `Matrix`
+    and accept the statement as meaningful, and then prove it by checking all entries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But then the next two examples reveal that Lean uses the point-wise multiplication
+    on `Fin 2 → Fin 2 → ℤ` but the matrix multiplication on `Matrix (Fin 2) (Fin 2)
+    ℤ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE208]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to define matrices as functions without losing the benefits of `Matrix`
+    for type class synthesis, we can use the equivalence `Matrix.of` between functions
+    and matrices. This equivalence is secretly defined using `Equiv.refl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance we can define Vandermonde matrices corresponding to a vector `v`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE209]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.4.2\. Bases[](#bases "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We now want to discuss bases of vector spaces. Informally there are many ways
+    to define this notion. One can use a universal property. One can say a basis is
+    a family of vectors that is linearly independent and spanning. Or one can combine
+    those properties and directly say that a basis is a family of vectors such that
+    every vectors can be written uniquely as a linear combination of bases vectors.
+    Yet another way to say it is that a basis provides a linear isomorphism with a
+    power of the base field `K`, seen as a vector space over `K`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This isomorphism version is actually the one that Mathlib uses as a definition
+    under the hood, and other characterizations are proven from it. One must be slightly
+    careful with the “power of `K`” idea in the case of infinite bases. Indeed only
+    finite linear combinations make sense in this algebraic context. So what we need
+    as a reference vector space is not a direct product of copies of `K` but a direct
+    sum. We could use `⨁ i : ι, K` for some type `ι` indexing the basis But we rather
+    use the more specialized spelling `ι →₀ K` which means “functions from `ι` to
+    `K` with finite support”, i.e. functions which vanish outside a finite set in
+    `ι` (this finite set is not fixed, it depends on the function). Evaluating such
+    a function coming from a basis `B` at a vector `v` and `i : ι` returns the component
+    (or coordinate) of `v` on the `i`-th basis vector.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of bases indexed by a type `ι` of `V` as a `K` vector space is `Basis
+    ι K V`. The isomorphism is called `Basis.repr`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE210]'
+  prefs: []
+  type: TYPE_PRE
+- en: Instead of starting with such an isomorphism, one can start with a family `b`
+    of vectors that is linearly independent and spanning, this is `Basis.mk`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The assumption that the family is spanning is spelled out as `⊤ ≤ Submodule.span
+    K (Set.range b)`. Here `⊤` is the top submodule of `V`, i.e. `V` seen as submodule
+    of itself. This spelling looks a bit tortuous, but we will see below that it is
+    almost equivalent by definition to the more readable `∀ v, v ∈ Submodule.span
+    K (Set.range b)` (the underscores in the snippet below refers to the useless information
+    `v ∈ ⊤`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE211]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In particular the model vector space `ι →₀ K` has a so-called canonical basis
+    whose `repr` function evaluated on any vector is the identity isomorphism. It
+    is called `Finsupp.basisSingleOne` where `Finsupp` means function with finite
+    support and `basisSingleOne` refers to the fact that basis vectors are functions
+    which vanish expect for a single input value. More precisely the basis vector
+    indexed by `i : ι` is `Finsupp.single i 1` which is the finitely supported function
+    taking value `1` at `i` and `0` everywhere else.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE212]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE213]'
+  prefs: []
+  type: TYPE_PRE
+- en: The story of finitely supported functions is unneeded when the indexing type
+    is finite. In this case we can use the simpler `Pi.basisFun` which gives a basis
+    of the whole `ι → K`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE214]'
+  prefs: []
+  type: TYPE_PRE
+- en: Going back to the general case of bases of abstract vector spaces, we can express
+    any vector as a linear combination of basis vectors. Let us first see the easy
+    case of finite bases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE215]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When `ι` is not finite, the above statement makes no sense a priori: we cannot
+    take a sum over `ι`. However the support of the function being summed is finite
+    (it is the support of `B.repr v`). But we need to apply a construction that takes
+    this into account. Here Mathlib uses a special purpose function that requires
+    some time to get used to: `Finsupp.linearCombination` (which is built on top of
+    the more general `Finsupp.sum`). Given a finitely supported function `c` from
+    a type `ι` to the base field `K` and any function `f` from `ι` to `V`, `Finsupp.linearCombination
+    K f c` is the sum over the support of `c` of the scalar multiplication `c • f`.
+    In particular, we can replace it by a sum over any finite set containing the support
+    of `c`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE216]'
+  prefs: []
+  type: TYPE_PRE
+- en: One could also assume that `f` is finitely supported and still get a well defined
+    sum. But the choice made by `Finsupp.linearCombination` is the one relevant to
+    our basis discussion since it allows to state the generalization of `Basis.sum_repr`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE217]'
+  prefs: []
+  type: TYPE_PRE
+- en: One could wonder why `K` is an explicit argument here, despite the fact it can
+    be inferred from the type of `c`. The point is that the partially applied `Finsupp.linearCombination
+    K f` is interesting in itself. It is not a bare function from `ι →₀ K` to `V`
+    but a `K`-linear map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE218]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Returning to the mathematical discussion, it is important to understand that
+    the representation of vectors in a basis is less useful in formalized mathematics
+    than you may think. Indeed it is very often more efficient to directly use more
+    abstract properties of bases. In particular the universal property of bases connecting
+    them to other free objects in algebra allows to construct linear maps by specifying
+    the images of basis vectors. This is `Basis.constr`. For any `K`-vector space
+    `W`, our basis `B` gives a linear isomorphism `Basis.constr B K` from `ι → W`
+    to `V →ₗ[K] W`. This isomorphism is characterized by the fact that it sends any
+    function `u : ι → W` to a linear map sending the basis vector `B i` to `u i`,
+    for every `i : ι`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE219]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This property is indeed characteristic because linear maps are determined by
+    their values on bases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE220]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we also have a basis `B'` on the target space then we can identify linear
+    maps with matrices. This identification is a `K`-linear isomorphism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE221]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise on this topic, we will prove part of the theorem which guarantees
+    that endomorphisms have a well-defined determinant. Namely we want to prove that
+    when two bases are indexed by the same type, the matrices they attach to any endomorphism
+    have the same determinant. This would then need to be complemented using that
+    bases all have isomorphic indexing types to get the full result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course Mathlib already knows this, and `simp` can close the goal immediately,
+    so you shouldn’t use it too soon, but rather use the provided lemmas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE222]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.4.3\. Dimension[](#dimension "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Returning to the case of a single vector space, bases are also useful to define
+    the concept of dimension. Here again, there is the elementary case of finite-dimensional
+    vector spaces. For such spaces we expect a dimension which is a natural number.
+    This is `Module.finrank`. It takes the base field as an explicit argument since
+    a given abelian group can be a vector space over different fields.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE223]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `Module.finrank` is defined for any vector space. It returns zero
+    for infinite dimensional vector spaces, just as division by zero returns zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course many lemmas require a finite dimension assumption. This is the role
+    of the `FiniteDimensional` typeclass. For instance, think about how the next example
+    fails without this assumption.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE224]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the above statement, `Nontrivial V` means `V` has at least two different
+    elements. Note that `Module.finrank_pos_iff` has no explicit argument. This is
+    fine when using it from left to right, but not when using it from right to left
+    because Lean has no way to guess `K` from the statement `Nontrivial V`. In that
+    case it is useful to use the name argument syntax, after checking that the lemma
+    is stated over a ring named `R`. So we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE225]'
+  prefs: []
+  type: TYPE_PRE
+- en: The above spelling is strange because we already have `h` as an assumption,
+    so we could just as well give the full proof `Module.finrank_pos_iff.1 h` but
+    it is good to know for more complicated cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By definition, `FiniteDimensional K V` can be read from any basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE226]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using that the subtype corresponding to a linear subspace has a vector space
+    structure, we can talk about the dimension of a subspace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE227]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the first statement above, the purpose of the type ascriptions is to make
+    sure that coercion to `Type*` does not trigger too early.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are now ready for an exercise about `finrank` and subspaces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE228]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us now move to the general case of dimension theory. In this case `finrank`
+    is useless, but we still have that, for any two bases of the same vector space,
+    there is a bijection between the types indexing those bases. So we can still hope
+    to define the rank as a cardinal, i.e. an element of the “quotient of the collection
+    of types under the existence of a bijection equivalence relation”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When discussing cardinal, it gets harder to ignore foundational issues around
+    Russel’s paradox like we do everywhere else in this book. There is no type of
+    all types because it would lead to logical inconsistencies. This issue is solved
+    by the hierarchy of universes that we usually try to ignore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each type has a universe level, and those levels behave similarly to natural
+    numbers. In particular there is zeroth level, and the corresponding universe `Type
+    0` is simply denoted by `Type`. This universe is enough to hold almost all of
+    classical mathematics. For instance `ℕ` and `ℝ` have type `Type`. Each level `u`
+    has a successor denoted by `u + 1`, and `Type u` has type `Type (u+1)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But universe levels are not natural numbers, they have a really different nature
+    and don’t have a type. In particular you cannot state in Lean something like `u
+    ≠ u + 1`. There is simply no type where this would take place. Even stating `Type
+    u ≠ Type (u+1)` does not make any sense since `Type u` and `Type (u+1)` have different
+    types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever we write `Type*`, Lean inserts a universe level variable named `u_n`
+    where `n` is a number. This allows definitions and statements to live in all universes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Given a universe level `u`, we can define an equivalence relation on `Type
+    u` saying two types `α` and `β` are equivalent if there is a bijection between
+    them. The quotient type `Cardinal.{u}` lives in `Type (u+1)`. The curly braces
+    denote a universe variable. The image of `α : Type u` in this quotient is `Cardinal.mk
+    α : Cardinal.{u}`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But we cannot directly compare cardinals in different universes. So technically
+    we cannot define the rank of a vector space `V` as the cardinal of all types indexing
+    a basis of `V`. So instead it is defined as the supremum `Module.rank K V` of
+    cardinals of all linearly independent sets in `V`. If `V` has universe level `u`
+    then its rank has type `Cardinal.{u}`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE229]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One can still relate this definition to bases. Indeed there is also a commutative
+    `max` operation on universe levels, and given two universe levels `u` and `v`
+    there is an operation `Cardinal.lift.{u, v} : Cardinal.{v} → Cardinal.{max v u}`
+    that allows to put cardinals in a common universe and state the dimension theorem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE230]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can relate the finite dimensional case to this discussion using the coercion
+    from natural numbers to finite cardinals (or more precisely the finite cardinals
+    which live in `Cardinal.{v}` where `v` is the universe level of `V`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE231]'
+  prefs: []
+  type: TYPE_PRE
+- en: '### 10.4.1\. Matrices[](#matrices "Link to this heading")'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before introducing bases for abstract vector spaces, we go back to the much
+    more elementary setup of linear algebra in \(K^n\) for some field \(K\). Here
+    the main objects are vectors and matrices. For concrete vectors, one can use the
+    `![…]` notation, where components are separated by commas. For concrete matrices
+    we can use the `!![…]` notation, lines are separated by semi-colons and components
+    of lines are separated by colons. When entries have a computable type such as
+    `ℕ` or `ℚ`, we can use the `eval` command to play with basic operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE232]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is important to understand that this use of `#eval` is interesting only for
+    exploration, it is not meant to replace a computer algebra system such as Sage.
+    The data representation used here for matrices is *not* computationally efficient
+    in any way. It uses functions instead of arrays and is optimized for proving,
+    not computing. The virtual machine used by `#eval` is also not optimized for this
+    use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beware the matrix notation list rows but the vector notation is neither a row
+    vector nor a column vector. Multiplication of a matrix with a vector from the
+    left (resp. right) interprets the vector as a row (resp. column) vector. This
+    corresponds to operations `Matrix.vecMul`, with notation `ᵥ*` and `Matrix.mulVec`,
+    with notation ` *ᵥ`. Those notations are scoped in the `Matrix` namespace that
+    we therefore need to open.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE233]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to generate matrices with identical rows or columns specified by a
+    vector, we use `Matrix.replicateRow` and `Matrix.replicateCol`, with arguments
+    the type indexing the rows or columns and the vector. For instance one can get
+    single row or single column matrixes (more precisely matrices whose rows or columns
+    are indexed by `Fin 1`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE234]'
+  prefs: []
+  type: TYPE_PRE
+- en: Other familiar operations include the vector dot product, matrix transpose,
+    and, for square matrices, determinant and trace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE235]'
+  prefs: []
+  type: TYPE_PRE
+- en: When entries do not have a computable type, for instance if they are real numbers,
+    we cannot hope that `#eval` can help. Also this kind of evaluation cannot be used
+    in proofs without considerably expanding the trusted code base (i.e. the part
+    of Lean that you need to trust when checking proofs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So it is good to also use the `simp` and `norm_num` tactics in proofs, or their
+    command counter-part for quick exploration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE236]'
+  prefs: []
+  type: TYPE_PRE
+- en: The next important operation on square matrices is inversion. In the same way
+    as division of numbers is always defined and returns the artificial value zero
+    for division by zero, the inversion operation is defined on all matrices and returns
+    the zero matrix for non-invertible matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: More precisely, there is general function `Ring.inverse` that does this in any
+    ring, and, for any matrix `A`, `A⁻¹` is defined as `Ring.inverse A.det • A.adjugate`.
+    According to Cramer’s rule, this is indeed the inverse of `A` when the determinant
+    of `A` is not zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE237]'
+  prefs: []
+  type: TYPE_PRE
+- en: Of course this definition is really useful only for invertible matrices. There
+    is a general type class `Invertible` that helps recording this. For instance,
+    the `simp` call in the next example will use the `inv_mul_of_invertible` lemma
+    which has an `Invertible` type-class assumption, so it will trigger only if this
+    can be found by the type-class synthesis system. Here we make this fact available
+    using a `have` statement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE238]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In this fully concrete case, we could also use the `norm_num` machinery, and
+    `apply?` to find the final line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE239]'
+  prefs: []
+  type: TYPE_PRE
+- en: All the concrete matrices above have their rows and columns indexed by `Fin
+    n` for some `n` (not necessarily the same for rows and columns). But sometimes
+    it is more convenient to index matrices using arbitrary finite types. For instance
+    the adjacency matrix of a finite graph has rows and columns naturally indexed
+    by the vertices of the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact when simply wants to define matrices without defining any operation
+    on them, finiteness of the indexing types are not even needed, and coefficients
+    can have any type, without any algebraic structure. So Mathlib simply defines
+    `Matrix m n α` to be `m → n → α` for any types `m`, `n` and `α`, and the matrices
+    we have been using so far had types such as `Matrix (Fin 2) (Fin 2) ℝ`. Of course
+    algebraic operations require more assumptions on `m`, `n` and `α`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the main reason why we do not use `m → n → α` directly is to allow the
+    type class system to understand what we want. For instance, for a ring `R`, the
+    type `n → R` is endowed with the point-wise multiplication operation, and similarly
+    `m → n → R` has this operation which is *not* the multiplication we want on matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the first example below, we force Lean to see through the definition of `Matrix`
+    and accept the statement as meaningful, and then prove it by checking all entries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But then the next two examples reveal that Lean uses the point-wise multiplication
+    on `Fin 2 → Fin 2 → ℤ` but the matrix multiplication on `Matrix (Fin 2) (Fin 2)
+    ℤ`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE240]'
+  prefs: []
+  type: TYPE_PRE
+- en: In order to define matrices as functions without losing the benefits of `Matrix`
+    for type class synthesis, we can use the equivalence `Matrix.of` between functions
+    and matrices. This equivalence is secretly defined using `Equiv.refl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance we can define Vandermonde matrices corresponding to a vector `v`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE241]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.4.2\. Bases[](#bases "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We now want to discuss bases of vector spaces. Informally there are many ways
+    to define this notion. One can use a universal property. One can say a basis is
+    a family of vectors that is linearly independent and spanning. Or one can combine
+    those properties and directly say that a basis is a family of vectors such that
+    every vectors can be written uniquely as a linear combination of bases vectors.
+    Yet another way to say it is that a basis provides a linear isomorphism with a
+    power of the base field `K`, seen as a vector space over `K`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This isomorphism version is actually the one that Mathlib uses as a definition
+    under the hood, and other characterizations are proven from it. One must be slightly
+    careful with the “power of `K`” idea in the case of infinite bases. Indeed only
+    finite linear combinations make sense in this algebraic context. So what we need
+    as a reference vector space is not a direct product of copies of `K` but a direct
+    sum. We could use `⨁ i : ι, K` for some type `ι` indexing the basis But we rather
+    use the more specialized spelling `ι →₀ K` which means “functions from `ι` to
+    `K` with finite support”, i.e. functions which vanish outside a finite set in
+    `ι` (this finite set is not fixed, it depends on the function). Evaluating such
+    a function coming from a basis `B` at a vector `v` and `i : ι` returns the component
+    (or coordinate) of `v` on the `i`-th basis vector.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of bases indexed by a type `ι` of `V` as a `K` vector space is `Basis
+    ι K V`. The isomorphism is called `Basis.repr`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE242]'
+  prefs: []
+  type: TYPE_PRE
+- en: Instead of starting with such an isomorphism, one can start with a family `b`
+    of vectors that is linearly independent and spanning, this is `Basis.mk`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The assumption that the family is spanning is spelled out as `⊤ ≤ Submodule.span
+    K (Set.range b)`. Here `⊤` is the top submodule of `V`, i.e. `V` seen as submodule
+    of itself. This spelling looks a bit tortuous, but we will see below that it is
+    almost equivalent by definition to the more readable `∀ v, v ∈ Submodule.span
+    K (Set.range b)` (the underscores in the snippet below refers to the useless information
+    `v ∈ ⊤`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE243]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In particular the model vector space `ι →₀ K` has a so-called canonical basis
+    whose `repr` function evaluated on any vector is the identity isomorphism. It
+    is called `Finsupp.basisSingleOne` where `Finsupp` means function with finite
+    support and `basisSingleOne` refers to the fact that basis vectors are functions
+    which vanish expect for a single input value. More precisely the basis vector
+    indexed by `i : ι` is `Finsupp.single i 1` which is the finitely supported function
+    taking value `1` at `i` and `0` everywhere else.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE244]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE245]'
+  prefs: []
+  type: TYPE_PRE
+- en: The story of finitely supported functions is unneeded when the indexing type
+    is finite. In this case we can use the simpler `Pi.basisFun` which gives a basis
+    of the whole `ι → K`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE246]'
+  prefs: []
+  type: TYPE_PRE
+- en: Going back to the general case of bases of abstract vector spaces, we can express
+    any vector as a linear combination of basis vectors. Let us first see the easy
+    case of finite bases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE247]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When `ι` is not finite, the above statement makes no sense a priori: we cannot
+    take a sum over `ι`. However the support of the function being summed is finite
+    (it is the support of `B.repr v`). But we need to apply a construction that takes
+    this into account. Here Mathlib uses a special purpose function that requires
+    some time to get used to: `Finsupp.linearCombination` (which is built on top of
+    the more general `Finsupp.sum`). Given a finitely supported function `c` from
+    a type `ι` to the base field `K` and any function `f` from `ι` to `V`, `Finsupp.linearCombination
+    K f c` is the sum over the support of `c` of the scalar multiplication `c • f`.
+    In particular, we can replace it by a sum over any finite set containing the support
+    of `c`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE248]'
+  prefs: []
+  type: TYPE_PRE
+- en: One could also assume that `f` is finitely supported and still get a well defined
+    sum. But the choice made by `Finsupp.linearCombination` is the one relevant to
+    our basis discussion since it allows to state the generalization of `Basis.sum_repr`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE249]'
+  prefs: []
+  type: TYPE_PRE
+- en: One could wonder why `K` is an explicit argument here, despite the fact it can
+    be inferred from the type of `c`. The point is that the partially applied `Finsupp.linearCombination
+    K f` is interesting in itself. It is not a bare function from `ι →₀ K` to `V`
+    but a `K`-linear map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE250]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Returning to the mathematical discussion, it is important to understand that
+    the representation of vectors in a basis is less useful in formalized mathematics
+    than you may think. Indeed it is very often more efficient to directly use more
+    abstract properties of bases. In particular the universal property of bases connecting
+    them to other free objects in algebra allows to construct linear maps by specifying
+    the images of basis vectors. This is `Basis.constr`. For any `K`-vector space
+    `W`, our basis `B` gives a linear isomorphism `Basis.constr B K` from `ι → W`
+    to `V →ₗ[K] W`. This isomorphism is characterized by the fact that it sends any
+    function `u : ι → W` to a linear map sending the basis vector `B i` to `u i`,
+    for every `i : ι`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE251]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This property is indeed characteristic because linear maps are determined by
+    their values on bases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE252]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we also have a basis `B'` on the target space then we can identify linear
+    maps with matrices. This identification is a `K`-linear isomorphism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE253]'
+  prefs: []
+  type: TYPE_PRE
+- en: As an exercise on this topic, we will prove part of the theorem which guarantees
+    that endomorphisms have a well-defined determinant. Namely we want to prove that
+    when two bases are indexed by the same type, the matrices they attach to any endomorphism
+    have the same determinant. This would then need to be complemented using that
+    bases all have isomorphic indexing types to get the full result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course Mathlib already knows this, and `simp` can close the goal immediately,
+    so you shouldn’t use it too soon, but rather use the provided lemmas.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE254]'
+  prefs: []
+  type: TYPE_PRE
+- en: 10.4.3\. Dimension[](#dimension "Link to this heading")
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Returning to the case of a single vector space, bases are also useful to define
+    the concept of dimension. Here again, there is the elementary case of finite-dimensional
+    vector spaces. For such spaces we expect a dimension which is a natural number.
+    This is `Module.finrank`. It takes the base field as an explicit argument since
+    a given abelian group can be a vector space over different fields.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE255]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that `Module.finrank` is defined for any vector space. It returns zero
+    for infinite dimensional vector spaces, just as division by zero returns zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course many lemmas require a finite dimension assumption. This is the role
+    of the `FiniteDimensional` typeclass. For instance, think about how the next example
+    fails without this assumption.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE256]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the above statement, `Nontrivial V` means `V` has at least two different
+    elements. Note that `Module.finrank_pos_iff` has no explicit argument. This is
+    fine when using it from left to right, but not when using it from right to left
+    because Lean has no way to guess `K` from the statement `Nontrivial V`. In that
+    case it is useful to use the name argument syntax, after checking that the lemma
+    is stated over a ring named `R`. So we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE257]'
+  prefs: []
+  type: TYPE_PRE
+- en: The above spelling is strange because we already have `h` as an assumption,
+    so we could just as well give the full proof `Module.finrank_pos_iff.1 h` but
+    it is good to know for more complicated cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By definition, `FiniteDimensional K V` can be read from any basis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE258]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using that the subtype corresponding to a linear subspace has a vector space
+    structure, we can talk about the dimension of a subspace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE259]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the first statement above, the purpose of the type ascriptions is to make
+    sure that coercion to `Type*` does not trigger too early.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are now ready for an exercise about `finrank` and subspaces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE260]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us now move to the general case of dimension theory. In this case `finrank`
+    is useless, but we still have that, for any two bases of the same vector space,
+    there is a bijection between the types indexing those bases. So we can still hope
+    to define the rank as a cardinal, i.e. an element of the “quotient of the collection
+    of types under the existence of a bijection equivalence relation”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When discussing cardinal, it gets harder to ignore foundational issues around
+    Russel’s paradox like we do everywhere else in this book. There is no type of
+    all types because it would lead to logical inconsistencies. This issue is solved
+    by the hierarchy of universes that we usually try to ignore.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each type has a universe level, and those levels behave similarly to natural
+    numbers. In particular there is zeroth level, and the corresponding universe `Type
+    0` is simply denoted by `Type`. This universe is enough to hold almost all of
+    classical mathematics. For instance `ℕ` and `ℝ` have type `Type`. Each level `u`
+    has a successor denoted by `u + 1`, and `Type u` has type `Type (u+1)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But universe levels are not natural numbers, they have a really different nature
+    and don’t have a type. In particular you cannot state in Lean something like `u
+    ≠ u + 1`. There is simply no type where this would take place. Even stating `Type
+    u ≠ Type (u+1)` does not make any sense since `Type u` and `Type (u+1)` have different
+    types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Whenever we write `Type*`, Lean inserts a universe level variable named `u_n`
+    where `n` is a number. This allows definitions and statements to live in all universes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Given a universe level `u`, we can define an equivalence relation on `Type
+    u` saying two types `α` and `β` are equivalent if there is a bijection between
+    them. The quotient type `Cardinal.{u}` lives in `Type (u+1)`. The curly braces
+    denote a universe variable. The image of `α : Type u` in this quotient is `Cardinal.mk
+    α : Cardinal.{u}`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: But we cannot directly compare cardinals in different universes. So technically
+    we cannot define the rank of a vector space `V` as the cardinal of all types indexing
+    a basis of `V`. So instead it is defined as the supremum `Module.rank K V` of
+    cardinals of all linearly independent sets in `V`. If `V` has universe level `u`
+    then its rank has type `Cardinal.{u}`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE261]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One can still relate this definition to bases. Indeed there is also a commutative
+    `max` operation on universe levels, and given two universe levels `u` and `v`
+    there is an operation `Cardinal.lift.{u, v} : Cardinal.{v} → Cardinal.{max v u}`
+    that allows to put cardinals in a common universe and state the dimension theorem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE262]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can relate the finite dimensional case to this discussion using the coercion
+    from natural numbers to finite cardinals (or more precisely the finite cardinals
+    which live in `Cardinal.{v}` where `v` is the universe level of `V`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE263]*'
+  prefs: []
+  type: TYPE_NORMAL
