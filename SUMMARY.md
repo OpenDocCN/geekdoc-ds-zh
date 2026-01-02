@@ -16,6 +16,7 @@
 +   [极简数学指南](docs/math-ln/README.md)
 +   [数据科学中的数学方法](docs/math-mtd-ds/README.md)
 +   [基于物理的模拟](docs/phy-sim/README.md)
++   [从 Python 到 Numpy](docs/py2np/README.md)
 +   [光线追踪之一周末的指南](docs/ray-trc-1wk/README.md)
 +   [SeaseIO 博客中文翻译](docs/seaseio-blog/README.md)
 +   [SciPy 秘籍](docs/sp-cb-fix1/README.md)
