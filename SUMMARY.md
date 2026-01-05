@@ -10,6 +10,7 @@
 +   [FirstRound 博客中文翻译](docs/firstround-blog/README.md)
 +   [通用图形处理器架构](docs/gpgp-arch/README.md)
 +   [GPU 编程：何时、为何以及如何？](docs/gpu-prog-wwh/README.md)
++   [统计学与数据分析导论 – 基于案例的方法](docs/intd-stat-dtanls/README.md)
 +   [数据科学简介](docs/intro-ds/README.md)
 +   [TouchDesigner 入门指南](docs/intro-tchdsn/README.md)
 +   [线性代数小书](docs/ltl-bk-linalg/README.md)

@@ -1,0 +1,7 @@
++   [统计学与数据分析导论 – 基于案例的方法](README.md)
++   [1 前言](intd-stat-dtanls_1.md)
++   [2 单变量统计——案例研究社会人口统计报告](intd-stat-dtanls_2.md)
++   [3 双变量统计 - 案例研究：美国总统选举](intd-stat-dtanls_3.md)
++   [4 统计推断 - 案例研究：对政府的满意度](intd-stat-dtanls_4.md)
++   [5 回归分析 - 正义态度案例研究](intd-stat-dtanls_5.md)
++   [1 前言](intd-stat-dtanls_6.md)
