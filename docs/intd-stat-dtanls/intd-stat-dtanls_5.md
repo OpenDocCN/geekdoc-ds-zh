@@ -17,9 +17,9 @@
 ```r
 data_allbus <- read_dta("data/allbus2021_reduziert.dta") 
  # Here all cases are deleted, which have missing values on any of the variables. This is only recommended for reduced data sets with few variables, otherwise you would "throw out" observations based on non-relevant variables
-data_allbus <- [na.omit](https://rdrr.io/r/stats/na.fail.html)(data_allbus)
+data_allbus <- na.omit(data_allbus)
  # We also delete three observations that indicated "diverse" for the gender variable, as this simplifies hypothesis generation
-data_allbus<-[subset](https://rdrr.io/r/base/subset.html)(data_allbus, sex!=3)
+data_allbus<-subset(data_allbus, sex!=3)
  # We now recode variables
 data_allbus$income <- data_allbus$incc
  data_allbus <- data_allbus %>% 
@@ -35,7 +35,7 @@ data_allbus$income <- data_allbus$incc
  case_when(dw18 == 1 ~ 1,
  dw18 == 2 ~ 0))
  # Summarize and overview data
-[summary](https://rdrr.io/r/base/summary.html)(data_allbus)
+summary(data_allbus)
 ```
 
 ```r
@@ -63,7 +63,7 @@ data_allbus$income <- data_allbus$incc
 ```
 
 ```r
-kable([head](https://rdrr.io/r/utils/head.html)(data_allbus, 10), format = "html", booktabs = TRUE, caption = "ALLBUS survey data") %>%
+kable(head(data_allbus, 10), format = "html", booktabs = TRUE, caption = "ALLBUS survey data") %>%
  kable_paper() %>% #Font scheme of the table
  scroll_box(width = "100%", height = "100%") #Scrollable box
 ```
@@ -102,9 +102,9 @@ kable([head](https://rdrr.io/r/utils/head.html)(data_allbus, 10), format = "html
 ```r
 # Do the items correlate sufficiently high for the index? (>.4 would be desirable)
 # Calculate correlation and output 
-vars <- [c](https://rdrr.io/r/base/c.html)("im19", "im20", "im21")
+vars <- c("im19", "im20", "im21")
 cor.vars <- data_allbus[vars]
-rcorr([as.matrix](https://rdrr.io/r/base/matrix.html)(cor.vars))
+rcorr(as.matrix(cor.vars))
 ```
 
 ```r
@@ -126,7 +126,7 @@ rcorr([as.matrix](https://rdrr.io/r/base/matrix.html)(cor.vars))
 ```r
 # Index creation
 data_allbus$morejustice <- (data_allbus$im19 + data_allbus$im20 + data_allbus$im21)/3
-[hist](https://rdrr.io/r/graphics/hist.html)(data_allbus$morejustice)
+hist(data_allbus$morejustice)
 ```
 
 ![](../Images/45d25584070a36632f1969fb727af07f.png)
@@ -148,8 +148,8 @@ data_allbus$morejustice <- (data_allbus$im19 + data_allbus$im20 + data_allbus$im
 让我们简要回顾一下单变量统计案例研究中的例子，在那里我们关注德国各县的失业率和犯罪率之间的经验关系。我们发现这两个变量之间存在正相关关系。下表显示了系数估计值和描述正相关的图。如果失业率增加1个单位（此处：1个百分点），那么犯罪率平均增加517.46个单位（此处：每100T居民的案例数）。
 
 ```r
-data_nrw <- [read_excel](https://readxl.tidyverse.org/reference/read_excel.html)("data/inkar_nrw.xls") 
-model1 <- [lm](https://rdrr.io/r/stats/lm.html)(crimerate ~ 1 + unemp, data = data_nrw)
+data_nrw <- read_excel("data/inkar_nrw.xls") 
+model1 <- lm(crimerate ~ 1 + unemp, data = data_nrw)
 stargazer(model1, type = "text")
 ```
 
@@ -215,8 +215,8 @@ stargazer(model1, type = "text")
 在下一步中，估计双变量回归模型。为此，我们使用指数 `morejustice` 作为结果变量，将变量 `income` 作为独立变量（或预测变量），该变量测量收入类别，分为 26 个等级（例如，1 = 每月净收入低于 200 欧元；14 = 1750 - 1999 欧元；26 = 10000 欧元及以上）。
 
 ```r
-model_biv <- [lm](https://rdrr.io/r/stats/lm.html)(morejustice ~ 1 + income, data = data_allbus) # 1 refers to the constant or intercept 
-[summary](https://rdrr.io/r/base/summary.html)(model_biv)
+model_biv <- lm(morejustice ~ 1 + income, data = data_allbus) # 1 refers to the constant or intercept 
+summary(model_biv)
 ```
 
 ```r
@@ -307,8 +307,8 @@ R2是模型拟合度的衡量指标，表明包含的独立变量解释结果的
 
 ```r
 # Standardized regression coefficient by hand
-sdx <- [sd](https://rdrr.io/r/stats/sd.html)(data_allbus$income)
-sdy <- [sd](https://rdrr.io/r/stats/sd.html)(data_allbus$morejustice)
+sdx <- sd(data_allbus$income)
+sdy <- sd(data_allbus$morejustice)
  beta_s <- (-0.018281*sdx)/sdy
 beta_s
 ```
@@ -319,8 +319,8 @@ beta_s
 
 ```r
 # Standardized regression coefficient with model
-model_biv_s <- [lm](https://rdrr.io/r/stats/lm.html)([scale](https://rdrr.io/r/base/scale.html)(morejustice) ~ 1 + [scale](https://rdrr.io/r/base/scale.html)(income), data = data_allbus)
-[summary](https://rdrr.io/r/base/summary.html)(model_biv_s)
+model_biv_s <- lm(scale(morejustice) ~ 1 + scale(income), data = data_allbus)
+summary(model_biv_s)
 ```
 
 ```r
@@ -346,9 +346,9 @@ model_biv_s <- [lm](https://rdrr.io/r/stats/lm.html)([scale](https://rdrr.io/r/b
 
 ```r
 # Calculate correlation
-vars <- [c](https://rdrr.io/r/base/c.html)("income", "morejustice")
+vars <- c("income", "morejustice")
 cor.vars <- data_allbus[vars]
-rcorr([as.matrix](https://rdrr.io/r/base/matrix.html)(cor.vars))
+rcorr(as.matrix(cor.vars))
 ```
 
 ```r
@@ -444,7 +444,7 @@ Income H_0: H_A: Female H_0: H_A: Unemployed H_0: H_A: East Germany H_0: H_A:
 我们现在估计相应的回归模型。双变量模型已经在上面估计过，并包括在内以供比较。
 
 ```r
-model_mult <- [lm](https://rdrr.io/r/stats/lm.html)(morejustice ~ 1 + income + female + unemployed + east, data = data_allbus)
+model_mult <- lm(morejustice ~ 1 + income + female + unemployed + east, data = data_allbus)
  stargazer(model_biv, model_mult, type = "text")
 ```
 
@@ -586,9 +586,9 @@ vif(model_mult)
 作为正态性的检验，我们可以（a）通过直方图查看残差的分布，（b）绘制所谓的Q-Q图并对其进行解释，或者（c）通过直方图查看模型中变量的分布（请注意，这只能间接地提供关于误差分布的线索）。
 
 ```r
-predict.model <- [fitted](https://rdrr.io/r/stats/fitted.values.html)(model_mult)
-error.model <- [residuals](https://rdrr.io/r/stats/residuals.html)(model_mult)
- [hist](https://rdrr.io/r/graphics/hist.html)(error.model)
+predict.model <- fitted(model_mult)
+error.model <- residuals(model_mult)
+ hist(error.model)
 ```
 
 ![图片](../Images/50507ff084a0d5a51e90e4c682db9c3e.png)
@@ -664,7 +664,7 @@ sc2
 
 ```r
 data_allbus$income_squared <-  data_allbus$income*data_allbus$income
- model_nlin <- [lm](https://rdrr.io/r/stats/lm.html)(morejustice ~ 1 + income + income_squared + female + unemployed + east, data = data_allbus)
+ model_nlin <- lm(morejustice ~ 1 + income + income_squared + female + unemployed + east, data = data_allbus)
  stargazer(model_biv, model_mult, model_nlin, type = "text")
 ```
 
@@ -734,10 +734,10 @@ data_allbus$income_squared <-  data_allbus$income*data_allbus$income
 
 ```r
 # Letting R know that the two nominal variables "female" and "east" are indeed nominal or "factor variables" is important for the graphical representation of the interaction below
- data_allbus$female <- [factor](https://rdrr.io/r/base/factor.html)(data_allbus$female)
-data_allbus$east <- [factor](https://rdrr.io/r/base/factor.html)(data_allbus$east)
+ data_allbus$female <- factor(data_allbus$female)
+data_allbus$east <- factor(data_allbus$east)
  # The interactions can be specified with ":" or "*".
-model_interaktion <- [lm](https://rdrr.io/r/stats/lm.html)(morejustice ~ 1 + income + unemployed + female + east + female : east , data = data_allbus)
+model_interaktion <- lm(morejustice ~ 1 + income + unemployed + female + east + female : east , data = data_allbus)
  stargazer(model_interaktion, type = "text")
 ```
 

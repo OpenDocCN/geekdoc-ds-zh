@@ -25,12 +25,12 @@
 这里我们看到的是随机抽取 10 个球（7 个蓝色，3 个红色）的概率分布，总共进行了 10,000 次抽取。相应地，蓝色和红色的概率分布大约为 0.7 和 0.3：
 
 ```r
-possible_values <- [c](https://rdrr.io/r/base/c.html)(1,0)
-Bernoulli <- [sample](https://rdrr.io/r/base/sample.html)(possible_values,
+possible_values <- c(1,0)
+Bernoulli <- sample(possible_values,
  size=10000,
  replace=TRUE,
- prob=[c](https://rdrr.io/r/base/c.html)(0.3, 0.7))
-[prop.table](https://rdrr.io/r/base/proportions.html)([table](https://rdrr.io/r/base/table.html)(Bernoulli))
+ prob=c(0.3, 0.7))
+prop.table(table(Bernoulli))
 ```
 
 ```r
@@ -40,11 +40,11 @@ Bernoulli <- [sample](https://rdrr.io/r/base/sample.html)(possible_values,
 ```
 
 ```r
-h <- [hist](https://rdrr.io/r/graphics/hist.html)(Bernoulli,plot=FALSE)
-h$density = h$counts/[sum](https://rdrr.io/r/base/sum.html)(h$counts)*100
-[plot](https://rdrr.io/r/graphics/plot.default.html)(h,freq=FALSE, axes=FALSE)
-[axis](https://rdrr.io/r/graphics/axis.html)(1, at = [c](https://rdrr.io/r/base/c.html)(0, 1), labels = [c](https://rdrr.io/r/base/c.html)("Blue", "Red"))
-[axis](https://rdrr.io/r/graphics/axis.html)(2, at = [c](https://rdrr.io/r/base/c.html)(0, 10, 20, 30, 40, 50, 60, 70))
+h <- hist(Bernoulli,plot=FALSE)
+h$density = h$counts/sum(h$counts)*100
+plot(h,freq=FALSE, axes=FALSE)
+axis(1, at = c(0, 1), labels = c("Blue", "Red"))
+axis(2, at = c(0, 10, 20, 30, 40, 50, 60, 70))
 ```
 
 ![图片](../Images/503726bbe43a1bb8173b7e34e6f07530.png)
@@ -57,13 +57,13 @@ h$density = h$counts/[sum](https://rdrr.io/r/base/sum.html)(h$counts)*100
 
 ```r
 # Draw a standard normal distribution:
-z = [seq](https://rdrr.io/r/base/seq.html)(-4, 4, length.out=1001)
-x = [rnorm](https://rdrr.io/r/stats/Normal.html)(z)
-[plot](https://rdrr.io/r/graphics/plot.default.html)( x=z, y=[dnorm](https://rdrr.io/r/stats/Normal.html)(z), bty='n', type='l', main="Standard normal distribution", ylab="Probability density", xlab="z", xlim=[c](https://rdrr.io/r/base/c.html)(-3,3))
-[axis](https://rdrr.io/r/graphics/axis.html)(1, at = [seq](https://rdrr.io/r/base/seq.html)(-4, 4, by = 1))
+z = seq(-4, 4, length.out=1001)
+x = rnorm(z)
+plot( x=z, y=dnorm(z), bty='n', type='l', main="Standard normal distribution", ylab="Probability density", xlab="z", xlim=c(-3,3))
+axis(1, at = seq(-4, 4, by = 1))
  # annotate the density function with the 5% probability mass tails
-[polygon](https://rdrr.io/r/graphics/polygon.html)(x=[c](https://rdrr.io/r/base/c.html)(z[z<=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.025)], [qnorm](https://rdrr.io/r/stats/Normal.html)(0.025), [min](https://rdrr.io/r/base/Extremes.html)(z)), y=[c](https://rdrr.io/r/base/c.html)([dnorm](https://rdrr.io/r/stats/Normal.html)(z[z<=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.025)]), 0, 0), col=[grey](https://rdrr.io/r/grDevices/gray.html)(0.8))
-[polygon](https://rdrr.io/r/graphics/polygon.html)(x=[c](https://rdrr.io/r/base/c.html)(z[z>=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.975)], [max](https://rdrr.io/r/base/Extremes.html)(z), [qnorm](https://rdrr.io/r/stats/Normal.html)(0.975)), y=[c](https://rdrr.io/r/base/c.html)([dnorm](https://rdrr.io/r/stats/Normal.html)(z[z>=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.975)]), 0, 0), col=[grey](https://rdrr.io/r/grDevices/gray.html)(0.8))
+polygon(x=c(zz<=[qnorm(0.025)], qnorm(0.025), min(z)), y=c(dnorm(zz<=[qnorm(0.025)]), 0, 0), col=grey(0.8))
+polygon(x=c(zz>=[qnorm(0.975)], max(z), qnorm(0.975)), y=c(dnorm(zz>=[qnorm(0.975)]), 0, 0), col=grey(0.8))
 ```
 
 ![图片](../Images/7e4896d3aa2bb86af5da0464107f5bff.png)
@@ -95,10 +95,10 @@ x = [rnorm](https://rdrr.io/r/stats/Normal.html)(z)
 中心极限定理的启示在以下图中展示。100,000个模拟样本的平均值为4.2，对应于政府满意度的“真实”总体均值。请注意，在现实中，我们没有这样的信息，并且我们无法抽取这么多样本，因为这会花费太高。
 
 ```r
-[set.seed](https://rdrr.io/r/base/Random.html)(123)
-data <- [rnorm](https://rdrr.io/r/stats/Normal.html)(100000, 4.2, 1)
-[hist](https://rdrr.io/r/graphics/hist.html)(data, freq = FALSE, col = "gray", xlab = "Data Values", main = "Means of government satisfaction")
-[curve](https://rdrr.io/r/graphics/curve.html)([dnorm](https://rdrr.io/r/stats/Normal.html)(x, mean = [mean](https://rdrr.io/r/base/mean.html)(data), sd = [sd](https://rdrr.io/r/stats/sd.html)(data)), col = "black", lwd = 2, add = TRUE)
+set.seed(123)
+data <- rnorm(100000, 4.2, 1)
+hist(data, freq = FALSE, col = "gray", xlab = "Data Values", main = "Means of government satisfaction")
+curve(dnorm(x, mean = mean(data), sd = sd(data)), col = "black", lwd = 2, add = TRUE)
 ```
 
 ![](../Images/78fad6f32fbeef73ffde823b7f7cf4d0.png)
@@ -187,13 +187,13 @@ data <- [rnorm](https://rdrr.io/r/stats/Normal.html)(100000, 4.2, 1)
 
 ```r
 data_ess <- read_dta("data/ESS9_DE.dta", encoding = "latin1") 
- [hist](https://rdrr.io/r/graphics/hist.html)(data_ess$stfgov, breaks = "FD")
+ hist(data_ess$stfgov, breaks = "FD")
 ```
 
 ![图片](../Images/8f622a96d1c89b332e19274bde795f99.png)
 
 ```r
-[summary](https://rdrr.io/r/base/summary.html)(data_ess$stfgov)
+summary(data_ess$stfgov)
 ```
 
 ```r
@@ -206,17 +206,17 @@ data_ess <- read_dta("data/ESS9_DE.dta", encoding = "latin1")
 ```r
 # We store the mean, the standard deviation and the number of observations as objects, because this way we can refer to them later on
 n <- 2292
-xbar <- [mean](https://rdrr.io/r/base/mean.html)(data_ess$stfgov, na.rm = TRUE)
-s <- [sd](https://rdrr.io/r/stats/sd.html)(data_ess$stfgov, na.rm = TRUE)
+xbar <- mean(data_ess$stfgov, na.rm = TRUE)
+s <- sd(data_ess$stfgov, na.rm = TRUE)
  # Set confidence level with 1-alpha (alpha = our willingness to be wrong in repeated samples)
 conf.level <- 0.95
  # Calculating the critical z-value for a two-sided test 
-z <- [qnorm](https://rdrr.io/r/stats/Normal.html)((1 + conf.level) / 2)
+z <- qnorm((1 + conf.level) / 2)
  # Calculate the confidence interval
-lower.ci <- xbar - z * s / [sqrt](https://rdrr.io/r/base/MathFun.html)(n)
-upper.ci <- xbar + z * s / [sqrt](https://rdrr.io/r/base/MathFun.html)(n)
+lower.ci <- xbar - z * s / sqrt(n)
+upper.ci <- xbar + z * s / sqrt(n)
  # Print confidence intervals
-[cat](https://rdrr.io/r/base/cat.html)("The", conf.level*100,"% confidence interval for the population mean is (",[round](https://rdrr.io/r/base/Round.html)(lower.ci, 2), ",", [round](https://rdrr.io/r/base/Round.html)(upper.ci, 2),").\n")
+cat("The", conf.level*100,"% confidence interval for the population mean is (",round(lower.ci, 2), ",", round(upper.ci, 2),").\n")
 ```
 
 ```r
@@ -228,7 +228,7 @@ upper.ci <- xbar + z * s / [sqrt](https://rdrr.io/r/base/MathFun.html)(n)
 让我们试一试：
 
 ```r
-[t.test](https://rdrr.io/r/stats/t.test.html)(data_ess$stfgov, conf.level = 0.95)
+t.test(data_ess$stfgov, conf.level = 0.95)
 ```
 
 ```r
@@ -260,7 +260,7 @@ upper.ci <- xbar + z * s / [sqrt](https://rdrr.io/r/base/MathFun.html)(n)
 *也有可能将置信区间以图表的形式显示：
 
 ```r
-df <- [data.frame](https://rdrr.io/r/base/data.frame.html)(xbar, lower.ci, upper.ci)
+df <- data.frame(xbar, lower.ci, upper.ci)
  ggplot(df, aes(x = 1, y = xbar)) +
  theme(axis.text.y = element_blank(),
  axis.ticks.x = element_blank()) +
@@ -268,7 +268,7 @@ df <- [data.frame](https://rdrr.io/r/base/data.frame.html)(xbar, lower.ci, upper
  geom_errorbar(aes(ymin = lower.ci, ymax = upper.ci), width = 0.2) +
  coord_flip() +
  labs(x = "Value", y = "Mean with 95% CI") +
- scale_x_continuous(breaks = [seq](https://rdrr.io/r/base/seq.html)(0, 10, by = 1), limits = [c](https://rdrr.io/r/base/c.html)(1, 1))
+ scale_x_continuous(breaks = seq(0, 10, by = 1), limits = c(1, 1))
 ```
 
 ![](../Images/9521033d831eee314a1722faaaf52c8e.png)* *#### 4.4.2.2 比例
@@ -286,7 +286,7 @@ data_ess <- data_ess %>%
  case_when(stfgov <= 5 ~ 0,
  stfgov > 5 ~ 1))
  # Proportion via table command
-[prop.table](https://rdrr.io/r/base/proportions.html)([table](https://rdrr.io/r/base/table.html)(data_ess$stfgov_di))
+prop.table(table(data_ess$stfgov_di))
 ```
 
 ```r
@@ -297,7 +297,7 @@ data_ess <- data_ess %>%
 
 ```r
 # Correspondence with the mean of the summary command
-[summary](https://rdrr.io/r/base/summary.html)(data_ess$stfgov_di)
+summary(data_ess$stfgov_di)
 ```
 
 ```r
@@ -309,12 +309,12 @@ data_ess <- data_ess %>%
 # Set confidence level with 1-alpha
 conf.level <- 0.95
  # Calculating the critical z-value for a two-sided test
-z <- [qnorm](https://rdrr.io/r/stats/Normal.html)((1 + conf.level) / 2)
+z <- qnorm((1 + conf.level) / 2)
  # Calculation of the confidence interval
-lower.ci <- 0.3067 - z * [sqrt](https://rdrr.io/r/base/MathFun.html)((0.3067*(1-0.3067))/n)
-upper.ci <- 0.3067 + z * [sqrt](https://rdrr.io/r/base/MathFun.html)((0.3067*(1-0.3067))/n)
+lower.ci <- 0.3067 - z * sqrt((0.3067*(1-0.3067))/n)
+upper.ci <- 0.3067 + z * sqrt((0.3067*(1-0.3067))/n)
  # Print the confidence intervals
-[cat](https://rdrr.io/r/base/cat.html)("The", conf.level*100, "% confidence interval for the proportion value is (", [round](https://rdrr.io/r/base/Round.html)(lower.ci, 2), ",", [round](https://rdrr.io/r/base/Round.html)(upper.ci, 2), ").\n")
+cat("The", conf.level*100, "% confidence interval for the proportion value is (", round(lower.ci, 2), ",", round(upper.ci, 2), ").\n")
 ```
 
 ```r
@@ -323,7 +323,7 @@ upper.ci <- 0.3067 + z * [sqrt](https://rdrr.io/r/base/MathFun.html)((0.3067*(1-
 
 ```r
 # Test using t.test
-[t.test](https://rdrr.io/r/stats/t.test.html)(data_ess$stfgov_di, conf.level = 0.95)
+t.test(data_ess$stfgov_di, conf.level = 0.95)
 ```
 
 ```r
@@ -357,7 +357,7 @@ upper.ci <- 0.3067 + z * [sqrt](https://rdrr.io/r/base/MathFun.html)((0.3067*(1-
 接下来，我们来看如何计算相关性的置信区间。为此，我们使用以下公式：\(95\% CIs=r\pm 1.96 \times SE\)，其中标准误差SE的计算方法如下：\(SE_r=\sqrt {\frac{(1-r^2)}{n-2}}\)。为了说明这一点，我们让软件计算家庭收入与对政府满意度之间的相关性的置信区间。`hinctnta`衡量受访者的净家庭收入（扣除后）在10个分位数（“十分位”1-10）之间 - 这样测量的原因在于，这样收入就会调整到国家的收入分布，因此可以在各国之间进行比较。关于相关性，我们假设 - 与经济投票理论一致 - 收入较高的人比收入较低的人对政府的满意度更高。
 
 ```r
-cor <- [cor.test](https://rdrr.io/r/stats/cor.test.html)(data_ess$hinctnta, data_ess$stfgov)
+cor <- cor.test(data_ess$hinctnta, data_ess$stfgov)
 cor
 ```
 
@@ -448,7 +448,7 @@ data_ess <- data_ess %>%
  mutate(hinctnta_di =
  case_when(hinctnta <= 6 ~ 0,
  hinctnta > 6 ~ 1))
-[summary](https://rdrr.io/r/base/summary.html)(data_ess$hinctnta_di)
+summary(data_ess$hinctnta_di)
 ```
 
 ```r
@@ -490,31 +490,31 @@ H_0: H_A:
 
 ```r
 # Draw a standard normal distribution:
-z = [seq](https://rdrr.io/r/base/seq.html)(-4, 4, length.out=1001)
-x = [rnorm](https://rdrr.io/r/stats/Normal.html)(z)
+z = seq(-4, 4, length.out=1001)
+x = rnorm(z)
  # Null distribution of two-sided test
-[plot](https://rdrr.io/r/graphics/plot.default.html)( x=z, y=[dnorm](https://rdrr.io/r/stats/Normal.html)(z), bty='n', type='l', main="Null distribution of two-sided test, error probability 0.05", ylab="Probability density", xlab="z", xlim=[c](https://rdrr.io/r/base/c.html)(-3,3))
-[axis](https://rdrr.io/r/graphics/axis.html)(1, at = [seq](https://rdrr.io/r/base/seq.html)(-4, 4, by = 1))
-[polygon](https://rdrr.io/r/graphics/polygon.html)(x=[c](https://rdrr.io/r/base/c.html)(z[z<=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.025)], [qnorm](https://rdrr.io/r/stats/Normal.html)(0.025), [min](https://rdrr.io/r/base/Extremes.html)(z)), y=[c](https://rdrr.io/r/base/c.html)([dnorm](https://rdrr.io/r/stats/Normal.html)(z[z<=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.025)]), 0, 0), col="maroon")
-[polygon](https://rdrr.io/r/graphics/polygon.html)(x=[c](https://rdrr.io/r/base/c.html)(z[z>=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.975)], [max](https://rdrr.io/r/base/Extremes.html)(z), [qnorm](https://rdrr.io/r/stats/Normal.html)(0.975)), y=[c](https://rdrr.io/r/base/c.html)([dnorm](https://rdrr.io/r/stats/Normal.html)(z[z>=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.975)]), 0, 0), col="maroon")
+plot( x=z, y=dnorm(z), bty='n', type='l', main="Null distribution of two-sided test, error probability 0.05", ylab="Probability density", xlab="z", xlim=c(-3,3))
+axis(1, at = seq(-4, 4, by = 1))
+polygon(x=c(zz<=[qnorm(0.025)], qnorm(0.025), min(z)), y=c(dnorm(zz<=[qnorm(0.025)]), 0, 0), col="maroon")
+polygon(x=c(zz>=[qnorm(0.975)], max(z), qnorm(0.975)), y=c(dnorm(zz>=[qnorm(0.975)]), 0, 0), col="maroon")
 ```
 
 ![](../Images/adbfd17d562ccc396d1fe0c9bea7d598.png)
 
 ```r
 # Null distribution of one-sided test (H_A>0)
-[plot](https://rdrr.io/r/graphics/plot.default.html)( x=z, y=[dnorm](https://rdrr.io/r/stats/Normal.html)(z), bty='n', type='l', main="Null distribution of one-sided test (H_A>0), error probability 0.05", ylab="Probability density", xlab="z", xlim=[c](https://rdrr.io/r/base/c.html)(-3,3))
-[axis](https://rdrr.io/r/graphics/axis.html)(1, at = [seq](https://rdrr.io/r/base/seq.html)(-4, 4, by = 1))
-[polygon](https://rdrr.io/r/graphics/polygon.html)(x=[c](https://rdrr.io/r/base/c.html)(z[z>=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.95)], [max](https://rdrr.io/r/base/Extremes.html)(z), [qnorm](https://rdrr.io/r/stats/Normal.html)(0.95)), y=[c](https://rdrr.io/r/base/c.html)([dnorm](https://rdrr.io/r/stats/Normal.html)(z[z>=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.95)]), 0, 0), col="maroon")
+plot( x=z, y=dnorm(z), bty='n', type='l', main="Null distribution of one-sided test (H_A>0), error probability 0.05", ylab="Probability density", xlab="z", xlim=c(-3,3))
+axis(1, at = seq(-4, 4, by = 1))
+polygon(x=c(zz>=[qnorm(0.95)], max(z), qnorm(0.95)), y=c(dnorm(zz>=[qnorm(0.95)]), 0, 0), col="maroon")
 ```
 
 ![](../Images/03648c89dbdb157687b7943bf457c54f.png)
 
 ```r
 # Null distribution of one-sided test (H_A<0)
-[plot](https://rdrr.io/r/graphics/plot.default.html)( x=z, y=[dnorm](https://rdrr.io/r/stats/Normal.html)(z), bty='n', type='l', main="Null distribution of one-sided test (H_A<0), error probability 0.05", ylab="Probability density", xlab="z", xlim=[c](https://rdrr.io/r/base/c.html)(-3,3))
-[axis](https://rdrr.io/r/graphics/axis.html)(1, at = [seq](https://rdrr.io/r/base/seq.html)(-4, 4, by = 1))
-[polygon](https://rdrr.io/r/graphics/polygon.html)(x=[c](https://rdrr.io/r/base/c.html)(z[z<=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.05)], [qnorm](https://rdrr.io/r/stats/Normal.html)(0.05), [min](https://rdrr.io/r/base/Extremes.html)(z)), y=[c](https://rdrr.io/r/base/c.html)([dnorm](https://rdrr.io/r/stats/Normal.html)(z[z<=[qnorm](https://rdrr.io/r/stats/Normal.html)(0.05)]), 0, 0), col="maroon")
+plot( x=z, y=dnorm(z), bty='n', type='l', main="Null distribution of one-sided test (H_A<0), error probability 0.05", ylab="Probability density", xlab="z", xlim=c(-3,3))
+axis(1, at = seq(-4, 4, by = 1))
+polygon(x=c(zz<=[qnorm(0.05)], qnorm(0.05), min(z)), y=c(dnorm(zz<=[qnorm(0.05)]), 0, 0), col="maroon")
 ```
 
 ![](../Images/faa33b90ef9f0d91a5d9bbba48e44b09.png)
@@ -568,8 +568,8 @@ p值的一些特性：
 我们现在计算均值差异并执行相应的假设检验：
 
 ```r
-[mean](https://rdrr.io/r/base/mean.html)(data_ess$stfgov[data_ess$hinctnta_di==1], na.rm = TRUE)-
- [mean](https://rdrr.io/r/base/mean.html)(data_ess$stfgov[data_ess$hinctnta_di==0], na.rm = TRUE)
+mean(data_ess$stfgov[data_ess$hinctnta_di==1], na.rm = TRUE)-
+ mean(data_ess$stfgov[data_ess$hinctnta_di==0], na.rm = TRUE)
 ```
 
 ```r
@@ -577,7 +577,7 @@ p值的一些特性：
 ```
 
 ```r
-[t.test](https://rdrr.io/r/stats/t.test.html)(data_ess$stfgov[data_ess$hinctnta_di==1], data_ess$stfgov[data_ess$hinctnta_di==0])
+t.test(data_ess$stfgov[data_ess$hinctnta_di==1], data_ess$stfgov[data_ess$hinctnta_di==0])
 ```
 
 ```r
@@ -637,7 +637,7 @@ H_0: H_A:
 我们现在计算检验统计量和p值。
 
 ```r
-cor <- [cor.test](https://rdrr.io/r/stats/cor.test.html)(data_ess$hinctnta, data_ess$stfgov)
+cor <- cor.test(data_ess$hinctnta, data_ess$stfgov)
 cor
 ```
 

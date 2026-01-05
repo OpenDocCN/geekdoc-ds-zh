@@ -17,8 +17,8 @@
 数据是从CSV文件（逗号分隔值）中读取的。通过使用“head”命令，显示了数据的前六行。
 
 ```r
-data_us <- [read.csv](https://rdrr.io/r/utils/read.table.html)("data/data_election.csv")
-knitr::[kable](https://rdrr.io/pkg/knitr/man/kable.html)([head](https://rdrr.io/r/utils/head.html)(data_us, 10), booktabs = TRUE,  caption = 'A table of the first 10 rows of the vote data.') %>%
+data_us <- read.csv("data/data_election.csv")
+knitr::kable(head(data_us, 10), booktabs = TRUE,  caption = 'A table of the first 10 rows of the vote data.') %>%
  kable_paper() %>%
  scroll_box(width = "100%", height = "100%")
 ```
@@ -69,7 +69,7 @@ knitr::[kable](https://rdrr.io/pkg/knitr/man/kable.html)([head](https://rdrr.io/
 下表显示了变量 `vote` 的值的观察频率。
 
 ```r
-[dim](https://rdrr.io/r/base/dim.html)(data_us) #total number of cases
+dim(data_us) #total number of cases
 ```
 
 ```r
@@ -77,7 +77,7 @@ knitr::[kable](https://rdrr.io/pkg/knitr/man/kable.html)([head](https://rdrr.io/
 ```
 
 ```r
-[table](https://rdrr.io/r/base/table.html)(data_us$vote)
+table(data_us$vote)
 ```
 
 ```r
@@ -91,7 +91,7 @@ knitr::[kable](https://rdrr.io/pkg/knitr/man/kable.html)([head](https://rdrr.io/
 我们可以看到，3,016名受访者选择了特朗普，而3,759人选择了拜登。几百个回答的差异。对于只有几个类别的变量，查看观察到的绝对数值可能是有信息的。然而，使用相对频率（即比例）通常更有信息量。让我们继续吧！
 
 ```r
-[prop.table](https://rdrr.io/r/base/proportions.html)([table](https://rdrr.io/r/base/table.html)(data_us$vote))
+prop.table(table(data_us$vote))
 ```
 
 ```r
@@ -106,7 +106,7 @@ knitr::[kable](https://rdrr.io/pkg/knitr/man/kable.html)([head](https://rdrr.io/
 
 ```r
 data_us$vote[data_us$vote == "refused / don't know"] <- NA # Set "refused / don't know" to NA (i.e., missing), so that this category is no longer displayed in the table command
- [prop.table](https://rdrr.io/r/base/proportions.html)([table](https://rdrr.io/r/base/table.html)(data_us$vote))
+ prop.table(table(data_us$vote))
 ```
 
 ```r
@@ -132,7 +132,7 @@ data_us$vote[data_us$vote == "refused / don't know"] <- NA # Set "refused / don'
 我们下面也将排除在调查和选举中可能选择的“其他候选人”类别（这些候选人在选举中总共获得了不到 2% 的选票）。我们将在稍后展示如何重新编码变量。在此期间，我们可以依赖变量 `trump`，其中“拒绝/不知道”和“其他”类别已经设置为 NA（*不可用*，在数据分析中等于*缺失值*）。
 
 ```r
-[prop.table](https://rdrr.io/r/base/proportions.html)([table](https://rdrr.io/r/base/table.html)(data_us$trump))
+prop.table(table(data_us$trump))
 ```
 
 ```r
@@ -229,15 +229,15 @@ tab_xtab(var.row = data_us$trump, var.col = data_us$education, show.cell.prc = T
 由于“年龄”变量以年为单位记录，因此有大量的类别，交叉表会相当繁琐，因此信息量较少。因此，我们首先创建显示`trump`两个类别中年龄变量分布的直方图，然后比较它们。
 
 ```r
-[histogram](https://rdrr.io/pkg/lattice/man/histogram.html)( ~ age | trump ,
+histogram( ~ age | trump ,
  breaks = 10, 
- ylim=[c](https://rdrr.io/r/base/c.html)(0,12),
+ ylim=c(0,12),
  type = "percent", 
  main = "Left: trump=0 (in support of Biden), Right: trump=1 (in support of Trump)",
  ylab = "Percent of observations",
  xlab = "Age in years",
- layout = [c](https://rdrr.io/r/base/c.html)(2,1),
- scales = [list](https://rdrr.io/r/base/list.html)(relation="free"),
+ layout = c(2,1),
+ scales = list(relation="free"),
  col = 'grey',
  data = data_us)
 ```
@@ -261,7 +261,7 @@ tab_xtab(var.row = data_us$trump, var.col = data_us$education, show.cell.prc = T
 **拜登支持者的年龄均值、中位数和标准差：**
 
 ```r
-[mean](https://rdrr.io/r/base/mean.html)(data_us$age[data_us$trump == 0], na.rm=TRUE)
+mean(data_us$age[data_us$trump == 0], na.rm=TRUE)
 ```
 
 ```r
@@ -269,7 +269,7 @@ tab_xtab(var.row = data_us$trump, var.col = data_us$education, show.cell.prc = T
 ```
 
 ```r
-[median](https://rdrr.io/r/stats/median.html)(data_us$age[data_us$trump == 0], na.rm=TRUE)
+median(data_us$age[data_us$trump == 0], na.rm=TRUE)
 ```
 
 ```r
@@ -277,7 +277,7 @@ tab_xtab(var.row = data_us$trump, var.col = data_us$education, show.cell.prc = T
 ```
 
 ```r
-[sd](https://rdrr.io/r/stats/sd.html)(data_us$age[data_us$trump == 0], na.rm=TRUE)
+sd(data_us$age[data_us$trump == 0], na.rm=TRUE)
 ```
 
 ```r
@@ -287,7 +287,7 @@ tab_xtab(var.row = data_us$trump, var.col = data_us$education, show.cell.prc = T
 **特朗普支持者的年龄均值、中位数和标准差：**
 
 ```r
-[mean](https://rdrr.io/r/base/mean.html)(data_us$age[data_us$trump == 1], na.rm=TRUE)
+mean(data_us$age[data_us$trump == 1], na.rm=TRUE)
 ```
 
 ```r
@@ -295,7 +295,7 @@ tab_xtab(var.row = data_us$trump, var.col = data_us$education, show.cell.prc = T
 ```
 
 ```r
-[median](https://rdrr.io/r/stats/median.html)(data_us$age[data_us$trump == 1], na.rm=TRUE)
+median(data_us$age[data_us$trump == 1], na.rm=TRUE)
 ```
 
 ```r
@@ -303,7 +303,7 @@ tab_xtab(var.row = data_us$trump, var.col = data_us$education, show.cell.prc = T
 ```
 
 ```r
-[sd](https://rdrr.io/r/stats/sd.html)(data_us$age[data_us$trump == 1], na.rm=TRUE)
+sd(data_us$age[data_us$trump == 1], na.rm=TRUE)
 ```
 
 ```r
@@ -353,7 +353,7 @@ data_us <- data_us %>%
  case_when(age <= 35 ~ "young", 
  age > 36 & age <= 59 ~ "middle-aged", 
  age > 59 ~ "old")) 
- data_us$age_cat_nom  <- [factor](https://rdrr.io/r/base/factor.html)(data_us$age_cat_nom, levels=[c](https://rdrr.io/r/base/c.html)('young', 'middle-aged', 'old'))
+ data_us$age_cat_nom  <- factor(data_us$age_cat_nom, levels=c('young', 'middle-aged', 'old'))
 
 # Recoding of electoral participation 
 data_us <- data_us %>% 
@@ -361,11 +361,11 @@ data_us <- data_us %>%
  case_when(trump == 0 ~ "Favoring Biden", 
  trump == 1 ~ "Favoring Trump"))
  data_us_counted <- data_us  %>%  count(age_cat_nom, trump_nom)
-data_us_counted <- [subset](https://rdrr.io/r/base/subset.html)(data_us_counted, ![is.na](https://rdrr.io/r/base/NA.html)(data_us_counted$age_cat_nom)) # removal of missing values
-data_us_counted <- [subset](https://rdrr.io/r/base/subset.html)(data_us_counted, ![is.na](https://rdrr.io/r/base/NA.html)(data_us_counted$trump_nom)) # removal of missing values
+data_us_counted <- subset(data_us_counted, !is.na(data_us_counted$age_cat_nom)) # removal of missing values
+data_us_counted <- subset(data_us_counted, !is.na(data_us_counted$trump_nom)) # removal of missing values
  ggplot(data_us_counted, aes(fill=trump_nom, y=n, x=age_cat_nom)) +
  geom_bar(position="fill", stat="identity") +
- scale_y_continuous(labels = scales::[percent](https://scales.r-lib.org/reference/percent_format.html)) +
+ scale_y_continuous(labels = scales::percent) +
  labs(x = "Age groups",
  y = "Shares",
  fill = "Voting intention US presidential election") +
@@ -377,7 +377,7 @@ data_us_counted <- [subset](https://rdrr.io/r/base/subset.html)(data_us_counted,
 ```r
 ggplot(data_us_counted, aes(fill=age_cat_nom, y=n, x=trump_nom)) +
  geom_bar(position="fill", stat="identity") +
- scale_y_continuous(labels = scales::[percent](https://scales.r-lib.org/reference/percent_format.html)) +
+ scale_y_continuous(labels = scales::percent) +
  coord_flip() +
  labs(x = "Voting intention US presidential election",
  y = "Shares",
@@ -398,9 +398,9 @@ ggplot(data_us_counted, aes(fill=age_cat_nom, y=n, x=trump_nom)) +
 接下来，读取数据并显示前六行：
 
 ```r
-data_states <- [read.csv](https://rdrr.io/r/utils/read.table.html)("data/data_states.csv")
-knitr::[kable](https://rdrr.io/pkg/knitr/man/kable.html)(
- [head](https://rdrr.io/r/utils/head.html)(data_states, 10), booktabs = TRUE,
+data_states <- read.csv("data/data_states.csv")
+knitr::kable(
+ head(data_states, 10), booktabs = TRUE,
  caption = 'A table of the first 10 rows of the regional vote data.') %>%
  kable_paper() %>%
  scroll_box(width = "100%", height = "100%")
@@ -492,8 +492,8 @@ sc1 <- ggplot(data=data_states, aes(x = perc_higheducation, y = perc_trump)) +
  geom_point() + 
  xlab("Share of highly-educated persons in %") +
  ylab("Support of Trump in %") +
- scale_y_continuous(labels = scales::[percent](https://scales.r-lib.org/reference/percent_format.html)) +
- scale_x_continuous(labels = scales::[percent](https://scales.r-lib.org/reference/percent_format.html))
+ scale_y_continuous(labels = scales::percent) +
+ scale_x_continuous(labels = scales::percent)
  sc1
 ```
 
@@ -517,7 +517,7 @@ sc1 <- ggplot(data=data_states, aes(x = perc_higheducation, y = perc_trump)) +
 
 ```r
 #Obtaining means for each variable
-[mean](https://rdrr.io/r/base/mean.html)(data_states$perc_trump, na.rm=TRUE)
+mean(data_states$perc_trump, na.rm=TRUE)
 ```
 
 ```r
@@ -525,7 +525,7 @@ sc1 <- ggplot(data=data_states, aes(x = perc_higheducation, y = perc_trump)) +
 ```
 
 ```r
-[mean](https://rdrr.io/r/base/mean.html)(data_states$perc_higheducation, na.rm=TRUE)
+mean(data_states$perc_higheducation, na.rm=TRUE)
 ```
 
 ```r
@@ -538,8 +538,8 @@ sc2 <- ggplot(data=data_states, aes(x = perc_higheducation, y = perc_trump)) +
  geom_point() + 
  xlab("Share of highly-educated persons in %") +
  ylab("Support of Trump in %") +
- scale_y_continuous(labels = scales::[percent](https://scales.r-lib.org/reference/percent_format.html)) +
- scale_x_continuous(labels = scales::[percent](https://scales.r-lib.org/reference/percent_format.html)) +
+ scale_y_continuous(labels = scales::percent) +
+ scale_x_continuous(labels = scales::percent) +
  geom_hline(yintercept=0.470922, linetype="dashed", color = "red", size=1) +
  geom_vline(xintercept=0.1927645, linetype="dashed", color = "red", size=1)
 sc2
@@ -570,8 +570,8 @@ sc3 <- ggplot(data=data_states, aes(x = perc_higheducation, y = perc_trump)) +
  geom_point() + 
  xlab("Share of highly-educated persons in %") +
  ylab("Support of Trump in %") +
- scale_y_continuous(labels = scales::[percent](https://scales.r-lib.org/reference/percent_format.html)) +
- scale_x_continuous(labels = scales::[percent](https://scales.r-lib.org/reference/percent_format.html)) +
+ scale_y_continuous(labels = scales::percent) +
+ scale_x_continuous(labels = scales::percent) +
  geom_smooth(method = lm, se = FALSE)
 sc3
 ```
@@ -579,9 +579,9 @@ sc3
 ![](../Images/d49a117c960c96522d1a4ec77b2e09f0.png)
 
 ```r
-vars <- [c](https://rdrr.io/r/base/c.html)("perc_higheducation", "perc_trump")
+vars <- c("perc_higheducation", "perc_trump")
 cor.vars <- data_states[vars]
-rcorr([as.matrix](https://rdrr.io/r/base/matrix.html)(cor.vars))
+rcorr(as.matrix(cor.vars))
 ```
 
 ```r
@@ -647,7 +647,7 @@ Cramér 的 V 值是基于卡方并针对不同大小的交叉表进行调整的
 在 R 中，可以使用以下命令计算卡方和 Cramér 的 V 值：
 
 ```r
-[chisq.test](https://rdrr.io/r/stats/chisq.test.html)(data_us$trump, data_us$education)
+chisq.test(data_us$trump, data_us$education)
 ```
 
 ```r
@@ -659,7 +659,7 @@ Cramér 的 V 值是基于卡方并针对不同大小的交叉表进行调整的
 ```
 
 ```r
-cramerV_tabelle <- [table](https://rdrr.io/r/base/table.html)(data_us$trump, data_us$education)
+cramerV_tabelle <- table(data_us$trump, data_us$education)
 cramerV(cramerV_tabelle)
 ```
 

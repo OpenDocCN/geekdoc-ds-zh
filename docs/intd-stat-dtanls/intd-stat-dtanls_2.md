@@ -31,14 +31,14 @@
 在我们能够分析数据之前，它们必须被数据分析程序读取。R 使用许多所谓的“包”（即简化或便于特定数据分析部分的软件附加组件）。例如，包“readxl”允许我们读取存储在 Excel 格式的数据。另一个例子，包“ggplot2”允许我们创建打印就绪的图表。包通常具有特定的语法，我们在分析过程中会参考这些语法。
 
 ```r
-[library](https://rdrr.io/r/base/library.html)([readxl](https://readxl.tidyverse.org)) # This command loads the package "readxl". In the markdown document, all required packages are installed in the background using the command "install.packages('packagename')". In the downloadable script files, the installation and activation of the packages is automated. 
- data_nrw <- [read_excel](https://readxl.tidyverse.org/reference/read_excel.html)("data/inkar_nrw.xls") # Reads data from Excel format; the directory where the data is to be found can be changed (e.g., "C:/user/documents/folderxyz/inkar_nrw.xls")
+library(readxl) # This command loads the package "readxl". In the markdown document, all required packages are installed in the background using the command "install.packages('packagename')". In the downloadable script files, the installation and activation of the packages is automated. 
+ data_nrw <- read_excel("data/inkar_nrw.xls") # Reads data from Excel format; the directory where the data is to be found can be changed (e.g., "C:/user/documents/folderxyz/inkar_nrw.xls")
 ```
 
 在读取文件“inkar_nrw.xlsx”之后，它被存储为 R 中的一个对象。我们现在可以处理这些数据了。作为第一步，我们打印数据框的前十行：
 
 ```r
-kable([head](https://rdrr.io/r/utils/head.html)(data_nrw, 10), format = "html", caption = "Selected social indicators NRW") %>%
+kable(head(data_nrw, 10), format = "html", caption = "Selected social indicators NRW") %>%
  kable_paper() %>% #Font scheme of the table
  scroll_box(width = "100%", height = "100%") #Scrollable box
 ```
@@ -99,15 +99,15 @@ nrw_shp <- st_read("data/dvg2krs_nw.shp")
 ```
 
 ```r
-nrw_shp$KN <- [as.numeric](https://rdrr.io/r/base/numeric.html)([as.character](https://rdrr.io/r/base/character.html)(nrw_shp$KN))
+nrw_shp$KN <- as.numeric(as.character(nrw_shp$KN))
 nrw_shp <- nrw_shp %>%
- right_join(data_nrw, by = [c](https://rdrr.io/r/base/c.html)("KN"))
+ right_join(data_nrw, by = c("KN"))
  # Building the map using the "ggplot2" package
  ggplot() + 
  geom_sf(data = nrw_shp, aes(fill = unemp), color = 'gray', size = 0.1) + 
 ggtitle("North-Rhine Westphalia, Germany") +
  guides(fill=guide_colorbar(title="Unemployment in %")) + 
- scale_fill_gradientn(colours=[rev](https://rdrr.io/r/base/rev.html)(magma(3)),
+ scale_fill_gradientn(colours=rev(magma(3)),
  na.value = "grey100", 
  ) 
 ```
@@ -135,15 +135,15 @@ ggtitle("North-Rhine Westphalia, Germany") +
 要了解数据的分布，可以使用直方图（例如，最小值或最大值是多少？观察值是否围绕分布的中心聚集，或者它们分布广泛？）。直方图显示了变量值范围内的观察频率。单个观察值（即，在我们的案例中是地区）在数据集中的出现方式并不重要。直方图根据观察值在特定变量上的值对观察值进行排序。显示的柱状高度与具有相应变量值的观察频率成比例。柱状宽度（也称为箱）代表一个值区间，并且可以自定义（即，几个宽柱包含比许多窄柱更多的观察值）。
 
 ```r
-[library](https://rdrr.io/r/base/library.html)([lattice](https://lattice.r-forge.r-project.org/))
+library([lattice](https://lattice.r-forge.r-project.org/))
  data_nrw$popdens <- data_nrw$population/data_nrw$flaeche # This generates the variable for the population density
- [histogram](https://rdrr.io/pkg/lattice/man/histogram.html)( ~ popdens + unemp + avage + crimerate,
+ histogram( ~ popdens + unemp + avage + crimerate,
  breaks = 10, 
  type = "percent", 
  xlab = "",
  ylab = "Percent of observations", 
- layout = [c](https://rdrr.io/r/base/c.html)(2,1),
- scales = [list](https://rdrr.io/r/base/list.html)(relation="free"),
+ layout = c(2,1),
+ scales = list(relation="free"),
  col = 'grey',
  data = data_nrw)
 ```
@@ -184,7 +184,7 @@ ggtitle("North-Rhine Westphalia, Germany") +
 让我们看看数据集中变量的平均值和其他信息：
 
 ```r
-[summary](https://rdrr.io/r/base/summary.html)(data_nrw)
+summary(data_nrw)
 ```
 
 ```r
@@ -252,7 +252,7 @@ ggtitle("North-Rhine Westphalia, Germany") +
 在这里，你可以找到变量`unemp`和`crimerate`分散的图形表示。请注意，x轴上观察值的偏差完全是随机的，以提高图表的可读性（否则，所有观察值都会像一串垂直的珍珠项链一样排列）。红色线代表平均值。
 
 ```r
-s_unemp <- ggplot(data=data_nrw, aes(y=unemp, x=[reorder](https://rdrr.io/r/stats/reorder.factor.html)(area, area), color=area)) +
+s_unemp <- ggplot(data=data_nrw, aes(y=unemp, x=reorder(area, area), color=area)) +
  geom_jitter(height = 0) + 
  ggtitle("Unemployment rate 2020 in %")
 s_unemp + geom_hline(yintercept=7.432, linetype="solid", color = "red", size=0.1) + theme(legend.position="bottom") + theme(legend.text = element_text(size=5)) + theme(axis.title.x=element_blank(),        axis.text.x=element_blank(),        axis.ticks.x=element_blank())
@@ -261,7 +261,7 @@ s_unemp + geom_hline(yintercept=7.432, linetype="solid", color = "red", size=0.1
 ![图片](../Images/34533e1c6a4b7e5afda02c1a679b778c.png)
 
 ```r
-s_crime <- ggplot(data=data_nrw, aes(y=crimerate, x=[reorder](https://rdrr.io/r/stats/reorder.factor.html)(area, area), color=area)) +
+s_crime <- ggplot(data=data_nrw, aes(y=crimerate, x=reorder(area, area), color=area)) +
  geom_jitter(height = 0) + 
  ggtitle("Crime rate 2020")
  s_crime + geom_hline(yintercept=6244, linetype="solid", color = "red", size=0.1)  + theme(legend.position="bottom") + theme(legend.text = element_text(size=5)) + theme(axis.title.x=element_blank(),        axis.text.x=element_blank(),        axis.ticks.x=element_blank())
@@ -286,7 +286,7 @@ s_crime <- ggplot(data=data_nrw, aes(y=crimerate, x=[reorder](https://rdrr.io/r/
 使用R计算的标准差、范围和变异系数（失业率）：
 
 ```r
-[sd](https://rdrr.io/r/stats/sd.html)(data_nrw$unemp)
+sd(data_nrw$unemp)
 ```
 
 ```r
@@ -294,7 +294,7 @@ s_crime <- ggplot(data=data_nrw, aes(y=crimerate, x=[reorder](https://rdrr.io/r/
 ```
 
 ```r
-range <- [max](https://rdrr.io/r/base/Extremes.html)(data_nrw$unemp, na.rm=TRUE) - [min](https://rdrr.io/r/base/Extremes.html)(data_nrw$unemp, na.rm=TRUE)
+range <- max(data_nrw$unemp, na.rm=TRUE) - min(data_nrw$unemp, na.rm=TRUE)
 range 
 ```
 
@@ -303,7 +303,7 @@ range
 ```
 
 ```r
-varcoef <- [sd](https://rdrr.io/r/stats/sd.html)(data_nrw$unemp) / [mean](https://rdrr.io/r/base/mean.html)(data_nrw$unemp) * 100 #how much percent of the mean is the standard deviation?
+varcoef <- sd(data_nrw$unemp) / mean(data_nrw$unemp) * 100 #how much percent of the mean is the standard deviation?
 varcoef
 ```
 
@@ -314,7 +314,7 @@ varcoef
 使用R计算的标准差、最小/最大值和变异系数（犯罪率）：
 
 ```r
-[sd](https://rdrr.io/r/stats/sd.html)(data_nrw$crimerate)
+sd(data_nrw$crimerate)
 ```
 
 ```r
@@ -322,7 +322,7 @@ varcoef
 ```
 
 ```r
-range <- [max](https://rdrr.io/r/base/Extremes.html)(data_nrw$crimerate, na.rm=TRUE) - [min](https://rdrr.io/r/base/Extremes.html)(data_nrw$crimerate, na.rm=TRUE)
+range <- max(data_nrw$crimerate, na.rm=TRUE) - min(data_nrw$crimerate, na.rm=TRUE)
 range 
 ```
 
@@ -331,7 +331,7 @@ range
 ```
 
 ```r
-varcoef <- [sd](https://rdrr.io/r/stats/sd.html)(data_nrw$crimerate) / [mean](https://rdrr.io/r/base/mean.html)(data_nrw$crimerate) * 100
+varcoef <- sd(data_nrw$crimerate) / mean(data_nrw$crimerate) * 100
 varcoef
 ```
 
@@ -352,7 +352,7 @@ varcoef
 失业率的四分位数和四分位距：
 
 ```r
-[quantile](https://rdrr.io/r/stats/quantile.html)(data_nrw$unemp)
+quantile(data_nrw$unemp)
 ```
 
 ```r
@@ -361,7 +361,7 @@ varcoef
 ```
 
 ```r
-unemp.score.quart <- [quantile](https://rdrr.io/r/stats/quantile.html)(data_nrw$unemp, names = FALSE)
+unemp.score.quart <- quantile(data_nrw$unemp, names = FALSE)
 unemp.score.quart[4] - unemp.score.quart[2]
 ```
 
@@ -372,7 +372,7 @@ unemp.score.quart[4] - unemp.score.quart[2]
 犯罪率的四分位数和四分位距：
 
 ```r
-[quantile](https://rdrr.io/r/stats/quantile.html)(data_nrw$crimerate)
+quantile(data_nrw$crimerate)
 ```
 
 ```r
@@ -381,7 +381,7 @@ unemp.score.quart[4] - unemp.score.quart[2]
 ```
 
 ```r
-crimerate.score.quart <- [quantile](https://rdrr.io/r/stats/quantile.html)(data_nrw$crimerate, names = FALSE)
+crimerate.score.quart <- quantile(data_nrw$crimerate, names = FALSE)
 crimerate.score.quart[4] - crimerate.score.quart[2]
 ```
 
@@ -394,7 +394,7 @@ crimerate.score.quart[4] - crimerate.score.quart[2]
 此外，箱线图中单个部分越大，该区域的数据分散度就越大（这也可以给人留下数据分布偏斜的印象）。
 
 ```r
-[boxplot](https://rdrr.io/r/graphics/boxplot.html)(data_nrw$unemp, 
+boxplot(data_nrw$unemp, 
  col = 'blue', 
  horizontal = FALSE,
  ylab = 'in %', 
@@ -404,7 +404,7 @@ crimerate.score.quart[4] - crimerate.score.quart[2]
 ![图片](../Images/194d9556a8307f91be6421ee44339ed3.png)
 
 ```r
-[boxplot](https://rdrr.io/r/graphics/boxplot.html)(data_nrw$crimerate, 
+boxplot(data_nrw$crimerate, 
  col = 'orange', 
  horizontal = FALSE,
  ylab = 'in cases per 100.000 inhab.', 
@@ -463,9 +463,9 @@ sc1
 皮尔逊相关系数“r”量化了相关性：-1 = 完全负相关，0 = 无相关性，+1 = 完全正相关。
 
 ```r
-vars <- [c](https://rdrr.io/r/base/c.html)("unemp", "crimerate")
+vars <- c("unemp", "crimerate")
 cor.vars <- data_nrw[vars]
-rcorr([as.matrix](https://rdrr.io/r/base/matrix.html)(cor.vars))
+rcorr(as.matrix(cor.vars))
 ```
 
 ```r
@@ -493,8 +493,8 @@ rcorr([as.matrix](https://rdrr.io/r/base/matrix.html)(cor.vars))
 +   模型2包括失业**和**人口密度
 
 ```r
-model1 <- [lm](https://rdrr.io/r/stats/lm.html)(crimerate ~ 1 + unemp, data = data_nrw)
-model2 <- [lm](https://rdrr.io/r/stats/lm.html)(crimerate ~ 1 + unemp + popdens, data = data_nrw)
+model1 <- lm(crimerate ~ 1 + unemp, data = data_nrw)
+model2 <- lm(crimerate ~ 1 + unemp + popdens, data = data_nrw)
  stargazer(model1, model2, type = "text")
 ```
 
