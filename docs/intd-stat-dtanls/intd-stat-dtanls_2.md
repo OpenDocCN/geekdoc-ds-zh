@@ -1,6 +1,6 @@
 # 2 单变量统计——案例研究社会人口统计报告
 
-> 原文：[https://bookdown.org/conradziller/introstatistics/univariate-statistics-case-study-socio-demographic-reporting.html](https://bookdown.org/conradziller/introstatistics/univariate-statistics-case-study-socio-demographic-reporting.html)
+> 原文：[`bookdown.org/conradziller/introstatistics/univariate-statistics-case-study-socio-demographic-reporting.html`](https://bookdown.org/conradziller/introstatistics/univariate-statistics-case-study-socio-demographic-reporting.html)
 
 ## 2.1 简介
 
@@ -8,13 +8,13 @@
 
 社会指标指的是人口状况和发展（例如，人口数据，有移民背景的人的比例），经济（例如，失业率，GDP），健康，教育，住房，公共财政和社会不平等。
 
-我们在这个案例研究中处理的报告及其基础数据可以通过 [https://www.sozialberichte.nrw.de](https://www.sozialberichte.nrw.de) 在线访问。
+我们在这个案例研究中处理的报告及其基础数据可以通过 [`www.sozialberichte.nrw.de`](https://www.sozialberichte.nrw.de) 在线访问。
 
-![社会报告封面](../Images/94ed8dc6172bfcc8f9239a2818b4c276.png)社会报告封面
+![社会报告封面](img/94ed8dc6172bfcc8f9239a2818b4c276.png)社会报告封面
 
 基于社会人口统计报告数据进行的分析具有政治相关性。数据分析的见解可能为政治家和公务员提供需要通过政治措施解决的社会问题的信息。因此，从数据分析中得出的解释必须准确。在以下案例研究中，我们将更深入地研究数据，并使用单变量统计方法。请注意，以下的分析和解释旨在说明数据分析技术，并不反映任何政策建议。
 
-我们将使用以下指标或*变量*（来源 [https://www.inkar.de](https://www.inkar.de)）：
+我们将使用以下指标或*变量*（来源 [`www.inkar.de`](https://www.inkar.de)）：
 
 +   人口密度
 
@@ -58,7 +58,7 @@ kable(head(data_nrw, 10), format = "html", caption = "Selected social indicators
 | 05122 | 索林根，刀城 | 自治市 | 17.13 | 159193 | 90 | 8.15 | 44.11 | 5933.624 | 5122000 |
 | 05124 | 武珀塔尔，城市 | 自治市 | 20.81 | 355004 | 168 | 9.95 | 43.11 | 8059.420 | 5124000 |
 
-数据包含以下变量，涵盖了北莱茵-威斯特法伦州（参考年份为2020年）的所有53个区和大型城市：
+数据包含以下变量，涵盖了北莱茵-威斯特法伦州（参考年份为 2020 年）的所有 53 个区和大型城市：
 
 `kkziff` = 县（*Landkreis*）或城市（*kreisfreie Stadt*）的标识码
 
@@ -74,9 +74,9 @@ kable(head(data_nrw, 10), format = "html", caption = "Selected social indicators
 
 `avage` = 人口平均年龄
 
-`crimerate` = 每10万人中的犯罪率（案件数）
+`crimerate` = 每 10 万人中的犯罪率（案件数）
 
-`KN` = 我们需要用于下面地图的备选id码
+`KN` = 我们需要用于下面地图的备选 id 码
 
 ## 2.3 使用地图表示空间模式
 
@@ -112,7 +112,7 @@ ggtitle("North-Rhine Westphalia, Germany") +
  ) 
 ```
 
-![](../Images/3e8407e259dabffce793d31c3884598c.png)
+![](img/3e8407e259dabffce793d31c3884598c.png)
 
 * * *
 
@@ -148,7 +148,7 @@ library([lattice](https://lattice.r-forge.r-project.org/))
  data = data_nrw)
 ```
 
-![](../Images/0d609b47a0edeb9a05625752e8e7446c.png)![](../Images/a076dcbcd37b73dc7b7e46b0f0b5452b.png)
+![](img/0d609b47a0edeb9a05625752e8e7446c.png)![](img/a076dcbcd37b73dc7b7e46b0f0b5452b.png)
 
 ```r
 ## Alternative approach with the "hist"-function
@@ -177,9 +177,9 @@ library([lattice](https://lattice.r-forge.r-project.org/))
 
 **计算平均值时，将一个变量的所有观察值相加，然后将总和除以观察值的总数（n）。**
 
-\(\bar x = \frac{1}{n}\sum_{i=1}^n x_i\) 或 \(\mu = \frac{1}{N}\sum_{i=1}^N x_i\)
+$\bar x = \frac{1}{n}\sum_{i=1}^n x_i$ 或 $\mu = \frac{1}{N}\sum_{i=1}^N x_i$
 
-\(\bar x\) 和 n 指的是我们正在处理的数据（例如，来自一个*样本*），\(\mu\) 和 N 指的是我们想要对其做出统计陈述的*总体*。（注意：这种区别在统计测试中变得相关，在那里我们使用随机样本来推断潜在更大的总体。）
+$\bar x$ 和 n 指的是我们正在处理的数据（例如，来自一个*样本*），$\mu$ 和 N 指的是我们想要对其做出统计陈述的*总体*。（注意：这种区别在统计测试中变得相关，在那里我们使用随机样本来推断潜在更大的总体。）
 
 让我们看看数据集中变量的平均值和其他信息：
 
@@ -219,7 +219,7 @@ summary(data_nrw)
 
 解答：
 
-观察到的地区的平均失业率为7.4%。人口变量的平均值为338,218，这意味着平均而言，大约有338,218人居住在该地区。
+观察到的地区的平均失业率为 7.4%。人口变量的平均值为 338,218，这意味着平均而言，大约有 338,218 人居住在该地区。
 
 只有对于度量或准度量变量（通常是具有五个或更多类别的有序变量）才能计算平均值。`area`是一个名义变量。
 
@@ -239,17 +239,17 @@ summary(data_nrw)
 
 ## 2.6 离散度度量：方差和标准差
 
-暂时想象一下，我们不仅有了NRW的社会人口统计报告，还拥有另一个德国州的报告。比较两个州在犯罪率等县际特征上的差异，可能会发现它们具有完全相同的平均值。然而，州1的犯罪率分布极为不均，某些县的犯罪率特别高或低。相比之下，州2的犯罪率围绕平均值分布得更加均匀。确定数据的离散程度（或分散度）是重要的信息，对进一步的多项统计分析非常有用。这也可能具有实际意义，因为犯罪率的分散模式不同可能导致不同的犯罪对策措施。让我们从计算方差开始。
+暂时想象一下，我们不仅有了 NRW 的社会人口统计报告，还拥有另一个德国州的报告。比较两个州在犯罪率等县际特征上的差异，可能会发现它们具有完全相同的平均值。然而，州 1 的犯罪率分布极为不均，某些县的犯罪率特别高或低。相比之下，州 2 的犯罪率围绕平均值分布得更加均匀。确定数据的离散程度（或分散度）是重要的信息，对进一步的多项统计分析非常有用。这也可能具有实际意义，因为犯罪率的分散模式不同可能导致不同的犯罪对策措施。让我们从计算方差开始。
 
 **方差是偏差平方的总和**。
 
-\(\sigma^2 = \frac{\sum_{i=1}^n (x_i-\mu)^2}{N}\)（总体符号）\(s^2 = \frac{\sum_{i=1}^n (x_i-\bar x)^2}{n-1}\)（样本符号；如果我们应用统计推断并使用随机样本，我们需要在分母“n-1”处应用校正——称为贝塞尔校正）
+$\sigma² = \frac{\sum_{i=1}^n (x_i-\mu)²}{N}$（总体符号）$s² = \frac{\sum_{i=1}^n (x_i-\bar x)²}{n-1}$（样本符号；如果我们应用统计推断并使用随机样本，我们需要在分母“n-1”处应用校正——称为贝塞尔校正）
 
 **标准差将值重新转换回变量测量的尺度上，因此更容易解释，也更常用**。
 
-\(s = \sqrt{\frac{\sum_{i=1}^n (x_i-\bar x)^2}{n-1}}\)
+$s = \sqrt{\frac{\sum_{i=1}^n (x_i-\bar x)²}{n-1}}$
 
-在这里，你可以找到变量`unemp`和`crimerate`分散的图形表示。请注意，x轴上观察值的偏差完全是随机的，以提高图表的可读性（否则，所有观察值都会像一串垂直的珍珠项链一样排列）。红色线代表平均值。
+在这里，你可以找到变量`unemp`和`crimerate`分散的图形表示。请注意，x 轴上观察值的偏差完全是随机的，以提高图表的可读性（否则，所有观察值都会像一串垂直的珍珠项链一样排列）。红色线代表平均值。
 
 ```r
 s_unemp <- ggplot(data=data_nrw, aes(y=unemp, x=reorder(area, area), color=area)) +
@@ -258,7 +258,7 @@ s_unemp <- ggplot(data=data_nrw, aes(y=unemp, x=reorder(area, area), color=area)
 s_unemp + geom_hline(yintercept=7.432, linetype="solid", color = "red", size=0.1) + theme(legend.position="bottom") + theme(legend.text = element_text(size=5)) + theme(axis.title.x=element_blank(),        axis.text.x=element_blank(),        axis.ticks.x=element_blank())
 ```
 
-![图片](../Images/34533e1c6a4b7e5afda02c1a679b778c.png)
+![图片](img/34533e1c6a4b7e5afda02c1a679b778c.png)
 
 ```r
 s_crime <- ggplot(data=data_nrw, aes(y=crimerate, x=reorder(area, area), color=area)) +
@@ -267,7 +267,7 @@ s_crime <- ggplot(data=data_nrw, aes(y=crimerate, x=reorder(area, area), color=a
  s_crime + geom_hline(yintercept=6244, linetype="solid", color = "red", size=0.1)  + theme(legend.position="bottom") + theme(legend.text = element_text(size=5)) + theme(axis.title.x=element_blank(),        axis.text.x=element_blank(),        axis.ticks.x=element_blank())
 ```
 
-![图片](../Images/3b051a03bee8c053a4ff845313f85bda.png)
+![图片](img/3b051a03bee8c053a4ff845313f85bda.png)
 
 * * *
 
@@ -277,13 +277,13 @@ s_crime <- ggplot(data=data_nrw, aes(y=crimerate, x=reorder(area, area), color=a
 
 解答：
 
-很难将点的颜色与图例中的颜色匹配。Gelsenkirchen的失业率最高，达到14.9%。犯罪率最低的区是Lippe。
+很难将点的颜色与图例中的颜色匹配。Gelsenkirchen 的失业率最高，达到 14.9%。犯罪率最低的区是 Lippe。
 
 由于变量的缩放不同，无法从这个图表中推断出哪个变量的分散度更高。要做到这一点，我们需要计算所谓的变异系数（见下文）。
 
 * * *
 
-使用R计算的标准差、范围和变异系数（失业率）：
+使用 R 计算的标准差、范围和变异系数（失业率）：
 
 ```r
 sd(data_nrw$unemp)
@@ -311,7 +311,7 @@ varcoef
 ## [1] 33.33815
 ```
 
-使用R计算的标准差、最小/最大值和变异系数（犯罪率）：
+使用 R 计算的标准差、最小/最大值和变异系数（犯罪率）：
 
 ```r
 sd(data_nrw$crimerate)
@@ -339,7 +339,7 @@ varcoef
 ## [1] 28.43261
 ```
 
-要比较不同尺度上测量的变量的分散度，我们不能使用方差或标准差（因为它们是在尺度的单位上测量的），而应使用变异系数（即标准差除以平均值再乘以100）。在这里，更高的值意味着数据的分散度更高。
+要比较不同尺度上测量的变量的分散度，我们不能使用方差或标准差（因为它们是在尺度的单位上测量的），而应使用变异系数（即标准差除以平均值再乘以 100）。在这里，更高的值意味着数据的分散度更高。
 
 > ***解释：变量失业的分布更加异质（变异系数 = 33.3）比犯罪率变量（变异系数 = 28.4）的分布。***
 
@@ -347,7 +347,7 @@ varcoef
 
 四分位数将有序数据分为四个部分（Q1 到 Q4，其中 Q4 是观察值的最大值），中位数由 Q2 表示。因此，25% 的观察值低于或等于 Q1，75% 的观察值高于 Q1。Q3-Q1 = 四分位距（IQR），它反映了中间 50% 的观察值所在的范围。
 
-![四分位数](../Images/7182b21d77cf421b22eb68ef86f85830.png)四分位数
+![四分位数](img/7182b21d77cf421b22eb68ef86f85830.png)四分位数
 
 失业率的四分位数和四分位距：
 
@@ -401,7 +401,7 @@ boxplot(data_nrw$unemp,
  main = 'Unemployment rate')
 ```
 
-![图片](../Images/194d9556a8307f91be6421ee44339ed3.png)
+![图片](img/194d9556a8307f91be6421ee44339ed3.png)
 
 ```r
 boxplot(data_nrw$crimerate, 
@@ -411,7 +411,7 @@ boxplot(data_nrw$crimerate,
  main = 'Crime rate')
 ```
 
-![图片](../Images/57838b3ff7c316b4139a4ef1e0528985.png)
+![图片](img/57838b3ff7c316b4139a4ef1e0528985.png)
 
 ## 2.8 结论
 
@@ -423,9 +423,9 @@ boxplot(data_nrw$crimerate,
 
 对于因果推断，必须满足以下三个条件：
 
-+   X（原因）和Y（效果）必须经验性地相互关联（例如，相互关联）。
++   X（原因）和 Y（效果）必须经验性地相互关联（例如，相互关联）。
 
-+   X必须在时间上先于Y（例如，可以用面板数据映射）。
++   X 必须在时间上先于 Y（例如，可以用面板数据映射）。
 
 +   最重要的是：必须排除所有可能的替代解释（例如，通过随机实验或使用多元回归中的控制变量）。
 
@@ -443,7 +443,7 @@ sc1 <- ggplot(data=data_nrw, aes(x = unemp, y = crimerate)) +
 sc1
 ```
 
-![图片](../Images/079ab43b5a418b983371785f868044a9.png)
+![图片](img/079ab43b5a418b983371785f868044a9.png)
 
 可以添加描述两个变量之间线性关系的线条：
 
@@ -456,7 +456,7 @@ sc1 <- ggplot(data=data_nrw, aes(x = unemp, y = crimerate)) +
 sc1
 ```
 
-![图片](../Images/9d6f6220261bee4f635dcd40dc62ea29.png)
+![图片](img/9d6f6220261bee4f635dcd40dc62ea29.png)
 
 > **解释：图中显示的观察数据和拟合线表明存在正相关。（失业率越高，犯罪率越高。）**
 
@@ -482,15 +482,15 @@ rcorr(as.matrix(cor.vars))
 ## crimerate  0
 ```
 
-> **解释：在这种情况下，相关系数为r = 0.72，p值小于0.001。这意味着我们找到了强烈的正相关。相关性也是统计显著的（如果p值低于0.05，我们通常称之为统计显著的结果），这意味着我们可以相当肯定，结果不是由于偶然，而是可以解释为系统性的。**
+> **解释：在这种情况下，相关系数为 r = 0.72，p 值小于 0.001。这意味着我们找到了强烈的正相关。相关性也是统计显著的（如果 p 值低于 0.05，我们通常称之为统计显著的结果），这意味着我们可以相当肯定，结果不是由于偶然，而是可以解释为系统性的。**
 
 ### 2.9.2 使用控制变量的回归
 
 相关性表明失业和犯罪之间存在正相关（且统计显著）的双变量关系。但这种关系是因果的吗？评估这种关系的一种方法是通过使用多元回归控制替代解释。我们使用人口密度作为替代解释。毕竟，失业和犯罪可能主要发生在城市环境中。如果是这样，部分相关性可能不是由于失业，而是由于人口密度，失业可以说部分“传递”了人口密度的影响（如果未包含在回归模型中）。让我们看看这一点。
 
-+   模型1将失业作为解释变量
++   模型 1 将失业作为解释变量
 
-+   模型2包括失业**和**人口密度
++   模型 2 包括失业**和**人口密度
 
 ```r
 model1 <- lm(crimerate ~ 1 + unemp, data = data_nrw)
@@ -525,7 +525,7 @@ model2 <- lm(crimerate ~ 1 + unemp + popdens, data = data_nrw)
 ## Note:                                 *p<0.1; **p<0.05; ***p<0.01
 ```
 
-> ***解释：如果失业率上升一个百分点，每10万人中犯罪案件将增加517起（模型1）。这种关系在统计学上是显著的。如果我们现在在模型2中控制人口密度（从而保持人口密度的恒定影响），失业率每增加一个单位，犯罪案件将仅增加215起。人口密度也与犯罪呈正相关。这两个系数估计在p < 0.01的水平上都是统计学上显著的。因此，控制人口密度的影响似乎是一个好主意。我们可能现在更接近于失业对犯罪的真实影响。然而，我们并不确定这一点，因为其他可能的替代解释仍然存在（例如，年龄构成或地方社会政策的作用，以及个人层面的替代解释）***。
+> ***解释：如果失业率上升一个百分点，每 10 万人中犯罪案件将增加 517 起（模型 1）。这种关系在统计学上是显著的。如果我们现在在模型 2 中控制人口密度（从而保持人口密度的恒定影响），失业率每增加一个单位，犯罪案件将仅增加 215 起。人口密度也与犯罪呈正相关。这两个系数估计在 p < 0.01 的水平上都是统计学上显著的。因此，控制人口密度的影响似乎是一个好主意。我们可能现在更接近于失业对犯罪的真实影响。然而，我们并不确定这一点，因为其他可能的替代解释仍然存在（例如，年龄构成或地方社会政策的作用，以及个人层面的替代解释）***。
 
 * * *
 
@@ -533,4 +533,4 @@ model2 <- lm(crimerate ~ 1 + unemp + popdens, data = data_nrw)
 
 * * *
 
-[1 前言](index.html)[3 双变量统计 - 案例研究：美国总统选举](bivariate-statistics-case-study-united-states-presidential-election.html)
+1 前言 3 双变量统计 - 案例研究：美国总统选举
