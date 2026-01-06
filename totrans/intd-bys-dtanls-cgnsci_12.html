@@ -1,0 +1,697 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Chapter 4 Bayesian regression models</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Chapter 4 Bayesian regression models</h1>
+<blockquote>原文：<a href="https://bruno.nicenboim.me/bayescogsci/ch-reg.html">https://bruno.nicenboim.me/bayescogsci/ch-reg.html</a></blockquote>
+<div id="ch-reg" class="section level1 hasAnchor" number="4">
+
+<p>We generally run experiments because we are interested in the relationship between two or more variables. A regression will tell us how our  <em>dependent variable</em>, also called the <em>response</em> or  <em>outcome variable</em> (e.g., pupil size, response times, accuracy, etc.) is affected by one or many  <em>independent variables</em>, <em>predictors</em>, or  <em>explanatory variables</em>. Predictors can be categorical (e.g., male or female), ordinal (first, second, third, etc.), or continuous (e.g., age). In this chapter we focus on simple regression models with different likelihood functions.</p>
+<div id="sec-pupil" class="section level2 hasAnchor" number="4.1">
+<h2><span class="header-section-number">4.1</span> A first  linear regression: Does attentional load affect pupil size?<a href="ch-reg.html#sec-pupil" class="anchor-section" aria-label="Anchor link to header"/></h2>
+<p>Let us look at the effect of cognitive processing on human pupil size to illustrate the use of Bayesian linear  regression models. Although pupil size is mostly related to the amount of light that reaches the retina or the distance to a perceived object,  pupil sizes are also systematically influenced by cognitive processing: Increased cognitive load leads to an increase in the pupil size <span class="citation">(for a review, see Mathot <a href="#ref-mathotPupillometryPsychologyPhysiology2018" role="doc-biblioref">2018</a>)</span>.</p>
+<p>For this example, we’ll use data from one subject’s pupil size of the control experiment by <span class="citation">Wahn et al. (<a href="#ref-wahnPupilSizesScale2016" role="doc-biblioref">2016</a>)</span>, averaged by trial. The data are available from <code>df_pupil</code> in the package <code>bcogsci</code>.
+In this experiment, the subject covertly tracks between zero and five objects among several randomly moving objects on a computer screen. Viewing zero targets is called a passive viewing condition.</p>
+<p>This task is called  multiple object tracking <span class="citation">(or MOT; see Pylyshyn and Storm <a href="#ref-pylyshynTrackingMultipleIndependent1988" role="doc-biblioref">1988</a>)</span>. First, several objects appear on the screen for two seconds, and a subset of the objects are indicated as “targets” at the beginning. Then, the objects start moving randomly across the screen and become indistinguishable. After several seconds, the objects stop moving and the subject need to indicate which objects were the targets. See Figure <a href="ch-reg.html#fig:mot">4.1</a>.<a href="#fn17" class="footnote-ref" id="fnref17"><sup>17</sup></a> Our research goal is to examine how the number of moving objects being tracked–that is, how attentional load–affects pupil size.</p>
+
+<div class="figure" style="text-align: center"><span style="display:block;" id="fig:mot"/>
+<img src="../Images/b2ae4b9a914713d9bf58e8845e3a6912.png" alt="Flow of events in a trial where two objects need to be tracked. Adapted from Blumberg, Peterson, and Parasuraman (2015); licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)." width="80%" data-original-src="https://bruno.nicenboim.me/bayescogsci/cc_figure/MOT.png"/>
+<p class="caption">
+FIGURE 4.1: Flow of events in a trial where two objects need to be tracked. Adapted from <span class="citation">Blumberg, Peterson, and Parasuraman (<a href="#ref-Blumberg2015" role="doc-biblioref">2015</a>)</span>; licensed under CC BY 4.0 (<a href="https://creativecommons.org/licenses/by/4.0/" class="uri">https://creativecommons.org/licenses/by/4.0/</a>).
+</p>
+</div>
+<div id="likelihood-and-priors" class="section level3 hasAnchor" number="4.1.1">
+<h3><span class="header-section-number">4.1.1</span>  Likelihood and  priors<a href="ch-reg.html#likelihood-and-priors" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>We will model pupil size as normally distributed, because we are not expecting a skew, and we have no further information available about the distribution of pupil sizes. (Given the units used here, pupil sizes cannot be of size zero or negative, so we know for sure that the choice of a normal likelihood is not exactly right.) For simplicity, assume a linear relationship between load and pupil size.</p>
+<p>Let’s summarize our assumptions:</p>
+<ol style="list-style-type: decimal">
+<li>There is some average pupil size, represented by <span class="math inline">\(\alpha\)</span>.</li>
+<li>The increase of attentional load has a linear relationship with pupil size, determined by <span class="math inline">\(\beta\)</span>.</li>
+<li>There is some noise in this process, that is, variability around the true pupil size. This variability is represented by the scale <span class="math inline">\(\sigma\)</span>.</li>
+<li>The noise is normally distributed.</li>
+</ol>
+<p>The generative probability density function will be as follows:</p>
+<p><span class="math display">\[\begin{equation}
+p\_size_n \sim \mathit{Normal}(\alpha + c\_load_n \cdot \beta,\sigma)
+\end{equation}\]</span></p>
+<p>where <span class="math inline">\(n\)</span> indicates the observation number with <span class="math inline">\(n = 1, \ldots, N\)</span>.</p>
+<p>This means that the formula in <code>brms</code> will be <code>p_size ~ 1 + c_load</code>, where <code>1</code> represents the intercept, <span class="math inline">\(\alpha\)</span>, which doesn’t depend on the predictor, and <code>c_load</code> is the predictor that is multiplied by <span class="math inline">\(\beta\)</span>. The prefix <code>c_</code> will generally indicate that a predictor (in this case load) is centered (i.e., the mean of all the values is subtracted from each value). If load is centered, the intercept represents the pupil size at the average load in the experiment (because at the average load, the centered load is zero, yielding <span class="math inline">\(\alpha + 0 \cdot \beta\)</span>). If load had not been centered (i.e., starts with no load, then one, two, etc.), then the intercept would represent pupil size when there is no load. We could fit a frequentist model with <code>lm(p_size ~ 1 + c_load, data_set)</code>; when we fit a Bayesian model using <code>brms</code>, the syntax is the same as in the <code>lm()</code> function, but we now have to specify priors for each of the parameters.</p>
+<p>For setting plausible priors, some research needs to be done to find some information about pupil sizes. Although we might know that pupil diameters range between 2 to 4 mm in bright light to 4 to 8 mm in the dark <span class="citation">(Spector <a href="#ref-spectorPupils1990" role="doc-biblioref">1990</a>)</span>, this experiment was conducted with the Eyelink-II eyetracker which measures the pupils in arbitrary units <span class="citation">(Hayes and Petrov <a href="#ref-hayesMappingCorrectingInfluence2016" role="doc-biblioref">2016</a>)</span>. If this is our first-ever analysis of pupil size, before setting up the priors, we’ll need to look at some measures of pupil size. (If we have analyzed this type of data before from previously conducted experiments, we could also look at estimates from those studies). Fortunately, we have some measurements of the same subject with no attentional load for the first 100 ms, measured every 10 ms, in the data frame <code>df_pupil_pilot</code> from the package <code>bcogsci</code>: This will give us some idea about the order of magnitude of our dependent variable.</p>
+<div class="sourceCode" id="cb148"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb148-1"><a href="ch-reg.html#cb148-1" aria-hidden="true"/><span class="kw">data</span>(<span class="st">"df_pupil_pilot"</span>)</span>
+<span id="cb148-2"><a href="ch-reg.html#cb148-2" aria-hidden="true"/>df_pupil_pilot<span class="op">$</span>p_size <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">summary</span>()</span></code></pre></div>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##     852     856     862     861     866     868</code></pre>
+<p>With this information we can set a  regularizing prior for <span class="math inline">\(\alpha\)</span>. Center the prior around 1000 to be in the right order of magnitude.<a href="#fn18" class="footnote-ref" id="fnref18"><sup>18</sup></a> Since we don’t know how much pupil sizes are going to vary by load yet, we include a rather wide prior by defining it as a normal distribution and setting its standard deviation as <span class="math inline">\(500\)</span>.</p>
+<p><span class="math display">\[\begin{equation}
+\alpha \sim \mathit{Normal}(1000, 500) 
+\end{equation}\]</span></p>
+<p>Given that our predictor load is centered, with the prior for <span class="math inline">\(\alpha\)</span>, we are saying that we suspect that the average pupil size for the average load in the experiment will be in a 95% credible interval limited by approximately <span class="math inline">\(1000 \pm 2 \cdot 500 = [0, 2000]\)</span> units. We can calculate this with more precision in R using the <code>qnorm()</code> function:</p>
+<div class="sourceCode" id="cb150"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb150-1"><a href="ch-reg.html#cb150-1" aria-hidden="true"/><span class="kw">qnorm</span>(<span class="kw">c</span>(.<span class="dv">025</span>, <span class="fl">.975</span>), <span class="dt">mean =</span> <span class="dv">1000</span>, <span class="dt">sd =</span> <span class="dv">500</span>)</span></code></pre></div>
+<pre><code>## [1]   20 1980</code></pre>
+<p>We know that the measurements of the pilot data are strongly correlated because they were taken 10 milliseconds apart. For this reason, they won’t give us a realistic estimate of how much the pupil size can vary. Accordingly, set up quite an uninformative prior for <span class="math inline">\(\sigma\)</span> that encodes this lack of precise information: <span class="math inline">\(\sigma\)</span> is surely larger than zero and has to be in the order of magnitude of the pupil size with no load.</p>
+<p><span class="math display">\[\begin{equation}
+\sigma \sim \mathit{Normal}_+(0, 1000)
+\end{equation}\]</span></p>
+<p>With this prior for <span class="math inline">\(\sigma\)</span>, we are saying that we expect that the standard deviation of the pupil sizes should be in the following 95% credible interval.</p>
+<div class="sourceCode" id="cb152"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb152-1"><a href="ch-reg.html#cb152-1" aria-hidden="true"/><span class="kw">qtnorm</span>(<span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>), <span class="dt">mean =</span> <span class="dv">0</span>, <span class="dt">sd =</span> <span class="dv">1000</span>, <span class="dt">a =</span> <span class="dv">0</span>)</span></code></pre></div>
+<pre><code>## [1]   31.3 2241.4</code></pre>
+<p>In order to compute the 95% credible interval, we used  <code>qtnorm()</code> from the  <code>extraDistr</code> package rather than <code>qnorm()</code>. As mentioned earlier, the relevant command specification is <code>qtnorm(n, mean, sd, a = 0)</code>; recall that <code>a = 0</code> indicates a  truncated normal distribution, truncated at the left by zero.</p>
+<p>The mean of <span class="math inline">\(\mathit{Normal}_+\)</span>, a normal distribution truncated at zero so as to allow for only positive values, does not coincide with its location indicated with the parameter <span class="math inline">\(\mu\)</span> (and neither does the standard deviation coincide with the scale, <span class="math inline">\(\sigma\)</span>); see online section <a href="regression-models-with-brms---extended.html#app-truncation">A.2</a>.</p>
+<div class="sourceCode" id="cb154"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb154-1"><a href="ch-reg.html#cb154-1" aria-hidden="true"/>samples &lt;-<span class="st"> </span><span class="kw">rtnorm</span>(<span class="dv">20000</span>, <span class="dt">mean =</span> <span class="dv">0</span>, <span class="dt">sd =</span> <span class="dv">1000</span>, <span class="dt">a =</span> <span class="dv">0</span>)</span>
+<span id="cb154-2"><a href="ch-reg.html#cb154-2" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(samples), <span class="dt">sd =</span> <span class="kw">sd</span>(samples))</span></code></pre></div>
+<pre><code>## mean   sd 
+##  801  601</code></pre>
+<p>We still need to set a prior for <span class="math inline">\(\beta\)</span>, the change in pupil size produced by the attentional load. Given that pupil size changes are not easily perceptible (we don’t usually observe changes in pupil size in our day-to-day life), we expect them to be much smaller than the pupil size (which we assume has mean 1000 units), so we use the following prior:</p>
+<p><span class="math display">\[\begin{equation}
+\beta \sim \mathit{Normal}(0, 100)
+\end{equation}\]</span></p>
+<p>With the prior of <span class="math inline">\(\beta\)</span>, we are saying that we don’t really know if increasing attentional load will increase or even decrease the pupil size (the prior distribution for <span class="math inline">\(\beta\)</span> is centered at zero), but we do know that increasing one unit of load (that is, having one more object to track) will potentially change the pupil size in a way that is consistent with the following 95% credible interval.</p>
+<div class="sourceCode" id="cb156"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb156-1"><a href="ch-reg.html#cb156-1" aria-hidden="true"/><span class="kw">qnorm</span>(<span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>), <span class="dt">mean =</span> <span class="dv">0</span>, <span class="dt">sd =</span> <span class="dv">100</span>)</span></code></pre></div>
+<pre><code>## [1] -196  196</code></pre>
+<p>That is, we don’t expect changes in size that increase or decrease the pupil size more than 200 units for one unit increase in load.</p>
+<p>The priors we have specified here are relatively  uninformative; as mentioned earlier, this is because we are considering the situation where we don’t have much prior experience with pupil size studies. In other settings, we might have more prior knowledge and experience; in that case, one could use somewhat more principled priors. We address this point in the online chapter on priors (online chapter <a href="ch-priors.html#ch-priors">E</a>) and Bayesian workflow (online chapter <a href="ch-workflow.html#ch-workflow">F</a>).</p>
+</div>
+<div id="the-brms-model" class="section level3 hasAnchor" number="4.1.2">
+<h3><span class="header-section-number">4.1.2</span> The  <code>brms</code> model<a href="ch-reg.html#the-brms-model" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>Before fitting the <code>brms</code> model of the effect of load on pupil size, load the data and center the predictor <code>load</code>:</p>
+<div class="sourceCode" id="cb158"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb158-1"><a href="ch-reg.html#cb158-1" aria-hidden="true"/><span class="kw">data</span>(<span class="st">"df_pupil"</span>)</span>
+<span id="cb158-2"><a href="ch-reg.html#cb158-2" aria-hidden="true"/>(df_pupil &lt;-<span class="st"> </span>df_pupil <span class="op">%&gt;%</span></span>
+<span id="cb158-3"><a href="ch-reg.html#cb158-3" aria-hidden="true"/><span class="st">   </span><span class="kw">mutate</span>(<span class="dt">c_load =</span> load <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(load)))</span></code></pre></div>
+<pre><code>## # A tibble: 41 × 5
+##    subj trial  load p_size c_load
+##   &lt;int&gt; &lt;int&gt; &lt;int&gt;  &lt;dbl&gt;  &lt;dbl&gt;
+## 1   701     1     2  1021. -0.439
+## 2   701     2     1   951. -1.44 
+## 3   701     3     5  1064.  2.56 
+## # ℹ 38 more rows</code></pre>
+<p>Now fit the <code>brms</code> model:</p>
+<div class="sourceCode" id="cb160"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb160-1"><a href="ch-reg.html#cb160-1" aria-hidden="true"/>fit_pupil &lt;-</span>
+<span id="cb160-2"><a href="ch-reg.html#cb160-2" aria-hidden="true"/><span class="st">  </span><span class="kw">brm</span>(p_size <span class="op">~</span><span class="st"> </span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span>c_load,</span>
+<span id="cb160-3"><a href="ch-reg.html#cb160-3" aria-hidden="true"/>      <span class="dt">data =</span> df_pupil,</span>
+<span id="cb160-4"><a href="ch-reg.html#cb160-4" aria-hidden="true"/>      <span class="dt">family =</span> <span class="kw">gaussian</span>(),</span>
+<span id="cb160-5"><a href="ch-reg.html#cb160-5" aria-hidden="true"/>      <span class="dt">prior =</span> <span class="kw">c</span>(<span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">1000</span>, <span class="dv">500</span>), <span class="dt">class =</span> Intercept),</span>
+<span id="cb160-6"><a href="ch-reg.html#cb160-6" aria-hidden="true"/>                <span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">0</span>, <span class="dv">1000</span>), <span class="dt">class =</span> sigma),</span>
+<span id="cb160-7"><a href="ch-reg.html#cb160-7" aria-hidden="true"/>                <span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">0</span>, <span class="dv">100</span>), <span class="dt">class =</span> b, <span class="dt">coef =</span> c_load)))</span></code></pre></div>
+<p>The only difference from our previous models is that we now have a predictor in the formula and in the priors.  Priors for predictors are indicated with <code>class = b</code>, and the specific predictor with <code>coef = c_load</code>. If we want to set the same priors to different predictors we can omit the argument <code>coef</code>. Even if we drop the <code>1</code> from the formula, <code>brm()</code> will fit the same model as when we specify <code>1</code> explicitly. If we really want to remove the intercept, this must be indicated with <code>0 +...</code> or <code>-1 +...</code>. Also see the online section <a href="regression-models-with-brms---extended.html#app-intercept">A.3</a> for more details about the treatment of the intercept by <code>brms</code>. The priors are normal distributions for the intercept (<span class="math inline">\(\alpha\)</span>) and the slope (<span class="math inline">\(\beta\)</span>), and a truncated normal distribution for the scale parameter <span class="math inline">\(\sigma\)</span>, which coincides with the standard deviation (because the likelihood is a normal distribution). <code>brms</code> will automatically truncate the prior specification for <span class="math inline">\(\sigma\)</span> and allow only positive values.</p>
+<p>Next, inspect the output of the model. The  posteriors and  traceplots are shown in Figure <a href="ch-reg.html#fig:posteriorsloadpupilsize">4.2</a>; this figure is generated by typing:</p>
+
+<div class="sourceCode" id="cb161"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb161-1"><a href="ch-reg.html#cb161-1" aria-hidden="true"/><span class="kw">plot</span>(fit_pupil)</span></code></pre></div>
+<div class="figure"><span style="display:block;" id="fig:posteriorsloadpupilsize"/>
+<img src="../Images/be9c91050c98e3283de2805be1599f47.png" alt="The posterior distributions of the parameters in the brms model fit_pupil, along with the corresponding traceplots." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/posteriorsloadpupilsize-1.svg"/>
+<p class="caption">
+FIGURE 4.2: The posterior distributions of the parameters in the <code>brms</code> model <code>fit_pupil</code>, along with the corresponding traceplots.
+</p>
+</div>
+<div class="sourceCode" id="cb162"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb162-1"><a href="ch-reg.html#cb162-1" aria-hidden="true"/>fit_pupil</span></code></pre></div>
+<pre><code>## ...
+## Population-Level Effects: 
+##           Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept   702.30     19.92   664.39   741.46 1.00     3737     2987
+## c_load       33.74     11.40    11.74    56.71 1.00     3672     2808
+## 
+## Family Specific Parameters: 
+##       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## sigma   128.34     14.75   103.13   160.52 1.00     3881     2903
+## 
+## ...</code></pre>
+<p>In the next section, we discuss how one can communicate the relevant information from the model.</p>
+</div>
+<div id="how-to-communicate-the-results" class="section level3 hasAnchor" number="4.1.3">
+<h3><span class="header-section-number">4.1.3</span> How to communicate the results?<a href="ch-reg.html#how-to-communicate-the-results" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>We want to answer the research question “What is the effect of attentional load on the subject’s pupil size?” To answer this question, we’ll need to examine what happens with the posterior distribution of <span class="math inline">\(\beta\)</span>, which is printed out as <code>c_load</code> in the summary of <code>brms</code>. The summary of the  posterior tells us that the most likely values of <span class="math inline">\(\beta\)</span> will be around the mean of the posterior, 33.74, and we can be 95% certain that the value of <span class="math inline">\(\beta\)</span>, given the model and the data, lies between 11.74 and 56.71.</p>
+<p>The model tells us that as attentional load increases, the pupil size of the subject becomes larger. If we want to determine the probability that the pupil size increases rather than decreases, we can compute the proportion of samples that lie above zero. (The intercept and the slopes are always preceded by <code>b_</code> in <code>brms</code>. One can see all the names of parameters being estimated with <code>variables()</code>.)</p>
+<div class="sourceCode" id="cb164"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb164-1"><a href="ch-reg.html#cb164-1" aria-hidden="true"/><span class="kw">mean</span>(<span class="kw">as_draws_df</span>(fit_pupil)<span class="op">$</span>b_c_load <span class="op">&gt;</span><span class="st"> </span><span class="dv">0</span>)</span></code></pre></div>
+<pre><code>## [1] 0.998</code></pre>
+<p><strong>This high probability does not mean that the effect of load is non-zero.</strong> It means instead that it’s much more probable that the effect is positive rather than negative. In order to claim that the effect is probably non-zero, we would have to compare the model with an alternative model in which the model assumes that the effect of load is assumed to be <span class="math inline">\(0\)</span>. We’ll come back to this issue when we discuss model comparison in chapter <a href="ch-comparison.html#ch-comparison">12</a>.</p>
+</div>
+<div id="sec-pupiladq" class="section level3 hasAnchor" number="4.1.4">
+<h3><span class="header-section-number">4.1.4</span> Descriptive adequacy<a href="ch-reg.html#sec-pupiladq" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>Our model converged and we obtained posterior distributions for the parameters. However, there is no guarantee that our model is good enough to represent our data. We can use posterior predictive checks to investigate the  descriptive adequacy of the model.</p>
+<p>Sometimes it’s useful to customize the  posterior predictive check to visualize the fit of our model. We iterate over the different loads (e.g, 0 to 4), and we show the posterior predictive distributions based on 100 simulations for each load together with the observed pupil sizes in Figure <a href="ch-reg.html#fig:postpreddens">4.3</a>. We don’t have enough data to derive a strong conclusion: both the predictive distributions and our data look very widely spread out, and it’s hard to tell if the distribution of the observations could have been generated by our model. For now we can say that it doesn’t look too bad.</p>
+
+<div class="sourceCode" id="cb166"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb166-1"><a href="ch-reg.html#cb166-1" aria-hidden="true"/><span class="cf">for</span> (l <span class="cf">in</span> <span class="dv">0</span><span class="op">:</span><span class="dv">4</span>) {</span>
+<span id="cb166-2"><a href="ch-reg.html#cb166-2" aria-hidden="true"/>  df_sub_pupil &lt;-<span class="st"> </span><span class="kw">filter</span>(df_pupil, load <span class="op">==</span><span class="st"> </span>l)</span>
+<span id="cb166-3"><a href="ch-reg.html#cb166-3" aria-hidden="true"/>  p &lt;-<span class="st"> </span><span class="kw">pp_check</span>(fit_pupil,</span>
+<span id="cb166-4"><a href="ch-reg.html#cb166-4" aria-hidden="true"/>                <span class="dt">type =</span> <span class="st">"dens_overlay"</span>,</span>
+<span id="cb166-5"><a href="ch-reg.html#cb166-5" aria-hidden="true"/>                <span class="dt">ndraws =</span> <span class="dv">100</span>,</span>
+<span id="cb166-6"><a href="ch-reg.html#cb166-6" aria-hidden="true"/>                <span class="dt">newdata =</span> df_sub_pupil) <span class="op">+</span></span>
+<span id="cb166-7"><a href="ch-reg.html#cb166-7" aria-hidden="true"/><span class="st">    </span><span class="kw">geom_point</span>(<span class="dt">data =</span> df_sub_pupil, <span class="kw">aes</span>(<span class="dt">x =</span> p_size, <span class="dt">y =</span> <span class="fl">0.0001</span>)) <span class="op">+</span></span>
+<span id="cb166-8"><a href="ch-reg.html#cb166-8" aria-hidden="true"/><span class="st">    </span><span class="kw">ggtitle</span>(<span class="kw">paste</span>(<span class="st">"load: "</span>, l)) <span class="op">+</span></span>
+<span id="cb166-9"><a href="ch-reg.html#cb166-9" aria-hidden="true"/><span class="st">    </span><span class="kw">coord_cartesian</span>(<span class="dt">xlim =</span> <span class="kw">c</span>(<span class="dv">400</span>, <span class="dv">1000</span>))</span>
+<span id="cb166-10"><a href="ch-reg.html#cb166-10" aria-hidden="true"/>  <span class="kw">print</span>(p)</span>
+<span id="cb166-11"><a href="ch-reg.html#cb166-11" aria-hidden="true"/>}</span></code></pre></div>
+<div class="figure" style="text-align: center"><span style="display:block;" id="fig:postpreddens"/>
+<img src="../Images/1cfbd4f0d7412fcab80d0d67f3dd6952.png" alt="The plot shows 100 posterior predicted distributions with the label \(y_{rep}\), the distribution of pupil size data in black with the label \(y\), and the observed pupil sizes in black dots for the five levels of attentional load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpreddens-1.svg"/><img src="../Images/f9a97800f3388ba7fd634008a067a553.png" alt="The plot shows 100 posterior predicted distributions with the label \(y_{rep}\), the distribution of pupil size data in black with the label \(y\), and the observed pupil sizes in black dots for the five levels of attentional load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpreddens-2.svg"/><img src="../Images/076f295baab7751485fe06810abee2d7.png" alt="The plot shows 100 posterior predicted distributions with the label \(y_{rep}\), the distribution of pupil size data in black with the label \(y\), and the observed pupil sizes in black dots for the five levels of attentional load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpreddens-3.svg"/><img src="../Images/58939af8c12343392aaa0708738c31c2.png" alt="The plot shows 100 posterior predicted distributions with the label \(y_{rep}\), the distribution of pupil size data in black with the label \(y\), and the observed pupil sizes in black dots for the five levels of attentional load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpreddens-4.svg"/><img src="../Images/7b9e5f441cf63ce5e2aa89a666d3f1f1.png" alt="The plot shows 100 posterior predicted distributions with the label \(y_{rep}\), the distribution of pupil size data in black with the label \(y\), and the observed pupil sizes in black dots for the five levels of attentional load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpreddens-5.svg"/>
+<p class="caption">
+FIGURE 4.3: The plot shows 100 posterior predicted distributions with the label <span class="math inline">\(y_{rep}\)</span>, the distribution of pupil size data in black with the label <span class="math inline">\(y\)</span>, and the observed pupil sizes in black dots for the five levels of attentional load.
+</p>
+</div>
+<p>In Figure <a href="ch-reg.html#fig:postpredmean">4.4</a>, we look instead at the distribution of a summary statistic, such as mean pupil size by load. Figure <a href="ch-reg.html#fig:postpredmean">4.4</a> shows that the observed means for no load and for a load of one are falling in the tails of the distributions. Although our model predicts a monotonic increase of pupil size, the data might be indicating that the relevant difference is simply between no load, and some load. However, given the uncertainty in the posterior predictive distributions and that the observed means are contained somewhere in the predicted distributions, it could be the case that with this model we are overinterpreting noise.</p>
+
+<div class="sourceCode" id="cb167"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb167-1"><a href="ch-reg.html#cb167-1" aria-hidden="true"/><span class="cf">for</span> (l <span class="cf">in</span> <span class="dv">0</span><span class="op">:</span><span class="dv">4</span>) {</span>
+<span id="cb167-2"><a href="ch-reg.html#cb167-2" aria-hidden="true"/>  df_sub_pupil &lt;-<span class="st"> </span><span class="kw">filter</span>(df_pupil, load <span class="op">==</span><span class="st"> </span>l)</span>
+<span id="cb167-3"><a href="ch-reg.html#cb167-3" aria-hidden="true"/>  p &lt;-<span class="st"> </span><span class="kw">pp_check</span>(fit_pupil,</span>
+<span id="cb167-4"><a href="ch-reg.html#cb167-4" aria-hidden="true"/>                <span class="dt">type =</span> <span class="st">"stat"</span>,</span>
+<span id="cb167-5"><a href="ch-reg.html#cb167-5" aria-hidden="true"/>                <span class="dt">ndraws =</span> <span class="dv">1000</span>,</span>
+<span id="cb167-6"><a href="ch-reg.html#cb167-6" aria-hidden="true"/>                <span class="dt">newdata =</span> df_sub_pupil,</span>
+<span id="cb167-7"><a href="ch-reg.html#cb167-7" aria-hidden="true"/>                <span class="dt">stat =</span> <span class="st">"mean"</span>) <span class="op">+</span></span>
+<span id="cb167-8"><a href="ch-reg.html#cb167-8" aria-hidden="true"/><span class="st">    </span><span class="kw">geom_point</span>(<span class="dt">data =</span> df_sub_pupil, <span class="kw">aes</span>(<span class="dt">x =</span> p_size, <span class="dt">y =</span> <span class="fl">0.9</span>)) <span class="op">+</span></span>
+<span id="cb167-9"><a href="ch-reg.html#cb167-9" aria-hidden="true"/><span class="st">    </span><span class="kw">ggtitle</span>(<span class="kw">paste</span>(<span class="st">"load: "</span>, l)) <span class="op">+</span></span>
+<span id="cb167-10"><a href="ch-reg.html#cb167-10" aria-hidden="true"/><span class="st">    </span><span class="kw">coord_cartesian</span>(<span class="dt">xlim =</span> <span class="kw">c</span>(<span class="dv">400</span>, <span class="dv">1000</span>))</span>
+<span id="cb167-11"><a href="ch-reg.html#cb167-11" aria-hidden="true"/>  <span class="kw">print</span>(p)</span>
+<span id="cb167-12"><a href="ch-reg.html#cb167-12" aria-hidden="true"/>}</span></code></pre></div>
+<div class="figure" style="text-align: center"><span style="display:block;" id="fig:postpredmean"/>
+<img src="../Images/817e47a62ea0b0b8158ff6d921d2d810.png" alt="Distribution of posterior predicted means in gray and observed pupil size means in black lines by load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpredmean-1.svg"/><img src="../Images/9517f6b9eb1b75a41711889207c27901.png" alt="Distribution of posterior predicted means in gray and observed pupil size means in black lines by load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpredmean-2.svg"/><img src="../Images/33c59867c48574ad453060087777de92.png" alt="Distribution of posterior predicted means in gray and observed pupil size means in black lines by load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpredmean-3.svg"/><img src="../Images/c3cf67075a04355d07f81b9315605b76.png" alt="Distribution of posterior predicted means in gray and observed pupil size means in black lines by load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpredmean-4.svg"/><img src="../Images/8ede958a942dee495e8896eefe53b9a2.png" alt="Distribution of posterior predicted means in gray and observed pupil size means in black lines by load." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpredmean-5.svg"/>
+<p class="caption">
+FIGURE 4.4: Distribution of posterior predicted means in gray and observed pupil size means in black lines by load.
+</p>
+</div>
+</div>
+</div>
+<div id="sec-trial" class="section level2 hasAnchor" number="4.2">
+<h2><span class="header-section-number">4.2</span>  Log-normal model: Does trial affect response times?<a href="ch-reg.html#sec-trial" class="anchor-section" aria-label="Anchor link to header"/></h2>
+<p>Let us revisit the small experiment from section <a href="ch-compbda.html#sec-simplenormal">3.2.1</a>, where a subject repeatedly taps the space bar as fast as possible. Suppose that we want to know whether the subject tended to speed up (a practice effect) or slow down (a fatigue effect) while pressing the space bar. We’ll use the same data set <code>df_spacebar</code> as before, and we’ll center the column <code>trial</code>:</p>
+<div class="sourceCode" id="cb168"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb168-1"><a href="ch-reg.html#cb168-1" aria-hidden="true"/>df_spacebar &lt;-<span class="st"> </span>df_spacebar <span class="op">%&gt;%</span></span>
+<span id="cb168-2"><a href="ch-reg.html#cb168-2" aria-hidden="true"/><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">c_trial =</span> trial <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(trial))</span></code></pre></div>
+<div id="likelihood-and-priors-for-the-log-normal-model" class="section level3 hasAnchor" number="4.2.1">
+<h3><span class="header-section-number">4.2.1</span> Likelihood and priors for the log-normal model<a href="ch-reg.html#likelihood-and-priors-for-the-log-normal-model" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>If we assume that  finger-tapping times are log-normally distributed, the likelihood becomes:</p>
+<p><span class="math display" id="eq:rtloglik">\[\begin{equation}
+t_n \sim \mathit{LogNormal}(\alpha + c\_trial_n \cdot \beta,\sigma)
+\tag{4.1}
+\end{equation}\]</span></p>
+<p>where <span class="math inline">\(n =1, \ldots, N\)</span>, and <span class="math inline">\(t\)</span> is the dependent variable (finger tapping times in milliseconds). The variable <span class="math inline">\(N\)</span> represents the total number of data points.</p>
+<p>Use the same priors as in section <a href="ch-compbda.html#sec-lognormal">3.7.2</a> for <span class="math inline">\(\alpha\)</span> (which is equivalent to <span class="math inline">\(\mu\)</span> in the previous model) and for <span class="math inline">\(\sigma\)</span>.</p>
+<p><span class="math display">\[\begin{equation}
+\begin{aligned}
+\alpha &amp;\sim \mathit{Normal}(6, 1.5) \\
+\sigma &amp;\sim \mathit{Normal}_+(0, 1)\\
+\end{aligned}
+\end{equation}\]</span></p>
+<p>We still need a prior for <span class="math inline">\(\beta\)</span>. Effects are multiplicative rather than additive when we assume a log-normal likelihood, and that means that we need to take into account <span class="math inline">\(\alpha\)</span> in order to interpret <span class="math inline">\(\beta\)</span>; for details, see online section <a href="regression-models-with-brms---extended.html#app-lognormal">A.4</a>. We are going to try to understand how all our priors interact, by generating some  prior predictive distributions. We start with the following prior centered in zero, a prior agnostic regarding the direction of the effect, which allows for a slowdown (<span class="math inline">\(\beta&gt;0\)</span>) and a speedup (<span class="math inline">\(\beta&lt;0\)</span>):</p>
+<p><span class="math display">\[\begin{equation}
+\beta \sim \mathit{Normal}(0, 1)
+\end{equation}\]</span></p>
+<p>Here is our first attempt at a prior predictive distribution:</p>
+<div class="sourceCode" id="cb169"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb169-1"><a href="ch-reg.html#cb169-1" aria-hidden="true"/><span class="co"># Ignore the dependent variable,</span></span>
+<span id="cb169-2"><a href="ch-reg.html#cb169-2" aria-hidden="true"/><span class="co"># use a vector of ones a placeholder.</span></span>
+<span id="cb169-3"><a href="ch-reg.html#cb169-3" aria-hidden="true"/>df_spacebar_ref &lt;-<span class="st"> </span>df_spacebar <span class="op">%&gt;%</span></span>
+<span id="cb169-4"><a href="ch-reg.html#cb169-4" aria-hidden="true"/><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">t =</span> <span class="kw">rep</span>(<span class="dv">1</span>, <span class="kw">n</span>()))</span>
+<span id="cb169-5"><a href="ch-reg.html#cb169-5" aria-hidden="true"/>fit_prior_press_trial &lt;-</span>
+<span id="cb169-6"><a href="ch-reg.html#cb169-6" aria-hidden="true"/><span class="st">  </span><span class="kw">brm</span>(t <span class="op">~</span><span class="st"> </span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span>c_trial,</span>
+<span id="cb169-7"><a href="ch-reg.html#cb169-7" aria-hidden="true"/>      <span class="dt">data =</span> df_spacebar_ref,</span>
+<span id="cb169-8"><a href="ch-reg.html#cb169-8" aria-hidden="true"/>      <span class="dt">family =</span> <span class="kw">lognormal</span>(),</span>
+<span id="cb169-9"><a href="ch-reg.html#cb169-9" aria-hidden="true"/>      <span class="dt">prior =</span> <span class="kw">c</span>(<span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">6</span>, <span class="fl">1.5</span>), <span class="dt">class =</span> Intercept),</span>
+<span id="cb169-10"><a href="ch-reg.html#cb169-10" aria-hidden="true"/>                <span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="dt">class =</span> sigma),</span>
+<span id="cb169-11"><a href="ch-reg.html#cb169-11" aria-hidden="true"/>                <span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="dt">class =</span> b, <span class="dt">coef =</span> c_trial)),</span>
+<span id="cb169-12"><a href="ch-reg.html#cb169-12" aria-hidden="true"/>      <span class="dt">sample_prior =</span> <span class="st">"only"</span>,</span>
+<span id="cb169-13"><a href="ch-reg.html#cb169-13" aria-hidden="true"/>      <span class="dt">control =</span> <span class="kw">list</span>(<span class="dt">adapt_delta =</span> <span class="fl">.9</span>))</span></code></pre></div>
+<p>In order to understand the type of data that we are assuming a priori with the prior of the parameter <span class="math inline">\(\beta\)</span>, plot the median difference between the finger tapping times at adjacent trials. As the prior of <span class="math inline">\(\beta\)</span> gets wider, larger differences are observed between adjacent trials. The objective of the prior predictive checks is to calibrate the prior of <span class="math inline">\(\beta\)</span> to obtain a plausible range of differences.
+We are going to plot a distribution of medians because they are less affected by the variance in the prior predicted distribution than the distribution of mean differences; distributions of means will have much more spread. To make the distribution of means more realistic, we would also need to find a more accurate prior for the scale <span class="math inline">\(\sigma\)</span>. (Recall that the mean of log-normal distributed values depend on both the location, <span class="math inline">\(\mu\)</span> and the scale, <span class="math inline">\(\sigma\)</span>, of the distribution.) To plot the median effect, first define a function that calculates the difference between adjacent trials, and then apply the median to the result. We use that function in <code>pp_check</code> and show the result in Figure <a href="ch-reg.html#fig:priorbeta">4.5</a>. As expected, the median effect is centered on zero (as is our prior), but we see that the distribution of possible medians for the effect is too widely spread out and includes values that are too extreme.</p>
+
+<div class="sourceCode" id="cb170"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb170-1"><a href="ch-reg.html#cb170-1" aria-hidden="true"/>median_diff &lt;-<span class="st"> </span><span class="cf">function</span>(x) {</span>
+<span id="cb170-2"><a href="ch-reg.html#cb170-2" aria-hidden="true"/>  <span class="kw">median</span>(x <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(x), <span class="dt">na.rm =</span> <span class="ot">TRUE</span>)</span>
+<span id="cb170-3"><a href="ch-reg.html#cb170-3" aria-hidden="true"/>}</span>
+<span id="cb170-4"><a href="ch-reg.html#cb170-4" aria-hidden="true"/><span class="kw">pp_check</span>(fit_prior_press_trial,</span>
+<span id="cb170-5"><a href="ch-reg.html#cb170-5" aria-hidden="true"/>         <span class="dt">type =</span> <span class="st">"stat"</span>,</span>
+<span id="cb170-6"><a href="ch-reg.html#cb170-6" aria-hidden="true"/>         <span class="dt">stat =</span> <span class="st">"median_diff"</span>,</span>
+<span id="cb170-7"><a href="ch-reg.html#cb170-7" aria-hidden="true"/>  <span class="co"># show only prior predictive distributions       </span></span>
+<span id="cb170-8"><a href="ch-reg.html#cb170-8" aria-hidden="true"/>         <span class="dt">prefix =</span> <span class="st">"ppd"</span>,</span>
+<span id="cb170-9"><a href="ch-reg.html#cb170-9" aria-hidden="true"/>  <span class="co"># each bin has a width of 500 ms       </span></span>
+<span id="cb170-10"><a href="ch-reg.html#cb170-10" aria-hidden="true"/>         <span class="dt">binwidth =</span> <span class="dv">500</span>) <span class="op">+</span></span>
+<span id="cb170-11"><a href="ch-reg.html#cb170-11" aria-hidden="true"/><span class="st">  </span><span class="co"># cut the top of the plot to improve its scale</span></span>
+<span id="cb170-12"><a href="ch-reg.html#cb170-12" aria-hidden="true"/><span class="st">  </span><span class="kw">coord_cartesian</span>(<span class="dt">ylim =</span> <span class="kw">c</span>(<span class="dv">0</span>, <span class="dv">50</span>))</span></code></pre></div>
+<div class="figure"><span style="display:block;" id="fig:priorbeta"/>
+<img src="../Images/6a2d35091610404093044d40e26e45e2.png" alt="The prior predictive distribution of the median effect of the model defined in section 4.2 with \(\beta \sim \mathit{Normal}(0, 1)\)." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/priorbeta-1.svg"/>
+<p class="caption">
+FIGURE 4.5: The prior predictive distribution of the median effect of the model defined in section <a href="ch-reg.html#sec-trial">4.2</a> with <span class="math inline">\(\beta \sim \mathit{Normal}(0, 1)\)</span>.
+</p>
+</div>
+<p>Repeat the same procedure with <span class="math inline">\(\beta \sim \mathit{Normal}(0,0.01)\)</span>; the resulting prior predictive distribution is shown in Figure <a href="ch-reg.html#fig:priorbeta2">4.6</a>. The prior predictive distribution shows us that the prior is still quite vague; it is, however at least in the right order of magnitude.</p>
+
+<div class="figure"><span style="display:block;" id="fig:priorbeta2"/>
+<img src="../Images/dbadbc7109f9aa1fd02124ae41dd94d1.png" alt="The prior predictive distribution of the median difference in finger tapping times between adjacent trials based on the model defined in section 4.2 with \(\beta \sim \mathit{Normal}(0, 0.01)\)." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/priorbeta2-1.svg"/>
+<p class="caption">
+FIGURE 4.6: The prior predictive distribution of the median difference in finger tapping times between adjacent trials based on the model defined in section <a href="ch-reg.html#sec-trial">4.2</a> with <span class="math inline">\(\beta \sim \mathit{Normal}(0, 0.01)\)</span>.
+</p>
+</div>
+<p>Prior selection might look daunting and can be a lot of work. However, this work is usually done only the first time we start working with an experimental paradigm; besides, priors can be informed by the estimates from previous experiments (even maximum likelihood estimates from frequentist models can be useful). We will generally use very similar (or identical priors) for analyses dealing with the same type of task. When in doubt, a sensitivity analysis (see section <a href="ch-compbda.html#sec-sensitivity">3.4</a>) can tell us whether the posterior distribution depends unintentionally strongly on our prior selection. We also discuss prior selection in the online chapter <a href="ch-priors.html#ch-priors">E</a>.</p>
+</div>
+<div id="the-brms-model-1" class="section level3 hasAnchor" number="4.2.2">
+<h3><span class="header-section-number">4.2.2</span> The  <code>brms</code> model<a href="ch-reg.html#the-brms-model-1" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>We are now relatively satisfied with the priors for our model, and we can fit the model of the effect of trial on button-pressing time using <code>brms</code>. We need to specify that the family is <code>lognormal()</code>.</p>
+<div class="sourceCode" id="cb171"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb171-1"><a href="ch-reg.html#cb171-1" aria-hidden="true"/>fit_press_trial &lt;-</span>
+<span id="cb171-2"><a href="ch-reg.html#cb171-2" aria-hidden="true"/><span class="st">  </span><span class="kw">brm</span>(t <span class="op">~</span><span class="st"> </span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span>c_trial,</span>
+<span id="cb171-3"><a href="ch-reg.html#cb171-3" aria-hidden="true"/>      <span class="dt">data =</span> df_spacebar,</span>
+<span id="cb171-4"><a href="ch-reg.html#cb171-4" aria-hidden="true"/>      <span class="dt">family =</span> <span class="kw">lognormal</span>(),</span>
+<span id="cb171-5"><a href="ch-reg.html#cb171-5" aria-hidden="true"/>      <span class="dt">prior =</span> <span class="kw">c</span>(<span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">6</span>, <span class="fl">1.5</span>), <span class="dt">class =</span> Intercept),</span>
+<span id="cb171-6"><a href="ch-reg.html#cb171-6" aria-hidden="true"/>                <span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="dt">class =</span> sigma),</span>
+<span id="cb171-7"><a href="ch-reg.html#cb171-7" aria-hidden="true"/>                <span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">0</span>, <span class="fl">0.01</span>), <span class="dt">class =</span> b, <span class="dt">coef =</span> c_trial)))</span></code></pre></div>
+<p>Instead of printing out the complete output from the model, look at the estimates from the posteriors for the parameters <span class="math inline">\(\alpha\)</span>, <span class="math inline">\(\beta\)</span>, and <span class="math inline">\(\sigma\)</span>. These parameters are on the log scale:</p>
+<div class="sourceCode" id="cb172"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb172-1"><a href="ch-reg.html#cb172-1" aria-hidden="true"/><span class="kw">posterior_summary</span>(fit_press_trial,</span>
+<span id="cb172-2"><a href="ch-reg.html#cb172-2" aria-hidden="true"/>                  <span class="dt">variable =</span> <span class="kw">c</span>(<span class="st">"b_Intercept"</span>,</span>
+<span id="cb172-3"><a href="ch-reg.html#cb172-3" aria-hidden="true"/>                               <span class="st">"b_c_trial"</span>,</span>
+<span id="cb172-4"><a href="ch-reg.html#cb172-4" aria-hidden="true"/>                               <span class="st">"sigma"</span>))</span></code></pre></div>
+<pre><code>##             Estimate Est.Error     Q2.5    Q97.5
+## b_Intercept 5.118340 0.0064256 5.105460 5.130953
+## b_c_trial   0.000524 0.0000616 0.000399 0.000646
+## sigma       0.123360 0.0046777 0.114539 0.132888</code></pre>
+<p>The posterior distributions can be plotted to obtain a graphical summary of all the parameters in the model (Figure <a href="ch-reg.html#fig:posteriorsfitpresstrial">4.7</a>):</p>
+<div class="sourceCode" id="cb174"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb174-1"><a href="ch-reg.html#cb174-1" aria-hidden="true"/><span class="kw">plot</span>(fit_press_trial)</span></code></pre></div>
+<div class="figure"><span style="display:block;" id="fig:posteriorsfitpresstrial"/>
+<img src="../Images/0828b9a1adcae9e365e2c3f2696da016.png" alt="Posterior distributions of the model of the effect of trial on button-pressing." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/posteriorsfitpresstrial-1.svg"/>
+<p class="caption">
+FIGURE 4.7: Posterior distributions of the model of the effect of trial on button-pressing.
+</p>
+</div>
+<p>Next, we turn to the question of what we can report as our results, and what we can conclude from the data.</p>
+</div>
+<div id="how-to-communicate-the-results-1" class="section level3 hasAnchor" number="4.2.3">
+<h3><span class="header-section-number">4.2.3</span> How to communicate the results?<a href="ch-reg.html#how-to-communicate-the-results-1" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>As shown above, the first step is to summarize the posteriors in a table or graphically (or both). If the research relates to the effect estimated by the model, the posterior of <span class="math inline">\(\beta\)</span> can be summarized in the following way: <span class="math inline">\(\hat\beta = 0.00052\)</span>, 95% CrI = <span class="math inline">\([ 0.0004 , 0.00065 ]\)</span>.</p>
+<p>The effect is easier to interpret in milliseconds. We can transform the estimates back to the millisecond scale from the  log scale, but we need to take into account that the scale is not linear, and that the effect between two button presses will differ depending on where we are in the experiment.</p>
+<p>We will have a certain estimate if we consider the difference between response times in a trial at the middle of the experiment (when the centered trial number is zero) and the previous one (when the centered trial number is minus one).</p>
+<div class="sourceCode" id="cb175"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb175-1"><a href="ch-reg.html#cb175-1" aria-hidden="true"/>alpha_samples &lt;-<span class="st"> </span><span class="kw">as_draws_df</span>(fit_press_trial)<span class="op">$</span>b_Intercept</span>
+<span id="cb175-2"><a href="ch-reg.html#cb175-2" aria-hidden="true"/>beta_samples &lt;-<span class="st"> </span><span class="kw">as_draws_df</span>(fit_press_trial)<span class="op">$</span>b_c_trial</span>
+<span id="cb175-3"><a href="ch-reg.html#cb175-3" aria-hidden="true"/>effect_middle_ms &lt;-<span class="st"> </span><span class="kw">exp</span>(alpha_samples) <span class="op">-</span></span>
+<span id="cb175-4"><a href="ch-reg.html#cb175-4" aria-hidden="true"/><span class="st">  </span><span class="kw">exp</span>(alpha_samples <span class="op">-</span><span class="st"> </span><span class="dv">1</span> <span class="op">*</span><span class="st"> </span>beta_samples)</span>
+<span id="cb175-5"><a href="ch-reg.html#cb175-5" aria-hidden="true"/><span class="co">## ms effect in the middle of the expt</span></span>
+<span id="cb175-6"><a href="ch-reg.html#cb175-6" aria-hidden="true"/><span class="co">## (mean trial vs. mean trial - 1)</span></span>
+<span id="cb175-7"><a href="ch-reg.html#cb175-7" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(effect_middle_ms),</span>
+<span id="cb175-8"><a href="ch-reg.html#cb175-8" aria-hidden="true"/>  <span class="kw">quantile</span>(effect_middle_ms, <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##   mean   2.5%  97.5% 
+## 0.0875 0.0668 0.1075</code></pre>
+<p>We will obtain a different estimate if we consider the difference between the second and the first trial:</p>
+<div class="sourceCode" id="cb177"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb177-1"><a href="ch-reg.html#cb177-1" aria-hidden="true"/>first_trial &lt;-<span class="st"> </span><span class="kw">min</span>(df_spacebar<span class="op">$</span>c_trial)</span>
+<span id="cb177-2"><a href="ch-reg.html#cb177-2" aria-hidden="true"/>second_trial &lt;-<span class="st"> </span><span class="kw">min</span>(df_spacebar<span class="op">$</span>c_trial) <span class="op">+</span><span class="st"> </span><span class="dv">1</span></span>
+<span id="cb177-3"><a href="ch-reg.html#cb177-3" aria-hidden="true"/>effect_beginning_ms &lt;-</span>
+<span id="cb177-4"><a href="ch-reg.html#cb177-4" aria-hidden="true"/><span class="st">  </span><span class="kw">exp</span>(alpha_samples <span class="op">+</span><span class="st"> </span>second_trial <span class="op">*</span><span class="st"> </span>beta_samples) <span class="op">-</span></span>
+<span id="cb177-5"><a href="ch-reg.html#cb177-5" aria-hidden="true"/><span class="st">  </span><span class="kw">exp</span>(alpha_samples <span class="op">+</span><span class="st"> </span>first_trial <span class="op">*</span><span class="st"> </span>beta_samples)</span>
+<span id="cb177-6"><a href="ch-reg.html#cb177-6" aria-hidden="true"/><span class="co">## ms effect from first to second trial:</span></span>
+<span id="cb177-7"><a href="ch-reg.html#cb177-7" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(effect_beginning_ms),</span>
+<span id="cb177-8"><a href="ch-reg.html#cb177-8" aria-hidden="true"/>  <span class="kw">quantile</span>(effect_beginning_ms, <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##   mean   2.5%  97.5% 
+## 0.0796 0.0622 0.0958</code></pre>
+<p>So far; we converted the estimates to obtain median effects, that’s why we used <span class="math inline">\(exp(\cdot)\)</span>. If we want to obtain mean effects, we need to take into account <span class="math inline">\(\sigma\)</span>, since we need to calculate <span class="math inline">\(exp(\cdot + \sigma^2/2)\)</span>. However, we can also use the built-in function  <code>fitted()</code> which calculates mean effects. Consider again the difference between the second and the first trial this time using <code>fitted()</code>.</p>
+<p>First, define for which observations we want to obtain the fitted values in millisecond scale. If we are interested in the difference between the second and first trial, create a data frame with their centered versions.</p>
+<div class="sourceCode" id="cb179"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb179-1"><a href="ch-reg.html#cb179-1" aria-hidden="true"/>newdata_<span class="dv">1</span> &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">c_trial =</span> <span class="kw">c</span>(first_trial, second_trial))</span></code></pre></div>
+<p>Second, use <code>fitted()</code> on the <code>brms</code> object, including the new data, and setting the <code>summary</code> parameter to <code>FALSE</code>. The first column contains the posterior samples transformed into milliseconds of the first trial, and the second column of the second trial.</p>
+<div class="sourceCode" id="cb180"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb180-1"><a href="ch-reg.html#cb180-1" aria-hidden="true"/>beginning &lt;-<span class="st"> </span><span class="kw">fitted</span>(fit_press_trial,</span>
+<span id="cb180-2"><a href="ch-reg.html#cb180-2" aria-hidden="true"/>                 <span class="dt">newdata =</span> newdata_<span class="dv">1</span>,</span>
+<span id="cb180-3"><a href="ch-reg.html#cb180-3" aria-hidden="true"/>                 <span class="dt">summary =</span> <span class="ot">FALSE</span>)</span>
+<span id="cb180-4"><a href="ch-reg.html#cb180-4" aria-hidden="true"/><span class="kw">head</span>(beginning, <span class="dv">3</span>)</span></code></pre></div>
+<pre><code>##      [,1] [,2]
+## [1,]  157  157
+## [2,]  153  153
+## [3,]  153  153</code></pre>
+<p>The final step is to calculate the difference between trials, and report the mean and the 95% credible interval.</p>
+<div class="sourceCode" id="cb182"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb182-1"><a href="ch-reg.html#cb182-1" aria-hidden="true"/>effect_beginning_ms &lt;-<span class="st"> </span>beginning[, <span class="dv">2</span>] <span class="op">-</span><span class="st"> </span>beginning[,<span class="dv">1</span>]</span>
+<span id="cb182-2"><a href="ch-reg.html#cb182-2" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(effect_beginning_ms),</span>
+<span id="cb182-3"><a href="ch-reg.html#cb182-3" aria-hidden="true"/>  <span class="kw">quantile</span>(effect_beginning_ms, <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##   mean   2.5%  97.5% 
+## 0.0802 0.0626 0.0966</code></pre>
+<p>Given that <span class="math inline">\(\sigma\)</span> is much smaller than <span class="math inline">\(\mu\)</span>, <span class="math inline">\(\sigma\)</span> doesn’t have a large influence on the mean effects, and the mean and 95% CrI of the mean and median effects are quite similar.</p>
+<p>We see that no matter how we calculate the trial effect, there is a slowdown. When reporting the results of these analyses, one should present the posterior mean and a credible interval, and then reason about whether the observed estimates are consistent with the prediction from the theory being investigated. The 95% credible interval used here is just a convention adopted from standard practice in psychology and related areas, where the 95% confidence interval is the default. One could, for example, have used an 80% CrI.</p>
+<p>The practical relevance of the effect for the research question can be important too. For example, only after <span class="math inline">\(100\)</span> button presses do we see a barely noticeable slowdown:</p>
+<div class="sourceCode" id="cb184"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb184-1"><a href="ch-reg.html#cb184-1" aria-hidden="true"/>effect_<span class="dv">100</span> &lt;-</span>
+<span id="cb184-2"><a href="ch-reg.html#cb184-2" aria-hidden="true"/><span class="st">  </span><span class="kw">exp</span>(alpha_samples <span class="op">+</span><span class="st"> </span><span class="dv">100</span> <span class="op">*</span><span class="st"> </span>beta_samples) <span class="op">-</span></span>
+<span id="cb184-3"><a href="ch-reg.html#cb184-3" aria-hidden="true"/><span class="st">  </span><span class="kw">exp</span>(alpha_samples)</span>
+<span id="cb184-4"><a href="ch-reg.html#cb184-4" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(effect_<span class="dv">100</span>),</span>
+<span id="cb184-5"><a href="ch-reg.html#cb184-5" aria-hidden="true"/>  <span class="kw">quantile</span>(effect_<span class="dv">100</span>, <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##  mean  2.5% 97.5% 
+##  8.99  6.81 11.11</code></pre>
+<p>We need to consider whether our uncertainty of this estimate, and the estimated mean effect have any scientific relevance. Such relevance can be established by considering the previous literature, predictions from a quantitative model, or other expert domain knowledge. Sometimes, a quantitative meta-analysis is helpful; for examples, see <span class="citation">Bürki, Alario, and Vasishth (<a href="#ref-Buerki2022" role="doc-biblioref">2023</a>)</span>, <span class="citation">Cox et al. (<a href="#ref-cox2022bayesian" role="doc-biblioref">2022</a>)</span>, <span class="citation">Bürki et al. (<a href="#ref-BuerkiEtAl2020" role="doc-biblioref">2020</a>)</span>, <span class="citation">Jäger, Engelmann, and Vasishth (<a href="#ref-JaegerEngelmannVasishth2017" role="doc-biblioref">2017</a>)</span>, <span class="citation">Mahowald et al. (<a href="#ref-mahowald2016meta" role="doc-biblioref">2016</a>)</span>, <span class="citation">Nicenboim, Roettger, and Vasishth (<a href="#ref-NicenboimRoettgeretal" role="doc-biblioref">2018</a>)</span>, and <span class="citation">Vasishth et al. (<a href="#ref-VasishthetalPLoSOne2013" role="doc-biblioref">2013</a>)</span>. We will discuss meta-analysis later in the book, in chapter <a href="ch-remame.html#ch-remame">11</a>.</p>
+<p>Sometimes, researchers are only interested in establishing that an effect is present or absent; the magnitude and uncertainty of the estimate is of secondary interest. Here, the goal is to argue that there is <strong>evidence</strong> of a slowdown. The word evidence has a special meaning in statistics <span class="citation">(Royall <a href="#ref-Royall" role="doc-biblioref">1997</a>)</span>, and in null hypothesis significance testing, a likelihood ratio test is the standard way to argue that one has evidence for an effect. In the Bayesian data analysis context, in order to answer such a question, a Bayes factor analysis must be carried out. We’ll come back to this issue in the model comparison chapters <a href="ch-comparison.html#ch-comparison">12</a>-<a href="ch-cv.html#ch-cv">14</a>.</p>
+</div>
+<div id="descriptive-adequacy" class="section level3 hasAnchor" number="4.2.4">
+<h3><span class="header-section-number">4.2.4</span> Descriptive adequacy<a href="ch-reg.html#descriptive-adequacy" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>We look now at the predictions of the model. Since we now know that trial effects are very small, let’s examine the predictions of the model for differences in response times between 100 button presses. Similarly as for prior predictive checks, we define a function, <code>median_diff100()</code>, that calculates the median difference between a trial <span class="math inline">\(n\)</span> and a trial <span class="math inline">\(n+100\)</span>. This time we’ll compare the observed median difference against the range of predicted differences based on the model and the data rather than only the model as we did for the prior predictions. Below we use virtually the same code that we use for plotting prior predictive checks, but since we now use the fitted model, we’ll obtain posterior predictive checks; this is displayed in Figure <a href="ch-reg.html#fig:posteriorcbeta">4.8</a>.</p>
+
+<div class="sourceCode" id="cb186"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb186-1"><a href="ch-reg.html#cb186-1" aria-hidden="true"/>median_diff100 &lt;-<span class="st"> </span><span class="cf">function</span>(x) <span class="kw">median</span>(x <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(x, <span class="dv">100</span>), <span class="dt">na.rm =</span> <span class="ot">TRUE</span>)</span>
+<span id="cb186-2"><a href="ch-reg.html#cb186-2" aria-hidden="true"/><span class="kw">pp_check</span>(fit_press_trial,</span>
+<span id="cb186-3"><a href="ch-reg.html#cb186-3" aria-hidden="true"/>         <span class="dt">type =</span> <span class="st">"stat"</span>,</span>
+<span id="cb186-4"><a href="ch-reg.html#cb186-4" aria-hidden="true"/>         <span class="dt">stat =</span> <span class="st">"median_diff100"</span>)</span></code></pre></div>
+<div class="figure"><span style="display:block;" id="fig:posteriorcbeta"/>
+<img src="../Images/d104cbf832eb80a7e75845709d08634b.png" alt="The posterior predictive distribution of the median difference in response times between a trial \(n\) and a trial \(n+100\) based on the model fit_press_trial and the observed data." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/posteriorcbeta-1.svg"/>
+<p class="caption">
+FIGURE 4.8: The posterior predictive distribution of the median difference in response times between a trial <span class="math inline">\(n\)</span> and a trial <span class="math inline">\(n+100\)</span> based on the model <code>fit_press_trial</code> and the observed data.
+</p>
+</div>
+<p>From Figure <a href="ch-reg.html#fig:posteriorcbeta">4.8</a>, we can conclude that model predictions for differences in response trials between trials are reasonable.</p>
+</div>
+</div>
+<div id="sec-logistic" class="section level2 hasAnchor" number="4.3">
+<h2><span class="header-section-number">4.3</span>  Logistic regression: Does  set size affect  free recall?<a href="ch-reg.html#sec-logistic" class="anchor-section" aria-label="Anchor link to header"/></h2>
+<p>In this section, we will learn how the principles we have learned so far can naturally extend to  <em>generalized</em> linear models (GLMs). We focus on one special case of GLMs that has wide application in linguistics and psychology, logistic regression.</p>
+<p>As an example data set, we look at a study investigating the capacity level of  working memory. The data are a subset of a data set created by <span class="citation">Oberauer (<a href="#ref-oberauerWorkingMemoryCapacity2019" role="doc-biblioref">2019</a>)</span>. Each subject was presented word lists of varying lengths (2, 4, 6, and 8 elements), and then was asked to recall a word given its position on the list; see Figure <a href="ch-reg.html#fig:oberauer">4.9</a>. We will focus on the data from one subject.</p>
+
+<div class="figure"><span style="display:block;" id="fig:oberauer"/>
+<img src="../Images/8ea750f27eeaae81c2bd5cdd6901f10c.png" alt="The flow of events in a trial with memory set size 4 and free recall. Adapted from Oberauer (2019); licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)." width="100%" height="50%" data-original-src="https://bruno.nicenboim.me/bayescogsci/cc_figure/fig1_oberauer_2019_modified.png"/>
+<p class="caption">
+FIGURE 4.9: The flow of events in a trial with memory set size 4 and free recall. Adapted from <span class="citation">Oberauer (<a href="#ref-oberauerWorkingMemoryCapacity2019" role="doc-biblioref">2019</a>)</span>; licensed under CC BY 4.0 (<a href="https://creativecommons.org/licenses/by/4.0/" class="uri">https://creativecommons.org/licenses/by/4.0/</a>).
+</p>
+</div>
+<p>It is well-established that as the number of items to be held in working memory increases, performance, that is, accuracy, decreases <span class="citation">(see Oberauer and Kliegl <a href="#ref-oberauerkliegel2001" role="doc-biblioref">2001</a>, among others)</span>. We will investigate this claim with data from only one subject.</p>
+<p>The data can be found in <code>df_recall</code> in the package <code>bcogsci</code>. The code below loads the data, centers the predictor <code>set_size</code>, and briefly explores the data set.</p>
+<div class="sourceCode" id="cb187"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb187-1"><a href="ch-reg.html#cb187-1" aria-hidden="true"/><span class="kw">data</span>(<span class="st">"df_recall"</span>)</span>
+<span id="cb187-2"><a href="ch-reg.html#cb187-2" aria-hidden="true"/>df_recall &lt;-<span class="st"> </span>df_recall <span class="op">%&gt;%</span></span>
+<span id="cb187-3"><a href="ch-reg.html#cb187-3" aria-hidden="true"/><span class="st">  </span><span class="kw">mutate</span>(<span class="dt">c_set_size =</span> set_size <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(set_size))</span>
+<span id="cb187-4"><a href="ch-reg.html#cb187-4" aria-hidden="true"/><span class="co"># Set sizes in the data set:</span></span>
+<span id="cb187-5"><a href="ch-reg.html#cb187-5" aria-hidden="true"/>df_recall<span class="op">$</span>set_size <span class="op">%&gt;%</span></span>
+<span id="cb187-6"><a href="ch-reg.html#cb187-6" aria-hidden="true"/><span class="st">  </span><span class="kw">unique</span>() <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">sort</span>()</span></code></pre></div>
+<pre><code>## [1] 2 4 6 8</code></pre>
+<div class="sourceCode" id="cb189"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb189-1"><a href="ch-reg.html#cb189-1" aria-hidden="true"/><span class="co"># Trials by set size</span></span>
+<span id="cb189-2"><a href="ch-reg.html#cb189-2" aria-hidden="true"/>df_recall <span class="op">%&gt;%</span></span>
+<span id="cb189-3"><a href="ch-reg.html#cb189-3" aria-hidden="true"/><span class="st">  </span><span class="kw">group_by</span>(set_size) <span class="op">%&gt;%</span></span>
+<span id="cb189-4"><a href="ch-reg.html#cb189-4" aria-hidden="true"/><span class="st">  </span><span class="kw">count</span>()</span></code></pre></div>
+<pre><code>## # A tibble: 4 × 2
+## # Groups:   set_size [4]
+##   set_size     n
+##      &lt;int&gt; &lt;int&gt;
+## 1        2    23
+## 2        4    23
+## 3        6    23
+## # ℹ 1 more row</code></pre>
+<p>Here, the column <code>correct</code> records the incorrect vs. correct responses with <code>0</code> vs <code>1</code> respectively, and the column <code>c_set_size</code> records the centered memory set size; these latter scores have continuous values -3, -1, 1, and 3. These continuous values are centered versions of 2, 4, 6, and 8.</p>
+<div class="sourceCode" id="cb191"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb191-1"><a href="ch-reg.html#cb191-1" aria-hidden="true"/>df_recall</span></code></pre></div>
+<pre><code>## # A tibble: 92 × 8
+##   subj  set_size correct trial session block tested c_set_size
+##   &lt;chr&gt;    &lt;int&gt;   &lt;int&gt; &lt;int&gt;   &lt;int&gt; &lt;int&gt;  &lt;int&gt;      &lt;dbl&gt;
+## 1 10           4       1     1       1     1      2         -1
+## 2 10           8       0     4       1     1      8          3
+## 3 10           2       1     9       1     1      2         -3
+## # ℹ 89 more rows</code></pre>
+<p>We want to model the trial-by-trial accuracy and examine whether the probability of recalling a word is related to the number of words in the set that the subject needs to remember.</p>
+<div id="the-likelihood-for-the-logistic-regression-model" class="section level3 hasAnchor" number="4.3.1">
+<h3><span class="header-section-number">4.3.1</span> The likelihood for the logistic regression model<a href="ch-reg.html#the-likelihood-for-the-logistic-regression-model" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>Recall that the  Bernoulli likelihood generates a <span class="math inline">\(0\)</span> or <span class="math inline">\(1\)</span> response with a particular probability <span class="math inline">\(\theta\)</span>. For example, one can generate simulated data for <span class="math inline">\(10\)</span> observations, with a <span class="math inline">\(50\)</span>% probability of getting a <span class="math inline">\(1\)</span> using <code>rbern()</code> from the package <code>extraDistr</code>.</p>
+<div class="sourceCode" id="cb193"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb193-1"><a href="ch-reg.html#cb193-1" aria-hidden="true"/><span class="kw">rbern</span>(<span class="dv">10</span>, <span class="dt">prob =</span> <span class="fl">0.5</span>)</span></code></pre></div>
+<pre><code>##  [1] 0 1 1 1 0 0 1 0 0 1</code></pre>
+<p>We can therefore define each dependent value <code>correct_n</code> in the data as being generated from a Bernoulli random variable with probability of success <span class="math inline">\(\theta_n\)</span>.
+Here, <span class="math inline">\(n = 1, \ldots, N\)</span> indexes the observation, <span class="math inline">\(correct_n\)</span> is the dependent variable (<span class="math inline">\(0\)</span> indicates an incorrect recall and <span class="math inline">\(1\)</span> a correct recall), and <span class="math inline">\(\theta_n\)</span> is the probability of correctly recalling a probe in a given observation <span class="math inline">\(n\)</span>.</p>
+<p><span class="math display" id="eq:bernoullilik">\[\begin{equation}
+correct_n \sim \mathit{Bernoulli}(\theta_n)
+\tag{4.2}
+\end{equation}\]</span></p>
+<p>Since the observed data are either <span class="math inline">\(0\)</span> or <span class="math inline">\(1\)</span>, we shouldn’t just fit a regression model using the normal (or log-normal) likelihood as we did in the preceding examples. Such a model would be inappropriate because it would assume that the observed data are real numbers ranging from <span class="math inline">\(-\infty\)</span> to <span class="math inline">\(+\infty\)</span> (or from <span class="math inline">\(0\)</span> to <span class="math inline">\(+\infty\)</span>).</p>
+<p>The generalized linear modeling framework solves this problem by defining a  <em>link function</em> <span class="math inline">\(g(\cdot)\)</span> that connects the linear model to the quantity to be estimated (here, the probabilities <span class="math inline">\(\theta_n\)</span>). The link function used for <span class="math inline">\(0\)</span>, <span class="math inline">\(1\)</span> responses is called the <em>logit link</em>, and is defined as follows.</p>
+<p><span class="math display">\[\begin{equation}
+\eta_n = g(\theta_n) = \log\left(\frac{\theta_n}{1-\theta_n}\right)
+\end{equation}\]</span></p>
+<p>The term $} <span class="math inline">\(\frac{\theta_n}{1-\theta_n}\)</span> is called the  <em>odds</em>.<a href="#fn19" class="footnote-ref" id="fnref19"><sup>19</sup></a> The  logit link function is therefore a  log-odds; it maps probability values ranging from <span class="math inline">\((0,1)\)</span> to real numbers lying between <span class="math inline">\(-\infty\)</span> and <span class="math inline">\(+\infty\)</span>. Figure <a href="ch-reg.html#fig:logisticfun">4.10</a> shows the logit link function, <span class="math inline">\(\eta = g(\theta)\)</span>, and the  inverse logit, <span class="math inline">\(\theta = g^{-1}(\eta)\)</span>, which is called the  <em>logistic function</em>; the relevance of this logistic function will become clear in a moment.</p>
+<div class="figure"><span style="display:block;" id="fig:logisticfun"/>
+<img src="../Images/2873acb86b825824d8c408312ae6bf16.png" alt="The logit and inverse logit (logistic) function." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/logisticfun-1.svg"/>
+<p class="caption">
+FIGURE 4.10: The logit and inverse logit (logistic) function.
+</p>
+</div>
+<p>The linear model is now fit not to the <span class="math inline">\(0\)</span>,<span class="math inline">\(1\)</span> responses as the dependent variable, but to <span class="math inline">\(\eta_n\)</span>, i.e., log-odds, as the dependent variable:</p>
+<p><span class="math display">\[\begin{equation}
+\eta_n = \log\left(\frac{\theta_n}{1-\theta_n}\right) = \alpha + \beta \cdot c\_set\_size
+\end{equation}\]</span></p>
+<p>Unlike linear models, the model is defined so that there is no residual error term (<span class="math inline">\(\varepsilon\)</span>) in this model. Once <span class="math inline">\(\eta_n\)</span> is estimated, one can solve the above equation for <span class="math inline">\(\theta_n\)</span> (in other words, we compute the inverse of the logit function and obtain the estimates on the probability scale). This gives the above-mentioned logistic regression function:</p>
+<p><span class="math display">\[\begin{equation}
+\theta_n = g^{-1}(\eta_n) =  \frac{\exp(\eta_n)}{1+\exp(\eta_n)} = \frac{1}{1+exp(-\eta_n)}
+\end{equation}\]</span></p>
+<p>The last equality in the equation above arises by dividing both the numerator and denominator by <span class="math inline">\(\exp(\eta_n)\)</span>.</p>
+<p>In summary, the generalized linear model with the logit link fits the following Bernoulli likelihood:</p>
+<p><span class="math display" id="eq:bernoullilogislik">\[\begin{equation}
+correct_n \sim \mathit{Bernoulli}(\theta_n)
+\tag{4.3}
+\end{equation}\]</span></p>
+<p>The model is fit on the log-odds scale, <span class="math inline">\(\eta_n = \alpha + c\_set\_size_n \cdot \beta\)</span>.
+Once <span class="math inline">\(\eta_n\)</span> has been estimated, the inverse logit or the logistic function is used to compute the probability estimates
+<span class="math inline">\(\theta_n = \frac{\exp(\eta_n)}{1+\exp(\eta_n)}\)</span>. An example of this calculation will be shown in the next section.</p>
+</div>
+<div id="sec-priorslogisticregression" class="section level3 hasAnchor" number="4.3.2">
+<h3><span class="header-section-number">4.3.2</span> Priors for the logistic regression<a href="ch-reg.html#sec-priorslogisticregression" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>In order to decide on priors for <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span>, we need to take into account that these parameters do not represent probabilities or proportions, but <em>log-odds</em>, the x-axis in Figure <a href="ch-reg.html#fig:logisticfun">4.10</a> (right-hand side figure). As shown in the figure, the relationship between log-odds and probabilities is not linear.</p>
+<p>There are two functions in R that implement the logit and inverse logit functions:  <code>qlogis(p)</code> for the logit function and  <code>plogis(x)</code> for the inverse logit or logistic function.</p>
+<p>Now we need to set priors for <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span>.
+Given that we centered our predictor, the intercept, <span class="math inline">\(\alpha\)</span>, represents the log-odds of correctly recalling one word in a random position for the average set size of five (since <span class="math inline">\(5 = \frac{2+4+6+8}{4}\)</span>), which, incidentally, was not presented in the experiment. This is one case where the intercept doesn’t have a clear interpretation if we leave the prediction uncentered: With  non-centered set size, the intercept will be the log-odds of recalling one word in a set of <em>zero</em> words, which obviously makes no sense.</p>
+<p>The prior for <span class="math inline">\(\alpha\)</span> will depend on how difficult the recall task is. We could assume that the probability of recalling a word for an average set size, <span class="math inline">\(\alpha\)</span>, is centered at <span class="math inline">\(0.5\)</span> (a <span class="math inline">\(50/50\)</span> chance) with a great deal of uncertainty. The R command <code>qlogis(0.5)</code> tells us that <span class="math inline">\(0.5\)</span> corresponds to zero in log-odds space. How do we include a great deal of uncertainty? We could look at Figure <a href="ch-reg.html#fig:logisticfun">4.10</a>, and decide on a standard deviation of <span class="math inline">\(4\)</span> in a normal distribution centered at zero:</p>
+<p><span class="math display">\[\begin{equation}
+\alpha \sim \mathit{Normal}(0, 4) 
+\end{equation}\]</span></p>
+<p>Let’s plot this prior in log-odds and in probability scale by drawing random samples.</p>
+
+<div class="sourceCode" id="cb195"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb195-1"><a href="ch-reg.html#cb195-1" aria-hidden="true"/>samples_log_odds &lt;-<span class="st"> </span><span class="kw">tibble</span>(<span class="dt">log_odds =</span> <span class="kw">rnorm</span>(<span class="dv">100000</span>, <span class="dv">0</span>, <span class="dv">4</span>))</span>
+<span id="cb195-2"><a href="ch-reg.html#cb195-2" aria-hidden="true"/>samples_p &lt;-<span class="st"> </span><span class="kw">tibble</span>(<span class="dt">p =</span> <span class="kw">plogis</span>(<span class="kw">rnorm</span>(<span class="dv">100000</span>, <span class="dv">0</span>, <span class="dv">4</span>)))</span>
+<span id="cb195-3"><a href="ch-reg.html#cb195-3" aria-hidden="true"/><span class="kw">ggplot</span>(samples_log_odds, <span class="kw">aes</span>(log_odds)) <span class="op">+</span></span>
+<span id="cb195-4"><a href="ch-reg.html#cb195-4" aria-hidden="true"/><span class="st">  </span><span class="kw">geom_density</span>()</span>
+<span id="cb195-5"><a href="ch-reg.html#cb195-5" aria-hidden="true"/><span class="kw">ggplot</span>(samples_p, <span class="kw">aes</span>(p)) <span class="op">+</span></span>
+<span id="cb195-6"><a href="ch-reg.html#cb195-6" aria-hidden="true"/><span class="st">  </span><span class="kw">geom_density</span>()</span></code></pre></div>
+<div class="figure"><span style="display:block;" id="fig:logoddspriorsf"/>
+<img src="../Images/f0b3bf6c45667d407fd1f47aac284c82.png" alt="The prior for \(\alpha \sim \mathit{Normal}(0, 4)\) in log-odds and in probability space." width="45%" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/logoddspriorsf-1.svg"/><img src="../Images/ab7f1909aa759fb5595ff696dbbba936.png" alt="The prior for \(\alpha \sim \mathit{Normal}(0, 4)\) in log-odds and in probability space." width="45%" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/logoddspriorsf-2.svg"/>
+<p class="caption">
+FIGURE 4.11: The prior for <span class="math inline">\(\alpha \sim \mathit{Normal}(0, 4)\)</span> in log-odds and in probability space.
+</p>
+</div>
+<p>Figure <a href="ch-reg.html#fig:logoddspriorsf">4.11</a> shows that our prior assigns more probability mass to extreme probabilities of recall than to intermediate values. Clearly, this is not what we intended.</p>
+<p>We could try several values for the standard deviation of the prior until we find a prior that make sense for us. Reducing the standard deviation to 1.5 seems to make sense as shown in Figure <a href="ch-reg.html#fig:logoddspriorsf2">4.12</a>.</p>
+<p><span class="math display">\[\begin{equation}
+\alpha \sim \mathit{Normal}(0, 1.5) 
+\end{equation}\]</span></p>
+
+<div class="figure"><span style="display:block;" id="fig:logoddspriorsf2"/>
+<img src="../Images/fdd547932e56b27f127ce6dc0fe40337.png" alt="Prior for \(\alpha \sim \mathit{Normal}(0, 1.5)\) in log-odds and in probability space." width="45%" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/logoddspriorsf2-1.svg"/><img src="../Images/bdea28cab39f2ca5b0a52da67b0cf147.png" alt="Prior for \(\alpha \sim \mathit{Normal}(0, 1.5)\) in log-odds and in probability space." width="45%" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/logoddspriorsf2-2.svg"/>
+<p class="caption">
+FIGURE 4.12: Prior for <span class="math inline">\(\alpha \sim \mathit{Normal}(0, 1.5)\)</span> in log-odds and in probability space.
+</p>
+</div>
+<p>We need to decide now on the prior for <span class="math inline">\(\beta\)</span>, the effect in log-odds of increasing the set size. We could choose a normal distribution centered on zero, reflecting our lack of any commitment regarding the direction of the effect. Let’s get some intuitions regarding different possible standard deviations for this prior, by testing the following distributions as priors:</p>
+<ol style="list-style-type: lower-alpha">
+<li><span class="math inline">\(\beta \sim \mathit{Normal}(0, 1)\)</span></li>
+<li><span class="math inline">\(\beta \sim \mathit{Normal}(0, .5)\)</span></li>
+<li><span class="math inline">\(\beta \sim \mathit{Normal}(0, .1)\)</span></li>
+<li><span class="math inline">\(\beta \sim \mathit{Normal}(0, .01)\)</span></li>
+<li><span class="math inline">\(\beta \sim \mathit{Normal}(0, .001)\)</span></li>
+</ol>
+<p>In principle, we could produce the prior predictive distributions using <code>brms</code> with <code>sample_prior = "only"</code> and then <code>predict()</code>. However, as mentioned before, <code>brms</code> also uses Stan’s Hamiltonian sampler for sampling from the priors, and this can lead to convergence problems when the priors are too uninformative (as in this case). We solve this issue by performing prior predictive checks directly in R using the <code>r*</code> family of functions (e.g., <code>rnorm()</code>, <code>rbinom()</code>, etc.) together with loops. This method is not as simple as using the convenient functions provided by <code>brms</code>, but it is very flexible and can be very powerful. We show the prior predictive distributions in Figure <a href="ch-reg.html#fig:priors4beta">4.13</a>; for the details on the implementation in R, see online section <a href="regression-models-with-brms---extended.html#app-priorR">A.5</a>.</p>
+<p>Figure <a href="ch-reg.html#fig:priors4beta">4.13</a> shows that, as expected, the priors are centered on zero. We see that the distribution of possible accuracies for the prior that has a standard deviation of <span class="math inline">\(1\)</span> is problematic: There is too much probability concentrated near <span class="math inline">\(0\)</span> and <span class="math inline">\(1\)</span> for set sizes of <span class="math inline">\(2\)</span> and <span class="math inline">\(8\)</span>. It’s hard to tell the differences between the other priors, and it might be more useful to look at the predicted differences in accuracy between set sizes in Figure <a href="ch-reg.html#fig:priors4beta2">4.14</a>.</p>
+
+<div class="figure"><span style="display:block;" id="fig:priors4beta"/>
+<img src="../Images/4d27156d8b8e6ae148130c2c493dddcf.png" alt="The prior predictive distributions of mean accuracy of the model defined in section 4.3, for different set sizes and different priors for \(\beta\)." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/priors4beta-1.svg"/>
+<p class="caption">
+FIGURE 4.13: The prior predictive distributions of mean accuracy of the model defined in section <a href="ch-reg.html#sec-logistic">4.3</a>, for different set sizes and different priors for <span class="math inline">\(\beta\)</span>.
+</p>
+</div>
+
+<div class="figure"><span style="display:block;" id="fig:priors4beta2"/>
+<img src="../Images/3f117e93c58beec21cec2865e943bb9a.png" alt="The prior predictive distributions of differences in mean accuracy between set sizes of the model defined in section 4.3 for different priors for \(\beta\)." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/priors4beta2-1.svg"/>
+<p class="caption">
+FIGURE 4.14: The prior predictive distributions of differences in mean accuracy between set sizes of the model defined in section <a href="ch-reg.html#sec-logistic">4.3</a> for different priors for <span class="math inline">\(\beta\)</span>.
+</p>
+</div>
+<p>If we are not sure whether the increase of set size could produce something between a null effect and a relatively large effect, we can choose the prior with a standard deviation of <span class="math inline">\(0.1\)</span>. Under this reasoning, we settle on the following priors:</p>
+<p><span class="math display">\[\begin{equation}
+\begin{aligned}
+\alpha &amp;\sim \mathit{Normal}(0, 1.5) \\
+\beta &amp;\sim \mathit{Normal}(0, 0.1) 
+\end{aligned}
+\end{equation}\]</span></p>
+</div>
+<div id="the-brms-model-2" class="section level3 hasAnchor" number="4.3.3">
+<h3><span class="header-section-number">4.3.3</span> The <code>brms</code> model<a href="ch-reg.html#the-brms-model-2" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>Having decided on the likelihood, the link function, and the priors, the model can now be fit using  <code>brms</code>. We need to specify that the family is <code>bernoulli()</code>, and the link is <code>logit</code>.</p>
+<div class="sourceCode" id="cb196"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb196-1"><a href="ch-reg.html#cb196-1" aria-hidden="true"/>fit_recall &lt;-</span>
+<span id="cb196-2"><a href="ch-reg.html#cb196-2" aria-hidden="true"/><span class="st">  </span><span class="kw">brm</span>(correct <span class="op">~</span><span class="st"> </span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span>c_set_size,</span>
+<span id="cb196-3"><a href="ch-reg.html#cb196-3" aria-hidden="true"/>      <span class="dt">data =</span> df_recall,</span>
+<span id="cb196-4"><a href="ch-reg.html#cb196-4" aria-hidden="true"/>      <span class="dt">family =</span> <span class="kw">bernoulli</span>(<span class="dt">link =</span> logit),</span>
+<span id="cb196-5"><a href="ch-reg.html#cb196-5" aria-hidden="true"/>      <span class="dt">prior =</span> <span class="kw">c</span>(<span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">0</span>, <span class="fl">1.5</span>), <span class="dt">class =</span> Intercept),</span>
+<span id="cb196-6"><a href="ch-reg.html#cb196-6" aria-hidden="true"/>                <span class="kw">prior</span>(<span class="kw">normal</span>(<span class="dv">0</span>, <span class="fl">0.1</span>), <span class="dt">class =</span> b, <span class="dt">coef =</span> c_set_size)))</span></code></pre></div>
+<p>Next, look at the summary of the posteriors of each of the parameters. Keep in mind that the parameters are in log-odds space:</p>
+<div class="sourceCode" id="cb197"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb197-1"><a href="ch-reg.html#cb197-1" aria-hidden="true"/><span class="kw">posterior_summary</span>(fit_recall,</span>
+<span id="cb197-2"><a href="ch-reg.html#cb197-2" aria-hidden="true"/>                  <span class="dt">variable =</span> <span class="kw">c</span>(<span class="st">"b_Intercept"</span>, <span class="st">"b_c_set_size"</span>))</span></code></pre></div>
+<pre><code>##              Estimate Est.Error   Q2.5   Q97.5
+## b_Intercept     1.934    0.3145  1.345  2.5808
+## b_c_set_size   -0.188    0.0852 -0.353 -0.0205</code></pre>
+<p>Inspecting <code>b_c_set_size</code>, we see that increasing the set size has a detrimental effect on recall, as we suspected.</p>
+<p>Plot the posteriors as well (Figure <a href="ch-reg.html#fig:posteriorsfitrecall">4.15</a>):</p>
+
+<div class="sourceCode" id="cb199"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb199-1"><a href="ch-reg.html#cb199-1" aria-hidden="true"/><span class="kw">plot</span>(fit_recall)</span></code></pre></div>
+<div class="figure"><span style="display:block;" id="fig:posteriorsfitrecall"/>
+<img src="../Images/607567d3f923e2fb268c121d590504ed.png" alt="The posterior distributions of the parameters in the brms model fit_recall, along with the corresponding traceplots." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/posteriorsfitrecall-1.svg"/>
+<p class="caption">
+FIGURE 4.15: The posterior distributions of the parameters in the <code>brms</code> model <code>fit_recall</code>, along with the corresponding traceplots.
+</p>
+</div>
+<p>Next, we turn to the question of what we can report as our results, and what we can conclude from the data.</p>
+</div>
+<div id="sec-comlogis" class="section level3 hasAnchor" number="4.3.4">
+<h3><span class="header-section-number">4.3.4</span> How to communicate the results?<a href="ch-reg.html#sec-comlogis" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>Here, we are in a situation analogous to the one we saw earlier with the log-normal model. If we want to talk about the effect estimated by the model in log-odds space, we summarize the  posterior of <span class="math inline">\(\beta\)</span> in the following way: <span class="math inline">\(\hat\beta = -0.188\)</span>, 95% CrI = <span class="math inline">\([ -0.353 , -0.021 ]\)</span>.</p>
+<p>However, the effect is easier to understand in proportions rather than in log-odds. Let’s look at the average accuracy for the task first:</p>
+<div class="sourceCode" id="cb200"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb200-1"><a href="ch-reg.html#cb200-1" aria-hidden="true"/>alpha_samples &lt;-<span class="st"> </span><span class="kw">as_draws_df</span>(fit_recall)<span class="op">$</span>b_Intercept</span>
+<span id="cb200-2"><a href="ch-reg.html#cb200-2" aria-hidden="true"/>av_accuracy &lt;-<span class="st"> </span><span class="kw">plogis</span>(alpha_samples)</span>
+<span id="cb200-3"><a href="ch-reg.html#cb200-3" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(av_accuracy), <span class="kw">quantile</span>(av_accuracy, <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##  mean  2.5% 97.5% 
+## 0.870 0.793 0.930</code></pre>
+<p>As before, to transform the effect of our manipulation to an easier to interpret scale (i.e., proportions), we need to take into account that the scale is not linear, and that the effect of increasing the set size depends on the average accuracy, and the set size that we start from.</p>
+<p>We can do the following calculation, similar to what we did for the trial effects experiment, to find out the decrease in accuracy in proportions or probability scale:</p>
+<div class="sourceCode" id="cb202"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb202-1"><a href="ch-reg.html#cb202-1" aria-hidden="true"/>beta_samples &lt;-<span class="st"> </span><span class="kw">as_draws_df</span>(fit_recall)<span class="op">$</span>b_c_set_size</span>
+<span id="cb202-2"><a href="ch-reg.html#cb202-2" aria-hidden="true"/>effect_middle &lt;-<span class="st"> </span><span class="kw">plogis</span>(alpha_samples) <span class="op">-</span></span>
+<span id="cb202-3"><a href="ch-reg.html#cb202-3" aria-hidden="true"/><span class="st">  </span><span class="kw">plogis</span>(alpha_samples <span class="op">-</span><span class="st"> </span>beta_samples)</span>
+<span id="cb202-4"><a href="ch-reg.html#cb202-4" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(effect_middle),</span>
+<span id="cb202-5"><a href="ch-reg.html#cb202-5" aria-hidden="true"/>  <span class="kw">quantile</span>(effect_middle, <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##     mean     2.5%    97.5% 
+## -0.01910 -0.03746 -0.00236</code></pre>
+<p>Notice the interpretation here, if we increase the set size from the average set size minus one to the average set size, we get a reduction in the accuracy of recall of <span class="math inline">\(-0.019\)</span>, 95% CrI = <span class="math inline">\([ -0.037 , -0.002 ]\)</span>. Recall that the average set size, 5, was not presented to the subject! We could alternatively look at the decrease in accuracy from a set size of <span class="math inline">\(2\)</span> to <span class="math inline">\(4\)</span>:</p>
+<div class="sourceCode" id="cb204"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb204-1"><a href="ch-reg.html#cb204-1" aria-hidden="true"/>four &lt;-<span class="st"> </span><span class="dv">4</span> <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(df_recall<span class="op">$</span>set_size)</span>
+<span id="cb204-2"><a href="ch-reg.html#cb204-2" aria-hidden="true"/>two &lt;-<span class="st"> </span><span class="dv">2</span> <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(df_recall<span class="op">$</span>set_size)</span>
+<span id="cb204-3"><a href="ch-reg.html#cb204-3" aria-hidden="true"/>effect_4m2 &lt;-</span>
+<span id="cb204-4"><a href="ch-reg.html#cb204-4" aria-hidden="true"/><span class="st">  </span><span class="kw">plogis</span>(alpha_samples <span class="op">+</span><span class="st"> </span>four <span class="op">*</span><span class="st"> </span>beta_samples) <span class="op">-</span></span>
+<span id="cb204-5"><a href="ch-reg.html#cb204-5" aria-hidden="true"/><span class="st">  </span><span class="kw">plogis</span>(alpha_samples <span class="op">+</span><span class="st"> </span>two <span class="op">*</span><span class="st"> </span>beta_samples)</span>
+<span id="cb204-6"><a href="ch-reg.html#cb204-6" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(effect_4m2), </span>
+<span id="cb204-7"><a href="ch-reg.html#cb204-7" aria-hidden="true"/>  <span class="kw">quantile</span>(effect_4m2, <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##     mean     2.5%    97.5% 
+## -0.02963 -0.05429 -0.00461</code></pre>
+<p>We can also back-transform to probability scale using the function <code>fitted()</code> rather than using <code>plogis()</code>. One advantage is that this will work regardless of the type of link function; in this section we only discussed the logit link, but other link functions are possible to use in generalized linear models <span class="citation">(e.g., the probit link; see Dobson and Barnett <a href="#ref-dobson2011introduction" role="doc-biblioref">2011</a>)</span>.</p>
+<p>Since set size is the only predictor and it is centered, for estimating the average accuracy, we can consider an imaginary observation where the <code>c_set_size</code> is zero, which corresponds to an average set size. (If there were more centered predictors, we would need to set all of them to zero). Now we can use the <code>summary</code> argument provided by  <code>fitted()</code>.</p>
+<div class="sourceCode" id="cb206"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb206-1"><a href="ch-reg.html#cb206-1" aria-hidden="true"/><span class="kw">fitted</span>(fit_recall,</span>
+<span id="cb206-2"><a href="ch-reg.html#cb206-2" aria-hidden="true"/>       <span class="dt">newdata =</span> <span class="kw">data.frame</span>(<span class="dt">c_set_size =</span> <span class="dv">0</span>),</span>
+<span id="cb206-3"><a href="ch-reg.html#cb206-3" aria-hidden="true"/>       <span class="dt">summary =</span> <span class="ot">TRUE</span>)[,<span class="kw">c</span>(<span class="st">"Estimate"</span>, <span class="st">"Q2.5"</span>,<span class="st">"Q97.5"</span>)]</span></code></pre></div>
+<pre><code>## Estimate     Q2.5    Q97.5 
+##    0.870    0.793    0.930</code></pre>
+<p>For estimating the difference in accuracy from the average set size minus one to the average set size, and from a set size of two to four, first, define <code>newdata</code> with these set sizes.</p>
+<div class="sourceCode" id="cb208"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb208-1"><a href="ch-reg.html#cb208-1" aria-hidden="true"/>new_sets &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">c_set_size =</span> <span class="kw">c</span>(<span class="dv">0</span>, <span class="dv">-1</span>, four, two))</span>
+<span id="cb208-2"><a href="ch-reg.html#cb208-2" aria-hidden="true"/>set_sizes &lt;-<span class="st"> </span><span class="kw">fitted</span>(fit_recall,</span>
+<span id="cb208-3"><a href="ch-reg.html#cb208-3" aria-hidden="true"/>                 <span class="dt">newdata =</span> new_sets,</span>
+<span id="cb208-4"><a href="ch-reg.html#cb208-4" aria-hidden="true"/>                 <span class="dt">summary =</span> <span class="ot">FALSE</span>)</span></code></pre></div>
+<p>Then calculate the appropriate differences considering that column one of <code>set_sizes</code> corresponds to the average set size, column two to the average set size minus one, and so forth.</p>
+<div class="sourceCode" id="cb209"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb209-1"><a href="ch-reg.html#cb209-1" aria-hidden="true"/>effect_middle &lt;-<span class="st"> </span>set_sizes[, <span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>set_sizes[, <span class="dv">2</span>] </span>
+<span id="cb209-2"><a href="ch-reg.html#cb209-2" aria-hidden="true"/>effect_4m2 &lt;-<span class="st"> </span>set_sizes[, <span class="dv">3</span>] <span class="op">-</span><span class="st"> </span>set_sizes[, <span class="dv">4</span>] </span></code></pre></div>
+<p>Finally, calculate the summaries.</p>
+<div class="sourceCode" id="cb210"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb210-1"><a href="ch-reg.html#cb210-1" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(effect_middle), <span class="kw">quantile</span>(effect_middle, </span>
+<span id="cb210-2"><a href="ch-reg.html#cb210-2" aria-hidden="true"/>                                       <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##     mean     2.5%    97.5% 
+## -0.01910 -0.03746 -0.00236</code></pre>
+<div class="sourceCode" id="cb212"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb212-1"><a href="ch-reg.html#cb212-1" aria-hidden="true"/><span class="kw">c</span>(<span class="dt">mean =</span> <span class="kw">mean</span>(effect_4m2), <span class="kw">quantile</span>(effect_4m2, </span>
+<span id="cb212-2"><a href="ch-reg.html#cb212-2" aria-hidden="true"/>                                       <span class="kw">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>)))</span></code></pre></div>
+<pre><code>##     mean     2.5%    97.5% 
+## -0.02963 -0.05429 -0.00461</code></pre>
+<p>As expected, we get exactly the same values with <code>fitted()</code> as when we calculate them “by hand.”</p>
+</div>
+<div id="descriptive-adequacy-1" class="section level3 hasAnchor" number="4.3.5">
+<h3><span class="header-section-number">4.3.5</span>  Descriptive adequacy<a href="ch-reg.html#descriptive-adequacy-1" class="anchor-section" aria-label="Anchor link to header"/></h3>
+<p>One potentially useful aspect of posterior distributions is that we could also make predictions for other conditions not presented in the actual experiment, such as set sizes that weren’t tested. We could then carry out another experiment to investigate whether our model was right using another experiment. To make predictions for other set sizes, we extend our data set, adding rows with set sizes of <span class="math inline">\(3\)</span>, <span class="math inline">\(5\)</span>, and <span class="math inline">\(7\)</span>. To be consistent with the data of the other set sizes in the experiment, we add <span class="math inline">\(23\)</span> observations for each new set size (this is the number of observations by set size in the data set). Something important to notice is that <strong>we need to center our predictor based on the original mean set size</strong>. This is because we want to maintain our interpretation of the intercept. We extend the data as follows, and we summarize the data and plot it in Figure <a href="ch-reg.html#fig:postpredsum2">4.16</a>.</p>
+
+<div class="sourceCode" id="cb214"><pre class="sourceCode r fold-show"><code class="sourceCode r"><span id="cb214-1"><a href="ch-reg.html#cb214-1" aria-hidden="true"/>df_recall_ext &lt;-<span class="st"> </span>df_recall <span class="op">%&gt;%</span></span>
+<span id="cb214-2"><a href="ch-reg.html#cb214-2" aria-hidden="true"/><span class="st">  </span><span class="kw">bind_rows</span>(<span class="kw">tibble</span>(<span class="dt">set_size =</span> <span class="kw">rep</span>(<span class="kw">c</span>(<span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">7</span>), <span class="dv">23</span>),</span>
+<span id="cb214-3"><a href="ch-reg.html#cb214-3" aria-hidden="true"/>                   <span class="dt">c_set_size =</span> set_size <span class="op">-</span></span>
+<span id="cb214-4"><a href="ch-reg.html#cb214-4" aria-hidden="true"/><span class="st">                     </span><span class="kw">mean</span>(df_recall<span class="op">$</span>set_size),</span>
+<span id="cb214-5"><a href="ch-reg.html#cb214-5" aria-hidden="true"/>                   <span class="dt">correct =</span> <span class="dv">0</span>))</span>
+<span id="cb214-6"><a href="ch-reg.html#cb214-6" aria-hidden="true"/><span class="co"># nicer label for the facets:</span></span>
+<span id="cb214-7"><a href="ch-reg.html#cb214-7" aria-hidden="true"/>set_size &lt;-<span class="st"> </span><span class="kw">paste</span>(<span class="st">"set size"</span>, <span class="dv">2</span><span class="op">:</span><span class="dv">8</span>) <span class="op">%&gt;%</span></span>
+<span id="cb214-8"><a href="ch-reg.html#cb214-8" aria-hidden="true"/><span class="st">  </span><span class="kw">setNames</span>(<span class="op">-</span><span class="dv">3</span><span class="op">:</span><span class="dv">3</span>)</span>
+<span id="cb214-9"><a href="ch-reg.html#cb214-9" aria-hidden="true"/><span class="kw">pp_check</span>(fit_recall,</span>
+<span id="cb214-10"><a href="ch-reg.html#cb214-10" aria-hidden="true"/>         <span class="dt">type =</span> <span class="st">"stat_grouped"</span>,</span>
+<span id="cb214-11"><a href="ch-reg.html#cb214-11" aria-hidden="true"/>         <span class="dt">stat =</span> <span class="st">"mean"</span>,</span>
+<span id="cb214-12"><a href="ch-reg.html#cb214-12" aria-hidden="true"/>         <span class="dt">group =</span> <span class="st">"c_set_size"</span>,</span>
+<span id="cb214-13"><a href="ch-reg.html#cb214-13" aria-hidden="true"/>         <span class="dt">newdata =</span> df_recall_ext,</span>
+<span id="cb214-14"><a href="ch-reg.html#cb214-14" aria-hidden="true"/>         <span class="dt">facet_args =</span> <span class="kw">list</span>(<span class="dt">ncol =</span> <span class="dv">1</span>, <span class="dt">scales =</span> <span class="st">"fixed"</span>,</span>
+<span id="cb214-15"><a href="ch-reg.html#cb214-15" aria-hidden="true"/>                           <span class="dt">labeller =</span> <span class="kw">as_labeller</span>(set_size)),</span>
+<span id="cb214-16"><a href="ch-reg.html#cb214-16" aria-hidden="true"/>         <span class="dt">binwidth =</span> <span class="fl">0.02</span>)</span></code></pre></div>
+<div class="figure"><span style="display:block;" id="fig:postpredsum2"/>
+<img src="../Images/cd59016d72264d75b3e4cd9f1550c8df.png" alt="The distributions of posterior predicted mean accuracies for tested set sizes (2, 4, 6, and 8) and untested ones (3, 5, and 7) are labeled with \(y_{rep}\). The observed mean accuracy, \(y\), are only relevant for the tested set sizes 2, 4, 6, and 8); the “observed” accuracies of the untested set sizes are represented as 0." width="672" data-original-src="https://bruno.nicenboim.me/bayescogsci/bayescogsci_files/figure-html/postpredsum2-1.svg"/>
+<p class="caption">
+FIGURE 4.16: The distributions of posterior predicted mean accuracies for tested set sizes (2, 4, 6, and 8) and untested ones (3, 5, and 7) are labeled with <span class="math inline">\(y_{rep}\)</span>. The observed mean accuracy, <span class="math inline">\(y\)</span>, are only relevant for the tested set sizes 2, 4, 6, and 8); the “observed” accuracies of the untested set sizes are represented as 0.
+</p>
+</div>
+<p>We could now gather new data in an experiment that also shows set sizes of <span class="math inline">\(3\)</span>, <span class="math inline">\(5\)</span>, and <span class="math inline">\(7\)</span>. These data would be <em>held out</em> from the model <code>fit_recall</code>, since the model was fit when those data were not available. Verifying that the new observations fit in our already generated posterior predictive distribution would be a way to test genuine predictions from our model.</p>
+<p>Having seen how we can fit simple regression models, we turn to hierarchical models in the next chapter.</p>
+</div>
+</div>
+<div id="summary-3" class="section level2 hasAnchor" number="4.4">
+<h2><span class="header-section-number">4.4</span> Summary<a href="ch-reg.html#summary-3" class="anchor-section" aria-label="Anchor link to header"/></h2>
+<p>In this chapter, we learned how to fit simple linear regression models and to fit and interpret models with a log-normal likelihood and logistic regression models. We investigated the prior specification for the models, using prior predictive checks, and the descriptive adequacy of the models using posterior predictive checks.</p>
+</div>
+<div id="sec-ch4furtherreading" class="section level2 hasAnchor" number="4.5">
+<h2><span class="header-section-number">4.5</span> Further reading<a href="ch-reg.html#sec-ch4furtherreading" class="anchor-section" aria-label="Anchor link to header"/></h2>
+<p>Linear regression is discussed in several classic textbooks; these have largely a frequentist orientation, but the basic theory of linear modeling presented there can easily be extended to the Bayesian framework. An accessible textbook is by <span class="citation">Dobson and Barnett (<a href="#ref-dobson2011introduction" role="doc-biblioref">2011</a>)</span>. Other useful textbooks on linear modeling are <span class="citation">Harrell Jr. (<a href="#ref-harrell2015regression" role="doc-biblioref">2015</a>)</span>, <span class="citation">Faraway (<a href="#ref-faraway2016extending" role="doc-biblioref">2016</a>)</span>, <span class="citation">Fox (<a href="#ref-fox2015applied" role="doc-biblioref">2015</a>)</span>, and <span class="citation">Montgomery, Peck, and Vining (<a href="#ref-monty" role="doc-biblioref">2012</a>)</span>.</p>
+
+</div>
+</div>
+<h3>References</h3>
+<div id="refs" class="references hanging-indent">
+<div id="ref-Blumberg2015">
+<p>Blumberg, Eric J., Matthew S. Peterson, and Raja Parasuraman. 2015. “Enhancing Multiple Object Tracking Performance with Noninvasive Brain Stimulation: A Causal Role for the Anterior Intraparietal Sulcus.” <em>Frontiers in Systems Neuroscience</em> 9: 3. <a href="https://doi.org/10.3389/fnsys.2015.00003">https://doi.org/10.3389/fnsys.2015.00003</a>.</p>
+</div>
+<div id="ref-Buerki2022">
+<p>Bürki, Audrey, Francois-Xavier Alario, and Shravan Vasishth. 2023. “When Words Collide: Bayesian Meta-Analyses of Distractor and Target Properties in the Picture-Word Interference Paradigm.” <em>Quarterly Journal of Experimental Psychology</em> 76 (6): 1410–30. <a href="https://doi.org/https://doi.org/10.1177/17470218221114644">https://doi.org/https://doi.org/10.1177/17470218221114644</a>.</p>
+</div>
+<div id="ref-BuerkiEtAl2020">
+<p>Bürki, Audrey, Shereen Elbuy, Sylvain Madec, and Shravan Vasishth. 2020. “What Did We Learn from Forty Years of Research on Semantic Interference? A Bayesian Meta-Analysis.” <em>Journal of Memory and Language</em> 114. <a href="https://doi.org/10.1016/j.jml.2020.104125">https://doi.org/10.1016/j.jml.2020.104125</a>.</p>
+</div>
+<div id="ref-cox2022bayesian">
+<p>Cox, Christopher Martin Mikkelsen, Tamar Keren-Portnoy, Andreas Roepstorff, and Riccardo Fusaroli. 2022. “A Bayesian Meta-Analysis of Infants’ Ability to Perceive Audio–Visual Congruence for Speech.” <em>Infancy</em> 27 (1): 67–96.</p>
+</div>
+<div id="ref-dobson2011introduction">
+<p>Dobson, Annette J., and Adrian Barnett. 2011. <em>An Introduction to Generalized Linear Models</em>. CRC Press.</p>
+</div>
+<div id="ref-faraway2016extending">
+<p>Faraway, Julian James. 2016. <em>Extending the Linear Model with R: Generalized Linear, Mixed Effects and Nonparametric Regression Models</em>. Chapman; Hall/CRC.</p>
+</div>
+<div id="ref-fox2015applied">
+<p>Fox, John. 2015. <em>Applied Regression Analysis and Generalized Linear Models</em>. Sage Publications.</p>
+</div>
+<div id="ref-harrell2015regression">
+<p>Harrell Jr., Frank E. 2015. <em>Regression Modeling Strategies: With Applications to Linear Models, Logistic and Ordinal Regression, and Survival Analysis</em>. New York, NY: Springer.</p>
+</div>
+<div id="ref-hayesMappingCorrectingInfluence2016">
+<p>Hayes, Taylor R., and Alexander A. Petrov. 2016. “Mapping and Correcting the Influence of Gaze Position on Pupil Size Measurements.” <em>Behavior Research Methods</em> 48 (2): 510–27. <a href="https://doi.org/10.3758/s13428-015-0588-x">https://doi.org/10.3758/s13428-015-0588-x</a>.</p>
+</div>
+<div id="ref-JaegerEngelmannVasishth2017">
+<p>Jäger, Lena A., Felix Engelmann, and Shravan Vasishth. 2017. “Similarity-Based Interference in Sentence Comprehension: Literature review and Bayesian meta-analysis.” <em>Journal of Memory and Language</em> 94: 316–39. <a href="https://doi.org/https://doi.org/10.1016/j.jml.2017.01.004">https://doi.org/https://doi.org/10.1016/j.jml.2017.01.004</a>.</p>
+</div>
+<div id="ref-mahowald2016meta">
+<p>Mahowald, Kyle, Ariel James, Richard Futrell, and Edward Gibson. 2016. “A Meta-Analysis of Syntactic Priming in Language Production.” <em>Journal of Memory and Language</em> 91: 5–27. <a href="https://doi.org/https://doi.org/10.1016/j.jml.2016.03.009">https://doi.org/https://doi.org/10.1016/j.jml.2016.03.009</a>.</p>
+</div>
+<div id="ref-mathotPupillometryPsychologyPhysiology2018">
+<p>Mathot, Sebastiaan. 2018. “Pupillometry: Psychology, Physiology, and Function.” <em>Journal of Cognition</em> 1 (1): 16. <a href="https://doi.org/10.5334/joc.18">https://doi.org/10.5334/joc.18</a>.</p>
+</div>
+<div id="ref-monty">
+<p>Montgomery, D. C., E. A. Peck, and G. G. Vining. 2012. <em>An Introduction to Linear Regression Analysis</em>. 5th ed. Hoboken, NJ: Wiley.</p>
+</div>
+<div id="ref-NicenboimRoettgeretal">
+<p>Nicenboim, Bruno, Timo B. Roettger, and Shravan Vasishth. 2018. “Using Meta-Analysis for Evidence Synthesis: The case of incomplete neutralization in German.” <em>Journal of Phonetics</em> 70: 39–55. <a href="https://doi.org/https://doi.org/10.1016/j.wocn.2018.06.001">https://doi.org/https://doi.org/10.1016/j.wocn.2018.06.001</a>.</p>
+</div>
+<div id="ref-oberauerWorkingMemoryCapacity2019">
+<p>Oberauer, Klaus. 2019. “Working Memory Capacity Limits Memory for Bindings.” <em>Journal of Cognition</em> 2 (1): 40. <a href="https://doi.org/10.5334/joc.86">https://doi.org/10.5334/joc.86</a>.</p>
+</div>
+<div id="ref-oberauerkliegel2001">
+<p>Oberauer, Klaus, and Reinhold Kliegl. 2001. “Beyond Resources: Formal Models of Complexity Effects and Age Differences in Working Memory.” <em>European Journal of Cognitive Psychology</em> 13 (1-2): 187–215. <a href="https://doi.org/10.1080/09541440042000278">https://doi.org/10.1080/09541440042000278</a>.</p>
+</div>
+<div id="ref-pylyshynTrackingMultipleIndependent1988">
+<p>Pylyshyn, Zenon W., and Ron W. Storm. 1988. “Tracking Multiple Independent Targets: Evidence for a Parallel Tracking Mechanism.” <em>Spatial Vision</em> 3 (3): 179–97. <a href="https://doi.org/10.1163/156856888X00122">https://doi.org/10.1163/156856888X00122</a>.</p>
+</div>
+<div id="ref-Royall">
+<p>Royall, Richard. 1997. <em>Statistical Evidence: A Likelihood Paradigm</em>. New York: Chapman; Hall, CRC Press.</p>
+</div>
+<div id="ref-spectorPupils1990">
+<p>Spector, Robert H. 1990. “The Pupils.” In <em>Clinical Methods: The History, Physical, and Laboratory Examinations</em>, edited by H. Kenneth Walker, W. Dallas Hall, and J. Willis Hurst, 3rd ed. Boston: Butterworths.</p>
+</div>
+<div id="ref-VasishthetalPLoSOne2013">
+<p>Vasishth, Shravan, Zhong Chen, Qiang Li, and Gueilan Guo. 2013. “Processing Chinese Relative Clauses: Evidence for the Subject-Relative Advantage.” <em>PLoS ONE</em> 8 (10): 1–14. <a href="https://doi.org/https://doi.org/10.1371/journal.pone.0077006">https://doi.org/https://doi.org/10.1371/journal.pone.0077006</a>.</p>
+</div>
+<div id="ref-wahnPupilSizesScale2016">
+<p>Wahn, Basil, Daniel P. Ferris, W. David Hairston, and Peter König. 2016. “Pupil Sizes Scale with Attentional Load and Task Experience in a Multiple Object Tracking Task.” <em>PLOS ONE</em> 11 (12): e0168087. <a href="https://doi.org/10.1371/journal.pone.0168087">https://doi.org/10.1371/journal.pone.0168087</a>.</p>
+</div>
+</div>
+<div class="footnotes">
+<hr/>
+<ol start="17">
+<li id="fn17"><p>The description of the procedure in the <span class="citation">Wahn et al. (<a href="#ref-wahnPupilSizesScale2016" role="doc-biblioref">2016</a>)</span> paper is as follows: “At the beginning of a trial, all objects were shown for two seconds. Then, a subset of objects turned gray for two seconds, indicating the targets and then reverted back to look like all the other objects. After an additional 500 ms, objects started to move and participants were instructed to track the targets. While objects were moving, they repelled each other and bounced off the screen borders.”<a href="ch-reg.html#fnref17" class="footnote-back">↩︎</a></p></li>
+<li id="fn18"><p>The average pupil size will probably be higher than 800, since this measurement was with no load, but, in any case, the exact number won’t matter, any mean for the prior between 500-1500 would be fine if the standard deviation is large.<a href="ch-reg.html#fnref18" class="footnote-back">↩︎</a></p></li>
+<li id="fn19"><p>Odds are defined to be the ratio of the probability of success to the probability of failure. For example, the odds of obtaining a one in a fair six-sided die are <span class="math inline">\(\frac{1/6}{1-1/6}=1/5\)</span>. The odds of obtaining a heads in a fair coin are <span class="math inline">\(1/1\)</span>. Do not confuse this technical term with the day-to-day usage of the word “odds” to mean probability.<a href="ch-reg.html#fnref19" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
+                
+</body>
+</html>
