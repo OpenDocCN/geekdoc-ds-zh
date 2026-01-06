@@ -1,0 +1,1687 @@
+- en: Chapter 3 Computational Bayesian data analysis
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://bruno.nicenboim.me/bayescogsci/ch-compbda.html](https://bruno.nicenboim.me/bayescogsci/ch-compbda.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In the previous chapter, we learned how to analytically derive the posterior
+    distribution of the parameters in our model. In practice, however, this is possible
+    for only a very limited number of cases. Although the numerator in Bayes’ rule,
+    the unnormalized posterior, is easy to calculate (by multiplying the likelihood
+    and the probability density/mass function), the denominator, the marginal likelihood,
+    requires us to carry out an integration; see Equation [(3.1)](ch-compbda.html#eq:bayesbrms).
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} p(\boldsymbol{\Theta}|\boldsymbol{y}) &=
+    \cfrac{ p(\boldsymbol{y}|\boldsymbol{\Theta}) \cdot p(\boldsymbol{\Theta}) }{p(\boldsymbol{y})}\\
+    p(\boldsymbol{\Theta}|\boldsymbol{y}) &= \cfrac{ p(\boldsymbol{y}|\boldsymbol{\Theta})
+    \cdot p(\boldsymbol{\Theta}) }{\int_{\boldsymbol{\Theta}} p(\boldsymbol{y}|\boldsymbol{\Theta})
+    \cdot p(\boldsymbol{\Theta}) d\boldsymbol{\Theta} } \end{aligned} \tag{3.1} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unless we are dealing with conjugate distributions, the solution will be extremely
+    hard to derive or there will be no analytical solution. This was the major bottleneck
+    of Bayesian analysis in the past, and required Bayesian practitioners to program
+    an approximation method by themselves before they could even begin the Bayesian
+    analysis. Fortunately, many of the probabilistic programming languages freely
+    available today (see the next section for a listing) allow us to define our models
+    without having to acquire expert knowledge about the relevant numerical techniques.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.1 Deriving the posterior through sampling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s say that we want to derive the posterior of the model from section [2.2](ch-introBDA.html#sec-analytical),
+    that is, the posterior distribution of the cloze probability of “*umbrella*,”
+    \(\theta\), given the following data: a word (e.g., “*umbrella*”) was answered
+    80 out of 100 times, and assuming a binomial distribution as the likelihood function,
+    and \(\mathit{Beta}(a=4,b=4)\) as a prior distribution for the cloze probability.
+    If we can generate samples[⁹](#fn9) from the posterior distribution of \(\theta\),
+    instead of an analytically derived posterior distribution, given enough samples
+    we will have a good approximation of the posterior distribution. Obtaining samples
+    from the posterior will be the only viable option in the models that we will discuss
+    in this book. By “obtaining samples,” we are talking about a situation analogous
+    to when we use `rbinom()` or `rnorm()` to obtain samples from a particular distribution.
+    For more details about sampling algorithms, see the section Further Reading (section
+    [3.10](ch-compbda.html#sec-ch3furtherreading)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thanks to probabilistic programming languages, it will be relatively straightforward
+    to get these samples, and we will discuss how we will do it in more detail in
+    the next section. For now let’s assume that we used some probabilistic programming
+    language to obtain 20000 samples from the posterior distribution of the cloze
+    probability, \(\theta\): 0.782, 0.722, 0.782, 0.727, 0.839, 0.828, 0.769, 0.806,
+    0.839, 0.832, 0.728, 0.805, 0.764, 0.756, 0.791, 0.739, 0.774, 0.758, 0.815, 0.808,
+    . Figure [3.1](ch-compbda.html#fig:betapost) shows that the approximation of the
+    posterior looks quite similar to the analytically derived posterior. The difference
+    between the analytically computed and approximated mean and variance are \(-0.0001\)
+    and \(0.000003\) respectively.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Histogram of the samples of \(\theta\) from the posterior distribution generated
+    via sampling. The black line shows the density plot of the analytically derived
+    posterior.](../Images/ed657f238dd81d502c9e96e015f32093.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.1: Histogram of the samples of \(\theta\) from the posterior distribution
+    generated via sampling. The black line shows the density plot of the analytically
+    derived posterior.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '3.2 Bayesian Regression Models using Stan: brms'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The surge in popularity of Bayesian statistics is closely tied to the increase
+    in computing power and the appearance of probabilistic programming languages,
+    such as WinBUGS (Lunn et al. [2000](#ref-lunn2000winbugs)), JAGS (Plummer [2016](#ref-plummer2016jags)),
+    PyMC3 (Salvatier, Wiecki, and Fonnesbeck [2016](#ref-Salvatier2016)), Turing (Ge,
+    Xu, and Ghahramani [2018](#ref-turing)), and Stan (Carpenter et al. [2017](#ref-carpenter2017stan));
+    for a historical review, see Plummer ([2022](#ref-plummer2022simulation)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: These probabilistic programming languages allow the user to define models without
+    having to deal (for the most part) with the complexities of the sampling process.
+    However, they require learning a new language since the user has to fully specify
+    the statistical model using a particular syntax.[^(10)](#fn10) Furthermore, some
+    knowledge of the sampling process is needed to correctly parameterize the models
+    and to avoid convergence issues (these topics will be covered in detail in chapter
+    [9](ch-complexstan.html#ch-complexstan)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are some alternatives that allow Bayesian inference in R without having
+    to fully specify the model “by hand.” The R packages `rstanarm` (Goodrich et al.
+    [2018](#ref-rstanarm)) and `brms` (Bürkner [2024](#ref-R-brms)) provide Bayesian
+    equivalents of many popular R model-fitting functions, such as (g)lmer (Bates,
+    Mächler, et al. [2015](#ref-R-lme4)) and many others; both `rstanarm` and `brms`
+    use Stan as the back-end for estimation and sampling. The package R-INLA (Lindgren
+    and Rue [2015](#ref-lindgren2015bayesian)) allows for fitting a limited selection
+    of likelihood functions and priors in comparison to `rstanarm` and `brms` (R-INLA
+    can fit models that can be expressed as latent Gaussian models). This package
+    uses the integrated nested Laplace approximation (INLA) method for carrying out
+    Bayesian inference, rather than a sampling algorithm as in the other probabilistic
+    languages listed above. Another alternative is JASP (JASP Team [2019](#ref-JASP2019)),
+    which provides a graphical user interface for both frequentist and Bayesian modeling,
+    and is intended to be an open-source alternative to SPSS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will focus on `brms` in this part of the book. This is because it can be
+    useful for a smooth transition from frequentist models to their Bayesian equivalents.
+    The package `brms` is not only powerful enough to satisfy the statistical needs
+    of many cognitive scientists, it has the added benefit that the Stan code can
+    be inspected (with the `brms` functions `make_stancode()` and `make_standata()`),
+    allowing the user to customize their models or learn from the code produced internally
+    by `brms` to eventually transition to writing the models entirely in Stan. In
+    the introduction to Stan in chapter [8](ch-introstan.html#ch-introstan), we implement
+    in Stan the models presented in the current and the following chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '3.2.1 A simple linear model: A single subject pressing a button repeatedly
+    (a finger tapping task)'
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'To illustrate the basic steps for fitting a model using `brms`, consider the
+    following example of a finger tapping task (for a review, see Hubel et al. [2013](#ref-hubel2013computerized)).
+    Suppose that a subject first sees a blank screen. Then, after a certain amount
+    of time (say \(200\) ms), the subject sees a cross in the middle of a screen,
+    and as soon as they see the cross, they tap on the space bar as fast as they can
+    until the experiment is over (\(361\) trials). The dependent measure here is the
+    time it takes in milliseconds from one press of the space bar to the next one.
+    The data in each trial are therefore finger tapping times in milliseconds. Suppose
+    that the research question is: how long does it take for this particular subject
+    to press a key?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s model the data with the following assumptions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is a true (unknown) underlying time, \(\mu\) ms, that the subject needs
+    to press the space bar.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There is some noise in this process.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The noise is normally distributed (this assumption is questionable given that
+    finger tapping as also response times are generally skewed; we will fix this assumption
+    later).[^(11)](#fn11)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'This means that the likelihood for each observation \(n\) will be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} t_n \sim \mathit{Normal}(\mu, \sigma) \tag{3.2} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where \(n =1, \ldots, N\), and \(t\) is the dependent variable (finger tapping
+    times in milliseconds). The variable \(N\) indexes the total number of data points.
+    The symbol \(\mu\) indicates the *location* of the normal distribution function;
+    the location parameter shifts the distribution left or right on the horizontal
+    axis. For the normal distribution, the location is also the mean of the distribution.
+    The symbol \(\sigma\) indicates the *scale* of the distribution; as the scale
+    decreases, the distribution gets narrower. This compressing approaches a spike
+    (all the probability mass get concentrated near one point) as the scale parameter
+    approaches zero. For the normal distribution, the scale is also its standard deviation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The reader may have encountered the model shown in Equation [(3.2)](ch-compbda.html#eq:rtlik)
+    in the form shown in Equation [(3.3)](ch-compbda.html#eq:rtlikLM):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} t_n = \mu + \varepsilon_n \hbox{, where } \varepsilon_n \stackrel{iid}{\sim}
+    \mathit{Normal}(0,\sigma) \tag{3.3} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the model is written in this way, it should be understood as meaning that
+    each data point \(t_n\) has some variability around a mean value \(\mu\), and
+    that variability has standard deviation \(\sigma\). The term “iid” (independent
+    and identically distributed) implies that the residuals are independently generated
+    (they are not correlated with any of the other residual values). The statement
+    of the model in Equation [(3.3)](ch-compbda.html#eq:rtlikLM) is exactly the same
+    as saying that the observed data points \(t_n\) are iid and are coming from the
+    \(Normal(\mu,\sigma)\) distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For a frequentist model that will give us the maximum likelihood estimate (the
+    sample mean) of the time it takes to press the space bar, this would be enough
+    information to write the formula in R, `t ~ 1`, and plug it into the function
+    `lm()` together with the data: `lm(t ~ 1, data)`. The meaning of the `1` here
+    is that `lm()` will estimate the intercept in the model, which is the estimate
+    of \(\mu\) in our example. If the reader is completely unfamiliar with linear
+    models, the references in section [4.5](ch-reg.html#sec-ch4furtherreading) will
+    be helpful.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For a Bayesian linear model, we will also need to define priors for the two
+    parameters in our model. Let’s say that we know for sure that the time it takes
+    to press a key will be positive and lower than a minute (or \(60000\) ms), but
+    we don’t want to make a commitment regarding which values are more likely. We
+    encode what we know about the noise in the task in \(\sigma\): we know that this
+    parameter must be positive and we’ll assume that any value below \(2000\) ms is
+    equally likely. These priors are in general strongly discouraged: A flat (or very
+    wide) prior will almost never be the best approximation of what we know. Prior
+    specification is discussed in detail in the online chapter [E](ch-priors.html#ch-priors).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this case, even if we know very little about the task, we know that pressing
+    the spacebar will take at most a couple of seconds. We’ll start with flat priors
+    in this section for pedagogical purposes; the next sections will already show
+    more realistic uses of priors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} \mu &\sim \mathit{Uniform}(0, 60000) \\ \sigma
+    &\sim \mathit{Uniform}(0, 2000) \end{aligned} \tag{3.4} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, load the data frame `df_spacebar` from the `bcogsci` package:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is always a good idea to plot the data before doing anything else; see Figure
+    [3.2](ch-compbda.html#fig:m1visualize). As we suspected, the data look a bit skewed,
+    but we ignore this for the moment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Visualizing the button-press data.](../Images/b14a590009b985b0df7a58a9b31ed27c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.2: Visualizing the button-press data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.2.1.1 Specifying the model in `brms`
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Fit the model defined by equations [(3.2)](ch-compbda.html#eq:rtlik) and [(3.4)](ch-compbda.html#eq:rtpriors)
+    with `brms` in the following way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `brms` code has some differences from a model fit with `lm()`. At this
+    beginning stage, we’ll focus on the following options:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The term `family = gaussian()` makes it explicit that the underlying likelihood
+    function is a normal distribution (Gaussian and normal are synonyms). This detail
+    is implicit in the R function `lm()`. Other linking functions are possible, exactly
+    as in the `glm()` function in R. The default for `brms` that corresponds to the
+    `lm()` function is `family = gaussian()`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The term `prior` takes as argument a list of prior specifications. Although
+    this specification of priors is optional, the researcher should always explicitly
+    specify each prior. Otherwise, `brms` will define priors by default, which may
+    or may not be appropriate for the research area. In cases where the distribution
+    has a restricted coverage, that is, not every value is valid (e.g., smaller than
+    \(0\) or larger than \(60000\) are not valid for the intercept), we need to set
+    lower and upper boundaries with `lb` and `ub`.[^(12)](#fn12)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The term `chains` refers to the number of independent runs for sampling (by
+    default four).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The term `iter` refers to the number of iterations that the sampler makes to
+    sample from the posterior distribution of each parameter (by default `2000`).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The term `warmup` refers to the number of iterations from the start of sampling
+    that are eventually discarded (by default half of `iter`).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The last three options, `chains`, `iter`, `warmup` determine the behavior of
+    the sampling algorithm: the No-U-Turn Sampler (NUTS; Hoffman and Gelman [2014](#ref-hoffmanNoUTurnSamplerAdaptively2014))
+    extension of Hamiltonian Monte Carlo (Duane et al. [1987](#ref-duaneHybridMonteCarlo1987);
+    Neal [2011](#ref-nealMCMCUsingHamiltonian2011)). We will discuss sampling in a
+    bit more depth in chapter [8](ch-introstan.html#ch-introstan), but the basic process
+    is explained next.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.2.1.2 Sampling and convergence in a nutshell
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'The following is a gross oversimplification of the sampling process: The code
+    specification starts (by default) four chains independently from each other. Each
+    chain “searches” for samples of the posterior distribution in a multidimensional
+    space, where each parameter corresponds to a dimension. The shape of this space
+    is determined by the priors and the likelihood. The chains start at random locations,
+    and in each iteration they take one sample each for all the parameters. When sampling
+    begins, the samples may or may not belong to the posterior distributions of the
+    parameters. Eventually, the chains end up in the vicinity of the posterior distribution,
+    and from that point onward the samples will belong to the posterior.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, when sampling begins, the samples from the different chains can be far
+    from each other, but at some point they will “converge” and start delivering samples
+    from the posterior distributions. Although there are no guarantees that the number
+    of iterations we run the chains for will be sufficient for obtaining samples from
+    the posteriors, the default values of `brms` (and Stan) are in many cases sufficient
+    to achieve convergence. When the default number of iterations does not suffice,
+    `brms` (actually, Stan) will print out warnings, with suggestions for fixing the
+    convergence problems. If all the chains converge to the same distribution, by
+    removing the “warmup” samples, we make sure that we do not get samples from the
+    initial path to the posterior distributions. The default in `brms` is that half
+    of the total number of iterations in each chain (which default to 2000) will count
+    as “warmup”. So, if one runs a model with four chains and the default number of
+    iterations, we will obtain a total of 4000 samples from the four chains, after
+    discarding the warmup iterations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure [3.3](ch-compbda.html#fig:fwarmup)(a) shows the path of the chains from
+    the warmup phase onwards. Such plots are called traceplots. The warmup is shown
+    only for illustration purposes; generally, one should only inspect the chains
+    after the point where convergence has (presumably) been achieved (i.e., after
+    the dashed line). After convergence has occurred, a visual diagnostic check is
+    that chains should look like a “fat hairy caterpillar.” Compare the traceplots
+    of our model in Figure [3.3](ch-compbda.html#fig:fwarmup)(a) with the traceplots
+    of a model that did not converge, shown in Figure [3.3](ch-compbda.html#fig:fwarmup)(b).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Traceplots are not always diagnostic as regards convergence. The traceplots
+    might look fine, but the model may not have converged. Fortunately, Stan automatically
+    runs several diagnostics with the information from the chains, and if there are
+    no warnings after fitting the model and the traceplots look fine, we can be reasonably
+    sure that the model converged, and assume that our samples are from the true posterior
+    distribution. However, it is necessary to run more than one chain (preferably
+    four), with a couple of thousands of iterations (at least) in order for the diagnostics
+    to work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![(a) Traceplots of our brms model for the button-pressing data. All the chains
+    start from initial values above 200 and are outside of the plot. (b) Traceplots
+    of a model that did not converge. We can diagnose the non-convergence by the observing
+    that the chains do not overlap—each chain seems to be sampling from a different
+    distribution.](../Images/88e39ee2135d22bfbf43d3e82f42d9f6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.3: (a) Traceplots of our `brms` model for the button-pressing data.
+    All the chains start from initial values above `200` and are outside of the plot.
+    (b) Traceplots of a model that **did not** converge. We can diagnose the non-convergence
+    by the observing that the chains do not overlap—each chain seems to be sampling
+    from a different distribution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.2.1.3 Output of `brms`
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Once the model has been fit (and assuming that we got no warning messages about
+    convergence problems), we can print out the samples of the posterior distributions
+    of each of the parameters using `as_draws_df()` (which stores metadata about the
+    chains) or with `as.data.frame()`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The term `b_Intercept` in the `brms` output corresponds to our \(\mu\). We
+    can ignore the last three columns: `Intercept` is an auxiliary intercept assuming
+    centered predictors, which coincides here with `b_Intercept` and is discussed
+    in online section [A.3](regression-models-with-brms---extended.html#app-intercept),
+    `lprior` is the log-density of the (joint) prior distribution and it is there
+    for compatibility with the package `priorsense` ([https://github.com/n-kall/priorsense](https://github.com/n-kall/priorsense)),
+    and `lp` is not really part of the posterior, it’s the log-density of the unnormalized
+    posterior for each iteration (`lp` is discussed in online section [B.1](advanced-models-with-stan---extended.html#app-target),
+    which sould be read in the context of chapter [8](ch-introstan.html#ch-introstan)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Plot the density and traceplots of each parameter after the warmup with `plot(fit_press)`
+    (Figure [3.4](ch-compbda.html#fig:densitytrace)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Density and traceplots of our brms model for the button-pressing data.](../Images/2921e1da57361c328e8e5cbf2e062094.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.4: Density and traceplots of our `brms` model for the button-pressing
+    data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Printing the object with the `brms` fit provides a nice, if somewhat verbose,
+    summary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `Estimate` is just the mean of the posterior samples, `Est.Error` is the
+    standard deviation of the posterior and the CIs mark the lower and upper bounds
+    of the 95% credible intervals (to distinguish credible intervals from frequentist
+    confidence intervals, the former will be abbreviated as CrIs):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Furthermore, the summary provides the `Rhat`, `Bulk_ESS`, and `Tail_ESS` of
+    each parameter. R-hat compares the between- and within-chain estimates of each
+    parameter. R-hat is larger than 1 when chains have not mixed well, one can only
+    rely on the model if the R-hats for all the parameters are less than 1.05\. (R
+    warnings will appear otherwise). Bulk ESS (bulk effective sample size) is a measure
+    of sampling efficiency in the bulk of the posterior distribution, that is the
+    effective sample size for the mean and median estimates, whereas tail ESS (tail
+    effective sample size) indicates the sampling efficiency at the tails of the distribution,
+    that is the minimum of effective sample sizes for 5% and 95% quantiles. The effective
+    sample size is generally smaller than the number of post-warmup samples, because
+    the samples from the chains are not independent (they are correlated to some extent),
+    and carry less information about the posterior distribution in comparison to independent
+    samples. In some cases, however, the effective sample size is actually larger
+    than the number of post-warmup samples. This might happen for parameters with
+    a normally distributed posterior (in the unconstrained space, see online section
+    [B.1](advanced-models-with-stan---extended.html#app-target)) and low dependence
+    on the other parameters (Vehtari et al. [2021](#ref-vehtari2019ranknormalization)).
+    A very low effective sample size indicates sampling problems (and is accompanied
+    by R warnings) and in general appears together with chains that are not properly
+    mixed. As a rule of thumb, Vehtari et al. ([2021](#ref-vehtari2019ranknormalization))
+    suggest that a minimum effective sample size of \(400\) is required for statistical
+    summaries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We see that we can fit our model without problems, and we get some posterior
+    distributions for our parameters. However, we should ask ourselves the following
+    questions before we can interpret the posterior distributions of the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What information are the priors encoding? Do the priors make sense?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Does the likelihood assumed in the model make sense for the data?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We’ll try to answer these questions by looking at the *prior and posterior predictive
+    distributions*, and by doing sensitivity analyses. This is explained in the sections
+    that follow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.3 Prior predictive distribution
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We had defined the following priors for our linear model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} \mu &\sim \mathit{Uniform}(0, 60000) \\ \sigma
+    &\sim \mathit{Uniform}(0, 2000) \end{aligned} \tag{3.5} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: These priors encode assumptions about the kind of data we would expect to see
+    in a future study. To understand these assumptions, we are going to generate data
+    from the model; such distribution of data, which is generated entirely by the
+    prior distributions, is called the prior predictive distribution. Generating prior
+    predictive distributions repeatedly helps us to check whether the priors make
+    sense. What we want to know here is, do the priors generate realistic-looking
+    data?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Formally, we want to know the density \(p(\cdot)\) of data points \(y_{pred_1},\dots,y_{pred_N}\)
+    from a data set \(\boldsymbol{y_{pred}}\) of length \(N\), given a vector of priors
+    \(\boldsymbol{\Theta}\) and our likelihood \(p(\cdot|\boldsymbol{\Theta})\); (in
+    our example, \(\boldsymbol{\Theta}=\langle\mu,\sigma \rangle\)). The prior predictive
+    density is written as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} p(\boldsymbol{y_{pred}}) &= p(y_{pred_1},\dots,y_{pred_n})\\
+    &= \int_{\boldsymbol{\Theta}} p(y_{pred_1}|\boldsymbol{\Theta})\cdot p(y_{pred_2}|\boldsymbol{\Theta})\cdots
+    p(y_{pred_N}|\boldsymbol{\Theta}) p(\boldsymbol{\Theta}) \, \mathrm{d}\boldsymbol{\Theta}
+    \end{aligned} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In essence, the vector of parameters is integrated out (see section [1.7](ch-intro.html#sec-marginal)).
+    This yields the probability distribution of possible data sets given the priors
+    and the likelihood, *before any observations are taken into account*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The integration can be carried out computationally by generating samples from
+    the prior distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is one way to generate prior predictive distributions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Repeat the following many times:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Take one sample from each of the priors.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Plug those samples into the probability density/mass function used as the likelihood
+    in the model to generate a data set \(y_{pred_1},\ldots,y_{pred_n}\).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Each sample is an imaginary or potential data set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a function that does this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The following code produces \(1000\) samples of the prior predictive distribution
+    of the model that we defined in section [3.2.1](ch-compbda.html#sec-simplenormal).
+    This means that it will produce \(361000\) predicted values (\(361\) predicted
+    observations for each of the \(1000\) simulations). Although this approach works,
+    it’s quite slow (a couple of seconds). See the online section [A.1](regression-models-with-brms---extended.html#app-efficientpriorpd)
+    for a more efficient version of this function. Section [3.7.2](ch-compbda.html#sec-lognormal)
+    will show that it’s possible to use `brms` to sample from the priors, ignoring
+    the `t` in the data by setting `sample_prior = "only"`. However, since `brms`
+    still depends on Stan’s sampler, which uses Hamiltonian Monte Carlo, the prior
+    sampling process can also fail to converge, especially when one uses very uninformative
+    priors, like the ones used in this example. In contrast, our function above, which
+    uses `rnorm()`, cannot have convergence issues and will always produce multiple
+    sets of prior predictive data \(y_{pred_1},\ldots,y_{pred_n}\).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code below uses the `tic()` and `toc()` functions from the `tictoc` package
+    to print out the time it takes to run the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Figure [3.5](ch-compbda.html#fig:priorpred-simple) shows the first 18 samples
+    of the prior predictive distribution (i.e., 18 independently generated prior predicted
+    data sets) with the code below.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Eighteen samples from the prior predictive distribution of the model defined
+    in section 3.2.1.](../Images/29726df01a7c3d4fd9275f104415874b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.5: Eighteen samples from the prior predictive distribution of the
+    model defined in section [3.2.1](ch-compbda.html#sec-simplenormal).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The prior predictive distribution in Figure [3.5](ch-compbda.html#fig:priorpred-simple)
+    shows data sets generated from the model that are not realistic: Apart from the
+    fact that the data sets show that finger tapping times distributions are symmetrical–and
+    we know from prior experience with such data that they are generally right-skewed–some
+    data sets present finger tapping times that are unrealistically long. Worse yet,
+    if we inspect enough samples from the prior predicted data, it will become clear
+    that a few data sets have negative finger tapping time values.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also look at the distribution of summary statistics in the prior predictive
+    data. Even if we don’t know beforehand what the data should look like, it’s very
+    likely that we have some expectations for possible mean, minimum, or maximum values.
+    For example, in the button-pressing example, it seems reasonable to assume that
+    average finger tapping times are between \(200\)-\(600\) ms; finger tapping times
+    are very unlikely to be below \(50\) ms, and even long lapses of attention won’t
+    be greater than a couple of seconds.[^(13)](#fn13) Three distributions of summary
+    statistics are shown in Figure [3.6](ch-compbda.html#fig:priorpred-stats).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![The prior predictive distributions of the mean, minimum, and maximum values
+    of the button-pressing model defined in section 3.2.1.](../Images/6582c96d95048d11a69bd66a87b88252.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.6: The prior predictive distributions of the mean, minimum, and maximum
+    values of the button-pressing model defined in section [3.2.1](ch-compbda.html#sec-simplenormal).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure [3.6](ch-compbda.html#fig:priorpred-stats) shows that we used much less
+    prior information than what we could have: Our priors were encoding the information
+    that any mean between \(0\) and \(60000\) ms is equally likely. It seems clear
+    that a value close to \(0\) or to \(60000\) ms would be extremely surprising.
+    This wide range of mean values occurs because of the uniform prior on \(\mu\).
+    Similarly, maximum values are quite “uniform”, spanning a much wider range than
+    what one would expect. Finally, in the distribution of minimum values, negative
+    finger tapping times occur. This might seem surprising (our prior for \(\mu\)
+    excluded negative values), but the reason that negative values appear is that
+    the prior is interpreted together with the likelihood (Gelman, Simpson, and Betancourt
+    [2017](#ref-gelmanPriorCanOften2017)), and the likelihood is a normal distribution,
+    which will allow for negative samples even if the location parameter \(\mu\) is
+    constrained to have only positive values.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To summarize the above discussion, the priors used in the example are clearly
+    not very realistic given what we might know about finger tapping times for such
+    a button-pressing task. This raises the question: what priors should we have chosen?
+    In the next section, we consider this question.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '3.4 The influence of priors: sensitivity analysis'
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For most cases that we will encounter in this book, there are four main classes
+    of priors that we can choose from. Among Bayesians, there is no fixed nomenclature
+    for classifying different kinds of priors. For this book, we have chosen specific
+    names for each type of prior, but this is just a convention that we follow for
+    consistency. There are also other classes of prior that we do not discuss in this
+    book. An example is improper priors such as \(\mathit{Uniform}(-\infty,+\infty)\),
+    which are not proper probability distributions because the area under the curve
+    does not sum to one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When thinking about priors, the reader should not get hung up on what precisely
+    the name is for a particular type of prior; they should rather focus on what that
+    prior means in the context of the research problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.4.1 Flat, uninformative priors
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'One option is to choose priors that are as uninformative as possible. The idea
+    behind this approach is to let the data “speak for itself” and to not bias the
+    statistical inference with “subjective” priors. There are several issues with
+    this approach: First, the prior is as subjective as the likelihood, and in fact,
+    different choices of likelihood might have a much stronger impact on the posterior
+    than different choices of priors. Second, uninformative priors are in general
+    unrealistic because they give equal weight to all values within the support of
+    the prior distribution, ignoring the fact that usually there is some minimal information
+    about the parameters of interest. Usually, at the very least, the order of magnitude
+    is known (response times or finger tapping times will be in milliseconds and not
+    days, EEG signals some microvolts and not volts, etc.). Third, uninformative priors
+    make the sampling slower and might lead to convergence problems. Unless there
+    is a large amount of data, it would be wise to avoid such priors. Fourth, it is
+    not always clear which parameterization of a given distribution the flat priors
+    should be assigned to. For example, the normal distribution is sometimes defined
+    based on its standard deviation (\(\sigma\)), variance (\(\sigma^2\)), or precision
+    (\(1/\sigma^2\)): a flat prior for the standard deviation is not flat for the
+    precision of the distribution. Although it is sometimes possible to find an uninformative
+    prior that is invariant under a change of parameters (also called Jeffreys priors;
+    Jaynes [2003](#ref-jaynes2003probability), sec. 6.15; Jeffreys [1939](#ref-jeffreys1939theory),
+    Chapter 3), this is not always the case. Finally, if Bayes factors need to be
+    computed, uninformative priors can lead to very misleading conclusions (chapter
+    [13](ch-bf.html#ch-bf)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the button-pressing example discussed in this chapter, an example of a flat,
+    uninformative prior would be \(\mu \sim \mathit{Uniform}(-10^{20},10^{20})\).
+    On the millisecond scale, this is a very strange prior to use for a parameter
+    representing mean button-pressing time: it allows for impossibly large positive
+    values, and it also allows negative button-pressing times, which is of course
+    impossible. It is technically possible to use such a prior, but it wouldn’t make
+    much sense.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.4.2 Regularizing priors
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: If there does not exist much prior information (and if this information cannot
+    be worked out through reasoning about the problem), and there is enough data (what
+    “enough” means here will presently become clear when we look at specific examples),
+    it is fine to use *regularizing priors*. These are priors that down-weight extreme
+    values (that is, they provide regularization), they are usually not very informative,
+    and mostly let the likelihood dominate in determining the posteriors. These priors
+    are theory-neutral; that is, they usually do not bias the parameters to values
+    supported by any prior belief or theory. The idea behind this type of prior is
+    to help to stabilize computation. These priors are sometimes called *weakly informative*
+    or *mildly informative* priors in the Bayesian literature. For many applications,
+    they perform well, but as discussed in chapter [13](ch-bf.html#ch-bf), they tend
+    to be problematic if Bayes factors need to be computed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the button-pressing example, an example of a regularizing prior would be
+    \(\mu \sim \mathit{Normal}_{+}(0,1000)\). This is a normal distribution prior
+    truncated at \(0\) ms, and allows a relatively constrained range of positive values
+    for button-pressing times (roughly, up to \(2000\) ms or so). This is a regularizing
+    prior because it rules out negative button-pressing times and down-weights extreme
+    values over \(2000\) ms. Here, one could assume a non-truncated prior like \(\mathit{Normal}(0,1000)\).
+    This could still be seen as a regularizing prior even though we don’t expect \(\mu\)
+    to be negative; the data would ensure that the posterior distribution has positive
+    values (because we would have no negative button-pressing times in the data).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.4.3 Principled priors
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The idea here is to have priors that encode all (or most of) the theory-neutral
+    information that the researcher has. Since one generally knows what one’s data
+    do and do not look like, it is possible to build priors that truly reflect the
+    properties of potential data sets, using prior predictive checks. In this book,
+    many examples of this class of priors will come up.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the button-pressing data, an example of a principled prior would be \(\mu
+    \sim \mathit{Normal}_{+}(250,100)\). This prior is not overly restrictive, but
+    represents a guess about plausible button-pressing times. Prior predictive checks
+    using principled priors should produce realistic distributions of the dependent
+    variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.4.4 Informative priors
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: There are cases where a lot of prior knowledge exists. In general, unless there
+    are very good reasons for having relatively informative priors (see chapter [13](ch-bf.html#ch-bf)),
+    it is not a good idea to let the priors have too much influence on the posterior.
+    An example where informative priors would be important is when investigating a
+    language-impaired population from which we can’t get many subjects, but a lot
+    of previously published papers exist on the research topic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the button-pressing data, an informative prior could be based on a meta-analysis
+    of previously published or existing data, or the result of prior elicitation from
+    an expert (or multiple experts) on the topic under investigation. An example of
+    an informative prior would be \(\mu \sim \mathit{Normal}_{+}(200,20)\). This prior
+    will have some influence on the posterior for \(\mu\), especially when one has
+    relatively sparse data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These four options constitute a continuum. The uniform prior from the last model
+    (section [3.2.1](ch-compbda.html#sec-simplenormal)) falls between flat, uninformative
+    and regularizing priors. In practical data analysis situations, we are mostly
+    going to choose priors that fall between regularizing and principled. Informative
+    priors, in the sense defined above, will be used only relatively rarely; but they
+    become more important to consider when doing Bayes factor analyses (chapter [13](ch-bf.html#ch-bf)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.5 Revisiting the button-pressing example with different priors
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'What would happen if even wider priors were used for the model defined previously
+    (in section [3.2.1](ch-compbda.html#sec-simplenormal))? Suppose that every value
+    between \(-10^{6}\) and \(10^{6}\) ms is assumed to be equally likely for the
+    location parameter \(\mu\). This prior is clearly unrealistic and actually makes
+    no sense at all: we are not expecting negative finger tapping times. Regarding
+    the standard deviation, one could assume that any value between \(0\) and \(10^{6}\)
+    is equally likely.[^(14)](#fn14) The likelihood remains unchanged.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} \mu &\sim \mathit{Uniform}(-10^{6}, 10^{6})
+    \\ \sigma &\sim \mathit{Uniform}(0, 10^{6}) \end{aligned} \tag{3.6} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Even with these extremely unrealistic priors, which require us to change the
+    number of iterations,`iter`, and `adapt_delta` and `max_treedepth` default values
+    to achieve convergence, the output of the model is virtually identical to the
+    previous one (see Figure [3.7](ch-compbda.html#fig:postcomp)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, consider what happens if very informative priors are used. Assume that
+    mean values very close to \(400\) ms are the most likely, and that the standard
+    deviation of the finger tapping times is very close to \(100\) ms. Given that
+    this is a model of button-pressing times, such an informative prior seems wrong—\(200\)
+    ms seems like a more realistic mean button-pressing time, not \(400\) ms. You
+    can check this by doing an experiment yourself and looking at the recorded times;
+    software like Linger ([http://tedlab.mit.edu/~dr/Linger/](http://tedlab.mit.edu/~dr/Linger/))
+    makes it easy to set up such an experiment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The \(\mathit{Normal}_+\) notation indicates a normal distribution truncated
+    at zero such that only positive values are allowed (see online section [A.2](regression-models-with-brms---extended.html#app-truncation)
+    discusses this type of distribution in detail). Even though the prior for the
+    standard deviation is restricted to be positive, we are not required to add `lb
+    = 0` to the prior, and it is automatically taken into account by `brms`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} \mu &\sim \mathit{Normal}(400, 10) \\ \sigma
+    &\sim \mathit{Normal}_+(100, 10) \end{aligned} \tag{3.7} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Despite these unrealistic but informative priors, the likelihood mostly dominates
+    and the new posterior means and credible intervals are just a couple of milliseconds
+    away from the previous estimates (see Figure [3.7](ch-compbda.html#fig:postcomp)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As a final example of a sensitivity analysis, choose some principled priors.
+    Assuming that we have some prior experience with previous similar experiments,
+    suppose the mean response time is expected to be around \(200\) ms, with a 95%
+    probability of the mean ranging from \(0\) to \(400\) ms. This uncertainty is
+    perhaps unreasonably large, but one might want to allow a bit more uncertainty
+    than one really thinks is reasonable (this kind of conservativity in allowing
+    somewhat more uncertainty is sometimes called Cromwell’s rule in Bayesian statistics;
+    see O’Hagan and Forster [2004](#ref-kendall2004), sec. 3.19). In such a case,
+    one can decide on the prior \(\mathit{Normal}(200, 100)\). Given that the experiment
+    involves only one subject and the task is very simple, one might not expect the
+    residual standard deviation \(\sigma\) to be very large: As an example, one can
+    settle on a location of \(50\) ms for a truncated normal distribution, but still
+    allow for relatively large uncertainty: \(Normal_{+}(50,50)\). The prior specifications
+    are summarized below.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} \mu &\sim \mathit{Normal}(200, 100) \\ \sigma
+    &\sim \mathit{Normal}_+(50, 50) \end{aligned} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why are these priors principled? The designation “principled” here largely depends
+    on our domain knowledge. The online chapter [E](ch-priors.html#ch-priors) discusses
+    how one can use domain knowledge when specifying priors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One can achieve a better understanding of what a particular set of priors implies
+    by visualizing the priors graphically, and carrying out prior predictive checks.
+    These steps are skipped here, but these issues are discussed in detail in the
+    online chapters [E](ch-priors.html#ch-priors) and [F](ch-workflow.html#ch-workflow).
+    These chapters will give more detailed information about choosing priors and on
+    developing a principled workflow for Bayesian data analysis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The new estimates are virtually the same as before (see Figure [3.7](ch-compbda.html#fig:postcomp)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: The above examples of using different priors should not be misunderstood to
+    mean that priors never matter. When there is enough data, the likelihood will
+    dominate in determining the posterior distributions. What constitutes “enough”
+    data is also a function of the complexity of the model; as a general rule, more
+    complex models require more data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Comparison of the posterior distributions from the model with “realistically”
+    bounded uniform prior distribution (though still not recommended), fit_press,
+    against the model with extremely unrealistically wide priors, fit_press_unif,
+    the model with misspecified informative priors, fit_press_inf, and the model with
+    principled priors, fit_press_prin. All the posteriors virtually overlap except
+    for the posterior of fit_press_inf, which is shifted by a few milliseconds.](../Images/6b8b133fb6c8ee6ae69b7a0aaea21ef2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.7: Comparison of the posterior distributions from the model with “realistically”
+    bounded uniform prior distribution (though still not recommended), `fit_press`,
+    against the model with extremely unrealistically wide priors, `fit_press_unif`,
+    the model with misspecified informative priors, `fit_press_inf`, and the model
+    with principled priors, `fit_press_prin`. All the posteriors virtually overlap
+    except for the posterior of `fit_press_inf`, which is shifted by a few milliseconds.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even in cases where there is enough data and the likelihood dominates in determining
+    the posteriors, regularizing, principled priors (i.e., priors that are more consistent
+    with our a priori beliefs about the data) will in general speed-up model convergence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to determine the extent to which the posterior is influenced by the
+    priors, it is a good practice to carry out a sensitivity analysis: try different
+    priors and either verify that the posterior doesn’t change drastically, or report
+    how the posterior is affected by some specific priors (for examples from psycholinguistics,
+    see Vasishth et al. [2013](#ref-VasishthetalPLoSOne2013); Vasishth and Engelmann
+    [2022](#ref-VasishthEngelmann2022)). Chapter [13](ch-bf.html#ch-bf) will demonstrate
+    that sensitivity analysis becomes crucial for reporting Bayes factors; even in
+    cases where the choice of priors does not affect the posterior distribution, it
+    generally affects the Bayes factor.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.6 Posterior predictive distribution
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The posterior predictive distribution is a collection of data sets generated
+    from the model (the likelihood and the priors). Having obtained the posterior
+    distributions of the parameters after taking into account the data, the posterior
+    distributions can be used to generate future data from the model. In other words,
+    given the posterior distributions of the parameters of the model, the posterior
+    predictive distribution gives us some indication of what future data might look
+    like.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once the posterior distributions \(p(\boldsymbol{\Theta}\mid \boldsymbol{y})\)
+    are available, the predictions based on these distributions can be generated by
+    integrating out the parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} p(\boldsymbol{y_{pred}}\mid \boldsymbol{y} ) = \int_{\boldsymbol{\Theta}}
+    p(\boldsymbol{y_{pred}}, \boldsymbol{\Theta}\mid \boldsymbol{y})\, \mathrm{d}\boldsymbol{\Theta}=
+    \int_{\boldsymbol{\Theta}} p(\boldsymbol{y_{pred}}\mid \boldsymbol{\Theta},\boldsymbol{y})p(\boldsymbol{\Theta}\mid
+    \boldsymbol{y})\, \mathrm{d}\boldsymbol{\Theta} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Assuming that past and future observations are conditionally independent[^(15)](#fn15)
+    given \(\boldsymbol{\Theta}\), i.e., \(p(\boldsymbol{y_{pred}}\mid \boldsymbol{\Theta},\boldsymbol{y})=
+    p(\boldsymbol{y_{pred}}\mid \boldsymbol{\Theta})\), the above equation can be
+    written as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} p(\boldsymbol{y_{pred}}\mid \boldsymbol{y} )=\int_{\boldsymbol{\Theta}}
+    p(\boldsymbol{y_{pred}}\mid \boldsymbol{\Theta}) p(\boldsymbol{\Theta}\mid \boldsymbol{y})\,
+    \mathrm{d}\boldsymbol{\Theta} \tag{3.8} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In Equation [(3.8)](ch-compbda.html#eq:postpp), we are conditioning \(\boldsymbol{y_{pred}}\)
+    only on \(\boldsymbol{y}\), we do not condition on what we don’t know (\(\boldsymbol{\Theta}\));
+    the unknown parameters have been integrated out. This posterior predictive distribution
+    has important differences from predictions obtained with the frequentist approach.
+    The frequentist approach gives a point estimate of each predicted observation
+    given the maximum likelihood estimate of \(\boldsymbol{\Theta}\) (a point value),
+    whereas the Bayesian approach gives a distribution of values for each predicted
+    observation. As with the prior predictive distribution, the integration can be
+    carried out computationally by generating samples from the posterior predictive
+    distribution. The same function that we created before, `normal_predictive_distribution()`,
+    can be used here. The only difference is that instead of sampling `mu` and `sigma`
+    from the priors, the samples come from the posterior.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `brms` function `posterior_predict()` is a convenient function that delivers
+    samples from the posterior predictive distribution. Using the command `posterior_predict(fit_press)`
+    yields the predicted finger tapping times in a matrix, with the samples as rows
+    and the observations (data-points) as columns. (Bear in mind that if a model is
+    fit with `sample_prior = "only"`, the dependent variable is ignored and `posterior_predict()`
+    will yield samples from the prior predictive distribution).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The posterior predictive distribution can be used to examine the “descriptive
+    adequacy” of the model under consideration (Gelman et al. [2014](#ref-Gelman14),
+    Chapter 6; Shiffrin et al. [2008](#ref-shiffrinSurveyModelEvaluation2008)). Examining
+    the posterior predictive distribution to establish descriptive adequacy is called
+    posterior predictive checking. The goal here is to establish that the posterior
+    predictive data look more or less similar to the observed data. Achieving descriptive
+    adequacy means that the current data could have been generated by the model. Although
+    passing a test of descriptive adequacy is not strong evidence in favor of a model,
+    a major failure in descriptive adequacy can be interpreted as strong evidence
+    against a model (Shiffrin et al. [2008](#ref-shiffrinSurveyModelEvaluation2008)).
+    For this reason, comparing the descriptive adequacy of different models is not
+    enough to differentiate between their relative performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When doing model comparison, it is important to consider the criteria that Roberts
+    and Pashler ([2000](#ref-rp)) define. Although Roberts and Pashler ([2000](#ref-rp))
+    are more interested in process models and not necessarily Bayesian models, their
+    criteria are important for any kind of model comparison. Their main point is that
+    it is not enough to have a good fit to the data for a model to be convincing.
+    One should check that the range of predictions that the model makes is reasonably
+    constrained; if a model can capture any possible outcome, then the model fit to
+    a particular data set is not so informative. In the Bayesian modeling context,
+    although posterior predictive checks are important, they should been as only sanity
+    checks to assess whether the model behavior is reasonable (for more on this point,
+    see the online chapter [F](ch-workflow.html#ch-workflow)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In many cases, one can simply use the plotting functions provided with `brms`
+    (these act as wrappers for `bayesplot` functions). For example, the plotting function
+    `pp_check()` takes as arguments the model, the number of predicted data sets,
+    and the type of visualization, and it can display different visualizations of
+    posterior predictive checks. In these type of plots, the observed data are plotted
+    as \(y\) and predicted data as \(y_{rep}\). Below, we use `pp_check()` to investigate
+    how well the observed distribution of finger tapping times fit our model based
+    on some number (\(11\) and \(100\)) of samples of the posterior predictive distributions
+    (that is, simulated data sets); see Figures [3.8](ch-compbda.html#fig:normalppc)
+    and [3.9](ch-compbda.html#fig:normalppc2).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Histograms of eleven samples from the posterior predictive distribution of
+    the model fit_press (\(y_{rep}\)).](../Images/6950f5f2641ead399d16632ff5700d14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.8: Histograms of eleven samples from the posterior predictive distribution
+    of the model `fit_press` (\(y_{rep}\)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A posterior predictive check that shows the fit of the model fit_press in
+    comparison to data sets from the posterior predictive distribution using an overlay
+    of density plots.](../Images/d76b604646bdfb12fbc2a645d03546f6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.9: A posterior predictive check that shows the fit of the model `fit_press`
+    in comparison to data sets from the posterior predictive distribution using an
+    overlay of density plots.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The data is slightly skewed and has no values smaller than \(100\) ms, but the
+    predictive distributions are centered and symmetrical; see Figures [3.8](ch-compbda.html#fig:normalppc)
+    and [3.9](ch-compbda.html#fig:normalppc2). This posterior predictive check shows
+    a slight mismatch between the observed and predicted data. Can we build a better
+    model? We’ll come back to this issue in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.7 The influence of the likelihood
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Finger tapping times (and response times in general) are not usually normally
+    distributed. A more realistic distribution is the log-normal. A random variable
+    (such as time) that is log-normally distributed takes only positive real values
+    and is right-skewed. Although other distributions can also produce data with such
+    properties, the log-normal will turn out to be a pretty reasonable distribution
+    for finger tapping times and response times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.7.1 The log-normal likelihood
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: If \(\boldsymbol{y}\) is log-normally distributed, this means that \(\log(\boldsymbol{y})\)
+    is normally distributed.[^(16)](#fn16) The log-normal distribution is also defined
+    using the parameters location, \(\mu\), and scale, \(\sigma\), but these are on
+    the log ms scale; they correspond to the mean and standard deviation of the logarithm
+    of the data \(\boldsymbol{y}\), \(\log(\boldsymbol{y})\), which will be normally
+    distributed. Thus, when we model some data \(\boldsymbol{y}\) using the log-normal
+    likelihood, the parameters \(\mu\) and \(\sigma\) are on a different scale than
+    the data \(\boldsymbol{y}\). Equation [(3.9)](ch-compbda.html#eq:lognormalequations)
+    shows the relationship between the log-normal and the normal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} \log(\boldsymbol{y}) &\sim \mathit{Normal}(
+    \mu, \sigma)\\ \boldsymbol{y} &\sim \mathit{LogNormal}( \mu, \sigma) \end{aligned}
+    \tag{3.9} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can obtain samples from the log-normal distribution, using the normal distribution
+    by first setting an auxiliary variable \(z\), so that \(z = \log(y)\). This means
+    that \(z \sim \mathit{Normal}(\mu, \sigma)\). Then we can just use \(exp(z)\)
+    as samples from the \(\mathit{LogNormal}(\mu, \sigma)\), since \(\exp(z) =\exp(\log(y))
+    = y\). The code below produces Figure [3.10](ch-compbda.html#fig:logndemo).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Two log-normal distributions with the same parameters generated by either
+    generating samples from a log-normal distribution or exponentiating samples from
+    a normal distribution.](../Images/318135851e5c540b9fc30bb9b6f93ee6.png)![Two log-normal
+    distributions with the same parameters generated by either generating samples
+    from a log-normal distribution or exponentiating samples from a normal distribution.](../Images/081dffb48f09a996b139aad827733364.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.10: Two log-normal distributions with the same parameters generated
+    by either generating samples from a log-normal distribution or exponentiating
+    samples from a normal distribution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.7.2 Using a log-normal likelihood to fit data from a single subject pressing
+    a button repeatedly
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'If we assume that finger tapping times are log-normally distributed, the likelihood
+    function changes as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} t_n \sim \mathit{LogNormal}(\mu,\sigma) \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: But now the scale of the priors needs to change! Let’s start with uniform priors
+    for ease of exposition, even though, as we mentioned earlier, these are not really
+    appropriate here. (More realistic priors are discussed below.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} \mu &\sim \mathit{Uniform}(0, 11) \\ \sigma
+    &\sim \mathit{Uniform}(0, 1) \\ \end{aligned} \tag{3.10} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because the parameters are on a different scale than the dependent variable,
+    their interpretation changes and it is more complex than if we were dealing with
+    a linear model that assumes a normal likelihood (location and scale do not coincide
+    with the mean and standard deviation of the log-normal):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The location \(\mu\)*: In our previous linear model, \(\mu\) represented the
+    mean (in a normal distribution, the mean happens to be identical to the median
+    and the mode). But now, the mean needs to be calculated by computing \(\exp(\mu
+    +\sigma ^{2}/2)\). In other words, in the log-normal, the mean is dependent on
+    both \(\mu\) and \(\sigma\). The median is just \(\exp(\mu)\). Notice that the
+    prior of \(\mu\) is not on the milliseconds scale, but rather on the log milliseconds
+    scale.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*The scale \(\sigma\)*: This is the standard deviation of the normal distribution
+    of \(\log(\boldsymbol{y})\). The standard deviation of a log-normal distribution
+    with *location* \(\mu\) and *scale* \(\sigma\) will be \(\exp(\mu +\sigma ^{2}/2)\times
+    \sqrt{\exp(\sigma^2)- 1}\). Unlike the normal distribution, the spread of the
+    log-normal distribution depends on both \(\mu\) and \(\sigma\).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To understand the meaning of the priors on the millisecond scale, both the priors
+    and the likelihood need to be taken into account. Generating a prior predictive
+    distribution will help in interpreting the priors. This distribution can be generated
+    by just exponentiating the samples produced by `normal_predictive_distribution()`
+    (or, alternatively, edit the function by replacing `rnorm()` with `rlnorm()`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, plot the distribution of some representative statistics; see Figure [3.11](ch-compbda.html#fig:priorpredlogunif).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![The prior predictive distribution of the mean, median, minimum, and maximum
+    value of the log-normal model with priors defined in Equation (3.10), that is
+    \(\mu \sim \mathit{Uniform}(0, 11)\) and \(\sigma \sim \mathit{Uniform}(0, 1)\).
+    The x-axis shows values back-transformed from the log-scale.](../Images/50718c6c0e8d62a9daf6747ae835b69d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.11: The prior predictive distribution of the mean, median, minimum,
+    and maximum value of the log-normal model with priors defined in Equation [(3.10)](ch-compbda.html#eq:logpriorsunif),
+    that is \(\mu \sim \mathit{Uniform}(0, 11)\) and \(\sigma \sim \mathit{Uniform}(0,
+    1)\). The x-axis shows values back-transformed from the log-scale.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We cannot generate negative values any more, since \(\exp(\)any finite real
+    number\() > 0\). These priors might work in the sense that the model might converge;
+    but it would be better to have regularizing priors for the model. An example of
+    regularizing priors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{equation} \begin{aligned} \mu &\sim \mathit{Normal}(6, 1.5) \\ \sigma
+    &\sim \mathit{Normal}_+(0, 1) \\ \end{aligned} \tag{3.11} \end{equation}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The prior for \(\sigma\) here is a truncated distribution, and although its
+    location is zero, this is not its mean. We can calculate its approximate mean
+    from a large number of random samples of the prior distribution using the function
+    `rtnorm()` from the package `extraDistr`. In this function, we have to set the
+    parameter `a = 0` to express the fact that the normal distribution is truncated
+    from the left at 0\. (Online section [A.2](regression-models-with-brms---extended.html#app-truncation)
+    discusses this type of distribution in detail):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Even before generating the prior predictive distributions, we can calculate
+    the range within which we are 95% sure that the expected median of the observations
+    will lie. We do this by looking at what happens at two standard deviations away
+    from the mean of the prior, \(\mu\), that is \(6 - 2\times 1.5\) and \(6 + 2\times
+    1.5\), and exponentiating these values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: This means that the prior for \(\mu\) is still not too informative (these are
+    medians; the actual values generated by the log-normal distribution can be much
+    more spread out). Next, plot the distribution of some representative statistics
+    of the prior predictive distributions. `brms` allows one to sample from the priors,
+    ignoring the observed data `t` , by setting `sample_prior = "only"` in the `brm`
+    function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we want to use `brms` to generate prior predictive data in this manner even
+    before we have any data, we do need to include a data frame with the relevant
+    dependent variable (`y` in this case). Setting `sample_prior = "only"` will ignore
+    the values of the dependent variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: To avoid the warnings, increase the `adapt_delta` parameter’s default value
+    from \(0.8\) to \(0.9\) to simulate the data. Since Stan samples from the prior
+    distributions in the same way that it samples from the posterior distribution,
+    one should not ignore warnings; always ensure that the model converges. In that
+    respect, the custom function `normal_predictive_distribution()` defined in section
+    [3.3](ch-compbda.html#sec-priorpred) has the advantage that it will always yield
+    independent samples from the prior distribution and will not experience any convergence
+    problems. This is because it just relies on the `rnorm()` function in R.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Plot the prior predictive distribution of means with the following code. In
+    a prior predictive distribution, we generally want to ignore the data; this requires
+    setting `prefix = "ppd"` in `pp_check()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To plot the distribution of minimum, and maximum values, just replace `mean`
+    with `min`, and `max` respectively. The distributions of the three statistics
+    are displayed in Figure [3.12](ch-compbda.html#fig:priorpredlognorm).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![The prior predictive distributions of the mean, maximum, and minimum values
+    of the log-normal model with priors defined in Equation (3.11). The prior predictive
+    distributions are labeled \(y_{pred}\). The x-axis shows values back-transformed
+    from the log-scale.](../Images/a571b72cfab0ec71b0f7f70982434c37.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.12: The prior predictive distributions of the mean, maximum, and minimum
+    values of the log-normal model with priors defined in Equation [(3.11)](ch-compbda.html#eq:logpriorsnorm).
+    The prior predictive distributions are labeled \(y_{pred}\). The x-axis shows
+    values back-transformed from the log-scale.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure [3.12](ch-compbda.html#fig:priorpredlognorm) shows that the priors used
+    here are still quite uninformative. The tails of the prior predictive distributions
+    that correspond to our normal priors shown in Figure [3.12](ch-compbda.html#fig:priorpredlognorm)
+    are even further to the right, reaching more extreme values than for the prior
+    predictive distributions generated by uniform priors (shown in Figure [3.11](ch-compbda.html#fig:priorpredlogunif)).
+    The new priors are still far from representing our prior knowledge. We could run
+    more iterations of choosing priors and generating prior predictive distributions
+    until we have priors that generate realistic data. However, given that the bulk
+    of the distributions of the mean, maximum, minimum values lies roughly in the
+    correct order of magnitude, these priors are going to be acceptable. In general,
+    summary statistics (e.g., mean, median, min, max) can be used to test whether
+    the priors are in a plausible range. This can be done by defining, for the particular
+    research problem under study, the extreme data that would be very implausible
+    to ever observe (e.g., reading times at a word larger than one minute) and choosing
+    priors such that such extreme finger tapping times occur only very rarely in the
+    prior predictive distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, fit the model; recall that both the distribution family and prior change
+    in comparison to the previous example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When we look at the summary of the posterior, the parameters are on the log-scale:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If the research goal is to find out how long it takes to press the space bar
+    in milliseconds, we need to transform the \(\mu\) (or `Intercept` in the model)
+    to milliseconds. Because the median of the log-normal distribution is \(\exp(\mu)\),
+    the following returns the median estimate in milliseconds (recall that for the
+    mean we would need to calculate \(\exp(\mu +\sigma ^{2}/2)\)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To display the mean and 95% credible interval of these samples, type:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, check whether the predicted data sets look similar to the observed data
+    set. See Figure [3.13](ch-compbda.html#fig:logppc); compare this with the earlier
+    Figure [3.9](ch-compbda.html#fig:normalppc2).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![The posterior predictive distribution of fit_press_ln.](../Images/1ca36e870d3ba5a0f7a25fa6fcd8f79d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.13: The posterior predictive distribution of `fit_press_ln`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The key question is: Are the posterior predicted data now more similar to the
+    observed data, compared to the case where we had a normal likelihood? According
+    to Figure [3.13](ch-compbda.html#fig:logppc), it seems so, but it’s not easy to
+    tell.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another way to examine the extent to which the predicted data looks similar
+    to the observed data would be to look at the distribution of some summary statistic.
+    As with prior predictive distributions, examine the distribution of representative
+    summary statistics for the data sets generated by different models. However, in
+    contrast with what occurs with prior predictive distributions, at this point we
+    have a clear reference, our observations, and this means that we can compare the
+    summary statistics with the observed statistics from our data. We suspect that
+    the normal distribution would generate finger tapping times that are too fast
+    (since the normal distribution is symmetrical) and that the log-normal distribution
+    may capture the long tail better than the normal model. Based on this supposition,
+    compute the distribution of minimum and maximum values for the posterior predictive
+    distributions, and compare them with the minimum and maximum value respectively
+    in the data. The function `pp_check()` implements this by specifying `stat` either
+    `"min"` or `"max"` for both `fit_press`, and `fit_press_ln`; an example is shown
+    below. The plots are shown in Figures [3.14](ch-compbda.html#fig:ppcheckmin) and
+    [3.15](ch-compbda.html#fig:ppcheckmax).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![The distributions of minimum values in a posterior predictive check, using
+    the normal and log-normal probability density functions. The minimum in the data
+    is \(110\) ms.](../Images/f10b6153131b979898dabaad91a0a780.png)![The distributions
+    of minimum values in a posterior predictive check, using the normal and log-normal
+    probability density functions. The minimum in the data is \(110\) ms.](../Images/f0447b734f05ef191a54add024b56cc2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'FIGURE 3.14: The distributions of minimum values in a posterior predictive
+    check, using the normal and log-normal probability density functions. The minimum
+    in the data is \(110\) ms. ![The distributions of maximum values in a posterior
+    predictive check using the normal and log-normal. The maximum in the data is \(409\)
+    ms.](../Images/c14cf134aa05b971b7fae86ae1bfb405.png)![The distributions of maximum
+    values in a posterior predictive check using the normal and log-normal. The maximum
+    in the data is \(409\) ms.](../Images/04012bec32a6cee12702b3a0c85a1e01.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'FIGURE 3.15: The distributions of maximum values in a posterior predictive
+    check using the normal and log-normal. The maximum in the data is \(409\) ms.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure [3.14](ch-compbda.html#fig:ppcheckmin) shows that the log-normal likelihood
+    does a slightly better job since the minimum value is contained in the bulk of
+    the log-normal distribution and in the tail of the normal one. Figure [3.15](ch-compbda.html#fig:ppcheckmax)
+    shows that both models are unable to capture the maximum value of the observed
+    data. One explanation for this is that the log-normal-ish observations in our
+    data are being generated by the task of pressing as fast as possible, whereas
+    the observations with long finger tapping times are possibly being generated by
+    lapses of attention. If this assumption is correct, this would mean that the distribution
+    of button pressing times is a mixture of two distributions; modeling such a mixture
+    process involves more complex tools that we will take up in chapter [17](ch-mixture.html#ch-mixture).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This completes our introduction to `brms`. We are now ready to learn more about
+    regression models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.8 List of the most important commands
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Here is a list of the most important commands we learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The core `brms` function for fitting models, for generating prior predictive
+    and posterior predictive data:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Extract samples from fitted model:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: Basic plot of posteriors
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: Plot prior predictive/posterior predictive data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 3.9 Summary
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This chapter showed how to fit and interpret a Bayesian model with a normal
+    likelihood. We looked at the effect of priors by investigating prior predictive
+    distributions and by carrying out a sensitivity analysis. We also looked at the
+    fit of the posterior, by inspecting the posterior predictive distribution (which
+    gives us some idea about the descriptive adequacy of the model). We also showed
+    how to fit a Bayesian model with a log-normal likelihood, and how to compare the
+    predictive accuracy of different models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 3.10 Further reading
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Sampling algorithms are discussed in detail in Gamerman and Lopes ([2006](#ref-gamerman)).
+    Also helpful are the sections on sampling from the short open-source book by Bob
+    Carpenter, *Probability and Statistics: a simulation-based introduction* ([https://github.com/bob-carpenter/prob-stats](https://github.com/bob-carpenter/prob-stats)),
+    and the sections on sampling algorithms in Lambert ([2018](#ref-lambert2018student))
+    and Lynch ([2007](#ref-lynch2007introduction)). The evolution of probabilistic
+    programming languages for Bayesian inference is discussed in Štrumbelj et al.
+    ([2024](#ref-vstrumbelj2024past)). Introductory linear modeling theory is covered
+    in Dobson and Barnett ([2011](#ref-dobson2011introduction)); more advanced treatments
+    are in Montgomery, Peck, and Vining ([2012](#ref-monty)) and Seber and Lee ([2003](#ref-seber)).
+    Generalized linear models are covered in detail in McCullagh and Nelder ([2019](#ref-mccullagh2019generalized)).
+    The reader may also benefit from our own freely available online lecture notes
+    on linear modeling: [https://github.com/vasishth/LM](https://github.com/vasishth/LM).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Bates, Douglas M., Martin Mächler, Ben Bolker, and Steve Walker. 2015\. “Fitting
+    Linear Mixed-Effects Models Using lme4.” *Journal of Statistical Software* 67
+    (1): 1–48\. [https://doi.org/10.18637/jss.v067.i01](https://doi.org/10.18637/jss.v067.i01).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Blitzstein, Joseph K., and Jessica Hwang. 2014\. *Introduction to Probability*.
+    Chapman; Hall/CRC.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Bürkner, Paul-Christian. 2017\. “brms: An R Package for Bayesian Multilevel
+    Models Using Stan.” *Journal of Statistical Software* 80 (1): 1–28\. [https://doi.org/10.18637/jss.v080.i01](https://doi.org/10.18637/jss.v080.i01).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Bürkner, Paul-Christian. 2024\. *brms: Bayesian Regression Models Using “Stan”*.
+    [https://github.com/paul-buerkner/brms](https://github.com/paul-buerkner/brms).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Carpenter, Bob, Andrew Gelman, Matthew D. Hoffman, Daniel Lee, Ben Goodrich,
+    Michael J. Betancourt, Marcus Brubaker, Jiqiang Guo, Peter Li, and Allen Riddell.
+    2017\. “Stan: A Probabilistic Programming Language.” *Journal of Statistical Software*
+    76 (1).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dobson, Annette J., and Adrian Barnett. 2011\. *An Introduction to Generalized
+    Linear Models*. CRC Press.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Duane, Simon, A. D. Kennedy, Brian J. Pendleton, and Duncan Roweth. 1987\.
+    “Hybrid Monte Carlo.” *Physics Letters B* 195 (2): 216–22\. [https://doi.org/10.1016/0370-2693(87)91197-X](https://doi.org/10.1016/0370-2693(87)91197-X).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Gamerman, Dani, and Hedibert F. Lopes. 2006\. *Markov chain Monte Carlo: Stochastic
+    simulation for Bayesian inference*. CRC Press.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Ge, Hong, Kai Xu, and Zoubin Ghahramani. 2018\. “Turing: A Language for Flexible
+    Probabilistic Inference.” In *Proceedings of Machine Learning Research*, edited
+    by Amos Storkey and Fernando Perez-Cruz, 84:1682–90\. Playa Blanca, Lanzarote,
+    Canary Islands: PMLR. [http://proceedings.mlr.press/v84/ge18b.html](http://proceedings.mlr.press/v84/ge18b.html).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Gelman, Andrew, John B. Carlin, Hal S. Stern, David B. Dunson, Aki Vehtari,
+    and Donald B. Rubin. 2014\. *Bayesian Data Analysis*. Third Edition. Boca Raton,
+    FL: Chapman; Hall/CRC Press.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Gelman, Andrew, Daniel P. Simpson, and Michael J. Betancourt. 2017\. “The Prior
+    Can Often Only Be Understood in the Context of the Likelihood.” *Entropy* 19 (10):
+    555\. [https://doi.org/10.3390/e19100555](https://doi.org/10.3390/e19100555).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Goodrich, Ben, Jonah Gabry, Imad Ali, and Sam Brilleman. 2018\. “Rstanarm:
+    Bayesian Applied Regression Modeling via Stan.” [http://mc-stan.org/](http://mc-stan.org/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hoffman, Matthew D., and Andrew Gelman. 2014\. “The No-U-Turn Sampler: Adaptively
+    Setting Path Lengths in Hamiltonian Monte Carlo.” *Journal of Machine Learning
+    Research* 15 (1): 1593–1623\. [http://dl.acm.org/citation.cfm?id=2627435.2638586](http://dl.acm.org/citation.cfm?id=2627435.2638586).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hubel, Kerry A., Bruce Reed, E. William Yund, Timothy J. Herron, and David
+    L. Woods. 2013\. “Computerized Measures of Finger Tapping: Effects of Hand Dominance,
+    Age, and Sex.” *Perceptual and Motor Skills* 116 (3): 929–52\. [https://doi.org/https://doi.org/10.2466/25.29.PMS.116.3.929-952](https://doi.org/https://doi.org/10.2466/25.29.PMS.116.3.929-952).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: JASP Team. 2019\. “JASP (Version 0.11.1)[Computer software].” [https://jasp-stats.org/](https://jasp-stats.org/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Jaynes, Edwin T. 2003\. *Probability Theory: The Logic of Science*. Cambridge
+    University Press.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Jeffreys, Harold. 1939\. *Theory of Probability*. Oxford: Clarendon Press.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lambert, Ben. 2018\. *A Student’s Guide to Bayesian Statistics*. London, UK:
+    Sage.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lindgren, Finn, and Håvard Rue. 2015\. “Bayesian Spatial Modelling with R-INLA.”
+    *Journal of Statistical Software* 63 (1): 1–25\. [https://doi.org/ 10.18637/jss.v063.i19](https://doi.org/%2010.18637/jss.v063.i19).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Luce, R. Duncan. 1991\. *Response Times: Their Role in Inferring Elementary
+    Mental Organization*. Oxford University Press.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lunn, David J., Andrew Thomas, Nichola G. Best, and David J. Spiegelhalter.
+    2000\. “WinBUGS-A Bayesian Modelling Framework: Concepts, Structure, and Extensibility.”
+    *Statistics and Computing* 10 (4): 325–37.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Lynch, Scott Michael. 2007\. *Introduction to Applied Bayesian Statistics and
+    Estimation for Social Scientists*. New York, NY: Springer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'McCullagh, Peter, and J. A. Nelder. 2019\. *Generalized Linear Models*. Second
+    Edition. Boca Raton, Florida: Chapman; Hall/CRC.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Montgomery, D. C., E. A. Peck, and G. G. Vining. 2012\. *An Introduction to
+    Linear Regression Analysis*. 5th ed. Hoboken, NJ: Wiley.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Neal, Radford M. 2011\. “MCMC Using Hamiltonian Dynamics.” In *Handbook of Markov
+    Chain Monte Carlo*, edited by Steve Brooks, Andrew Gelman, Galin Jones, and Xiao-Li
+    Meng. Taylor & Francis. [https://doi.org/10.1201/b10905-10](https://doi.org/10.1201/b10905-10).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'O’Hagan, Anthony, and Jonathan J. Forster. 2004\. “Kendall’s Advanced Theory
+    of Statistics, Vol. 2B: Bayesian Inference.” Wiley.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Plummer, Martin. 2016\. “JAGS Version 4.2.0 User Manual.”
+  prefs: []
+  type: TYPE_NORMAL
+- en: Plummer, Martin. 2022\. “Simulation-Based Bayesian Analysis.” *Annual Review
+    of Statistics and Its Application*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Roberts, Seth, and Harold Pashler. 2000\. “How Persuasive Is a Good Fit? A
+    Comment on Theory Testing.” *Psychological Review* 107 (2): 358–67\. [https://doi.org/https://doi.org/10.1037/0033-295X.107.2.358](https://doi.org/https://doi.org/10.1037/0033-295X.107.2.358).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Salvatier, John, Thomas V. Wiecki, and Christopher Fonnesbeck. 2016\. “Probabilistic
+    Programming in Python Using PyMC3.” *PeerJ Computer Science* 2 (April): e55\.
+    [https://doi.org/10.7717/peerj-cs.55](https://doi.org/10.7717/peerj-cs.55).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Seber, George A. F., and Allen J. Lee. 2003\. *Linear Regression Analysis*.
+    2nd Edition. Hoboken, NJ: John Wiley; Sons.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Shiffrin, Richard M, Michael D Lee, Woojae Kim, and Eric-Jan Wagenmakers. 2008\.
+    “A Survey of Model Evaluation Approaches with a Tutorial on Hierarchical Bayesian
+    Methods.” *Cognitive Science: A Multidisciplinary Journal* 32 (8): 1248–84\. [https://doi.org/10.1080/03640210802414826](https://doi.org/10.1080/03640210802414826).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Štrumbelj, Erik, Alexandre Bouchard-Côté, Jukka Corander, Andrew Gelman, Håvard
+    Rue, Lawrence Murray, Henri Pesonen, Martin Plummer, and Aki Vehtari. 2024\. “Past,
+    Present and Future of Software for Bayesian Inference.” *Statistical Science*
+    39 (1): 46–61.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Vasishth, Shravan, Zhong Chen, Qiang Li, and Gueilan Guo. 2013\. “Processing
+    Chinese Relative Clauses: Evidence for the Subject-Relative Advantage.” *PLoS
+    ONE* 8 (10): 1–14\. [https://doi.org/https://doi.org/10.1371/journal.pone.0077006](https://doi.org/https://doi.org/10.1371/journal.pone.0077006).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Vasishth, Shravan, and Felix Engelmann. 2022\. *Sentence Comprehension as a
+    Cognitive Process: A Computational Approach*. Cambridge, UK: Cambridge University
+    Press. [https://books.google.de/books?id=6KZKzgEACAAJ](https://books.google.de/books?id=6KZKzgEACAAJ).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Vehtari, Aki, Andrew Gelman, Daniel P. Simpson, Bob Carpenter, and Paul-Christian
+    Bürkner. 2021\. “Rank-Normalization, Folding, and Localization: An Improved \(\widehat{R}\)
+    for Assessing Convergence of MCMC.” *Bayesian Analysis* 16 (2): 667–718\. [https://doi.org/10.1214/20-BA1221](https://doi.org/10.1214/20-BA1221).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the `brms` package (Bürkner [2017](#ref-R-brms_a)), samples from the posterior
+    are referred to as draws.[↩︎](ch-compbda.html#fnref9)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The Python package PyMC3 and the Julia library Turing are recent exceptions
+    since they are fully integrated into their respective languages.[↩︎](ch-compbda.html#fnref10)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We refer to the time it takes for a subject to respond or react to a stimulus
+    as response time (response and reaction times are often used interchangeably,
+    cf. Luce [1991](#ref-luce1986response)). In this case, however, there are no stimuli
+    other than the cross on the screen, and the subject only taps the space bar as
+    soon as they see the cross.[↩︎](ch-compbda.html#fnref11)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: There is an additional problem here. Although the parameter for the intercept
+    is assigned a uniform distribution bounded between \(0\) and \(60000\) ms, the
+    sampler might start sampling from an initial value outside this range producing
+    warnings. The sampler can start from an initial value that is outside the \(0\)-\(60000\)
+    range because the initial value is chosen randomly (unless the user specifies
+    an initial value explicitly). [↩︎](ch-compbda.html#fnref12)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We’ll see later how to generate prior predictive distributions of statistics
+    such as mean, minimum, or maximum value in section [3.7.2](ch-compbda.html#sec-lognormal)
+    using `brms` and `pp_check()`.[↩︎](ch-compbda.html#fnref13)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Even though, in theory, one could use even wider priors, in practice, these
+    are the widest priors that achieve convergence using `brms`.[↩︎](ch-compbda.html#fnref14)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Two events A and B are defined to be conditionally independent given some event
+    E if \(P(A\cap B | E) = P(A|E) P(B|E)\). See chapter 2 of Blitzstein and Hwang
+    ([2014](#ref-blitzstein2014introduction)) for examples and more discussion of
+    conditional independence.[↩︎](ch-compbda.html#fnref15)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: More precisely, \(\log_e(\boldsymbol{y})\) or \(\ln(\boldsymbol{y})\), but we’ll
+    write it as just \(\log(\boldsymbol{y})\).[↩︎](ch-compbda.html#fnref16)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
