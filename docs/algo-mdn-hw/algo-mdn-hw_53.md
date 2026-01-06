@@ -13,7 +13,11 @@
 对于我们的实验，我们创建一个数组并对其迭代 $K$ 次，增加其值：
 
 ```cpp
-int a[N];   for (int t = 0; t < K; t++)  for (int i = 0; i < N; i++) a[i]++; 
+int a[N];
+
+for (int t = 0; t < K; t++)
+    for (int i = 0; i < N; i++)
+        a[i]++; 
 ```
 
 改变 $N$ 并调整 $K$，使得访问的总数组单元格数大致保持不变，并以“每秒操作数”来表示总时间，我们得到如下所示的图表：
@@ -47,13 +51,15 @@ int a[N];   for (int t = 0; t < K; t++)  for (int i = 0; i < N; i++) a[i]++;
 计算数组的和只需要内存读取：
 
 ```cpp
-for (int i = 0; i < N; i++)  s += a[i]; 
+for (int i = 0; i < N; i++)
+    s += a[i]; 
 ```
 
 而清零数组（或用任何其他常量值填充它）只需要内存写入：
 
 ```cpp
-for (int i = 0; i < N; i++)  a[i] = 0; 
+for (int i = 0; i < N; i++)
+    a[i] = 0; 
 ```
 
 这两个循环都可以由编译器轻易向量化，第二个实际上被替换为`memset`，所以 CPU 也不是这里的瓶颈（除非数组适合 L1 缓存）。
@@ -71,13 +77,19 @@ for (int i = 0; i < N; i++)  a[i] = 0;
 忽略一些特殊情况，`memset`和自动向量化赋值循环在底层所做的只是使用 SIMD 指令移动 32 字节数据块：
 
 ```cpp
-const __m256i zeros = _mm256_set1_epi32(0);   for (int i = 0; i + 7 < N; i += 8)  _mm256_store_si256((__m256i*) &a[i], zeros); 
+const __m256i zeros = _mm256_set1_epi32(0);
+
+for (int i = 0; i + 7 < N; i += 8)
+    _mm256_store_si256((__m256i*) &a[i], zeros); 
 ```
 
 我们可以用一个*非临时*的替换通常的向量存储内建函数：
 
 ```cpp
-const __m256i zeros = _mm256_set1_epi32(0);   for (int i = 0; i + 7 < N; i += 8)  _mm256_stream_si256((__m256i*) &a[i], zeros); 
+const __m256i zeros = _mm256_set1_epi32(0);
+
+for (int i = 0; i + 7 < N; i += 8)
+    _mm256_stream_si256((__m256i*) &a[i], zeros); 
 ```
 
 非临时内存读取或写入是一种告诉 CPU 我们将来不需要我们刚刚访问的数据的方法，因此在写入后不需要读取数据。

@@ -33,13 +33,30 @@
 这里有一个简单的例子。在某些应用中，例如计算几何，除了加、减和乘数字外，你还需要进行不四舍五入的除法，产生一个有理数，它可以由两个整数的比例精确表示：
 
 ```cpp
-struct r {  int x, y; };   r operator+(r a, r b) { return {a.x * b.y + a.y * b.x, a.y * b.y}; } r operator*(r a, r b) { return {a.x * b.x, a.y * b.y}; } r operator/(r a, r b) { return {a.x * b.x, a.y * b.y}; } bool operator<(r a, r b) { return a.x * b.y < b.x * a.y; } // ...and so on, you get the idea 
+struct r {
+    int x, y;
+};
+
+r operator+(r a, r b) { return {a.x * b.y + a.y * b.x, a.y * b.y}; }
+r operator*(r a, r b) { return {a.x * b.x, a.y * b.y}; }
+r operator/(r a, r b) { return {a.x * b.x, a.y * b.y}; }
+bool operator<(r a, r b) { return a.x * b.y < b.x * a.y; }
+// ...and so on, you get the idea 
 ```
 
 这个比例可以被约简，这将使这种表示变得独特：
 
 ```cpp
-struct r {  int x, y; r(int x, int y) : x(x), y(y) { if (y < 0) x = -x, y = -y; int g = gcd(x, y); x /= g; y /= g; } }; 
+struct r {
+    int x, y;
+    r(int x, int y) : x(x), y(y) {
+        if (y < 0)
+            x = -x, y = -y;
+        int g = gcd(x, y);
+        x /= g;
+        y /= g;
+    }
+}; 
 ```
 
 这就是像 WolframAlpha 和 SageMath 这样的 *计算机代数* 系统是如何工作的：它们仅操作符号表达式，并避免将任何内容作为实值评估。
@@ -55,7 +72,15 @@ struct r {  int x, y; r(int x, int y) : x(x), y(y) { if (y < 0) x = -x, y = -y; 
 这种方法在金融软件中常用，在这些软件中，你需要一个简单的方法来管理舍入误差，以确保最终数字相加。例如，纳斯达克在其股票列表中使用美元的 $\frac{1}{10000}$ 作为其基本单位，这意味着在所有交易中，你都能获得小数点后精确到 4 位的精度。
 
 ```cpp
-struct money {  uint v; // 1/10000th of a dollar };   std::string to_string(money) {  return std::format("${0}.{1:04d}", v / 10000, v % 10000); }   money operator*(money x, money y) { return {x.v * y.v / 10000}; } 
+struct money {
+    uint v; // 1/10000th of a dollar
+};
+
+std::string to_string(money) {
+    return std::format("${0}.{1:04d}", v / 10000, v % 10000);
+}
+
+money operator*(money x, money y) { return {x.v * y.v / 10000}; } 
 ```
 
 除了引入舍入误差外，更大的问题是，当缩放常数放置不当时，它们变得无用。如果你正在处理的数字太大，则内部整数值将溢出，如果数字太小，它们将被四舍五入到零。有趣的是，这种情况曾经 [成为问题](https://www.wsj.com/articles/berkshire-hathaways-stock-price-is-too-much-for-computers-11620168548) 在纳斯达克，当伯克希尔哈撒韦的股价接近 $\frac{2^{32} - 1}{10000}$ = $429,496.7295$ 时，它再也无法适应一个无符号 32 位整数。
@@ -79,7 +104,11 @@ $$ 1.2345 = \underbrace{12345}_\text{小数部分} \times {\underbrace{10}_\text
 这个手工实现的浮点数示例希望传达这个想法：
 
 ```cpp
-// DIY floating-point number struct fp {  int m; // mantissa int e; // exponent }; 
+// DIY floating-point number
+struct fp {
+    int m; // mantissa
+    int e; // exponent
+}; 
 ```
 
 这样我们就可以用 $\pm \; m \times 2^e$ 的形式来表示数字，其中 $m$ 和 $e$ 都是有限的可能为负的整数——这分别对应于负数或小数。这些数字的分布非常不均匀：在 $[0, 1)$ 范围内的数字数量与在 $[1, +\infty)$ 范围内的数字数量大致相同。
@@ -97,7 +126,11 @@ $$ 42 = 10101_2 = 1.0101_2 \times 2⁵ $$ 注意，按照这个规则，第一�
 由于 $m$ 现在是一个非负值，我们将将其作为无符号整数处理，并添加一个单独的布尔字段来表示数字的符号：
 
 ```cpp
-struct fp {  bool s;     // sign: "0" for "+", "1" for "-" unsigned m; // mantissa int e;      // exponent }; 
+struct fp {
+    bool s;     // sign: "0" for "+", "1" for "-" 
+    unsigned m; // mantissa
+    int e;      // exponent
+}; 
 ```
 
 现在，让我们尝试实现一些算术运算——例如，乘法——使用我们手工制作的浮点数。使用新的公式，结果应该是：
@@ -113,7 +146,23 @@ $$ \begin{aligned} c &= a \cdot b \\ &= (s_a \cdot (1 + m_a) \cdot 2^{e_a}) \cdo
 由于我们需要一些额外的位来正确处理尾数溢出问题，我们将从 $m$ 中保留一个位，从而将其限制在 $[0,2^{31})$ 范围内。
 
 ```cpp
-fp operator*(fp a, fp b) {  fp c; c.s = a.s ^ b.s; c.e = a.e + b.e;  uint64_t x = a.m, y = b.m; // casting to wider types uint64_t m = (x << 31) + (y << 31) + x * y; // 62- or 63-bit intermediate result if (m & (1<<62)) { // checking for overflow m -= (1<<62); // m -= 1; m >>= 1; c.e++; } m += (1<<30); // "rounding" by adding 0.5 to a value that will be floored next c.m = m >> 31;  return c; } 
+fp operator*(fp a, fp b) {
+    fp c;
+    c.s = a.s ^ b.s;
+    c.e = a.e + b.e;
+
+    uint64_t x = a.m, y = b.m; // casting to wider types
+    uint64_t m = (x << 31) + (y << 31) + x * y; // 62- or 63-bit intermediate result
+    if (m & (1<<62)) { // checking for overflow
+        m -= (1<<62); // m -= 1;
+        m >>= 1;
+        c.e++;
+    }
+    m += (1<<30); // "rounding" by adding 0.5 to a value that will be floored next
+    c.m = m >> 31;
+
+    return c;
+} 
 ```
 
 许多需要更高精度级别应用软件使用类似的软件浮点算术。但当然，你不想每次想要乘以两个实数时都执行 10 条或更多的指令，所以现代 CPU 上，浮点算术通常在硬件中实现——由于其复杂性，通常作为独立的协处理器。

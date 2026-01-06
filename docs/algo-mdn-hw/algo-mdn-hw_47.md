@@ -13,7 +13,15 @@
 合并排序数组的标准双指针技术看起来是这样的：
 
 ```cpp
-void merge(int *a, int *b, int *c, int n, int m) {  int i = 0, j = 0; for (int k = 0; k < n + m; k++) { if (i < n && (j == m || a[i] < b[j])) c[k] = a[i++]; else c[k] = b[j++]; } } 
+void merge(int *a, int *b, int *c, int n, int m) {
+    int i = 0, j = 0;
+    for (int k = 0; k < n + m; k++) {
+        if (i < n && (j == m || a[i] < b[j]))
+            c[k] = a[i++];
+        else
+            c[k] = b[j++];
+    }
+} 
 ```
 
 在内存操作方面，我们只是线性地读取 $a$ 和 $b$ 的所有元素，并线性地写入 $c$ 的所有元素。由于这些读取和写入可以缓冲，它可以在 $SCAN(N+M)$ I/O 操作中工作。
@@ -59,7 +67,36 @@ $$ SORT(N) \stackrel{\text{def}}{=} O\left(\frac{N}{B} \log_{\frac{M}{B}} \frac{
 下面是第一阶段在 C++中的样子。这个程序打开一个包含未排序整数的多吉字节二进制文件，以 256MB 的块读取它，在内存中对它们进行排序，然后以`part-000.bin`、`part-001.bin`、`part-002.bin`等命名的文件将它们写回：
 
 ```cpp
-const int B = (1<<20) / 4; // 1 MB blocks of integers const int M = (1<<28) / 4; // available memory  FILE *input = fopen("input.bin", "rb"); std::vector<FILE*> parts;   while (true) {  static int part[M]; // better delete it right after int n = fread(part, 4, M, input);   if (n == 0) break;  // sort a block in-memory std::sort(part, part + n);  char fpart[sizeof "part-999.bin"]; sprintf(fpart, "part-%03d.bin", parts.size());   printf("Writing %d elements into %s...\n", n, fpart);   FILE *file = fopen(fpart, "wb"); fwrite(part, 4, n, file); fclose(file);  file = fopen(fpart, "rb"); parts.push_back(file); }   fclose(input); 
+const int B = (1<<20) / 4; // 1 MB blocks of integers
+const int M = (1<<28) / 4; // available memory
+
+FILE *input = fopen("input.bin", "rb");
+std::vector<FILE*> parts;
+
+while (true) {
+    static int part[M]; // better delete it right after
+    int n = fread(part, 4, M, input);
+
+    if (n == 0)
+        break;
+
+    // sort a block in-memory
+    std::sort(part, part + n);
+
+    char fpart[sizeof "part-999.bin"];
+    sprintf(fpart, "part-%03d.bin", parts.size());
+
+    printf("Writing %d elements into %s...\n", n, fpart);
+
+    FILE *file = fopen(fpart, "wb");
+    fwrite(part, 4, n, file);
+    fclose(file);
+
+    file = fopen(fpart, "rb");
+    parts.push_back(file);
+}
+
+fclose(input); 
 ```
 
 现在剩下的是将它们合并在一起。现代硬盘的带宽可以相当高，可能有很多部分需要合并，因此这一阶段的 I/O 效率并不是我们唯一关心的问题：我们还需要一种比通过 $O(k)$ 次比较找到最小值更快的方式来合并 $k$ 个数组。如果我们为这些 $k$ 个元素维护一个最小堆，就可以在几乎与堆排序相同的方式中以 $O(\log k)$ 每个元素的时间复杂度完成。
@@ -67,19 +104,75 @@ const int B = (1<<20) / 4; // 1 MB blocks of integers const int M = (1<<28) / 4;
 下面是如何实现它的方法。首先，我们需要一个堆（C++中的 `priority_queue`）：
 
 ```cpp
-struct Pointer {  int key, part; // the element itself and the number of its part  bool operator<(const Pointer& other) const { return key > other.key; // std::priority_queue is a max-heap by default } };   std::priority_queue<Pointer> q; 
+struct Pointer {
+    int key, part; // the element itself and the number of its part
+
+    bool operator<(const Pointer& other) const {
+        return key > other.key; // std::priority_queue is a max-heap by default
+    }
+};
+
+std::priority_queue<Pointer> q; 
 ```
 
 然后，我们需要分配和填充缓冲区：
 
 ```cpp
-const int nparts = parts.size();   auto buffers = new int[nparts][B]; // buffers for each part int *l = new int[nparts],          // # of already processed buffer elements  *r = new int[nparts];          // buffer size (in case it isn't full)  // now we add fill the buffer for each part and add their elements to the heap for (int part = 0; part < nparts; part++) {  l[part] = 1; // if the element is in the heap, we also consider it "processed" r[part] = fread(buffers[part], 4, B, parts[part]); q.push({buffers[part][0], part}); } 
+const int nparts = parts.size();
+
+auto buffers = new int[nparts][B]; // buffers for each part
+int *l = new int[nparts],          // # of already processed buffer elements
+    *r = new int[nparts];          // buffer size (in case it isn't full)
+
+// now we add fill the buffer for each part and add their elements to the heap
+for (int part = 0; part < nparts; part++) {
+    l[part] = 1; // if the element is in the heap, we also consider it "processed"
+    r[part] = fread(buffers[part], 4, B, parts[part]);
+    q.push({buffers[part][0], part});
+} 
 ```
 
 现在，我们只需要从堆中弹出元素到结果文件，直到它为空，小心地在批量中写入和读取元素：
 
 ```cpp
-FILE *output = fopen("output.bin", "w");   int outbuffer[B]; // the output buffer int buffered = 0; // number of elements in it  while (!q.empty()) {  auto [key, part] = q.top(); q.pop();   // write the minimum to the output buffer outbuffer[buffered++] = key; // check if it needs to be committed to the file if (buffered == B) { fwrite(outbuffer, 4, B, output); buffered = 0; }   // fetch a new block of that part if needed if (l[part] == r[part]) { r[part] = fread(buffers[part], 4, B, parts[part]); l[part] = 0; }   // read a new element from that part unless we've already processed all of it if (l[part] < r[part]) { q.push({buffers[part][l[part]], part}); l[part]++; } }   // write what's left of the output buffer fwrite(outbuffer, 4, buffered, output);   //clean up delete[] buffers; for (FILE *file : parts)  fclose(file); fclose(output); 
+FILE *output = fopen("output.bin", "w");
+
+int outbuffer[B]; // the output buffer
+int buffered = 0; // number of elements in it
+
+while (!q.empty()) {
+    auto [key, part] = q.top();
+    q.pop();
+
+    // write the minimum to the output buffer
+    outbuffer[buffered++] = key;
+    // check if it needs to be committed to the file
+    if (buffered == B) {
+        fwrite(outbuffer, 4, B, output);
+        buffered = 0;
+    }
+
+    // fetch a new block of that part if needed
+    if (l[part] == r[part]) {
+        r[part] = fread(buffers[part], 4, B, parts[part]);
+        l[part] = 0;
+    }
+
+    // read a new element from that part unless we've already processed all of it
+    if (l[part] < r[part]) {
+        q.push({buffers[part][l[part]], part});
+        l[part]++;
+    }
+}
+
+// write what's left of the output buffer
+fwrite(outbuffer, 4, buffered, output);
+
+//clean up
+delete[] buffers;
+for (FILE *file : parts)
+    fclose(file);
+fclose(output); 
 ```
 
 这个实现并不特别有效或看起来安全（好吧，这基本上是纯 C），但它是一个很好的教育示例，说明了如何与低级内存 API 一起工作。
@@ -97,7 +190,11 @@ FILE *output = fopen("output.bin", "w");   int outbuffer[B]; // the output buffe
 其中最简单的是可能是 *哈希连接*，其过程如下：
 
 ```cpp
-def join(a, b):  d = dict(a) for x, y in b: if x in d: yield d[x] 
+def join(a, b):
+    d = dict(a)
+    for x, y in b:
+        if x in d:
+            yield d[x] 
 ```
 
 在外部内存中，使用哈希表合并两个列表是不切实际的，因为它将涉及进行 $O(M)$ 块读取，尽管每个列表中只使用了一个元素。

@@ -41,7 +41,18 @@
 Python 有一个方便的`lru_cache`装饰器，可以用于实现带有记忆化递归的它：
 
 ```cpp
-@lru_cache def f(n, w):  # check if we have no items to choose if n == 0: return 0  # check if we can't pick the last item (note zero-based indexing) if c[n - 1] > w: return f(n - 1, w)  # otherwise, we can either pick the last item or not return max(f(n - 1, w), c[n - 1] + f(n - 1, w - c[n - 1])) 
+@lru_cache
+def f(n, w):
+    # check if we have no items to choose
+    if n == 0:
+        return 0
+
+    # check if we can't pick the last item (note zero-based indexing)
+    if c[n - 1] > w:
+        return f(n - 1, w)
+
+    # otherwise, we can either pick the last item or not
+    return max(f(n - 1, w), c[n - 1] + f(n - 1, w - c[n - 1])) 
 ```
 
 当计算$f[N, W]$时，递归可能访问多达$O(N \cdot W)$个不同的状态，这在渐近上是有效的，但在现实中相当慢。即使在消除了 Python 递归的开销以及 LRU 缓存工作所需的全部哈希表查询之后，它仍然会很慢，因为它在执行的大部分过程中都会进行随机的 I/O 操作。
@@ -49,7 +60,13 @@ Python 有一个方便的`lru_cache`装饰器，可以用于实现带有记忆�
 我们可以做的另一件事是为动态创建一个二维数组，并用一个漂亮的嵌套循环替换递归，如下所示：
 
 ```cpp
-int f[N + 1][W + 1] = {0}; // this zero-fills the array  for (int n = 1; n <= N; n++)  for (int w = 0; w <= W; w++) f[n][w] = c[n - 1] > w ? f[n - 1][w] : max(f[n - 1][k], c[n - 1] + f[n - 1][w - c[n - 1]]); 
+int f[N + 1][W + 1] = {0}; // this zero-fills the array
+
+for (int n = 1; n <= N; n++)
+    for (int w = 0; w <= W; w++)
+        f[n][w] = c[n - 1] > w ?
+                  f[n - 1][w] :
+                  max(f[n - 1][k], c[n - 1] + f[n - 1][w - c[n - 1]]); 
 ```
 
 注意，我们只使用前一层动态来计算下一层。这意味着如果我们能在缓存中存储一层，我们只需要在外部内存中写入$O(\frac{N \cdot W}{B})$个块。
@@ -57,13 +74,20 @@ int f[N + 1][W + 1] = {0}; // this zero-fills the array  for (int n = 1; n <= N;
 此外，如果我们只需要答案，实际上我们不需要存储整个二维数组，只需要存储最后一层。这使得我们只需通过维护一个包含$W$个值的单个数组来使用$O(W)$的内存。为了简化代码，我们可以稍微改变动态，以存储一个二进制值：是否可以使用我们已考虑的物品得到恰好$w$的和。这个动态计算得更快：
 
 ```cpp
-bool f[W + 1] = {0}; f[0] = 1; for (int n = 0; n < N; n++)  for (int x = W - c[n]; x >= 0; x--) f[x + c[n]] |= f[x]; 
+bool f[W + 1] = {0};
+f[0] = 1;
+for (int n = 0; n < N; n++)
+    for (int x = W - c[n]; x >= 0; x--)
+        f[x + c[n]] |= f[x]; 
 ```
 
 作为旁注，现在它只使用简单的位操作，可以通过使用 bitset 进一步优化：
 
 ```cpp
-std::bitset<W + 1> b; b[0] = 1; for (int n = 0; n < N; n++)  b |= b << c[n]; 
+std::bitset<W + 1> b;
+b[0] = 1;
+for (int n = 0; n < N; n++)
+    b |= b << c[n]; 
 ```
 
 令人惊讶的是，仍有改进的空间，我们稍后会回到这个问题。
@@ -83,7 +107,10 @@ $$ t[k][i] = \min \{ a_i, a_{i+1}, \ldots, a_{i+2^k-1} \} $$
 这意味着我们可以直接取这两个预计算最小值中的最小值作为答案：
 
 ```cpp
-int rmq(int l, int r) { // half-interval [l; r)  int t = __lg(r - l); return min(mn[t][l], mn[t][r - (1 << t)]); } 
+int rmq(int l, int r) { // half-interval [l; r)
+    int t = __lg(r - l);
+    return min(mn[t][l], mn[t][r - (1 << t)]);
+} 
 ```
 
 `__lg`函数是 GCC 中可用的一个内建函数，用于计算一个数的二进制对数并向下取整。内部它使用`clz`（“计算最高位零”）指令，并从 32（针对 32 位整数）中减去这个计数，因此只需要几个周期。
@@ -95,7 +122,13 @@ $$ t[k][i] = \min(t[k-1][i], t[k-1][i+2^{k-1}]) $$
 现在，有两个设计选择要做：是否将对数大小的$k$作为第一维或第二维，以及是否先迭代$k$然后迭代$i$或相反。这意味着有$2×2=4$种构建它的方法，这里是最优的一种：
 
 ```cpp
-int mn[logn][maxn];   memcpy(mn[0], a, sizeof a);   for (int l = 0; l < logn - 1; l++)  for (int i = 0; i + (2 << l) <= n; i++) mn[l + 1][i] = min(mn[l][i], mn[l][i + (1 << l)]); 
+int mn[logn][maxn];
+
+memcpy(mn[0], a, sizeof a);
+
+for (int l = 0; l < logn - 1; l++)
+    for (int i = 0; i + (2 << l) <= n; i++)
+        mn[l + 1][i] = min(mn[l][i], mn[l][i + (1 << l)]); 
 ```
 
 这是唯一一种内存布局和迭代顺序的组合，它会产生漂亮的线性遍历，速度大约快 3 倍。作为一个练习，考虑其他三种变体，并思考一下*为什么*它们会慢。
@@ -113,7 +146,11 @@ int left_child[maxn], right_child[maxn], key[maxn], size[maxn];
 相反，如果它被存储为结构数组（AoS），你将需要大约少 4 倍的块读取，因为一个节点的所有数据都存储在同一个块中，并且一次性读取：
 
 ```cpp
-struct Node {  int left_child, right_child, key, size; };   Node t[maxn]; 
+struct Node {
+    int left_child, right_child, key, size;
+};
+
+Node t[maxn]; 
 ```
 
 AoS 布局通常被用于数据结构，但 SoA 仍然有很好的用途：虽然它在搜索方面表现较差，但在线性扫描方面则要好得多。

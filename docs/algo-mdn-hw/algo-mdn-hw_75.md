@@ -13,13 +13,21 @@
 对于我们的基线，我们可以直接从 STL 调用`std::partial_sum`，但为了清晰起见，我们将手动实现它。我们创建一个整数数组，然后逐个将前一个元素加到当前元素上：
 
 ```cpp
-void prefix(int *a, int n) {  for (int i = 1; i < n; i++) a[i] += a[i - 1]; } 
+void prefix(int *a, int n) {
+    for (int i = 1; i < n; i++)
+        a[i] += a[i - 1];
+} 
 ```
 
 看起来我们似乎需要在每次迭代中进行两次读取、一次加法和一次写入，但当然，编译器会优化额外的读取并使用寄存器作为累加器：
 
 ```cpp
-loop:  add     edx, DWORD PTR [rax] mov     DWORD PTR [rax-4], edx add     rax, 4 cmp     rax, rcx jne     loop 
+loop:
+    add     edx, DWORD PTR [rax]
+    mov     DWORD PTR [rax-4], edx
+    add     rax, 4
+    cmp     rax, rcx
+    jne     loop 
 ```
 
 在展开循环后，只剩下两条指令：融合的读取-加法和结果的写回。理论上，这些应该以 2 GFLOPS（每个 CPU 周期处理 1 个元素，得益于超标量处理）的速度运行，但由于内存系统必须不断在读取和写入之间切换，实际性能在 1.2 到 1.6 GFLOPS 之间，具体取决于数组大小。
@@ -35,7 +43,10 @@ loop:  add     edx, DWORD PTR [rax] mov     DWORD PTR [rax-4], edx add     rax, 
 现在，为了在本地计算这些前缀和，我们将使用另一种并行前缀和算法，它通常效率不高（总工作量为 $O(n \log n)$ 而不是线性），但对于数据已经位于 SIMD 寄存器中的情况来说足够好了。思路是在 $\log n$ 次迭代中执行，在第 $k$ 次迭代中，将 $a_{i - 2^k}$ 添加到所有适用的 $a_i$：
 
 ```cpp
-for (int l = 0; l < logn; l++)  // (atomically and in parallel): for (int i = (1 << l); i < n; i++) a[i] += a[i - (1 << l)]; 
+for (int l = 0; l < logn; l++)
+    // (atomically and in parallel):
+    for (int i = (1 << l); i < n; i++)
+        a[i] += a[i - (1 << l)]; 
 ```
 
 我们可以通过归纳法证明这个算法是有效的：如果在第 $k$ 次迭代中每个元素 $a_i$ 都等于原始数组中 $(i - 2^k, i]$ 区间的和，那么在将其添加到 $a_{i - 2^k}$ 后，它将等于 $(i - 2^{k+1}, i]$ 区间的和。经过 $O(\log n)$ 次迭代后，数组将变成其前缀和。
@@ -43,31 +54,72 @@ for (int l = 0; l < logn; l++)  // (atomically and in parallel): for (int i = (1
 在单指令多数据（SIMD）实现中，我们可以使用置换来将第 $i$ 个元素与第 $(i-2^k)$ 个元素对齐，但它们太慢了。相反，我们将使用 `sll`（“左移位”）指令，它正好做这件事，并且还将不匹配的元素替换为零：
 
 ```cpp
-typedef __m128i v4i;   v4i prefix(v4i x) {  // x = 1, 2, 3, 4 x = _mm_add_epi32(x, _mm_slli_si128(x, 4)); // x = 1, 2, 3, 4 //   + 0, 1, 2, 3 //   = 1, 3, 5, 7 x = _mm_add_epi32(x, _mm_slli_si128(x, 8)); // x = 1, 3, 5, 7 //   + 0, 0, 1, 3 //   = 1, 3, 6, 10 return x; } 
+typedef __m128i v4i;
+
+v4i prefix(v4i x) {
+    // x = 1, 2, 3, 4
+    x = _mm_add_epi32(x, _mm_slli_si128(x, 4));
+    // x = 1, 2, 3, 4
+    //   + 0, 1, 2, 3
+    //   = 1, 3, 5, 7
+    x = _mm_add_epi32(x, _mm_slli_si128(x, 8));
+    // x = 1, 3, 5, 7
+    //   + 0, 0, 1, 3
+    //   = 1, 3, 6, 10
+    return x;
+} 
 ```
 
 不幸的是，这个指令的 256 位版本在两个 128 位通道内独立地执行字节移位，这是 AVX 的典型做法：
 
 ```cpp
-typedef __m256i v8i;   v8i prefix(v8i x) {  // x = 1, 2, 3, 4, 5, 6, 7, 8 x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4)); x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8)); x = _mm256_add_epi32(x, _mm256_slli_si256(x, 16)); // <- this does nothing // x = 1, 3, 6, 10, 5, 11, 18, 26 return x; } 
+typedef __m256i v8i;
+
+v8i prefix(v8i x) {
+    // x = 1, 2, 3, 4, 5, 6, 7, 8
+    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4));
+    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8));
+    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 16)); // <- this does nothing
+    // x = 1, 3, 6, 10, 5, 11, 18, 26
+    return x;
+} 
 ```
 
 我们仍然可以使用它以两倍的速度计算 4 元素的前缀和，但在累积时将不得不切换到 128 位的 SSE。让我们编写一个方便的函数，从头到尾计算局部前缀和：
 
 ```cpp
-void prefix(int *p) {  v8i x = _mm256_load_si256((v8i*) p); x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4)); x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8)); _mm256_store_si256((v8i*) p, x); } 
+void prefix(int *p) {
+    v8i x = _mm256_load_si256((v8i*) p);
+    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 4));
+    x = _mm256_add_epi32(x, _mm256_slli_si256(x, 8));
+    _mm256_store_si256((v8i*) p, x);
+} 
 ```
 
 现在，对于累积阶段，我们将创建另一个方便的函数，它同样接受 4 元素块的指针以及前缀和的 4 元素向量。这个函数的职责是将这个前缀和向量添加到块中，并更新它，以便可以传递给下一个块（通过在加法之前广播块之前的最后一个元素）：
 
 ```cpp
-v4i accumulate(int *p, v4i s) {  v4i d = (v4i) _mm_broadcast_ss((float*) &p[3]); v4i x = _mm_load_si128((v4i*) p); x = _mm_add_epi32(s, x); _mm_store_si128((v4i*) p, x); return _mm_add_epi32(s, d); } 
+v4i accumulate(int *p, v4i s) {
+    v4i d = (v4i) _mm_broadcast_ss((float*) &p[3]);
+    v4i x = _mm_load_si128((v4i*) p);
+    x = _mm_add_epi32(s, x);
+    _mm_store_si128((v4i*) p, x);
+    return _mm_add_epi32(s, d);
+} 
 ```
 
 随着 `prefix` 和 `accumulate` 的实现，剩下要做的就是将我们的两遍算法粘合在一起：
 
 ```cpp
-void prefix(int *a, int n) {  for (int i = 0; i < n; i += 8) prefix(&a[i]);  v4i s = _mm_setzero_si128();  for (int i = 4; i < n; i += 4) s = accumulate(&a[i], s); } 
+void prefix(int *a, int n) {
+    for (int i = 0; i < n; i += 8)
+        prefix(&a[i]);
+
+    v4i s = _mm_setzero_si128();
+
+    for (int i = 4; i < n; i += 4)
+        s = accumulate(&a[i], s);
+} 
 ```
 
 该算法已经比标量实现快了略多于两倍，但对于超出 L3 缓存的较大数组来说会变慢——大约是两倍双向 RAM 带宽，因为我们正在读取整个数组两次。
@@ -81,7 +133,23 @@ void prefix(int *a, int n) {  for (int i = 0; i < n; i += 8) prefix(&a[i]);  v4i
 因此，对于大型数组，我们有一个内存带宽问题。如果我们将其分成适合缓存的块并分别处理它们，就可以避免从 RAM 中重新检索整个数组。我们只需要传递给下一个块的先前块的求和，因此我们可以设计一个与 `accumulate` 接口类似的 `local_prefix` 函数：
 
 ```cpp
-const int B = 4096; // <- ideally should be slightly less or equal to the L1 cache  v4i local_prefix(int *a, v4i s) {  for (int i = 0; i < B; i += 8) prefix(&a[i]);  for (int i = 0; i < B; i += 4) s = accumulate(&a[i], s);   return s; }   void prefix(int *a, int n) {  v4i s = _mm_setzero_si128(); for (int i = 0; i < n; i += B) s = local_prefix(a + i, s); } 
+const int B = 4096; // <- ideally should be slightly less or equal to the L1 cache
+
+v4i local_prefix(int *a, v4i s) {
+    for (int i = 0; i < B; i += 8)
+        prefix(&a[i]);
+
+    for (int i = 0; i < B; i += 4)
+        s = accumulate(&a[i], s);
+
+    return s;
+}
+
+void prefix(int *a, int n) {
+    v4i s = _mm_setzero_si128();
+    for (int i = 0; i < n; i += B)
+        s = local_prefix(a + i, s);
+} 
 ```
 
 （我们必须确保 $N$ 是 $B$ 的倍数，但我们现在将忽略这样的实现细节。）
@@ -99,7 +167,11 @@ const int B = 4096; // <- ideally should be slightly less or equal to the L1 cac
 最好在`accumulate`阶段添加预取，因为它比`prefix`慢且内存密集度更低：
 
 ```cpp
-v4i accumulate(int *p, v4i s) {  __builtin_prefetch(p + B); // <-- prefetch the next block // ... return s; } 
+v4i accumulate(int *p, v4i s) {
+    __builtin_prefetch(p + B); // <-- prefetch the next block
+    // ...
+    return s;
+} 
 ```
 
 对于缓存中的数组，性能略有下降，但对于 RAM 中的数组，接近 2 GFLOPS：
@@ -109,7 +181,25 @@ v4i accumulate(int *p, v4i s) {  __builtin_prefetch(p + B); // <-- prefetch the 
 另一种方法是进行两个阶段的*交错*。而不是在大块中分离并交替它们，我们可以同时执行这两个阶段，其中`accumulate`阶段落后于固定数量的迭代——类似于 CPU 流水线：
 
 ```cpp
-const int B = 64; //        ^ small sizes cause pipeline stalls //          large sizes cause cache system inefficiencies  void prefix(int *a, int n) {  v4i s = _mm_setzero_si128();   for (int i = 0; i < B; i += 8) prefix(&a[i]);   for (int i = B; i < n; i += 8) { prefix(&a[i]); s = accumulate(&a[i - B], s); s = accumulate(&a[i - B + 4], s); }   for (int i = n - B; i < n; i += 4) s = accumulate(&a[i], s); } 
+const int B = 64;
+//        ^ small sizes cause pipeline stalls
+//          large sizes cause cache system inefficiencies
+
+void prefix(int *a, int n) {
+    v4i s = _mm_setzero_si128();
+
+    for (int i = 0; i < B; i += 8)
+        prefix(&a[i]);
+
+    for (int i = B; i < n; i += 8) {
+        prefix(&a[i]);
+        s = accumulate(&a[i - B], s);
+        s = accumulate(&a[i - B + 4], s);
+    }
+
+    for (int i = n - B; i < n; i += 4)
+        s = accumulate(&a[i], s);
+} 
 ```
 
 这带来了更多的好处：循环以恒定速度进行，减轻了对内存系统的压力，调度器可以看到两个子例程的指令，这使得它能够更有效地分配指令到执行端口——有点像超线程，但体现在代码中。

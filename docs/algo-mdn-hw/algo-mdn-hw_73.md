@@ -11,13 +11,27 @@
 对于所有方法，我们将实现一个`find_factor`函数，它接受一个正整数$n$并返回它的任何非平凡除数（如果该数是素数则返回`1`）：
 
 ```cpp
-// I don't feel like typing "unsigned long long" each time typedef __uint16_t u16; typedef __uint32_t u32; typedef __uint64_t u64; typedef __uint128_t u128;   u64 find_factor(u64 n); 
+// I don't feel like typing "unsigned long long" each time
+typedef __uint16_t u16;
+typedef __uint32_t u32;
+typedef __uint64_t u64;
+typedef __uint128_t u128;
+
+u64 find_factor(u64 n); 
 ```
 
 要找到完整的分解，你可以将其应用于$n$，将其减少，并继续进行，直到无法找到新的因子：
 
 ```cpp
-vector<u64> factorize(u64 n) {  vector<u64> factorization; do { u64 d = find_factor(n); factorization.push_back(d); n /= d; } while (d != 1); return factorization; } 
+vector<u64> factorize(u64 n) {
+    vector<u64> factorization;
+    do {
+        u64 d = find_factor(n);
+        factorization.push_back(d);
+        n /= d;
+    } while (d != 1);
+    return factorization;
+} 
 ```
 
 在每次移除因子之后，问题变得相当小，因此完整分解的最坏情况运行时间等于`find_factor`调用的最坏情况运行时间。
@@ -31,13 +45,23 @@ vector<u64> factorize(u64 n) {  vector<u64> factorization; do { u64 d = find_fac
 最基本的方法是尝试$n$以下的所有整数作为除数：
 
 ```cpp
-u64 find_factor(u64 n) {  for (u64 d = 2; d < n; d++) if (n % d == 0) return d; return 1; } 
+u64 find_factor(u64 n) {
+    for (u64 d = 2; d < n; d++)
+        if (n % d == 0)
+            return d;
+    return 1;
+} 
 ```
 
 我们可以注意到，如果$n$被除以$d < \sqrt n$，那么它也会被除以$\frac{n}{d} > \sqrt n$，因此没有必要单独检查它。这让我们可以提前停止试除法，并且只需检查不超过$\sqrt n$的潜在除数：
 
 ```cpp
-u64 find_factor(u64 n) {  for (u64 d = 2; d * d <= n; d++) if (n % d == 0) return d; return 1; } 
+u64 find_factor(u64 n) {
+    for (u64 d = 2; d * d <= n; d++)
+        if (n % d == 0)
+            return d;
+    return 1;
+} 
 ```
 
 在我们的基准测试中，$n$是一个半素数，我们总是找到较小的除数，因此$O(n)$和$O(\sqrt n)$的实现表现相同，并且能够每秒分解大约 2k 个 30 位数的数——而分解一个单独的 60 位数则需要整整 20 秒。
@@ -49,7 +73,25 @@ u64 find_factor(u64 n) {  for (u64 d = 2; d * d <= n; d++) if (n % d == 0) retur
 我们也可以使用这种方法在编译时间计算这些查找表。为了节省空间，我们只需要存储一个数的最小除数。由于最小的除数不超过$\sqrt n$，我们只需要为每个 16 位整数分配一个字节：
 
 ```cpp
-template <int N = (1<<16)> struct Precalc {  unsigned char divisor[N];   constexpr Precalc() : divisor{} { for (int i = 0; i < N; i++) divisor[i] = 1; for (int i = 2; i * i < N; i++) if (divisor[i] == 1) for (int k = i * i; k < N; k += i) divisor[k] = i; } };   constexpr Precalc P{};   u64 find_factor(u64 n) {  return P.divisor[n]; } 
+template <int N = (1<<16)>
+struct Precalc {
+    unsigned char divisor[N];
+
+    constexpr Precalc() : divisor{} {
+        for (int i = 0; i < N; i++)
+            divisor[i] = 1;
+        for (int i = 2; i * i < N; i++)
+            if (divisor[i] == 1)
+                for (int k = i * i; k < N; k += i)
+                    divisor[k] = i;
+    }
+};
+
+constexpr Precalc P{};
+
+u64 find_factor(u64 n) {
+    return P.divisor[n];
+} 
 ```
 
 使用这种方法，我们每秒可以处理 300 万个 16 位整数，尽管对于更大的数字，它可能会变慢。虽然计算和存储前$2^{16}$个数的除数只需要几毫秒和 64KB 的内存，但它对于更大的输入扩展性不好。
@@ -61,7 +103,14 @@ template <int N = (1<<16)> struct Precalc {  unsigned char divisor[N];   constex
 我们可以通过首先检查一个数是否能被 2 整除，然后只考虑奇数除数来应用类似的技巧进行试除法：
 
 ```cpp
-u64 find_factor(u64 n) {  if (n % 2 == 0) return 2; for (u64 d = 3; d * d <= n; d += 2) if (n % d == 0) return d; return 1; } 
+u64 find_factor(u64 n) {
+    if (n % 2 == 0)
+        return 2;
+    for (u64 d = 3; d * d <= n; d += 2)
+        if (n % d == 0)
+            return d;
+    return 1;
+} 
 ```
 
 由于需要执行的除法次数减少了 50%，这个算法的速度快了一倍。
@@ -80,7 +129,20 @@ u64 find_factor(u64 n) {  if (n % 2 == 0) return 2; for (u64 d = 3; d * d <= n; 
 你可以注意到一个模式：序列每 30 个数重复一次。这并不奇怪，因为余数模$2 \times 3 \times 5 = 30$就是我们需要用来确定一个数是否能被 2、3 或 5 整除的所有余数。这意味着我们只需要检查每 30 个数中具有特定余数的 8 个数，从而按比例提高性能：
 
 ```cpp
-u64 find_factor(u64 n) {  for (u64 d : {2, 3, 5}) if (n % d == 0) return d; u64 offsets[] = {0, 4, 6, 10, 12, 16, 22, 24}; for (u64 d = 7; d * d <= n; d += 30) { for (u64 offset : offsets) { u64 x = d + offset; if (n % x == 0) return x; } } return 1; } 
+u64 find_factor(u64 n) {
+    for (u64 d : {2, 3, 5})
+        if (n % d == 0)
+            return d;
+    u64 offsets[] = {0, 4, 6, 10, 12, 16, 22, 24};
+    for (u64 d = 7; d * d <= n; d += 30) {
+        for (u64 offset : offsets) {
+            u64 x = d + offset;
+            if (n % x == 0)
+                return x;
+        }
+    }
+    return 1;
+} 
 ```
 
 如预期的那样，它比简单的试除法快 3.75 倍，每秒处理约 7.6k 个 30 位数字。通过考虑更多的质数，性能可以进一步提高，但回报正在减少：添加一个新的质数 p 可以减少迭代次数的 1/p，但将跳转列表的大小增加 p 倍，需要成比例更多的内存。
@@ -90,7 +152,33 @@ u64 find_factor(u64 n) {  for (u64 d : {2, 3, 5}) if (n % d == 0) return d; u64 
 如果我们继续增加轮分解中的质数数量，最终可以排除所有合数，并只检查质数因子。在这种情况下，我们不需要这个偏移数组，只需要质数数组：
 
 ```cpp
-const int N = (1 << 16);   struct Precalc {  u16 primes[6542]; // # of primes under N=2¹⁶  constexpr Precalc() : primes{} { bool marked[N] = {}; int n_primes = 0;   for (int i = 2; i < N; i++) { if (!marked[i]) { primes[n_primes++] = i; for (int j = 2 * i; j < N; j += i) marked[j] = true; } } } };   constexpr Precalc P{};   u64 find_factor(u64 n) {  for (u16 p : P.primes) if (n % p == 0) return p; return 1; } 
+const int N = (1 << 16);
+
+struct Precalc {
+    u16 primes[6542]; // # of primes under N=2^16
+
+    constexpr Precalc() : primes{} {
+        bool marked[N] = {};
+        int n_primes = 0;
+
+        for (int i = 2; i < N; i++) {
+            if (!marked[i]) {
+                primes[n_primes++] = i;
+                for (int j = 2 * i; j < N; j += i)
+                    marked[j] = true;
+            }
+        }
+    }
+};
+
+constexpr Precalc P{};
+
+u64 find_factor(u64 n) {
+    for (u16 p : P.primes)
+        if (n % p == 0)
+            return p;
+    return 1;
+} 
 ```
 
 这种方法使我们能够每秒处理近 20k 个 30 位整数，但它不适用于更大的（64 位）数，除非它们有小的（$< 2^{16}$）因子。
@@ -100,7 +188,18 @@ const int N = (1 << 16);   struct Precalc {  u16 primes[6542]; // # of primes un
 所有试除法的变体，包括这个，都受整数除法速度的限制，如果我们事先知道除数并允许一些额外的预计算，则可以对其进行优化。Lemire 除法检查是合适的：
 
 ```cpp
-// ...precomputation is the same as before, // but we store the reciprocal instead of the prime number itself u64 magic[6542]; // for each prime i: magic[n_primes++] = u64(-1) / i + 1;   u64 find_factor(u64 n) {  for (u64 m : P.magic) if (m * n < m) return u64(-1) / m + 1; return 1; } 
+// ...precomputation is the same as before,
+// but we store the reciprocal instead of the prime number itself
+u64 magic[6542];
+// for each prime i:
+magic[n_primes++] = u64(-1) / i + 1;
+
+u64 find_factor(u64 n) {
+    for (u64 m : P.magic)
+        if (m * n < m)
+            return u64(-1) / m + 1;
+    return 1;
+} 
 ```
 
 这使得算法的速度提高了约 18 倍：我们现在每秒可以分解**约 350k**个 30 位数的数，这实际上是我们对这个数范围内最有效的算法。虽然通过并行执行这些检查与 SIMD 可能进一步优化，但我们将在那里停止，并尝试不同的、渐近上更好的方法。
@@ -138,7 +237,26 @@ $$ x_0, \; f(x_0), \; f(f(x_0)), \; \ldots $$
 这相当于比较 $f^i(x_0)$ 和 $f^j(x_0)$ 在模 $p$ 下的值。由于 $j$（兔子）的增长速度是 $i$（乌龟）的两倍，它们的差值在每次迭代中增加 $1$，最终将等于（或为）循环长度，此时 $i$ 和 $j$ 指向相同的元素。正如我们半个页面前所证明的，达到循环只需要 $O(\sqrt[4]{n})$ 次迭代：
 
 ```cpp
-u64 f(u64 x, u64 mod) {  return ((u128) x * x + 1) % mod; }   u64 diff(u64 a, u64 b) {  // a and b are unsigned and so is their difference, so we can't just call abs(a - b) return a > b ? a - b : b - a; }   const u64 SEED = 42;   u64 find_factor(u64 n) {  u64 x = SEED, y = SEED, g = 1; while (g == 1) { x = f(f(x, n), n); // advance x twice y = f(y, n);       // advance y once g = gcd(diff(x, y)); } return g; } 
+u64 f(u64 x, u64 mod) {
+    return ((u128) x * x + 1) % mod;
+}
+
+u64 diff(u64 a, u64 b) {
+    // a and b are unsigned and so is their difference, so we can't just call abs(a - b)
+    return a > b ? a - b : b - a;
+}
+
+const u64 SEED = 42;
+
+u64 find_factor(u64 n) {
+    u64 x = SEED, y = SEED, g = 1;
+    while (g == 1) {
+        x = f(f(x, n), n); // advance x twice
+        y = f(y, n);       // advance y once
+        g = gcd(diff(x, y));
+    }
+    return g;
+} 
 ```
 
 虽然它只处理大约 ~25k 个 30 位整数——这几乎是通过快速除法技巧检查每个质数速度的 15 倍慢——但它显著优于所有 $\tilde{O}(\sqrt n)$ 的 60 位数字算法，每秒分解大约 90 个。
@@ -150,7 +268,20 @@ Floyd 的循环查找算法有一个问题，即它移动迭代器比必要的�
 解决这个问题的一种方法是将快速迭代器访问的值$x_i$记住，并且每两次迭代，就使用$x_i$和$x_{\lfloor i / 2 \rfloor}$的差来计算 GCD。但也可以使用不同的原理而不需要额外的内存：乌龟不是在每次迭代中都移动，而是在迭代次数成为 2 的幂时重置为快速迭代器的值。这样，我们可以在保持使用相同的 GCD 技巧来比较$x_i$和$x_{2^{\lfloor \log_2 i \rfloor}}$的同时，节省额外的迭代次数：
 
 ```cpp
-u64 find_factor(u64 n) {  u64 x = SEED;  for (int l = 256; l < (1 << 20); l *= 2) { u64 y = x; for (int i = 0; i < l; i++) { x = f(x, n); if (u64 g = gcd(diff(x, y), n); g != 1) return g; } }   return 1; } 
+u64 find_factor(u64 n) {
+    u64 x = SEED;
+
+    for (int l = 256; l < (1 << 20); l *= 2) {
+        u64 y = x;
+        for (int i = 0; i < l; i++) {
+            x = f(x, n);
+            if (u64 g = gcd(diff(x, y), n); g != 1)
+                return g;
+        }
+    }
+
+    return 1;
+} 
 ```
 
 注意，我们还设置了迭代的上限，以确保算法在合理的时间内完成，并且如果$n$最终被证明是素数，则返回`1`。
@@ -160,7 +291,25 @@ u64 find_factor(u64 n) {  u64 x = SEED;  for (int l = 256; l < (1 << 20); l *= 2
 我们将优化 GCD 调用的次数，而不是直接优化 GCD 本身（见../gcd）。我们可以利用以下事实：如果$a$和$b$中的一个包含因子$p$，那么$a \cdot b \bmod n$也将包含它，因此我们不需要计算$\gcd(a, n)$和$\gcd(b, n)$，而是可以计算$\gcd(a \cdot b \bmod n, n)$。这样，我们可以将 GCD 的计算分组为$M = O(\log n)$，从而从渐近式中移除$\log n$：
 
 ```cpp
-const int M = 1024;   u64 find_factor(u64 n) {  u64 x = SEED;  for (int l = M; l < (1 << 20); l *= 2) { u64 y = x, p = 1; for (int i = 0; i < l; i += M) { for (int j = 0; j < M; j++) { y = f(y, n); p = (u128) p * diff(x, y) % n; } if (u64 g = gcd(p, n); g != 1) return g; } }   return 1; } 
+const int M = 1024;
+
+u64 find_factor(u64 n) {
+    u64 x = SEED;
+
+    for (int l = M; l < (1 << 20); l *= 2) {
+        u64 y = x, p = 1;
+        for (int i = 0; i < l; i += M) {
+            for (int j = 0; j < M; j++) {
+                y = f(y, n);
+                p = (u128) p * diff(x, y) % n;
+            }
+            if (u64 g = gcd(p, n); g != 1)
+                return g;
+        }
+    }
+
+    return 1;
+} 
 ```
 
 现在它每秒执行 425 次因式分解，瓶颈在于模数的速度。
@@ -170,7 +319,50 @@ const int M = 1024;   u64 find_factor(u64 n) {  u64 x = SEED;  for (int l = M; l
 最后一步是应用 Montgomery 乘法。由于模数是常数，我们可以在 Montgomery 空间中执行所有计算——推进迭代器、乘法，甚至计算 GCD——因为在这个空间中减少是便宜的：
 
 ```cpp
-struct Montgomery {  u64 n, nr;  Montgomery(u64 n) : n(n) { nr = 1; for (int i = 0; i < 6; i++) nr *= 2 - n * nr; }   u64 reduce(u128 x) const { u64 q = u64(x) * nr; u64 m = ((u128) q * n) >> 64; return (x >> 64) + n - m; }   u64 multiply(u64 x, u64 y) { return reduce((u128) x * y); } };   u64 f(u64 x, u64 a, Montgomery m) {  return m.multiply(x, x) + a; }   const int M = 1024;   u64 find_factor(u64 n, u64 x0 = 2, u64 a = 1) {  Montgomery m(n); u64 x = SEED;  for (int l = M; l < (1 << 20); l *= 2) { u64 y = x, p = 1; for (int i = 0; i < l; i += M) { for (int j = 0; j < M; j++) { x = f(x, m); p = m.multiply(p, diff(x, y)); } if (u64 g = gcd(p, n); g != 1) return g; } }   return 1; } 
+struct Montgomery {
+    u64 n, nr;
+
+    Montgomery(u64 n) : n(n) {
+        nr = 1;
+        for (int i = 0; i < 6; i++)
+            nr *= 2 - n * nr;
+    }
+
+    u64 reduce(u128 x) const {
+        u64 q = u64(x) * nr;
+        u64 m = ((u128) q * n) >> 64;
+        return (x >> 64) + n - m;
+    }
+
+    u64 multiply(u64 x, u64 y) {
+        return reduce((u128) x * y);
+    }
+};
+
+u64 f(u64 x, u64 a, Montgomery m) {
+    return m.multiply(x, x) + a;
+}
+
+const int M = 1024;
+
+u64 find_factor(u64 n, u64 x0 = 2, u64 a = 1) {
+    Montgomery m(n);
+    u64 x = SEED;
+
+    for (int l = M; l < (1 << 20); l *= 2) {
+        u64 y = x, p = 1;
+        for (int i = 0; i < l; i += M) {
+            for (int j = 0; j < M; j++) {
+                x = f(x, m);
+                p = m.multiply(p, diff(x, y));
+            }
+            if (u64 g = gcd(p, n); g != 1)
+                return g;
+        }
+    }
+
+    return 1;
+} 
 ```
 
 此实现每秒可以处理大约 3k 个 60 位整数，这比[PARI](https://pari.math.u-bordeaux.fr/) / [SageMath 的`factor`](https://doc.sagemath.org/html/en/reference/structure/sage/structure/factorization.html) / `cat semiprimes.txt | time factor`测量的速度要快约 3 倍。

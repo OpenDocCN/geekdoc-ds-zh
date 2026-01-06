@@ -35,7 +35,8 @@ parallel taskset -c 0,1,2,3 ./run ::: {0..3}
 让我们再运行另一个基准测试，但现在将进程固定到不同的 4 核心组，这些组不共享 L3 缓存：
 
 ```cpp
-parallel taskset -c 0,1 ./run ::: {0..1}  # L3 cache sharing parallel taskset -c 0,4 ./run ::: {0..1}  # no L3 cache sharing 
+parallel taskset -c 0,1 ./run ::: {0..1}  # L3 cache sharing
+parallel taskset -c 0,4 ./run ::: {0..1}  # no L3 cache sharing 
 ```
 
 它的表现更好——就好像有双倍的 L3 缓存和 RAM 带宽可用：

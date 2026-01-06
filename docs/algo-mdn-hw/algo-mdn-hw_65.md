@@ -15,7 +15,18 @@
 此外，还有一个特殊的[CPUID](https://en.wikipedia.org/wiki/CPUID)汇编指令，允许你查询有关 CPU 的各种信息，包括特定向量扩展的支持情况。它主要用于在运行时获取此类信息，以避免为每个微架构分发单独的二进制文件。其输出信息以特征掩码的形式非常密集地返回，因此编译器提供了内置方法来理解它。以下是一个示例：
 
 ```cpp
-#include <iostream> using namespace std;   int main() {  cout << __builtin_cpu_supports("sse") << endl; cout << __builtin_cpu_supports("sse2") << endl; cout << __builtin_cpu_supports("avx") << endl; cout << __builtin_cpu_supports("avx2") << endl; cout << __builtin_cpu_supports("avx512f") << endl;   return 0; } 
+#include <iostream>
+using namespace std;
+
+int main() {
+    cout << __builtin_cpu_supports("sse") << endl;
+    cout << __builtin_cpu_supports("sse2") << endl;
+    cout << __builtin_cpu_supports("avx") << endl;
+    cout << __builtin_cpu_supports("avx2") << endl;
+    cout << __builtin_cpu_supports("avx512f") << endl;
+
+    return 0;
+} 
 ```
 
 其次，我们需要包含一个包含所需内联函数子集的头文件。类似于 GCC 中的`<bits/stdc++.h>`，有一个`<x86intrin.h>`头文件包含了所有这些函数，所以我们只需使用它。
@@ -25,7 +36,13 @@
 在所有后续的代码示例中，假设它们以以下行开始：
 
 ```cpp
-#pragma GCC target("avx2") #pragma GCC optimize("O3")  #include <x86intrin.h> #include <bits/stdc++.h>  using namespace std; 
+#pragma GCC target("avx2")
+#pragma GCC optimize("O3")
+
+#include <x86intrin.h>
+#include <bits/stdc++.h>
+
+using namespace std; 
 ```
 
 在本章中，我们将重点关注 AVX2 和之前的 SIMD 扩展，这些扩展应该适用于 95%以上的桌面和服务器计算机，尽管一般原则在 AVX512、Arm Neon 和其他 SIMD 架构上也同样适用。
@@ -59,7 +76,21 @@ C/C++编译器实现了特殊的*向量类型*，这些类型指的是存储在�
 例如，这里是一个使用 AVX 内联函数将两个 64 位浮点数数组相加的循环：
 
 ```cpp
-double a[100], b[100], c[100];   // iterate in blocks of 4, // because that's how many doubles can fit into a 256-bit register for (int i = 0; i < 100; i += 4) {  // load two 256-bit segments into registers __m256d x = _mm256_loadu_pd(&a[i]); __m256d y = _mm256_loadu_pd(&b[i]);   // add 4+4 64-bit numbers together __m256d z = _mm256_add_pd(x, y);   // write the 256-bit result into memory, starting with c[i] _mm256_storeu_pd(&c[i], z); } 
+double a[100], b[100], c[100];
+
+// iterate in blocks of 4,
+// because that's how many doubles can fit into a 256-bit register
+for (int i = 0; i < 100; i += 4) {
+    // load two 256-bit segments into registers
+    __m256d x = _mm256_loadu_pd(&a[i]);
+    __m256d y = _mm256_loadu_pd(&b[i]);
+
+    // add 4+4 64-bit numbers together
+    __m256d z = _mm256_add_pd(x, y);
+
+    // write the 256-bit result into memory, starting with c[i]
+    _mm256_storeu_pd(&c[i], z);
+} 
 ```
 
 使用 SIMD 的主要挑战是将数据放入连续的固定大小块中，以便加载到寄存器中。在上面的代码中，如果数组长度不能被块大小整除，我们可能会遇到一般性问题。对此有两种常见的解决方案：
@@ -99,7 +130,9 @@ double a[100], b[100], c[100];   // iterate in blocks of 4, // because that's ho
 **指令选择**。请注意，编译器并不一定选择你指定的确切指令。类似于我们之前讨论的标量`c = a + b`，也存在一个融合的向量加法指令，因此，而不是每个循环周期使用 2+1+1=4 条指令，编译器[重写了上面的代码](https://godbolt.org/z/dMz8E5Ye8)，使用 3 条指令的块，如下所示：
 
 ```cpp
-vmovapd ymm1, YMMWORD PTR a[rax] vaddpd  ymm0, ymm1, YMMWORD PTR b[rax] vmovapd YMMWORD PTR c[rax], ymm0 
+vmovapd ymm1, YMMWORD PTR a[rax]
+vaddpd  ymm0, ymm1, YMMWORD PTR b[rax]
+vmovapd YMMWORD PTR c[rax], ymm0 
 ```
 
 有时，尽管这种情况很少见，这种编译器干扰会使事情变得更糟，因此始终检查汇编代码（它们通常以“v”开头）并仔细查看生成的向量指令是一个好主意。
@@ -117,7 +150,8 @@ vmovapd ymm1, YMMWORD PTR a[rax] vaddpd  ymm0, ymm1, YMMWORD PTR b[rax] vmovapd 
 在 GCC 中，你可以这样定义一个将 8 个整数打包到 256 位（32 字节）寄存器的向量：
 
 ```cpp
-typedef int v8si __attribute__ (( vector_size(32) )); // type ^   ^ typename          size in bytes ^ 
+typedef int v8si __attribute__ (( vector_size(32) ));
+// type ^   ^ typename          size in bytes ^ 
 ```
 
 不幸的是，这并不是 C 或 C++标准的一部分，因此不同的编译器使用不同的语法来实现这一点。
@@ -127,19 +161,35 @@ typedef int v8si __attribute__ (( vector_size(32) )); // type ^   ^ typename    
 使用这些类型的主要优势是，对于许多操作，你可以使用正常的 C++运算符，而不是查找相关的内联函数。
 
 ```cpp
-v4si a = {1, 2, 3, 5}; v4si b = {8, 13, 21, 34};   v4si c = a + b;   for (int i = 0; i < 4; i++)  printf("%d\n", c[i]);   c *= 2; // multiply by scalar  for (int i = 0; i < 4; i++)  printf("%d\n", c[i]); 
+v4si a = {1, 2, 3, 5};
+v4si b = {8, 13, 21, 34};
+
+v4si c = a + b;
+
+for (int i = 0; i < 4; i++)
+    printf("%d\n", c[i]);
+
+c *= 2; // multiply by scalar
+
+for (int i = 0; i < 4; i++)
+    printf("%d\n", c[i]); 
 ```
 
 使用向量类型，我们可以极大地简化之前使用内联函数实现的“a + b”循环：
 
 ```cpp
-typedef double v4d __attribute__ (( vector_size(32) )); v4d a[100/4], b[100/4], c[100/4];   for (int i = 0; i < 100/4; i++)  c[i] = a[i] + b[i]; 
+typedef double v4d __attribute__ (( vector_size(32) ));
+v4d a[100/4], b[100/4], c[100/4];
+
+for (int i = 0; i < 100/4; i++)
+    c[i] = a[i] + b[i]; 
 ```
 
 如你所见，向量扩展与内联函数的噩梦相比要干净得多。它们的缺点是，有些我们可能想要做的事情无法用原生 C++结构表达，所以我们仍然需要内联函数来处理它们。幸运的是，这不是一个排他性的选择，因为向量类型支持零成本转换为`_mm`类型，并返回：
 
 ```cpp
-v8f x; int mask = _mm256_movemask_ps((__m256) x) 
+v8f x;
+int mask = _mm256_movemask_ps((__m256) x) 
 ```
 
 对于不同的语言，也存在许多第三方库，它们提供了类似的特性来编写可移植的 SIMD 代码，并实现了一些功能，总体上比内联函数和内置向量类型更容易使用。C++中的显著例子包括[Highway](https://github.com/google/highway)、[Expressive Vector Engine](https://github.com/jfalcou/eve)、[Vector Class Library](https://github.com/vectorclass/version2)和[xsimd](https://github.com/xtensor-stack/xsimd)。

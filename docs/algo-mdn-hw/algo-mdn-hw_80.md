@@ -23,13 +23,15 @@
 尽管从软件工程的角度来看这可能不是最佳方法，但我们将简单地在一个大预分配数组中存储整个树，而不区分叶节点和内部节点：
 
 ```cpp
-const int R = 1e8; alignas(64) int tree[R]; 
+const int R = 1e8;
+alignas(64) int tree[R]; 
 ```
 
 我们还预先用无穷大填充这个数组，以简化实现：
 
 ```cpp
-for (int i = 0; i < R; i++)  tree[i] = INT_MAX; 
+for (int i = 0; i < R; i++)
+    tree[i] = INT_MAX; 
 ```
 
 （一般来说，与使用`new`的`std::set`或其他结构比较在技术上是不诚实的，但内存分配和初始化在这里不是瓶颈，所以这不会显著影响评估。）
@@ -55,7 +57,11 @@ for (int i = 0; i < R; i++)  tree[i] = INT_MAX;
 初始时，我们只有一个作为根的空叶节点：
 
 ```cpp
-const int B = 32;   int root = 0;   // where the keys of the root start int n_tree = B; // number of allocated array cells int H = 1;      // current tree height 
+const int B = 32;
+
+int root = 0;   // where the keys of the root start
+int n_tree = B; // number of allocated array cells
+int H = 1;      // current tree height 
 ```
 
 要“分配”一个新节点，如果它是一个叶节点，我们只需将`n_tree`增加$B$，如果是内部节点，则增加$2 B$。
@@ -75,7 +81,28 @@ const int B = 32;   int root = 0;   // where the keys of the root start int n_tr
 这个技巧让我们可以有效地执行局部搜索，而不需要任何洗牌操作：
 
 ```cpp
-typedef __m256i reg;   reg cmp(reg x, int *node) {  reg y = _mm256_load_si256((reg*) node); return _mm256_cmpgt_epi32(x, y); }   // returns how many keys are less than x unsigned rank32(reg x, int *node) {  reg m1 = cmp(x, node); reg m2 = cmp(x, node + 8); reg m3 = cmp(x, node + 16); reg m4 = cmp(x, node + 24);   // take lower 16 bits from m1/m3 and higher 16 bits from m2/m4 m1 = _mm256_blend_epi16(m1, m2, 0b01010101); m3 = _mm256_blend_epi16(m3, m4, 0b01010101); m1 = _mm256_packs_epi16(m1, m3); // can also use blendv here, but packs is simpler  unsigned mask = _mm256_movemask_epi8(m1); return __builtin_popcount(mask); } 
+typedef __m256i reg;
+
+reg cmp(reg x, int *node) {
+    reg y = _mm256_load_si256((reg*) node);
+    return _mm256_cmpgt_epi32(x, y);
+}
+
+// returns how many keys are less than x
+unsigned rank32(reg x, int *node) {
+    reg m1 = cmp(x, node);
+    reg m2 = cmp(x, node + 8);
+    reg m3 = cmp(x, node + 16);
+    reg m4 = cmp(x, node + 24);
+
+    // take lower 16 bits from m1/m3 and higher 16 bits from m2/m4
+    m1 = _mm256_blend_epi16(m1, m2, 0b01010101);
+    m3 = _mm256_blend_epi16(m3, m4, 0b01010101);
+    m1 = _mm256_packs_epi16(m1, m3); // can also use blendv here, but packs is simpler
+
+    unsigned mask = _mm256_movemask_epi8(m1);
+    return __builtin_popcount(mask);    
+} 
 ```
 
 注意，由于这个程序，我们必须用无穷大填充“键区域”，这阻止我们在空出的单元格中存储元数据（除非我们也愿意在加载 SIMD 通道时花费几个周期来屏蔽它）。
@@ -83,7 +110,19 @@ typedef __m256i reg;   reg cmp(reg x, int *node) {  reg y = _mm256_load_si256((r
 现在，要实现 `lower_bound`，我们可以像在 S+ 树中做的那样遍历树，但在计算子节点编号后获取指针：
 
 ```cpp
-int lower_bound(int _x) {  unsigned k = root; reg x = _mm256_set1_epi32(_x);  for (int h = 0; h < H - 1; h++) { unsigned i = rank32(x, &tree[k]); k = tree[k + B + i]; }   unsigned i = rank32(x, &tree[k]);   return tree[k + i]; } 
+int lower_bound(int _x) {
+    unsigned k = root;
+    reg x = _mm256_set1_epi32(_x);
+
+    for (int h = 0; h < H - 1; h++) {
+        unsigned i = rank32(x, &tree[k]);
+        k = tree[k + B + i];
+    }
+
+    unsigned i = rank32(x, &tree[k]);
+
+    return tree[k + i];
+} 
 ```
 
 实现搜索很简单，并且不会引入太多开销。困难的部分是实现插入。
@@ -95,7 +134,31 @@ int lower_bound(int _x) {  unsigned k = root; reg x = _mm256_set1_epi32(_x);  fo
 要将一个键插入到 $(B - 1)$ 个排序元素的数组中，我们可以将它们加载到向量寄存器中，然后使用一个预计算的掩码将它们向右移动一个位置，该掩码告诉哪些元素需要写入给定的 `i`：
 
 ```cpp
-struct Precalc {  alignas(64) int mask[B][B];   constexpr Precalc() : mask{} { for (int i = 0; i < B; i++) for (int j = i; j < B - 1; j++) // everything from i to B - 2 inclusive needs to be moved mask[i][j] = -1; } };   constexpr Precalc P;   void insert(int *node, int i, int x) {  // need to iterate right-to-left to not overwrite the first element of the next lane for (int j = B - 8; j >= 0; j -= 8) { // load the keys reg t = _mm256_load_si256((reg*) &node[j]); // load the corresponding mask reg mask = _mm256_load_si256((reg*) &P.mask[i][j]); // mask-write them one position to the right _mm256_maskstore_epi32(&node[j + 1], mask, t); } node[i] = x; // finally, write the element itself } 
+struct Precalc {
+    alignas(64) int mask[B][B];
+
+    constexpr Precalc() : mask{} {
+        for (int i = 0; i < B; i++)
+            for (int j = i; j < B - 1; j++)
+                // everything from i to B - 2 inclusive needs to be moved
+                mask[i][j] = -1;
+    }
+};
+
+constexpr Precalc P;
+
+void insert(int *node, int i, int x) {
+    // need to iterate right-to-left to not overwrite the first element of the next lane
+    for (int j = B - 8; j >= 0; j -= 8) {
+        // load the keys
+        reg t = _mm256_load_si256((reg*) &node[j]);
+        // load the corresponding mask
+        reg mask = _mm256_load_si256((reg*) &P.mask[i][j]);
+        // mask-write them one position to the right
+        _mm256_maskstore_epi32(&node[j + 1], mask, t);
+    }
+    node[i] = x; // finally, write the element itself
+} 
 ```
 
 这种 constexpr 魔法是我们使用的唯一 C++ 功能。
@@ -105,13 +168,93 @@ struct Precalc {  alignas(64) int mask[B][B];   constexpr Precalc() : mask{} { f
 当我们分割一个节点时，需要将一半的键移动到另一个节点，因此让我们编写另一个原始操作来完成它：
 
 ```cpp
-// move the second half of a node and fill it with infinities void move(int *from, int *to) {  const reg infs = _mm256_set1_epi32(INT_MAX); for (int i = 0; i < B / 2; i += 8) { reg t = _mm256_load_si256((reg*) &from[B / 2 + i]); _mm256_store_si256((reg*) &to[i], t); _mm256_store_si256((reg*) &from[B / 2 + i], infs); } } 
+// move the second half of a node and fill it with infinities
+void move(int *from, int *to) {
+    const reg infs = _mm256_set1_epi32(INT_MAX);
+    for (int i = 0; i < B / 2; i += 8) {
+        reg t = _mm256_load_si256((reg*) &from[B / 2 + i]);
+        _mm256_store_si256((reg*) &to[i], t);
+        _mm256_store_si256((reg*) &from[B / 2 + i], infs);
+    }
+} 
 ```
 
 实现了这两个向量函数后，我们现在可以非常小心地实现插入：
 
 ```cpp
-void insert(int _x) {  // the beginning of the procedure is the same as in lower_bound, // except that we save the path in case we need to update some of our ancestors unsigned sk[10], si[10]; // k and i on each iteration //           ^------^ We assume that the tree height does not exceed 10 //                    (which would require at least 16¹⁰ elements) unsigned k = root; reg x = _mm256_set1_epi32(_x);   for (int h = 0; h < H - 1; h++) { unsigned i = rank32(x, &tree[k]);   // optionally update the key i right away tree[k + i] = (_x > tree[k + i] ? _x : tree[k + i]); sk[h] = k, si[h] = i; // and save the path k = tree[k + B + i]; }   unsigned i = rank32(x, &tree[k]);   // we can start computing the is-full check before insertion completes bool filled  = (tree[k + B - 2] != INT_MAX);   insert(tree + k, i, _x);   if (filled) { // the node needs to be split, so we create a new leaf node move(tree + k, tree + n_tree);  int v = tree[k + B / 2 - 1]; // new key to be inserted int p = n_tree;              // pointer to the newly created node n_tree += B;   for (int h = H - 2; h >= 0; h--) { // ascend and repeat until we reach the root or find a the node is not split k = sk[h], i = si[h];   filled = (tree[k + B - 3] != INT_MAX);   // the node already has a correct key (the right one) //                  and a correct pointer (the left one) insert(tree + k,     i,     v); insert(tree + k + B, i + 1, p);  if (!filled) return; // we're done  // create a new internal node move(tree + k,     tree + n_tree);     // move keys move(tree + k + B, tree + n_tree + B); // move pointers  v = tree[k + B / 2 - 1]; tree[k + B / 2 - 1] = INT_MAX;   p = n_tree; n_tree += 2 * B; }   // if reach here, this means we've reached the root, // and it was split into two, so we need a new root tree[n_tree] = v;   tree[n_tree + B] = root; tree[n_tree + B + 1] = p;   root = n_tree; n_tree += 2 * B; H++; } } 
+void insert(int _x) {
+    // the beginning of the procedure is the same as in lower_bound,
+    // except that we save the path in case we need to update some of our ancestors
+    unsigned sk[10], si[10]; // k and i on each iteration
+    //           ^------^ We assume that the tree height does not exceed 10
+    //                    (which would require at least 16^10 elements)
+
+    unsigned k = root;
+    reg x = _mm256_set1_epi32(_x);
+
+    for (int h = 0; h < H - 1; h++) {
+        unsigned i = rank32(x, &tree[k]);
+
+        // optionally update the key i right away
+        tree[k + i] = (_x > tree[k + i] ? _x : tree[k + i]);
+        sk[h] = k, si[h] = i; // and save the path
+
+        k = tree[k + B + i];
+    }
+
+    unsigned i = rank32(x, &tree[k]);
+
+    // we can start computing the is-full check before insertion completes
+    bool filled  = (tree[k + B - 2] != INT_MAX);
+
+    insert(tree + k, i, _x);
+
+    if (filled) {
+        // the node needs to be split, so we create a new leaf node
+        move(tree + k, tree + n_tree);
+
+        int v = tree[k + B / 2 - 1]; // new key to be inserted
+        int p = n_tree;              // pointer to the newly created node
+
+        n_tree += B;
+
+        for (int h = H - 2; h >= 0; h--) {
+            // ascend and repeat until we reach the root or find a the node is not split
+            k = sk[h], i = si[h];
+
+            filled = (tree[k + B - 3] != INT_MAX);
+
+            // the node already has a correct key (the right one)
+            //                  and a correct pointer (the left one)
+            insert(tree + k,     i,     v);
+            insert(tree + k + B, i + 1, p);
+
+            if (!filled)
+                return; // we're done
+
+            // create a new internal node
+            move(tree + k,     tree + n_tree);     // move keys
+            move(tree + k + B, tree + n_tree + B); // move pointers
+
+            v = tree[k + B / 2 - 1];
+            tree[k + B / 2 - 1] = INT_MAX;
+
+            p = n_tree;
+            n_tree += 2 * B;
+        }
+
+        // if reach here, this means we've reached the root,
+        // and it was split into two, so we need a new root
+        tree[n_tree] = v;
+
+        tree[n_tree + B] = root;
+        tree[n_tree + B + 1] = p;
+
+        root = n_tree;
+        n_tree += 2 * B;
+        H++;
+    }
+} 
 ```
 
 虽然存在许多低效之处，但幸运的是，`if (filled)` 的主体执行频率非常低——大约每 $\frac{B}{2}$ 次插入——因此插入性能并不是我们的首要任务，所以我们只需将其保留即可。
@@ -153,13 +296,41 @@ B−树的表现与我们最初预测的相符 — 至少对于查找操作：
 我们可以预先编译`insert`和`lower_bound`函数，用于几个不同的编译时常量高度，并在树生长时在这之间切换。C++的惯用方法是使用虚拟函数，但我更喜欢明确地使用原始函数指针，如下所示：
 
 ```cpp
-void (*insert_ptr)(int); int (*lower_bound_ptr)(int);   void insert(int x) {  insert_ptr(x); }   int lower_bound(int x) {  return lower_bound_ptr(x); } 
+void (*insert_ptr)(int);
+int (*lower_bound_ptr)(int);
+
+void insert(int x) {
+    insert_ptr(x);
+}
+
+int lower_bound(int x) {
+    return lower_bound_ptr(x);
+} 
 ```
 
 我们现在定义了具有树高度作为参数的模板函数，并在`insert`函数内的`grow-tree`块中，随着树的生长改变指针：
 
 ```cpp
-template <int H> void insert_impl(int _x) {  // ... }   template <int H> void insert_impl(int _x) {  // ... if (/* tree grows */) { // ... insert_ptr = &insert_impl<H + 1>; lower_bound_ptr = &lower_bound_impl<H + 1>; } }   template <> void insert_impl<10>(int x) {  std::cerr << "This depth was not supposed to be reached" << std::endl; exit(1); } 
+template <int H>
+void insert_impl(int _x) {
+    // ...
+}
+
+template <int H>
+void insert_impl(int _x) {
+    // ...
+    if (/* tree grows */) {
+        // ...
+        insert_ptr = &insert_impl<H + 1>;
+        lower_bound_ptr = &lower_bound_impl<H + 1>;
+    }
+}
+
+template <>
+void insert_impl<10>(int x) {
+    std::cerr << "This depth was not supposed to be reached" << std::endl;
+    exit(1);
+} 
 ```
 
 我尝试了，但使用这种方法并没有获得任何性能提升，但我仍然对这个方法抱有很高的期望，因为编译器可以（理论上）移除`sk`和`si`，完全移除任何临时存储，并且只读取和计算一次，极大地优化了`insert`过程。

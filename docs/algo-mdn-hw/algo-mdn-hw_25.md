@@ -27,13 +27,42 @@ Perf 是一个基于命令行的应用程序，它根据程序的实时执行生
 为了解释的目的，我编写了一个小程序，它创建了一个包含一百万个随机整数的数组，对其进行排序，然后在上面执行一百万次二分查找：
 
 ```cpp
-void setup() {  for (int i = 0; i < n; i++) a[i] = rand(); std::sort(a, a + n); }   int query() {  int checksum = 0; for (int i = 0; i < n; i++) { int idx = std::lower_bound(a, a + n, rand()) - a; checksum += idx; } return checksum; } 
+void setup() {
+    for (int i = 0; i < n; i++)
+        a[i] = rand();
+    std::sort(a, a + n);
+}
+
+int query() {
+    int checksum = 0;
+    for (int i = 0; i < n; i++) {
+        int idx = std::lower_bound(a, a + n, rand()) - a;
+        checksum += idx;
+    }
+    return checksum;
+} 
 ```
 
 编译完成后（`g++ -O3 -march=native example.cc -o run`），我们可以使用 `perf stat ./run` 来运行它，该命令会在执行过程中输出基本性能事件的计数：
 
 ```cpp
- Performance counter stats for './run':   646.07  msec task-clock:u               # 0.997 CPUs utilized 0  context-switches:u         # 0.000 K/sec 0  cpu-migrations:u           # 0.000 K/sec 1,096  page-faults:u              # 0.002 M/sec 852,125,255  cycles:u                   # 1.319 GHz (83.35%) 28,475,954  stalled-cycles-frontend:u  # 3.34% frontend cycles idle (83.30%) 10,460,937  stalled-cycles-backend:u   # 1.23% backend cycles idle (83.28%) 479,175,388  instructions:u             # 0.56  insn per cycle # 0.06  stalled cycles per insn (83.28%) 122,705,572  branches:u                 # 189.925 M/sec (83.32%) 19,229,451  branch-misses:u            # 15.67% of all branches (83.47%)   0.647801770  seconds time elapsed 0.647278000  seconds user 0.000000000  seconds sys 
+ Performance counter stats for './run':
+
+        646.07 msec task-clock:u               # 0.997 CPUs utilized          
+             0      context-switches:u         # 0.000 K/sec                  
+             0      cpu-migrations:u           # 0.000 K/sec                  
+         1,096      page-faults:u              # 0.002 M/sec                  
+   852,125,255      cycles:u                   # 1.319 GHz (83.35%)
+    28,475,954      stalled-cycles-frontend:u  # 3.34% frontend cycles idle (83.30%)
+    10,460,937      stalled-cycles-backend:u   # 1.23% backend cycles idle (83.28%)
+   479,175,388      instructions:u             # 0.56  insn per cycle         
+                                               # 0.06  stalled cycles per insn (83.28%)
+   122,705,572      branches:u                 # 189.925 M/sec (83.32%)
+    19,229,451      branch-misses:u            # 15.67% of all branches (83.47%)
+
+   0.647801770 seconds time elapsed
+   0.647278000 seconds user
+   0.000000000 seconds sys 
 ```
 
 您可以看到，执行耗时 0.53 秒或 852M 个周期，在有效 1.32 GHz 的时钟频率下，执行了 479M 条指令。还有 122.7M 条分支，其中 15.7% 被误判。
@@ -41,7 +70,10 @@ void setup() {  for (int i = 0; i < n; i++) a[i] = rand(); std::sort(a, a + n); 
 您可以使用 `perf list` 获取所有支持的事件列表，然后使用 `-e` 选项指定您想要的事件列表。例如，为了诊断二分查找，我们主要关心缓存未命中：
 
 ```cpp
-> perf stat -e cache-references,cache-misses ./run   91,002,054  cache-references:u 44,991,746  cache-misses:u      # 49.440 % of all cache refs 
+> perf stat -e cache-references,cache-misses ./run
+
+91,002,054      cache-references:u                                          
+44,991,746      cache-misses:u      # 49.440 % of all cache refs 
 ```
 
 单独的 `perf stat` 只是为整个程序设置性能计数器。它可以告诉你分支误判的总数，但不会告诉你它们发生在哪里，更不用说为什么会发生。
@@ -65,7 +97,28 @@ Overhead  Command  Shared Object        Symbol
 接下来，你可以“放大”查看这些函数中的任何一个，并且除了其他功能之外，它还会提供显示其与相关热图相关的反汇编代码。例如，这里是`query`的反汇编代码：
 
 ```cpp
- │20: → call   rand@plt │      mov    %r12,%rsi │      mov    %eax,%edi │      mov    $0xf4240,%eax │      nop │30:   test   %rax,%rax 4.57 │    ↓ jle    52 │35:   mov    %rax,%rdx 0.52 │      sar    %rdx 0.33 │      lea    (%rsi,%rdx,4),%rcx 4.30 │      cmp    (%rcx),%edi 65.39 │    ↓ jle    b0 0.07 │      sub    %rdx,%rax 9.32 │      lea    0x4(%rcx),%rsi 0.06 │      dec    %rax 1.37 │      test   %rax,%rax 1.11 │    ↑ jg     35 │52:   sub    %r12,%rsi 2.22 │      sar    $0x2,%rsi 0.33 │      add    %esi,%ebp 0.20 │      dec    %ebx │    ↑ jne    20 
+ │20: → call   rand@plt
+       │      mov    %r12,%rsi
+       │      mov    %eax,%edi
+       │      mov    $0xf4240,%eax
+       │      nop    
+       │30:   test   %rax,%rax
+  4.57 │    ↓ jle    52
+       │35:   mov    %rax,%rdx
+  0.52 │      sar    %rdx
+  0.33 │      lea    (%rsi,%rdx,4),%rcx
+  4.30 │      cmp    (%rcx),%edi
+ 65.39 │    ↓ jle    b0
+  0.07 │      sub    %rdx,%rax
+  9.32 │      lea    0x4(%rcx),%rsi
+  0.06 │      dec    %rax
+  1.37 │      test   %rax,%rax
+  1.11 │    ↑ jg     35
+       │52:   sub    %r12,%rsi
+  2.22 │      sar    $0x2,%rsi
+  0.33 │      add    %esi,%ebp
+  0.20 │      dec    %ebx
+       │    ↑ jne    20 
 ```
 
 在左侧列中是指令指针在特定行上停止的频率。你可以看到我们大约 65%的时间花在了跳转指令上，因为它前面有一个比较运算符，这表明控制流在这里等待这个比较结果。

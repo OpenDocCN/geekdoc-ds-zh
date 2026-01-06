@@ -11,7 +11,8 @@
 Cachegrind 实质上检查二进制文件中的“有趣”指令——执行内存读取/写入和条件/间接跳转的指令——并用代码替换它们，这些代码使用软件数据结构模拟相应的硬件操作。因此，它不需要访问源代码，可以与已编译的程序一起工作，并且可以在任何这样的程序上运行：
 
 ```cpp
-valgrind --tool=cachegrind --branch-sim=yes ./run #       also simulate branch prediction ^   ^ any command, not necessarily one process 
+valgrind --tool=cachegrind --branch-sim=yes ./run
+#       also simulate branch prediction ^   ^ any command, not necessarily one process 
 ```
 
 它对所有的二进制文件进行测量，运行它们，并输出一个类似于 perf stat 的摘要：
@@ -45,7 +46,8 @@ Cachegrind 只模拟缓存的第一级（`D1` 表示数据，`I1` 表示指令�
 它似乎只是让我们的程序变慢了，并没有提供任何 `perf stat` 无法提供的信息。为了从它那里获得比仅仅摘要信息更多的信息，我们可以检查一个包含分析信息的特殊文件，它默认以 `cachegrind.out.<pid>` 的名称在相同的目录下导出。它是可读的，但通常通过 `cg_annotate` 命令来读取：
 
 ```cpp
-cg_annotate cachegrind.out.4159404 --show=Dr,D1mr,DLmr,Bc,Bcm #                                    ^ we are only interested in data reads and branches 
+cg_annotate cachegrind.out.4159404 --show=Dr,D1mr,DLmr,Bc,Bcm
+#                                    ^ we are only interested in data reads and branches 
 ```
 
 首先它显示了运行过程中使用的参数，包括缓存系统的特性：
@@ -78,13 +80,26 @@ Cachegrind 另一个很棒的功能是对源代码的逐行注释。为此，你
 整个源代码到分析的过程因此会是这样的：
 
 ```cpp
-g++ -O3 -g sort-and-search.cc -o run valgrind --tool=cachegrind --branch-sim=yes --cachegrind-out-file=cachegrind.out ./run cg_annotate cachegrind.out --auto=yes --show=Dr,D1mr,DLmr,Bc,Bcm 
+g++ -O3 -g sort-and-search.cc -o run
+valgrind --tool=cachegrind --branch-sim=yes --cachegrind-out-file=cachegrind.out ./run
+cg_annotate cachegrind.out --auto=yes --show=Dr,D1mr,DLmr,Bc,Bcm 
 ```
 
 由于 glibc 的实现不是最易读的，为了说明目的，我们用我们自己的二分搜索替换`lower_bound`，它将被这样注释：
 
 ```cpp
-Dr         D1mr      DLmr Bc         Bcm  .         .    .          .         .  int binary_search(int x) { 0         0    0          0         0      int l = 0, r = n - 1; 0         0    0 20,951,468 1,031,609      while (l < r) { 0         0    0          0         0          int m = (l + r) / 2; 19,951,468 8,991,917   63 19,951,468 9,973,904          if (a[m] >= x)  .         .    .          .         .              r = m; .         .    .          .         .          else 0         0    0          0         0              l = m + 1; .         .    .          .         .      } .         .    .          .         .      return l; .         .    .          .         .  } 
+Dr         D1mr      DLmr Bc         Bcm       
+         .         .    .          .         .  int binary_search(int x) {
+         0         0    0          0         0      int l = 0, r = n - 1;
+         0         0    0 20,951,468 1,031,609      while (l < r) {
+         0         0    0          0         0          int m = (l + r) / 2;
+19,951,468 8,991,917   63 19,951,468 9,973,904          if (a[m] >= x)
+         .         .    .          .         .              r = m;
+         .         .    .          .         .          else
+         0         0    0          0         0              l = m + 1;
+         .         .    .          .         .      }
+         .         .    .          .         .      return l;
+         .         .    .          .         .  } 
 ```
 
 不幸的是，Cachegrind 只跟踪内存访问和分支。当瓶颈是由其他因素引起时，我们需要其他模拟工具。[← 统计分析](https://en.algorithmica.org/hpc/profiling/events/)[机器代码分析器](https://en.algorithmica.org/hpc/profiling/mca/)

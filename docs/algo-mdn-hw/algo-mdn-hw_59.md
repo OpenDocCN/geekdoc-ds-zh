@@ -27,7 +27,9 @@ void *a = std::aligned_alloc(32, 4 * n);
 您也可以在定义`struct`时使用`alignas`指定符：
 
 ```cpp
-struct alignas(64) Data {  // ... }; 
+struct alignas(64) Data {
+    // ...
+}; 
 ```
 
 每当分配`Data`的一个实例时，它将位于缓存行的开始处。缺点是结构的实际大小将向上舍入到最接近的 64 字节倍数。这样做是为了，例如，当分配`Data`数组时，不仅仅是第一个元素是正确对齐的。
@@ -45,7 +47,12 @@ struct alignas(64) Data {  // ... };
 为了更好地理解，考虑以下玩具示例：
 
 ```cpp
-struct Data {  char a; short b; int c; char d; }; 
+struct Data {
+    char a;
+    short b;
+    int c;
+    char d;
+}; 
 ```
 
 当简洁存储时，此结构体每个实例需要总共$1 + 2 + 4 + 1 = 8$字节，但即使假设整个结构体的对齐为 4 字节（其最大的成员，`int`），只有`a`将合适，而`b`、`c`和`d`不是大小对齐的，并且可能跨越缓存行边界。
@@ -53,7 +60,17 @@ struct Data {  char a; short b; int c; char d; };
 为了解决这个问题，编译器插入一些未命名的成员，以确保每个后续成员获得正确的最小对齐：
 
 ```cpp
-struct Data {  char a;    // 1 byte char x[1]; // 1 byte for the following "short" to be aligned on a 2-byte boundary short b;   // 2 bytes int c;     // 4 bytes (largest member, setting the alignment of the whole structure) char d;    // 1 byte char y[3]; // 3 bytes to make total size of the structure 12 bytes (divisible by 4) };   // sizeof(Data) = 12 // alignof(Data) = alignof(int) = sizeof(int) = 4 
+struct Data {
+    char a;    // 1 byte
+    char x[1]; // 1 byte for the following "short" to be aligned on a 2-byte boundary
+    short b;   // 2 bytes 
+    int c;     // 4 bytes (largest member, setting the alignment of the whole structure)
+    char d;    // 1 byte
+    char y[3]; // 3 bytes to make total size of the structure 12 bytes (divisible by 4)
+};
+
+// sizeof(Data) = 12
+// alignof(Data) = alignof(int) = sizeof(int) = 4 
 ```
 
 这可能会浪费空间，但可以节省大量的 CPU 周期。这种权衡在大多数情况下是有益的，因此大多数编译器默认启用结构体对齐。
@@ -65,7 +82,12 @@ struct Data {  char a;    // 1 byte char x[1]; // 1 byte for the following "shor
 在前面的例子中，我们可以这样重新排序结构体成员：
 
 ```cpp
-struct Data {  int c; short b; char a; char d; }; 
+struct Data {
+    int c;
+    short b;
+    char a;
+    char d;
+}; 
 ```
 
 现在，每个结构体成员都对齐，没有任何填充，结构体的尺寸仅为 8 字节。结构体的大小及其性能似乎取决于其成员定义的顺序，这看起来很愚蠢，但这是为了二进制兼容性所必需的。
@@ -79,7 +101,10 @@ struct Data {  int c; short b; char a; char d; };
 你必须要求编译器这样做，因为这种功能目前既不是 C 也不是 C++标准的一部分。在 GCC 和 Clang 中，这是通过`packed`属性来实现的：
 
 ```cpp
-struct __attribute__ ((packed)) Data {  long long a; bool b; }; 
+struct __attribute__ ((packed)) Data {
+    long long a;
+    bool b;
+}; 
 ```
 
 这使得`Data`实例仅占用 9 字节，而不是对齐所需的 16 字节，但代价是可能需要读取两个缓存行来获取其元素。
@@ -89,7 +114,10 @@ struct __attribute__ ((packed)) Data {  long long a; bool b; };
 你还可以使用填充与*位域*结合，这允许你显式地设置成员的位数大小：
 
 ```cpp
-struct __attribute__ ((packed)) Data {  char a;     // 1 byte int b : 24; // 3 bytes }; 
+struct __attribute__ ((packed)) Data {
+    char a;     // 1 byte
+    int b : 24; // 3 bytes
+}; 
 ```
 
 这种结构在紧凑模式下占用 4 个字节，在填充模式下占用 8 个字节。成员的位数不必是 8 的倍数，整个结构的大小也不必是 8 的倍数。在`Data`数组的相邻元素中，如果字节数不是整数，它们将被“合并”。它还允许你设置一个超过基本类型的宽度，这充当填充——尽管在过程中会抛出一个警告。
@@ -97,7 +125,10 @@ struct __attribute__ ((packed)) Data {  char a;     // 1 byte int b : 24; // 3 b
 这个特性并不那么普遍，因为 CPU 没有 3 字节算术或类似的东西，在加载时必须进行一些低效的字节到字节的转换：
 
 ```cpp
-int load(char *p) {  char x = p[0], y = p[1], z = p[2]; return (x << 16) + (y << 8) + z; } 
+int load(char *p) {
+    char x = p[0], y = p[1], z = p[2];
+    return (x << 16) + (y << 8) + z;
+} 
 ```
 
 当存在非整数字节时，开销甚至更大——它需要通过移位和与掩码来处理。
@@ -105,7 +136,10 @@ int load(char *p) {  char x = p[0], y = p[1], z = p[2]; return (x << 16) + (y <<
 这个过程可以通过先加载一个 4 字节的`int`，然后使用掩码丢弃其最高位来优化。
 
 ```cpp
-int load(int *p) {  int x = *p; return x & ((1<<24) - 1); } 
+int load(int *p) {
+    int x = *p;
+    return x & ((1<<24) - 1);
+} 
 ```
 
 编译器通常不会这样做，因为这在技术上是不合法的：那个第 4 个字节可能位于你无权访问的内存页上，所以即使你打算立即丢弃它，操作系统也不会让你加载它。

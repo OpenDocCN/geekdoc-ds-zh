@@ -33,7 +33,14 @@ $$ x = \sqrt n \iff x² = n \iff f(x) = x² - n = 0 $$ 如果我们将 $f(x) = x
 在实践中，我们也希望一旦它足够接近正确答案就停止它，这我们可以在每次迭代后简单地检查：
 
 ```cpp
-const double EPS = 1e-9;   double sqrt(double n) {  double x = 1; while (abs(x * x - n) > eps) x = (x + n / x) / 2; return x; } 
+const double EPS = 1e-9;
+
+double sqrt(double n) {
+    double x = 1;
+    while (abs(x * x - n) > eps)
+        x = (x + n / x) / 2;
+    return x;
+} 
 ```
 
 该算法对许多函数都收敛，尽管它只对它们的一定子集（例如凸函数）可靠且可证明地收敛。另一个问题是如果发生收敛，收敛速度有多快。

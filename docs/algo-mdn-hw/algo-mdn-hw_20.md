@@ -13,7 +13,10 @@
 你也可以使用一个 pragma 来针对特定的循环：
 
 ```cpp
-#pragma GCC unroll 4 for (int i = 0; i < n; i++) {  // ... } 
+#pragma GCC unroll 4
+for (int i = 0; i < n; i++) {
+    // ...
+} 
 ```
 
 循环展开会使二进制文件更大，并且可能或可能不会使其运行更快。不要狂热地使用它。
@@ -23,7 +26,9 @@
 内联最好留给编译器来决定，但你可以通过`inline`关键字来影响它：
 
 ```cpp
-inline int square(int x) {  return x * x; } 
+inline int square(int x) {
+    return x * x;
+} 
 ```
 
 如果编译器认为潜在的性能提升不值得，可能会忽略这个提示。你可以通过添加`always_inline`属性来强制内联：
@@ -39,13 +44,23 @@ inline int square(int x) {  return x * x; }
 分支的可能性可以通过`[[likely]]`和`[[unlikely]]`属性在`if`和`switch`中提示：
 
 ```cpp
-int factorial(int n) {  if (n > 1) [[likely]] return n * factorial(n - 1); else [[unlikely]] return 1; } 
+int factorial(int n) {
+    if (n > 1) [[likely]]
+        return n * factorial(n - 1);
+    else [[unlikely]]
+        return 1;
+} 
 ```
 
 这是一个只在 C++20 中出现的全新功能。在此之前，有编译器特定的内建函数被用来封装条件表达式。在较老的 GCC 中的相同示例：
 
 ```cpp
-int factorial(int n) {  if (__builtin_expect(n > 1, 1)) return n * factorial(n - 1); else return 1; } 
+int factorial(int n) {
+    if (__builtin_expect(n > 1, 1))
+        return n * factorial(n - 1);
+    else
+        return 1;
+} 
 ```
 
 当你需要指导编译器走向正确的方向时，还有很多其他类似的情况，但我们将稍后当它们变得更加相关时再讨论。

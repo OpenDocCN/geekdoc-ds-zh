@@ -13,13 +13,25 @@
 我们将数组求和作为我们的简单示例：
 
 ```cpp
-loop:  addl (%rax), %edx addq $4, %rax cmpq %rcx, %rax jne	 loop 
+loop:
+    addl (%rax), %edx
+    addq $4, %rax
+    cmpq %rcx, %rax
+    jne	 loop 
 ```
 
 这是使用 `llvm-mca` 对 Skylake 微架构的分析：
 
 ```cpp
-Iterations:  100 Instructions:  400 Total Cycles:  108 Total uOps:  500   Dispatch Width:  6 uOps Per Cycle:  4.63 IPC:  3.70 Block RThroughput:  0.8 
+Iterations:        100
+Instructions:      400
+Total Cycles:      108
+Total uOps:        500
+
+Dispatch Width:    6
+uOps Per Cycle:    4.63
+IPC:               3.70
+Block RThroughput: 0.8 
 ```
 
 首先，它输出循环和硬件的一般信息：
@@ -35,7 +47,19 @@ Iterations:  100 Instructions:  400 Total Cycles:  108 Total uOps:  500   Dispat
 然后它继续提供关于每个单独指令的信息：
 
 ```cpp
-Instruction Info: [1]:  uOps [2]:  Latency [3]:  RThroughput [4]:  MayLoad [5]:  MayStore [6]:  HasSideEffects (U)   [1]    [2]    [3]    [4]    [5]    [6]    Instructions:  2  6  0.50  *  addl	(%rax), %edx 1  1  0.25  addq	$4, %rax 1  1  0.25  cmpq	%rcx, %rax 1  1  0.50  jne	-11 
+Instruction Info:
+[1]: uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 2      6     0.50    *                   addl	(%rax), %edx
+ 1      1     0.25                        addq	$4, %rax
+ 1      1     0.25                        cmpq	%rcx, %rax
+ 1      1     0.50                        jne	-11 
 ```
 
 在指令表中没有什么是不存在的：
@@ -49,7 +73,12 @@ Instruction Info: [1]:  uOps [2]:  Latency [3]:  RThroughput [4]:  MayLoad [5]: 
 然后它输出可能最重要的部分——哪些指令在何时何地执行：
 
 ```cpp
-Resource pressure by instruction: [0]    [1]    [2]    [3]    [4]    [5]    [6]    [7]    [8]    [9]    Instructions:  -  -  0.01  0.98  0.50  0.50  -  -  0.01  -  addl (%rax), %edx -  -  -  -  -  -  -  0.01  0.99  -  addq $4, %rax -  -  -  0.01  -  -  -  0.99  -  -  cmpq %rcx, %rax -  -  0.99  -  -  -  -  -  0.01  -  jne  -11 
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6]    [7]    [8]    [9]    Instructions:
+ -      -     0.01   0.98   0.50   0.50    -      -     0.01    -     addl (%rax), %edx
+ -      -      -      -      -      -      -     0.01   0.99    -     addq $4, %rax
+ -      -      -     0.01    -      -      -     0.99    -      -     cmpq %rcx, %rax
+ -      -     0.99    -      -      -      -      -     0.01    -     jne  -11 
 ```
 
 由于对执行端口的竞争导致结构冒险，端口经常成为吞吐量导向型循环的瓶颈，此图表有助于诊断原因。它不会给你一个完美的周期 Gantt 图，但会给出每个指令使用的执行端口的聚合统计数据，这让你可以找出哪个端口过载。[← 程序模拟](https://en.algorithmica.org/hpc/profiling/simulation/)[基准测试 →](https://en.algorithmica.org/hpc/profiling/benchmarking/)

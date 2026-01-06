@@ -5,7 +5,11 @@
 再次考虑这个步进增量循环：
 
 ```cpp
-const int N = (1 << 13); int a[D * N];   for (int i = 0; i < D * N; i += D)  a[i] += 1; 
+const int N = (1 << 13);
+int a[D * N];
+
+for (int i = 0; i < D * N; i += D)
+    a[i] += 1; 
 ```
 
 我们改变步长$D$并按比例增加数组大小，使得总迭代次数$N$保持不变。由于总的内存访问次数也保持不变，对于所有$D \geq 16$，我们应该正好获取$N$个缓存行——或者更确切地说，$64 \cdot N = 2⁶ \cdot 2^{13} = 2^{19}$字节。这正好适合 L2 缓存，无论步长大小如何，吞吐量图应该看起来是平的。
@@ -39,13 +43,17 @@ $ echo always > /sys/kernel/mm/transparent_hugepage/enabled
 以这种方式全局启用大页并不总是好主意，因为它会降低内存粒度，并提高进程消耗的最小内存量——而且一些环境中的进程数量超过了可用的内存兆字节。因此，在该文件中除了`always`和`never`之外，还有一个第三种选择：
 
 ```cpp
-$ cat /sys/kernel/mm/transparent_hugepage/enabled always [madvise] never 
+$ cat /sys/kernel/mm/transparent_hugepage/enabled
+always [madvise] never 
 ```
 
 `madvise`是一个特殊的系统调用，允许程序建议内核是否使用大页，这可以用于按需分配大页。如果启用，你可以在 C++中使用它如下：
 
 ```cpp
-#include <sys/mman.h>  void *ptr = std::aligned_alloc(page_size, array_size); madvise(ptr, array_size, MADV_HUGEPAGE); 
+#include <sys/mman.h>
+
+void *ptr = std::aligned_alloc(page_size, array_size);
+madvise(ptr, array_size, MADV_HUGEPAGE); 
 ```
 
 只有当内存区域具有相应的对齐方式时，你才能请求使用大页进行分配。
@@ -53,7 +61,10 @@ $ cat /sys/kernel/mm/transparent_hugepage/enabled always [madvise] never
 Windows 具有类似的功能。它的内存 API 将这两个功能合并为一个：
 
 ```cpp
-#include "memoryapi.h"  void *ptr = VirtualAlloc(NULL, array_size,  MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE); 
+#include "memoryapi.h"
+
+void *ptr = VirtualAlloc(NULL, array_size,
+                         MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE); 
 ```
 
 在这两种情况下，`array_size`应该是`page_size`的倍数。

@@ -21,7 +21,35 @@
 这种方法的缺点是，你需要编写大量的样板代码，并且为每个实现重复它，但可以通过元编程部分地抵消这一点。例如，当你正在基准测试多个 gcd 实现时，你可以使用这个高阶函数显著减少基准测试代码：
 
 ```cpp
-const int N = 1e6, T = 1e9 / N; int a[N], b[N];   void timeit(int (*f)(int, int)) {  clock_t start = clock();   int checksum = 0;   for (int t = 0; t < T; t++) for (int i = 0; i < n; i++) checksum ^= f(a[i], b[i]);  float seconds = float(clock() - start) / CLOCKS_PER_SEC;   printf("checksum: %d\n", checksum); printf("%.2f ns per call\n", 1e9 * seconds / N / T); }   int main() {  for (int i = 0; i < N; i++) a[i] = rand(), b[i] = rand();  timeit(std::gcd); timeit(my_gcd); timeit(my_another_gcd); // ...  return 0; } 
+const int N = 1e6, T = 1e9 / N;
+int a[N], b[N];
+
+void timeit(int (*f)(int, int)) {
+    clock_t start = clock();
+
+    int checksum = 0;
+
+    for (int t = 0; t < T; t++)
+        for (int i = 0; i < n; i++)
+            checksum ^= f(a[i], b[i]);
+
+    float seconds = float(clock() - start) / CLOCKS_PER_SEC;
+
+    printf("checksum: %d\n", checksum);
+    printf("%.2f ns per call\n", 1e9 * seconds / N / T);
+}
+
+int main() {
+    for (int i = 0; i < N; i++)
+        a[i] = rand(), b[i] = rand();
+
+    timeit(std::gcd);
+    timeit(my_gcd);
+    timeit(my_another_gcd);
+    // ...
+
+    return 0;
+} 
 ```
 
 这是一个低开销的方法，让你能够运行更多的实验，并从它们中获得更准确的结果。../noise。你仍然需要执行一些重复操作，但它们可以通过框架在很大程度上自动化，其中最受欢迎的选择是 C++ 的 [Google 基准库](https://github.com/google/benchmark)。一些编程语言也有方便的内置基准测试工具：在此特别提一下 [Python 的 timeit 函数](https://docs.python.org/3/library/timeit.html)和 [Julia 的 @benchmark 宏](https://github.com/JuliaCI/BenchmarkTools.jl)。
@@ -35,25 +63,69 @@ const int N = 1e6, T = 1e9 / N; int a[N], b[N];   void timeit(int (*f)(int, int)
 在 C/C++中，你可以通过创建一个包含函数接口及其所有基准测试代码的`main`中的单个头文件（例如，`gcd.hh`）来实现这一点：
 
 ```cpp
-int gcd(int a, int b); // to be implemented  // for data structures, you also need to create a setup function // (unless the same preprocessing step for all versions would suffice)  int main() {  const int N = 1e6, T = 1e9 / N; int a[N], b[N]; // careful: local arrays are allocated on the stack and may cause stack overflow // for large arrays, allocate with "new" or create a global array  for (int i = 0; i < N; i++) a[i] = rand(), b[i] = rand();   int checksum = 0;   clock_t start = clock();   for (int t = 0; t < T; t++) for (int i = 0; i < n; i++) checksum += gcd(a[i], b[i]);  float seconds = float(clock() - start) / CLOCKS_PER_SEC;   printf("%d\n", checksum); printf("%.2f ns per call\n", 1e9 * seconds / N / T);  return 0; } 
+int gcd(int a, int b); // to be implemented
+
+// for data structures, you also need to create a setup function
+// (unless the same preprocessing step for all versions would suffice)
+
+int main() {
+    const int N = 1e6, T = 1e9 / N;
+    int a[N], b[N];
+    // careful: local arrays are allocated on the stack and may cause stack overflow
+    // for large arrays, allocate with "new" or create a global array
+
+    for (int i = 0; i < N; i++)
+        a[i] = rand(), b[i] = rand();
+
+    int checksum = 0;
+
+    clock_t start = clock();
+
+    for (int t = 0; t < T; t++)
+        for (int i = 0; i < n; i++)
+            checksum += gcd(a[i], b[i]);
+
+    float seconds = float(clock() - start) / CLOCKS_PER_SEC;
+
+    printf("%d\n", checksum);
+    printf("%.2f ns per call\n", 1e9 * seconds / N / T);
+
+    return 0;
+} 
 ```
 
 然后，为每个算法版本创建许多实现文件（例如，`v1.cc`、`v2.cc`等，或者如果适用，一些有意义的名称），它们都包含那个单独的头文件：
 
 ```cpp
-#include "gcd.hh"  int gcd(int a, int b) {  if (b == 0) return a; else return gcd(b, a % b); } 
+#include "gcd.hh"
+
+int gcd(int a, int b) {
+    if (b == 0)
+        return a;
+    else
+        return gcd(b, a % b);
+} 
 ```
 
 做这件事的整个目的是能够从命令行中测试特定的算法版本，而不需要触摸任何源代码文件。为此，你可能还希望公开它可能具有的任何参数——例如，通过解析命令行参数：
 
 ```cpp
-int main(int argc, char* argv[]) {  int N = (argc > 1 ? atoi(argv[1]) : 1e6); const int T = 1e9 / N;   // ... } 
+int main(int argc, char* argv[]) {
+    int N = (argc > 1 ? atoi(argv[1]) : 1e6);
+    const int T = 1e9 / N;
+
+    // ...
+} 
 ```
 
 另一种方法是使用 C 风格的全局定义，然后在编译时通过`-D N=...`标志传递它们：
 
 ```cpp
-#ifndef N #define N 1000000 #endif  const int T = 1e9 / N; 
+#ifndef N
+#define N 1000000
+#endif
+
+const int T = 1e9 / N; 
 ```
 
 这样你可以利用编译时的常量，这可能对某些算法的性能非常有帮助，但代价是每次你想更改参数时都必须重新构建程序，这会显著增加你在一系列参数值上收集指标所需的时间。
@@ -65,7 +137,18 @@ int main(int argc, char* argv[]) {  int N = (argc > 1 ? atoi(argv[1]) : 1e6); co
 我通常在我的项目中携带这个 Makefile 的版本：
 
 ```cpp
-compile = g++ -std=c++17 -O3 -march=native -Wall   %: %.cc gcd.hh  $(compile) $< -o $@   %.s: %.cc gcd.hh  $(compile) -S -fverbose-asm $< -o $@   %.run: %  @./$<   .PHONY: %.run 
+compile = g++ -std=c++17 -O3 -march=native -Wall
+
+%: %.cc gcd.hh
+	$(compile) $< -o $@ 
+
+%.s: %.cc gcd.hh
+	$(compile) -S -fverbose-asm $< -o $@
+
+%.run: %
+	@./$<
+
+.PHONY: %.run 
 ```
 
 现在，你可以使用`make example`来编译`example.cc`，并自动运行它使用`make example.run`。
@@ -79,13 +162,27 @@ compile = g++ -std=c++17 -O3 -march=native -Wall   %: %.cc gcd.hh  $(compile) $<
 添加一个用于基准测试实现的包装器很方便，它只返回一个标量结果：
 
 ```cpp
-def bench(source, n=2**20):  !make -s {source} if _exit_code != 0: raise Exception("Compilation failed") res = !./{source} {n} {q} duration = float(res[0].split()[0]) return duration 
+def bench(source, n=2**20):
+    !make -s {source}
+    if _exit_code != 0:
+        raise Exception("Compilation failed")
+    res = !./{source} {n} {q}
+    duration = float(res[0].split()[0])
+    return duration 
 ```
 
 然后你可以用它来编写干净的统计分析代码：
 
 ```cpp
-ns = list(int(1.17**k) for k in range(30, 60)) baseline = [bench('std_lower_bound', n=n) for n in ns] results = [bench('my_binary_search', n=n) for n in ns]   # plotting relative speedup for different array sizes import matplotlib.pyplot as plt   plt.plot(ns, [x / y for x, y in zip(baseline, results)]) plt.show() 
+ns = list(int(1.17**k) for k in range(30, 60))
+baseline = [bench('std_lower_bound', n=n) for n in ns]
+results = [bench('my_binary_search', n=n) for n in ns]
+
+# plotting relative speedup for different array sizes
+import matplotlib.pyplot as plt
+
+plt.plot(ns, [x / y for x, y in zip(baseline, results)])
+plt.show() 
 ```
 
 一旦建立，这个工作流程会让你迭代得更快，并专注于优化算法本身。[← 机器代码分析器](https://en.algorithmica.org/hpc/profiling/mca/)[获取准确结果 →](https://en.algorithmica.org/hpc/profiling/noise/)

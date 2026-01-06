@@ -17,13 +17,23 @@
 有时，尤其是在“内部”操作非常轻量时，性能差异变得非常显著（至少因为您需要获取两条缓存行而不是一条）。作为一个极端的例子，这种将两个数组相加的方式：
 
 ```cpp
-for (int i = 3; i + 7 < n; i += 8) {  __m256i x = _mm256_loadu_si256((__m256i*) &a[i]); __m256i y = _mm256_loadu_si256((__m256i*) &b[i]); __m256i z = _mm256_add_epi32(x, y); _mm256_storeu_si256((__m256i*) &c[i], z); } 
+for (int i = 3; i + 7 < n; i += 8) {
+    __m256i x = _mm256_loadu_si256((__m256i*) &a[i]);
+    __m256i y = _mm256_loadu_si256((__m256i*) &b[i]);
+    __m256i z = _mm256_add_epi32(x, y);
+    _mm256_storeu_si256((__m256i*) &c[i], z);
+} 
 ```
 
 …比其对齐版本慢约 30%：
 
 ```cpp
-for (int i = 0; i < n; i += 8) {  __m256i x = _mm256_load_si256((__m256i*) &a[i]); __m256i y = _mm256_load_si256((__m256i*) &b[i]); __m256i z = _mm256_add_epi32(x, y); _mm256_store_si256((__m256i*) &c[i], z); } 
+for (int i = 0; i < n; i += 8) {
+    __m256i x = _mm256_load_si256((__m256i*) &a[i]);
+    __m256i y = _mm256_load_si256((__m256i*) &b[i]);
+    __m256i z = _mm256_add_epi32(x, y);
+    _mm256_store_si256((__m256i*) &c[i], z);
+} 
 ```
 
 在第一种版本中，假设数组`a`、`b`和`c`都是 64 字节对齐的（它们第一个元素地址能被 64 整除，因此它们从缓存行的开始处开始），大约一半的读取和写入将会是“坏”的，因为它们跨越了缓存行边界。
@@ -33,7 +43,12 @@ for (int i = 0; i < n; i += 8) {  __m256i x = _mm256_load_si256((__m256i*) &a[i]
 这使得在分配时正确对齐数组和其它数据变得很重要，这也是编译器不能总是高效地进行自动向量化的原因之一。对于大多数用途，我们只需要保证任何 32 字节 SIMD 块不会跨越缓存行边界，我们可以使用`alignas`指定符来指定这种对齐：
 
 ```cpp
-alignas(32) float a[n];   for (int i = 0; i < n; i += 8) {  __m256 x = _mm256_load_ps(&a[i]); // ... } 
+alignas(32) float a[n];
+
+for (int i = 0; i < n; i += 8) {
+    __m256 x = _mm256_load_ps(&a[i]);
+    // ...
+} 
 ```
 
 内置向量类型已经具有相应的对齐要求，并假设对齐的内存读取和写入——所以当分配`v8si`数组时，您总是安全的，但当你从`int*`转换它时，你必须确保它是对齐的。
@@ -65,13 +80,23 @@ vpextrd eax, xmm0, 1
 要从 AVX 向量的第二半部分提取任何内容，首先必须提取那个第二半部分，然后才是标量本身。例如，以下是提取最后一个（第八个）元素的方法，
 
 ```cpp
-vextracti128 xmm0, ymm0, 0x1 vpextrd      eax, xmm0, 3 
+vextracti128 xmm0, ymm0, 0x1
+vpextrd      eax, xmm0, 3 
 ```
 
 有一个类似`_mm256_insert_epi32`的内建函数用于覆盖特定元素：
 
 ```cpp
-mov          eax, 42   ; v = _mm256_insert_epi32(v, 42, 0); vpinsrd xmm2, xmm0, eax, 0 vinserti128     ymm0, ymm0, xmm2, 0x0   ; v = _mm256_insert_epi32(v, 42, 7); vextracti128 xmm1, ymm0, 0x1 vpinsrd      xmm2, xmm1, eax, 3 vinserti128  ymm0, ymm0, xmm2, 0x1 
+mov          eax, 42
+
+; v = _mm256_insert_epi32(v, 42, 0);
+vpinsrd xmm2, xmm0, eax, 0
+vinserti128     ymm0, ymm0, xmm2, 0x0
+
+; v = _mm256_insert_epi32(v, 42, 7);
+vextracti128 xmm1, ymm0, 0x1
+vpinsrd      xmm2, xmm1, eax, 3
+vinserti128  ymm0, ymm0, xmm2, 0x1 
 ```
 
 总结：将标量数据移动到和从向量寄存器中是慢的，尤其是在这不是第一个元素的情况下。
@@ -89,7 +114,8 @@ __m256 iota = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
 在内置向量类型中，你可以直接使用正常的括号初始化：
 
 ```cpp
-vec zero = {}; vec iota = {0, 1, 2, 3, 4, 5, 6, 7}; 
+vec zero = {};
+vec iota = {0, 1, 2, 3, 4, 5, 6, 7}; 
 ```
 
 ### [#](https://en.algorithmica.org/hpc/simd/moving/#broadcast)广播
@@ -97,13 +123,17 @@ vec zero = {}; vec iota = {0, 1, 2, 3, 4, 5, 6, 7};
 除了修改单个元素之外，你还可以将单个值*广播*到所有位置：
 
 ```cpp
-; __m256i v = _mm256_set1_epi32(42); mov          eax, 42 vmovd        xmm0, eax vpbroadcastd ymm0, xmm0 
+; __m256i v = _mm256_set1_epi32(42);
+mov          eax, 42
+vmovd        xmm0, eax
+vpbroadcastd ymm0, xmm0 
 ```
 
 这是一个常用的操作，因此你也可以使用一个内存位置：
 
 ```cpp
-; __m256 v = _mm256_broadcast_ss(&a[i]); vbroadcastss ymm0, DWORD PTR [rdi] 
+; __m256 v = _mm256_broadcast_ss(&a[i]);
+vbroadcastss ymm0, DWORD PTR [rdi] 
 ```
 
 当使用内置向量类型时，你可以创建一个零向量并将其与一个标量相加：
@@ -117,7 +147,12 @@ vec v = 42 + vec{};
 如果你想避免所有这些复杂性，你只需将向量存储在内存中，并以标量的形式读取其值：
 
 ```cpp
-void print(__m256i v) {  auto t = (unsigned*) &v; for (int i = 0; i < 8; i++) std::cout << std::bitset<32>(t[i]) << " "; std::cout << std::endl; } 
+void print(__m256i v) {
+    auto t = (unsigned*) &v;
+    for (int i = 0; i < 8; i++)
+        std::cout << std::bitset<32>(t[i]) << " ";
+    std::cout << std::endl;
+} 
 ```
 
 这可能不会很快或技术上合法（C++标准没有指定当你这样转换数据时会发生什么），但它很简单，我经常使用这段代码在调试期间打印向量的内容。
@@ -133,19 +168,34 @@ void print(__m256i v) {  auto t = (unsigned*) &v; for (int i = 0; i < 8; i++) st
 让我们看看它们是否比标量读取更快。首先，我们创建一个大小为 $N$ 和 $Q$ 的随机读取查询数组：
 
 ```cpp
-int a[N], q[Q];   for (int i = 0; i < N; i++)  a[i] = rand();   for (int i = 0; i < Q; i++)  q[i] = rand() % N; 
+int a[N], q[Q];
+
+for (int i = 0; i < N; i++)
+    a[i] = rand();
+
+for (int i = 0; i < Q; i++)
+    q[i] = rand() % N; 
 ```
 
 在标量代码中，我们逐个将查询指定的元素添加到校验和中：
 
 ```cpp
-int s = 0;   for (int i = 0; i < Q; i++)  s += a[q[i]]; 
+int s = 0;
+
+for (int i = 0; i < Q; i++)
+    s += a[q[i]]; 
 ```
 
 在 SIMD 代码中，我们使用`gather`指令并行地对 8 个不同的索引进行操作：
 
 ```cpp
-reg s = _mm256_setzero_si256();   for (int i = 0; i < Q; i += 8) {  reg idx = _mm256_load_si256( (reg*) &q[i] ); reg x = _mm256_i32gather_epi32(a, idx, 4); s = _mm256_add_epi32(s, x); } 
+reg s = _mm256_setzero_si256();
+
+for (int i = 0; i < Q; i += 8) {
+    reg idx = _mm256_load_si256( (reg*) &q[i] );
+    reg x = _mm256_i32gather_epi32(a, idx, 4);
+    s = _mm256_add_epi32(s, x);
+} 
 ```
 
 它们的性能大致相同，除非数组适合 L1 缓存：

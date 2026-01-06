@@ -11,25 +11,44 @@
 唯一的注意事项是，被除数实际上需要存储在*两个*寄存器中，`eax`和`edx`：这种机制使得可以进行 64 位除以 32 位，甚至 128 位除以 64 位的除法，类似于 128 位乘法的工作方式。在执行常规的 32 位除以 32 位有符号除法时，我们需要将`eax`扩展到 64 位，并将其高位存储在`edx`中：
 
 ```cpp
-div(int, int):  mov  eax, edi cdq idiv esi ret 
+div(int, int):
+    mov  eax, edi
+    cdq
+    idiv esi
+    ret 
 ```
 
 对于无符号除法，你可以将`edx`设置为零，这样它就不会干扰：
 
 ```cpp
-div(unsigned, unsigned):  mov  eax, edi xor  edx, edx div  esi ret 
+div(unsigned, unsigned):
+    mov  eax, edi
+    xor  edx, edx
+    div  esi
+    ret 
 ```
 
 在这两种情况下，除了`eax`中的商之外，你还可以通过`edx`访问余数：
 
 ```cpp
-mod(unsigned, unsigned):  mov  eax, edi xor  edx, edx div  esi mov  eax, edx ret 
+mod(unsigned, unsigned):
+    mov  eax, edi
+    xor  edx, edx 
+    div  esi
+    mov  eax, edx
+    ret 
 ```
 
 你也可以将 128 位整数（存储在`rdx:rax`中）除以一个 64 位整数：
 
 ```cpp
-div(u128, u64):  ; a = rdi + rsi, b = rdx mov  rcx, rdx mov  rax, rdi mov  rdx, rsi div  edx ret 
+div(u128, u64):
+    ; a = rdi + rsi, b = rdx
+    mov  rcx, rdx
+    mov  rax, rdi
+    mov  rdx, rsi
+    div  edx 
+    ret 
 ```
 
 被除数的高位应该小于除数，否则会发生溢出。由于这个限制，要使编译器自己生成此代码是[困难的](https://danlark.org/2020/06/14/128-bit-division/)：如果你将一个 128 位整数类型除以一个 64 位整数，编译器会将其包裹在额外的检查中，这些检查实际上可能是多余的。
@@ -53,7 +72,13 @@ $$ d = \frac{m}{2^s} $$ 然后找到一个“神奇”的数字 $m$ 和一个二
 可以证明这样的配对总是存在的，并且编译器实际上会通过自己执行类似的优化。每次它们遇到对常数的除法时，它们都会用乘法和二进制移位来替换它。以下是除以 `(10⁹ + 7)` 的 `unsigned long long` 生成的汇编代码：
 
 ```cpp
-;  input (rdi): x ; output (rax): x mod (m=1e9+7) mov    rax, rdi movabs rdx, -8543223828751151131  ; load magic constant into a register mul    rdx                        ; perform multiplication mov    rax, rdx shr    rax, 29                    ; binary shift of the result 
+;  input (rdi): x
+; output (rax): x mod (m=1e9+7)
+mov    rax, rdi
+movabs rdx, -8543223828751151131  ; load magic constant into a register
+mul    rdx                        ; perform multiplication
+mov    rax, rdx
+shr    rax, 29                    ; binary shift of the result 
 ```
 
 这种技术被称为**巴雷特除法**，它被称为“除法”是因为它主要用于模运算，可以通过这个公式用一次除法、一次乘法和一次减法来替换：
@@ -105,13 +130,26 @@ $$ r = \Bigl \lfloor \frac{ (x \cdot \lceil 2^s /y \rceil \bmod 2^s) \cdot y }{2
 这方法完美无缺，因为我们在这里所做的工作可以解释为仅仅是三次链式浮点数乘法，其总相对误差为 $O(\epsilon)$。由于 $\epsilon = O(\frac{1}{2^s})$ 且 $s = 2n$，误差将始终小于一，因此结果将是精确的。
 
 ```cpp
-uint32_t y;   uint64_t m = uint64_t(-1) / y + 1; // ceil(2⁶⁴ / y)  uint32_t mod(uint32_t x) {  uint64_t lowbits = m * x; return ((__uint128_t) lowbits * y) >> 64; }   uint32_t div(uint32_t x) {  return ((__uint128_t) m * x) >> 64; } 
+uint32_t y;
+
+uint64_t m = uint64_t(-1) / y + 1; // ceil(2^64 / y)
+
+uint32_t mod(uint32_t x) {
+    uint64_t lowbits = m * x;
+    return ((__uint128_t) lowbits * y) >> 64; 
+}
+
+uint32_t div(uint32_t x) {
+    return ((__uint128_t) m * x) >> 64;
+} 
 ```
 
 我们还可以通过使用以下事实来检查 $x$ 是否能被 $y$ 整除：如果除法的余数为零，当且仅当分数部分（$m \cdot x$ 的低 64 位）不超过 $m$（否则，当乘以 $y$ 并右移 64 位时，它将变成一个非零数）。
 
 ```cpp
-bool is_divisible(uint32_t x) {  return m * x < m; } 
+bool is_divisible(uint32_t x) {
+    return m * x < m;
+} 
 ```
 
 这种方法的唯一缺点是它需要比原始大小大四倍的整型来执行乘法，而其他简化方法只需双精度即可。

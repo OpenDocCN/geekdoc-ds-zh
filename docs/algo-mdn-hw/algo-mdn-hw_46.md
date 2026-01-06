@@ -31,7 +31,28 @@ $$ \underbrace{a_1, a_2, a_3,} _ {B_1} \underbrace{a_4, a_5, a_6,} _ {B_2} \ldot
 你可以像这样显式地实现外部数组扫描：
 
 ```cpp
-FILE *input = fopen("input.bin", "rb");   const int M = 1024; int buffer[M], sum = 0;   // while the file is not fully processed while (true) {  // read up to M of 4-byte elements from the input stream int n = fread(buffer, 4, M, input); //  ^ the number of elements that were actually read  // if we can't read any more elements, finish if (n == 0) break;  // sum elements in-memory for (int i = 0; i < n; i++) sum += buffer[i]; }   fclose(input); printf("%d\n", sum); 
+FILE *input = fopen("input.bin", "rb");
+
+const int M = 1024;
+int buffer[M], sum = 0;
+
+// while the file is not fully processed
+while (true) {
+    // read up to M of 4-byte elements from the input stream
+    int n = fread(buffer, 4, M, input);
+    //  ^ the number of elements that were actually read
+
+    // if we can't read any more elements, finish
+    if (n == 0)
+        break;
+
+    // sum elements in-memory
+    for (int i = 0; i < n; i++)
+        sum += buffer[i];
+}
+
+fclose(input);
+printf("%d\n", sum); 
 ```
 
 注意，在大多数情况下，操作系统会自动进行缓冲。即使数据只是从普通文件重定向到标准输入，操作系统也会缓冲其流，并以约 4KB（默认）的块读取。 [← 虚拟内存](https://en.algorithmica.org/hpc/external-memory/virtual/)[外部排序 →](https://en.algorithmica.org/hpc/external-memory/sorting/)

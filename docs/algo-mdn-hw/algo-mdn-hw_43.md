@@ -7,7 +7,9 @@
 但在一般情况（`*c = *a + *b`）下，我们首先需要从内存中检索其操作数：
 
 ```cpp
-mov eax, DWORD PTR [rsi] add eax, DWORD PTR [rdi] mov DWORD PTR [rdx], eax 
+mov eax, DWORD PTR [rsi]
+add eax, DWORD PTR [rdi]
+mov DWORD PTR [rdx], eax 
 ```
 
 当你从内存中检索任何内容时，数据到达之前总会有一些延迟。此外，请求不会直接发送到其最终存储位置，而是首先通过一个复杂的地址转换单元和缓存层系统，这个系统旨在帮助内存管理并减少延迟。

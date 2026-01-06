@@ -41,7 +41,12 @@ B 树主要是为了管理磁盘上的数据库而开发的，在那里随机获
 这样，我们只能通过分配一个大的二维数组键和依赖索引算术来定位树中的子节点，从而只使用 $O(1)$ 的额外内存：
 
 ```cpp
-const int B = 16;   int nblocks = (n + B - 1) / B; int btree[nblocks][B];   int go(int k, int i) { return k * (B + 1) + i + 1; } 
+const int B = 16;
+
+int nblocks = (n + B - 1) / B;
+int btree[nblocks][B];
+
+int go(int k, int i) { return k * (B + 1) + i + 1; } 
 ```
 
 这种编号自动使 B 树在高度为 $\Theta(\log_{B + 1} n)$ 的情况下变得完整或几乎完整。如果初始数组的长度不是 $B$ 的倍数，则最后一个块用其数据类型中的最大值填充。
@@ -51,7 +56,16 @@ const int B = 16;   int nblocks = (n + B - 1) / B; int btree[nblocks][B];   int 
 我们可以像构建 Eytzinger 数组一样构建 B 树——通过遍历搜索树：
 
 ```cpp
-void build(int k = 0) {  static int t = 0; if (k < nblocks) { for (int i = 0; i < B; i++) { build(go(k, i)); btree[k][i] = (t < n ? a[t++] : INT_MAX); } build(go(k, B)); } } 
+void build(int k = 0) {
+    static int t = 0;
+    if (k < nblocks) {
+        for (int i = 0; i < B; i++) {
+            build(go(k, i));
+            btree[k][i] = (t < n ? a[t++] : INT_MAX);
+        }
+        build(go(k, B));
+    }
+} 
 ```
 
 这是正确的，因为初始数组中的每个值都将被复制到结果数组中的唯一位置，并且由于每次进入子节点时 $k$ 都乘以 $(B + 1)$，因此树的高度是 $\Theta(\log_{B+1} n)$。
@@ -65,7 +79,13 @@ void build(int k = 0) {  static int t = 0; if (k < nblocks) { for (int i = 0; i 
 但我们不会这样做——因为我们可以使用 SIMD。它与分支不兼容，所以本质上我们想要做的是比较所有 $B$ 个元素，无论是否，从这些比较中计算一个位掩码，然后使用`ffs`指令找到对应于第一个非较小元素的位：
 
 ```cpp
-int mask = (1 << B);   for (int i = 0; i < B; i++)  mask |= (btree[k][i] >= x) << i;   int i = __builtin_ffs(mask) - 1; // now i is the number of the correct child node 
+int mask = (1 << B);
+
+for (int i = 0; i < B; i++)
+    mask |= (btree[k][i] >= x) << i;
+
+int i = __builtin_ffs(mask) - 1;
+// now i is the number of the correct child node 
 ```
 
 不幸的是，编译器还不够智能，还不能自动向量化此代码，因此我们必须手动优化。在 AVX2 中，我们可以加载 8 个元素，将它们与搜索键进行比较，生成向量掩码，然后使用`movemask`从中提取标量掩码。以下是一个简化的示例，说明我们想要做什么：
@@ -84,19 +104,29 @@ movemask = 0011
 由于我们一次只能处理 8 个元素（我们块/缓存行大小的一半），我们必须将元素分成两组，然后合并两个 8 位掩码。为此，将条件`x > y`进行交换并计算反转掩码会稍微容易一些：
 
 ```cpp
-typedef __m256i reg;   int cmp(reg x_vec, int* y_ptr) {  reg y_vec = _mm256_load_si256((reg*) y_ptr); // load 8 sorted elements reg mask = _mm256_cmpgt_epi32(x_vec, y_vec); // compare against the key return _mm256_movemask_ps((__m256) mask);    // extract the 8-bit mask } 
+typedef __m256i reg;
+
+int cmp(reg x_vec, int* y_ptr) {
+    reg y_vec = _mm256_load_si256((reg*) y_ptr); // load 8 sorted elements
+    reg mask = _mm256_cmpgt_epi32(x_vec, y_vec); // compare against the key
+    return _mm256_movemask_ps((__m256) mask);    // extract the 8-bit mask
+} 
 ```
 
 现在，为了处理整个块，我们需要调用它两次并合并掩码：
 
 ```cpp
-int mask = ~(  cmp(x, &btree[k][0]) + (cmp(x, &btree[k][8]) << 8) ); 
+int mask = ~(
+    cmp(x, &btree[k][0]) +
+    (cmp(x, &btree[k][8]) << 8)
+); 
 ```
 
 要向下遍历树，我们使用`ffs`在该掩码上获取正确的子节点编号，然后只需调用我们之前定义的`go`函数：
 
 ```cpp
-int i = __builtin_ffs(mask) - 1; k = go(k, i); 
+int i = __builtin_ffs(mask) - 1;
+k = go(k, i); 
 ```
 
 要最终返回结果，我们只想从最后访问的节点中获取`btree[k][i]`，但问题是局部下界有时不存在（$i \ge B$），因为 $x$ 恰好大于节点中的所有键。理论上，我们可以做与 Eytzinger 二分搜索相同的事情，并在计算最后一个索引后恢复正确的元素，但这次我们没有一个很好的位技巧，而必须进行大量的除以 17 来计算它，这将很慢，几乎肯定不值得。
@@ -104,7 +134,21 @@ int i = __builtin_ffs(mask) - 1; k = go(k, i);
 相反，我们只需记住并返回我们在下降树时遇到的最后一个局部下界：
 
 ```cpp
-int lower_bound(int _x) {  int k = 0, res = INT_MAX; reg x = _mm256_set1_epi32(_x); while (k < nblocks) { int mask = ~( cmp(x, &btree[k][0]) + (cmp(x, &btree[k][8]) << 8) ); int i = __builtin_ffs(mask) - 1; if (i < B) res = btree[k][i]; k = go(k, i); } return res; } 
+int lower_bound(int _x) {
+    int k = 0, res = INT_MAX;
+    reg x = _mm256_set1_epi32(_x);
+    while (k < nblocks) {
+        int mask = ~(
+            cmp(x, &btree[k][0]) +
+            (cmp(x, &btree[k][8]) << 8)
+        );
+        int i = __builtin_ffs(mask) - 1;
+        if (i < B)
+            res = btree[k][i];
+        k = go(k, i);
+    }
+    return res;
+} 
 ```
 
 此实现优于所有之前的二分搜索实现，并且差距很大：
@@ -118,7 +162,10 @@ int lower_bound(int _x) {  int k = 0, res = INT_MAX; reg x = _mm256_set1_epi32(_
 在所有其他事情之前，让我们在 hugepage 上为数组分配内存：
 
 ```cpp
-const int P = 1 << 21;                        // page size in bytes (2MB) const int T = (64 * nblocks + P - 1) / P * P; // can only allocate whole number of pages btree = (int(*)[16]) std::aligned_alloc(P, T); madvise(btree, T, MADV_HUGEPAGE); 
+const int P = 1 << 21;                        // page size in bytes (2MB)
+const int T = (64 * nblocks + P - 1) / P * P; // can only allocate whole number of pages
+btree = (int(*)[16]) std::aligned_alloc(P, T);
+madvise(btree, T, MADV_HUGEPAGE); 
 ```
 
 这略微提高了较大数组大小的性能：
@@ -130,13 +177,38 @@ const int P = 1 << 21;                        // page size in bytes (2MB) const 
 在这个问题解决之后，让我们开始真正的优化。首先，我们尽可能使用编译时常量而不是变量，因为这可以让编译器将它们嵌入到机器代码中，展开循环，优化算术，并为我们免费做所有 sorts of 其他好事。具体来说，我们希望提前知道树的高度：
 
 ```cpp
-constexpr int height(int n) {  // grow the tree until its size exceeds n elements int s = 0, // total size so far l = B, // size of the next layer h = 0; // height so far while (s + l - B < n) { s += l; l *= (B + 1); h++; } return h; }   const int H = height(N); 
+constexpr int height(int n) {
+    // grow the tree until its size exceeds n elements
+    int s = 0, // total size so far
+        l = B, // size of the next layer
+        h = 0; // height so far
+    while (s + l - B < n) {
+        s += l;
+        l *= (B + 1);
+        h++;
+    }
+    return h;
+}
+
+const int H = height(N); 
 ```
 
 接下来，我们可以更快地找到节点中的局部下界。我们不再分别对两个 8 元素块进行计算并合并两个 8 位掩码，而是使用[packs](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,4870,6715,4845,3853,90,7307,5993,2692,6946,6949,5456,6938,5456,1021,3007,514,518,7253,7183,3892,5135,5260,3915,4027,3873,7401,4376,4229,151,2324,2310,2324,4075,6130,4875,6385,5259,6385,6250,1395,7253,6452,7492,4669,4669,7253,1039,1029,4669,4707,7253,7242,848,879,848,7251,4275,879,874,849,833,6046,7250,4870,4872,4875,849,849,5144,4875,4787,4787,4787,5227,7359,7335,7392,4787,5259,5230,5223,6438,488,483,6165,6570,6554,289,6792,6554,5230,6385,5260,5259,289,288,3037,3009,590,604,5230,5259,6554,6554,5259,6547,6554,3841,5214,5229,5260,5259,7335,5259,519,1029,515,3009,3009,3011,515,6527,652,6527,6554,288,3841,5230,5259,5230,5259,305,5259,591,633,633,5259,5230,5259,5259,3017,3018,3037,3018,3017,3016,3013,5144&text=_mm256_packs_epi32&techs=AVX,AVX2)指令将向量掩码组合起来，并使用`movemask`一次性提取它：
 
 ```cpp
-unsigned rank(reg x, int* y) {  reg a = _mm256_load_si256((reg*) y); reg b = _mm256_load_si256((reg*) (y + 8));   reg ca = _mm256_cmpgt_epi32(a, x); reg cb = _mm256_cmpgt_epi32(b, x);   reg c = _mm256_packs_epi32(ca, cb); int mask = _mm256_movemask_epi8(c);   // we need to divide the result by two because we call movemask_epi8 on 16-bit masks: return __tzcnt_u32(mask) >> 1; } 
+unsigned rank(reg x, int* y) {
+    reg a = _mm256_load_si256((reg*) y);
+    reg b = _mm256_load_si256((reg*) (y + 8));
+
+    reg ca = _mm256_cmpgt_epi32(a, x);
+    reg cb = _mm256_cmpgt_epi32(b, x);
+
+    reg c = _mm256_packs_epi32(ca, cb);
+    int mask = _mm256_movemask_epi8(c);
+
+    // we need to divide the result by two because we call movemask_epi8 on 16-bit masks:
+    return __tzcnt_u32(mask) >> 1;
+} 
 ```
 
 这个指令将存储在两个寄存器中的 32 位整数转换为存储在一个寄存器中的 16 位整数——在我们的情况下，实际上是将向量掩码合并为一个。注意，我们已经交换了比较的顺序——这让我们在最后不需要反转掩码，但我们必须在开始时从搜索键中减去^(2)一次，以使其正确（否则，它作为`upper_bound`工作）。
@@ -144,7 +216,13 @@ unsigned rank(reg x, int* y) {  reg a = _mm256_load_si256((reg*) y); reg b = _mm
 问题在于，它以这种奇怪的交错方式执行，结果以`a1 b1 a2 b2`的顺序写入，而不是我们想要的`a1 a2 b1 b2`顺序——许多 AVX2 指令都倾向于这样做。为了纠正这一点，我们需要对结果向量进行置换，但不是在查询时间进行，我们可以在预处理期间对每个节点进行置换：
 
 ```cpp
-void permute(int *node) {  const reg perm = _mm256_setr_epi32(4, 5, 6, 7, 0, 1, 2, 3); reg* middle = (reg*) (node + 4); reg x = _mm256_loadu_si256(middle); x = _mm256_permutevar8x32_epi32(x, perm); _mm256_storeu_si256(middle, x); } 
+void permute(int *node) {
+    const reg perm = _mm256_setr_epi32(4, 5, 6, 7, 0, 1, 2, 3);
+    reg* middle = (reg*) (node + 4);
+    reg x = _mm256_loadu_si256(middle);
+    x = _mm256_permutevar8x32_epi32(x, perm);
+    _mm256_storeu_si256(middle, x);
+} 
 ```
 
 现在，我们只需在我们完成节点构建后立即调用`permute(&btree[k])`。可能还有更快的方法来交换中间元素，但我们将其留在这里，因为预处理时间现在并不重要。
@@ -152,7 +230,18 @@ void permute(int *node) {  const reg perm = _mm256_setr_epi32(4, 5, 6, 7, 0, 1, 
 这个新的 SIMD 例程要快得多，因为额外的`movemask`很慢，而且混合两个掩码需要相当多的指令。不幸的是，我们现在不能再简单地执行`res = btree[k][i]`更新了，因为元素被重新排列。我们可以通过一些关于`i`的位级技巧来解决这个问题，但索引一个小查找表证明要快得多，而且也不需要新的分支：
 
 ```cpp
-const int translate[17] = {  0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15, 0 };   void update(int &res, int* node, unsigned i) {  int val = node[translate[i]]; res = (i < B ? val : res); } 
+const int translate[17] = {
+    0, 1, 2, 3,
+    8, 9, 10, 11,
+    4, 5, 6, 7,
+    12, 13, 14, 15,
+    0
+};
+
+void update(int &res, int* node, unsigned i) {
+    int val = node[translate[i]];
+    res = (i < B ? val : res);
+} 
 ```
 
 这个`更新`过程需要一些时间，但它不在迭代之间的关键路径上，所以它对实际性能的影响不大。
@@ -160,7 +249,21 @@ const int translate[17] = {  0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 1
 将所有这些组合在一起（并省略一些其他小的优化）：
 
 ```cpp
-int lower_bound(int _x) {  int k = 0, res = INT_MAX; reg x = _mm256_set1_epi32(_x - 1); for (int h = 0; h < H - 1; h++) { unsigned i = rank(x, &btree[k]); update(res, &btree[k], i); k = go(k, i); } // the last branch: if (k < nblocks) { unsigned i = rank(x, btree[k]); update(res, &btree[k], i); } return res; } 
+int lower_bound(int _x) {
+    int k = 0, res = INT_MAX;
+    reg x = _mm256_set1_epi32(_x - 1);
+    for (int h = 0; h < H - 1; h++) {
+        unsigned i = rank(x, &btree[k]);
+        update(res, &btree[k], i);
+        k = go(k, i);
+    }
+    // the last branch:
+    if (k < nblocks) {
+        unsigned i = rank(x, btree[k]);
+        update(res, &btree[k], i);
+    }
+    return res;
+} 
 ```
 
 所有这些工作为我们节省了大约 15-20%：
@@ -206,7 +309,35 @@ int lower_bound(int _x) {  int k = 0, res = INT_MAX; reg x = _mm256_set1_epi32(_
 为了实现所有这些，我们需要稍微更多的`constexpr`函数：
 
 ```cpp
-// number of B-element blocks in a layer with n keys constexpr int blocks(int n) {  return (n + B - 1) / B; }   // number of keys on the layer previous to one with n keys constexpr int prev_keys(int n) {  return (blocks(n) + B) / (B + 1) * B; }   // height of a balanced n-key B+ tree constexpr int height(int n) {  return (n <= B ? 1 : height(prev_keys(n)) + 1); }   // where the layer h starts (layer 0 is the largest) constexpr int offset(int h) {  int k = 0, n = N; while (h--) { k += blocks(n) * B; n = prev_keys(n); } return k; }   const int H = height(N); const int S = offset(H); // the tree size is the offset of the (non-existent) layer H  int *btree; // the tree itself is stored in a single hugepage-aligned array of size S 
+// number of B-element blocks in a layer with n keys
+constexpr int blocks(int n) {
+    return (n + B - 1) / B;
+}
+
+// number of keys on the layer previous to one with n keys
+constexpr int prev_keys(int n) {
+    return (blocks(n) + B) / (B + 1) * B;
+}
+
+// height of a balanced n-key B+ tree
+constexpr int height(int n) {
+    return (n <= B ? 1 : height(prev_keys(n)) + 1);
+}
+
+// where the layer h starts (layer 0 is the largest)
+constexpr int offset(int h) {
+    int k = 0, n = N;
+    while (h--) {
+        k += blocks(n) * B;
+        n = prev_keys(n);
+    }
+    return k;
+}
+
+const int H = height(N);
+const int S = offset(H); // the tree size is the offset of the (non-existent) layer H
+
+int *btree; // the tree itself is stored in a single hugepage-aligned array of size S 
 ```
 
 注意，我们以相反的顺序存储层，但同一层内的节点和数据仍然是左到右的，并且层也是从下往上编号：叶子形成零层，根是层`H - 1`。这些只是任意决定——在代码实现上稍微容易一些。
@@ -216,19 +347,35 @@ int lower_bound(int _x) {  int k = 0, res = INT_MAX; reg x = _mm256_set1_epi32(_
 要从排序数组`a`构建树，我们首先需要将其复制到零层，并用无穷大填充：
 
 ```cpp
-memcpy(btree, a, 4 * N);   for (int i = N; i < S; i++)  btree[i] = INT_MAX; 
+memcpy(btree, a, 4 * N);
+
+for (int i = N; i < S; i++)
+    btree[i] = INT_MAX; 
 ```
 
 现在，我们逐层构建内部节点。对于每个键，我们需要向其右侧下降，始终向左走，直到我们到达一个叶节点，然后取其第一个键——它将是子树中最小的：
 
 ```cpp
-for (int h = 1; h < H; h++) {  for (int i = 0; i < offset(h + 1) - offset(h); i++) { // i = k * B + j int k = i / B, j = i - k * B; k = k * (B + 1) + j + 1; // compare to the right of the key // and then always to the left for (int l = 0; l < h - 1; l++) k *= (B + 1); // pad the rest with infinities if the key doesn't exist btree[offset(h) + i] = (k * B < N ? btree[k * B] : INT_MAX); } } 
+for (int h = 1; h < H; h++) {
+    for (int i = 0; i < offset(h + 1) - offset(h); i++) {
+        // i = k * B + j
+        int k = i / B,
+            j = i - k * B;
+        k = k * (B + 1) + j + 1; // compare to the right of the key
+        // and then always to the left
+        for (int l = 0; l < h - 1; l++)
+            k *= (B + 1);
+        // pad the rest with infinities if the key doesn't exist 
+        btree[offset(h) + i] = (k * B < N ? btree[k * B] : INT_MAX);
+    }
+} 
 ```
 
 最后的润色——我们需要对内部节点中的键进行排列以加快搜索：
 
 ```cpp
-for (int i = offset(1); i < S; i += B)  permute(btree + i); 
+for (int i = offset(1); i < S; i += B)
+    permute(btree + i); 
 ```
 
 我们从`offset(1)`开始，并且特别不排列叶节点，并保持数组在原始排序顺序。动机是，如果键被排列，我们需要执行在`update`中进行的复杂索引转换，而这将是最后一个操作的关键路径。所以，仅为此层，我们切换到原始的掩码混合局部下界过程。
@@ -238,7 +385,16 @@ for (int i = offset(1); i < S; i += B)  permute(btree + i);
 搜索过程比 B 树布局简单：我们不需要执行`update`操作，而只需要执行固定次数的迭代——尽管最后一次需要一些特殊处理：
 
 ```cpp
-int lower_bound(int _x) {  unsigned k = 0; // we assume k already multiplied by B to optimize pointer arithmetic reg x = _mm256_set1_epi32(_x - 1); for (int h = H - 1; h > 0; h--) { unsigned i = permuted_rank(x, btree + offset(h) + k); k = k * (B + 1) + i * B; } unsigned i = direct_rank(x, btree + k); return btree[k + i]; } 
+int lower_bound(int _x) {
+    unsigned k = 0; // we assume k already multiplied by B to optimize pointer arithmetic
+    reg x = _mm256_set1_epi32(_x - 1);
+    for (int h = H - 1; h > 0; h--) {
+        unsigned i = permuted_rank(x, btree + offset(h) + k);
+        k = k * (B + 1) + i * B;
+    }
+    unsigned i = direct_rank(x, btree + k);
+    return btree[k + i];
+} 
 ```
 
 转换到 B+布局的回报超过了预期：与优化的 S 树相比，S+树的速度提高了 1.5-3 倍：
@@ -262,13 +418,24 @@ int lower_bound(int _x) {  unsigned k = 0; // we assume k already multiplied by 
 我们还没有讨论的一个重要问题是，我们所测量的是不是真实延迟，而是**倒数吞吐量**——执行大量查询所需的总时间除以查询数量：
 
 ```cpp
-clock_t start = clock();   for (int i = 0; i < m; i++)  checksum ^= lower_bound(q[i]);   float seconds = float(clock() - start) / CLOCKS_PER_SEC; printf("%.2f ns per query\n", 1e9 * seconds / m); 
+clock_t start = clock();
+
+for (int i = 0; i < m; i++)
+    checksum ^= lower_bound(q[i]);
+
+float seconds = float(clock() - start) / CLOCKS_PER_SEC;
+printf("%.2f ns per query\n", 1e9 * seconds / m); 
 ```
 
 为了测量**实际**延迟，我们需要在循环迭代之间引入依赖关系，以便下一个查询不能在之前的查询完成之前开始：
 
 ```cpp
-int last = 0;   for (int i = 0; i < m; i++) {  last = lower_bound(q[i] ^ last); checksum ^= last; } 
+int last = 0;
+
+for (int i = 0; i < m; i++) {
+    last = lower_bound(q[i] ^ last);
+    checksum ^= last;
+} 
 ```
 
 在实际延迟方面，加速并不那么令人印象深刻：

@@ -23,31 +23,57 @@ $$ \gcd(a, b) = \max_{g: \; g|a \, \land \, g | b} g $$ 你可能已经从计算
 你可以以多种方式实现欧几里得算法。最简单的方法就是将定义转换为代码：
 
 ```cpp
-int gcd(int a, int b) {  if (b == 0) return a; else return gcd(b, a % b); } 
+int gcd(int a, int b) {
+    if (b == 0)
+        return a;
+    else
+        return gcd(b, a % b);
+} 
 ```
 
 你可以更紧凑地重写它如下：
 
 ```cpp
-int gcd(int a, int b) {  return (b ? gcd(b, a % b) : a); } 
+int gcd(int a, int b) {
+    return (b ? gcd(b, a % b) : a);
+} 
 ```
 
 你可以将其重写为一个循环，这将更接近硬件实际执行的顺序。但这不会更快，因为编译器可以轻松优化尾递归。
 
 ```cpp
-int gcd(int a, int b) {  while (b > 0) { a %= b; std::swap(a, b); } return a; } 
+int gcd(int a, int b) {
+    while (b > 0) {
+        a %= b;
+        std::swap(a, b);
+    }
+    return a;
+} 
 ```
 
 你甚至可以将循环体写成这个令人困惑的一行——并且它甚至会在 C++17 之后编译而不会产生未定义行为警告：
 
 ```cpp
-int gcd(int a, int b) {  while (b) b ^= a ^= b ^= a %= b; return a; } 
+int gcd(int a, int b) {
+    while (b) b ^= a ^= b ^= a %= b;
+    return a;
+} 
 ```
 
 所有这些，以及 C++17 中引入的 `std::gcd`，几乎等价，并且被编译成功能上相当于以下汇编循环：
 
 ```cpp
-; a = eax, b = edx loop:  ; modulo in assembly: mov  r8d, edx cdq idiv r8d mov  eax, r8d ; (a and b are already swapped now) ; continue until b is zero: test edx, edx jne  loop 
+; a = eax, b = edx
+loop:
+    ; modulo in assembly:
+    mov  r8d, edx
+    cdq
+    idiv r8d
+    mov  eax, r8d
+    ; (a and b are already swapped now)
+    ; continue until b is zero:
+    test edx, edx
+    jne  loop 
 ```
 
 如果你运行 perf，你会看到它大约花费了 90% 的时间在 `idiv` 行上。这并不奇怪：在所有计算机上，包括 x86，通用整数除法都出奇地慢。
@@ -79,7 +105,24 @@ int gcd(int a, int b) {  while (b) b ^= a ^= b ^= a %= b; return a; }
 这个算法没有出现在教科书中，是因为它不能再简单地实现为一个单行代码：
 
 ```cpp
-int gcd(int a, int b) {  // base cases (1) if (a == 0) return b; if (b == 0) return a; if (a == b) return a;   if (a % 2 == 0) { if (b % 2 == 0) // a is even, b is even (2) return 2 * gcd(a / 2, b / 2); else            // a is even, b is odd (3) return gcd(a / 2, b); } else { if (b % 2 == 0) // a is odd, b is even (3) return gcd(a, b / 2); else            // a is odd, b is odd (4) return gcd(std::abs(a - b), std::min(a, b)); } } 
+int gcd(int a, int b) {
+    // base cases (1)
+    if (a == 0) return b;
+    if (b == 0) return a;
+    if (a == b) return a;
+
+    if (a % 2 == 0) {
+        if (b % 2 == 0) // a is even, b is even (2)
+            return 2 * gcd(a / 2, b / 2);
+        else            // a is even, b is odd (3)
+            return gcd(a / 2, b);
+    } else {
+        if (b % 2 == 0) // a is odd, b is even (3)
+            return gcd(a, b / 2);
+        else            // a is odd, b is odd (4)
+            return gcd(std::abs(a - b), std::min(a, b));
+    }
+} 
 ```
 
 让我们运行它，然后……它很糟糕。与`std::gcd`相比，速度差异确实达到了 2 倍，但这是在方程的另一侧。这主要是因为区分不同情况所需的分支太多。让我们开始优化。
@@ -93,7 +136,24 @@ int gcd(int a, int b) {  // base cases (1) if (a == 0) return b; if (b == 0) ret
 结合这些想法，我们得到以下实现：
 
 ```cpp
-int gcd(int a, int b) {  if (a == 0) return b; if (b == 0) return a;   int az = __builtin_ctz(a); int bz = __builtin_ctz(b); int shift = std::min(az, bz); a >>= az, b >>= bz;  while (a != 0) { int diff = a - b; b = std::min(a, b); a = std::abs(diff); a >>= __builtin_ctz(a); }  return b << shift; } 
+int gcd(int a, int b) {
+    if (a == 0) return b;
+    if (b == 0) return a;
+
+    int az = __builtin_ctz(a);
+    int bz = __builtin_ctz(b);
+    int shift = std::min(az, bz);
+    a >>= az, b >>= bz;
+
+    while (a != 0) {
+        int diff = a - b;
+        b = std::min(a, b);
+        a = std::abs(diff);
+        a >>= __builtin_ctz(a);
+    }
+
+    return b << shift;
+} 
 ```
 
 它运行在 116 纳秒，而`std::gcd`需要 198 纳秒。几乎快了两倍——也许我们甚至可以将其优化到 100 纳秒以下？
@@ -101,7 +161,19 @@ int gcd(int a, int b) {  if (a == 0) return b; if (b == 0) return a;   int az = 
 为了做到这一点，我们需要再次仔细查看[其汇编](https://godbolt.org/z/nKKMe48cW)，特别是这个块：
 
 ```cpp
-; a = edx, b = eax loop:  mov   ecx, edx sub   ecx, eax       ; diff = a - b cmp   eax, edx cmovg eax, edx       ; b = min(a, b) mov   edx, ecx neg   edx cmovs edx, ecx       ; a = max(diff, -diff) = abs(diff) tzcnt ecx, edx       ; az = __builtin_ctz(a) sarx  edx, edx, ecx  ; a >>= az test  edx, edx       ; a != 0? jne   loop 
+; a = edx, b = eax
+loop:
+    mov   ecx, edx
+    sub   ecx, eax       ; diff = a - b
+    cmp   eax, edx
+    cmovg eax, edx       ; b = min(a, b)
+    mov   edx, ecx
+    neg   edx
+    cmovs edx, ecx       ; a = max(diff, -diff) = abs(diff)
+    tzcnt ecx, edx       ; az = __builtin_ctz(a)
+    sarx  edx, edx, ecx  ; a >>= az
+    test  edx, edx       ; a != 0?
+    jne   loop 
 ```
 
 让我们绘制这个循环的依赖图：
@@ -117,7 +189,25 @@ int gcd(int a, int b) {  if (a == 0) return b; if (b == 0) return a;   int az = 
 希望你在思考最终代码将如何执行时，会感到不那么困惑：
 
 ```cpp
-int gcd(int a, int b) {  if (a == 0) return b; if (b == 0) return a;   int az = __builtin_ctz(a); int bz = __builtin_ctz(b); int shift = std::min(az, bz); b >>= bz;  while (a != 0) { a >>= az; int diff = b - a; az = __builtin_ctz(diff); b = std::min(a, b); a = std::abs(diff); }  return b << shift; } 
+int gcd(int a, int b) {
+    if (a == 0) return b;
+    if (b == 0) return a;
+
+    int az = __builtin_ctz(a);
+    int bz = __builtin_ctz(b);
+    int shift = std::min(az, bz);
+    b >>= bz;
+
+    while (a != 0) {
+        a >>= az;
+        int diff = b - a;
+        az = __builtin_ctz(diff);
+        b = std::min(a, b);
+        a = std::abs(diff);
+    }
+
+    return b << shift;
+} 
 ```
 
 它运行在 91 纳秒，这已经足够好，可以保持不变。

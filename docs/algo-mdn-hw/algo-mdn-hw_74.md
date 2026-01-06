@@ -11,7 +11,11 @@
 对于我们的基准测试，我们创建一个随机的 32 位整数数组，然后反复尝试找到其中最小值的索引（如果不是唯一的，则是第一个）：
 
 ```cpp
-const int N = (1 << 16); alignas(32) int a[N];   for (int i = 0; i < N; i++)  a[i] = rand(); 
+const int N = (1 << 16);
+alignas(32) int a[N];
+
+for (int i = 0; i < N; i++)
+    a[i] = rand(); 
 ```
 
 为了说明，我们假设$N$是 2 的幂，并且对所有实验进行$N=2^{13}$，这样内存带宽就不是问题。
@@ -19,7 +23,15 @@ const int N = (1 << 16); alignas(32) int a[N];   for (int i = 0; i < N; i++)  a[
 在标量情况下实现 argmin，我们只需要维护索引而不是最小值：
 
 ```cpp
-int argmin(int *a, int n) {  int k = 0;   for (int i = 0; i < n; i++) if (a[i] < a[k]) k = i;  return k; } 
+int argmin(int *a, int n) {
+    int k = 0;
+
+    for (int i = 0; i < n; i++)
+        if (a[i] < a[k])
+            k = i;
+
+    return k;
+} 
 ```
 
 它的工作效率大约在 1.5 GFLOPS——这意味着平均每秒处理$1.5 \times 10⁹$个值，或者每个周期大约处理 0.75 个值（CPU 的时钟频率为 2GHz）。
@@ -27,7 +39,10 @@ int argmin(int *a, int n) {  int k = 0;   for (int i = 0; i < n; i++) if (a[i] <
 让我们将其与`std::min_element`进行比较：
 
 ```cpp
-int argmin(int *a, int n) {  int k = std::min_element(a, a + n) - a; return k; } 
+int argmin(int *a, int n) {
+    int k = std::min_element(a, a + n) - a;
+    return k;
+} 
 ```
 
 GCC 提供的版本大约是 0.28 GFLOPS——显然，编译器无法穿透所有抽象。这是永远不要使用 STL 的另一个提醒。
@@ -39,7 +54,46 @@ GCC 提供的版本大约是 0.28 GFLOPS——显然，编译器无法穿透所�
 当我们拥有连续元素及其索引的向量时，我们可以使用 predication 并行处理它们：
 
 ```cpp
-typedef __m256i reg;   int argmin(int *a, int n) {  // indices on the current iteration reg cur = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7); // the current minimum for each slice reg min = _mm256_set1_epi32(INT_MAX); // its index (argmin) for each slice reg idx = _mm256_setzero_si256();   for (int i = 0; i < n; i += 8) { // load a new SIMD block reg x = _mm256_load_si256((reg*) &a[i]); // find the slices where the minimum is updated reg mask = _mm256_cmpgt_epi32(min, x); // update the indices idx = _mm256_blendv_epi8(idx, cur, mask); // update the minimum (can also similarly use a "blend" here, but min is faster) min = _mm256_min_epi32(x, min); // update the current indices const reg eight = _mm256_set1_epi32(8); cur = _mm256_add_epi32(cur, eight);       // // can also use a "blend" here, but min is faster }   // find the argmin in the "min" register and return its real index  int min_arr[8], idx_arr[8];  _mm256_storeu_si256((reg*) min_arr, min); _mm256_storeu_si256((reg*) idx_arr, idx);   int k = 0, m = min_arr[0];   for (int i = 1; i < 8; i++) if (min_arr[i] < m) m = min_arr[k = i];   return idx_arr[k]; } 
+typedef __m256i reg;
+
+int argmin(int *a, int n) {
+    // indices on the current iteration
+    reg cur = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    // the current minimum for each slice
+    reg min = _mm256_set1_epi32(INT_MAX);
+    // its index (argmin) for each slice
+    reg idx = _mm256_setzero_si256();
+
+    for (int i = 0; i < n; i += 8) {
+        // load a new SIMD block
+        reg x = _mm256_load_si256((reg*) &a[i]);
+        // find the slices where the minimum is updated
+        reg mask = _mm256_cmpgt_epi32(min, x);
+        // update the indices
+        idx = _mm256_blendv_epi8(idx, cur, mask);
+        // update the minimum (can also similarly use a "blend" here, but min is faster)
+        min = _mm256_min_epi32(x, min);
+        // update the current indices
+        const reg eight = _mm256_set1_epi32(8);
+        cur = _mm256_add_epi32(cur, eight);       // 
+        // can also use a "blend" here, but min is faster
+    }
+
+    // find the argmin in the "min" register and return its real index
+
+    int min_arr[8], idx_arr[8];
+
+    _mm256_storeu_si256((reg*) min_arr, min);
+    _mm256_storeu_si256((reg*) idx_arr, idx);
+
+    int k = 0, m = min_arr[0];
+
+    for (int i = 1; i < 8; i++)
+        if (min_arr[i] < m)
+            m = min_arr[k = i];
+
+    return idx_arr[k];
+} 
 ```
 
 它的工作效率大约在 8-8.5 GFLOPS。迭代之间仍然存在一些依赖关系，因此我们可以通过考虑每个迭代超过 8 个元素并利用指令级并行来优化它。
@@ -61,7 +115,15 @@ $$ \frac{1}{2} + \frac{1}{3} + \frac{1}{4} + \ldots + \frac{1}{n} = O(\ln(n)) $$
 编译器可能无法自己解决这个问题，所以让我们明确提供这个信息：
 
 ```cpp
-int argmin(int *a, int n) {  int k = 0;   for (int i = 0; i < n; i++) if (a[i] < a[k]) [[unlikely]] k = i;  return k; } 
+int argmin(int *a, int n) {
+    int k = 0;
+
+    for (int i = 0; i < n; i++)
+        if (a[i] < a[k]) [[unlikely]]
+            k = i;
+
+    return k;
+} 
 ```
 
 编译器优化了机器代码布局，现在 CPU 能够以大约 2 GFLOPS 的速度执行循环——这比非提示循环的 1.5 GFLOPS 略有提高，但幅度不大。
@@ -71,13 +133,49 @@ int argmin(int *a, int n) {  int k = 0;   for (int i = 0; i < n; i++) if (a[i] <
 要使用 SIMD 实现它，我们每个迭代只需要进行一次向量加载、一次比较和一次测试是否为零：
 
 ```cpp
-int argmin(int *a, int n) {  int min = INT_MAX, idx = 0;  reg p = _mm256_set1_epi32(min);   for (int i = 0; i < n; i += 8) { reg y = _mm256_load_si256((reg*) &a[i]); reg mask = _mm256_cmpgt_epi32(p, y); if (!_mm256_testz_si256(mask, mask)) { [[unlikely]] for (int j = i; j < i + 8; j++) if (a[j] < min) min = a[idx = j]; p = _mm256_set1_epi32(min); } }  return idx; } 
+int argmin(int *a, int n) {
+    int min = INT_MAX, idx = 0;
+
+    reg p = _mm256_set1_epi32(min);
+
+    for (int i = 0; i < n; i += 8) {
+        reg y = _mm256_load_si256((reg*) &a[i]); 
+        reg mask = _mm256_cmpgt_epi32(p, y);
+        if (!_mm256_testz_si256(mask, mask)) { [[unlikely]]
+            for (int j = i; j < i + 8; j++)
+                if (a[j] < min)
+                    min = a[idx = j];
+            p = _mm256_set1_epi32(min);
+        }
+    }
+
+    return idx;
+} 
 ```
 
 它已经以约 8.5 GFLOPS 的速度运行，但现在循环被`testz`指令所限制，该指令的吞吐量仅为一次。解决方案是加载两个连续的 SIMD 块并使用它们的最小值，这样`testz`就可以一次有效地处理 16 个元素：
 
 ```cpp
-int argmin(int *a, int n) {  int min = INT_MAX, idx = 0;  reg p = _mm256_set1_epi32(min);   for (int i = 0; i < n; i += 16) { reg y1 = _mm256_load_si256((reg*) &a[i]); reg y2 = _mm256_load_si256((reg*) &a[i + 8]); reg y = _mm256_min_epi32(y1, y2); reg mask = _mm256_cmpgt_epi32(p, y); if (!_mm256_testz_si256(mask, mask)) { [[unlikely]] for (int j = i; j < i + 16; j++) if (a[j] < min) min = a[idx = j]; p = _mm256_set1_epi32(min); } }  return idx; } 
+int argmin(int *a, int n) {
+    int min = INT_MAX, idx = 0;
+
+    reg p = _mm256_set1_epi32(min);
+
+    for (int i = 0; i < n; i += 16) {
+        reg y1 = _mm256_load_si256((reg*) &a[i]);
+        reg y2 = _mm256_load_si256((reg*) &a[i + 8]);
+        reg y = _mm256_min_epi32(y1, y2);
+        reg mask = _mm256_cmpgt_epi32(p, y);
+        if (!_mm256_testz_si256(mask, mask)) { [[unlikely]]
+            for (int j = i; j < i + 16; j++)
+                if (a[j] < min)
+                    min = a[idx = j];
+            p = _mm256_set1_epi32(min);
+        }
+    }
+
+    return idx;
+} 
 ```
 
 这个版本以约 10 GFLOPS 的速度运行。为了消除其他障碍，我们可以做两件事：
@@ -89,7 +187,34 @@ int argmin(int *a, int n) {  int min = INT_MAX, idx = 0;  reg p = _mm256_set1_ep
 实现了这两个优化后，性能增加到惊人的 ~22 GFLOPS：
 
 ```cpp
-int argmin(int *a, int n) {  int min = INT_MAX, idx = 0;  reg p = _mm256_set1_epi32(min);   for (int i = 0; i < n; i += 32) { reg y1 = _mm256_load_si256((reg*) &a[i]); reg y2 = _mm256_load_si256((reg*) &a[i + 8]); reg y3 = _mm256_load_si256((reg*) &a[i + 16]); reg y4 = _mm256_load_si256((reg*) &a[i + 24]); y1 = _mm256_min_epi32(y1, y2); y3 = _mm256_min_epi32(y3, y4); y1 = _mm256_min_epi32(y1, y3); reg mask = _mm256_cmpgt_epi32(p, y1); if (!_mm256_testz_si256(mask, mask)) { [[unlikely]] idx = i; for (int j = i; j < i + 32; j++) min = (a[j] < min ? a[j] : min); p = _mm256_set1_epi32(min); } }   for (int i = idx; i < idx + 31; i++) if (a[i] == min) return i;  return idx + 31; } 
+int argmin(int *a, int n) {
+    int min = INT_MAX, idx = 0;
+
+    reg p = _mm256_set1_epi32(min);
+
+    for (int i = 0; i < n; i += 32) {
+        reg y1 = _mm256_load_si256((reg*) &a[i]);
+        reg y2 = _mm256_load_si256((reg*) &a[i + 8]);
+        reg y3 = _mm256_load_si256((reg*) &a[i + 16]);
+        reg y4 = _mm256_load_si256((reg*) &a[i + 24]);
+        y1 = _mm256_min_epi32(y1, y2);
+        y3 = _mm256_min_epi32(y3, y4);
+        y1 = _mm256_min_epi32(y1, y3);
+        reg mask = _mm256_cmpgt_epi32(p, y1);
+        if (!_mm256_testz_si256(mask, mask)) { [[unlikely]]
+            idx = i;
+            for (int j = i; j < i + 32; j++)
+                min = (a[j] < min ? a[j] : min);
+            p = _mm256_set1_epi32(min);
+        }
+    }
+
+    for (int i = idx; i < idx + 31; i++)
+        if (a[i] == min)
+            return i;
+
+    return idx + 31;
+} 
 ```
 
 这几乎达到了极限，因为仅仅计算最小值本身在大约 24-25 GFLOPS 的速度下工作。
@@ -103,7 +228,11 @@ int argmin(int *a, int n) {  int min = INT_MAX, idx = 0;  reg p = _mm256_set1_ep
 我们知道 how to calculate the minimum of an array 快速以及 how to find an element in an array 快速 — 那么，我们为什么不在分别计算最小值后再去寻找它呢？
 
 ```cpp
-int argmin(int *a, int n) {  int needle = min(a, n); int idx = find(a, n, needle); return idx; } 
+int argmin(int *a, int n) {
+    int needle = min(a, n);
+    int idx = find(a, n, needle);
+    return idx;
+} 
 ```
 
 如果我们最优地实现这两个子程序（检查相关文章），对于随机数组性能将是 ~18 GFLOPS，对于递减数组是 ~12 GFLOPS — 这是有道理的，因为我们预计要分别读取数组 1.5 和 2 次。这本身并不糟糕 — 至少我们避免了 10 倍的最坏情况性能惩罚 — 但问题是，这种受惩罚的性能也转化为更大的数组，当我们受限于 内存带宽 而不是计算时。
@@ -113,7 +242,26 @@ int argmin(int *a, int n) {  int needle = min(a, n); int idx = find(a, n, needle
 这样我们只处理 $(N + B)$ 个元素，而且不必牺牲 ½ 或 ⅓ 的性能：
 
 ```cpp
-const int B = 256;   // returns the minimum and its first block pair<int, int> approx_argmin(int *a, int n) {  int res = INT_MAX, idx = 0; for (int i = 0; i < n; i += B) { int val = min(a + i, B); if (val < res) { res = val; idx = i; } } return {res, idx}; }   int argmin(int *a, int n) {  auto [needle, base] = approx_argmin(a, n); int idx = find(a + base, B, needle); return base + idx; } 
+const int B = 256;
+
+// returns the minimum and its first block
+pair<int, int> approx_argmin(int *a, int n) {
+    int res = INT_MAX, idx = 0;
+    for (int i = 0; i < n; i += B) {
+        int val = min(a + i, B);
+        if (val < res) {
+            res = val;
+            idx = i;
+        }
+    }
+    return {res, idx};
+}
+
+int argmin(int *a, int n) {
+    auto [needle, base] = approx_argmin(a, n);
+    int idx = find(a + base, B, needle);
+    return base + idx;
+} 
 ```
 
 这导致了最终实现的结果，对于随机数组和递减数组分别是 ~22 和 ~19 GFLOPS。

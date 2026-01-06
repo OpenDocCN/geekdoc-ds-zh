@@ -7,7 +7,10 @@
 考虑以下代码片段：
 
 ```cpp
-float x = 0; for (int i = 0; i < (1 << 25); i++)  x++; printf("%f\n", x); 
+float x = 0;
+for (int i = 0; i < (1 << 25); i++)
+    x++;
+printf("%f\n", x); 
 ```
 
 而不是打印 $2^{25} = 33554432$（数学上应该是这个结果），它输出 $16777216 = 2^{24}$。为什么？
@@ -65,7 +68,10 @@ $$ [x \cdot (1-\epsilon),\; x \cdot (1 + \epsilon)] $$
 在基于浮点计算结果进行离散的“是或否”决策时，记住错误的普遍性尤为重要。例如，以下是检查相等性的方法：
 
 ```cpp
-const float eps = std::numeric_limits<float>::epsilon; // ~2^(-23) bool eq(float a, float b) {  return abs(a - b) <= eps; } 
+const float eps = std::numeric_limits<float>::epsilon; // ~2^(-23)
+bool eq(float a, float b) {
+    return abs(a - b) <= eps;
+} 
 ```
 
 `eps` 的值应该取决于应用：上面提到的——`float` 的机器精度——对于不超过一次浮点运算来说是好的。
@@ -79,7 +85,9 @@ const float eps = std::numeric_limits<float>::epsilon; // ~2^(-23) bool eq(float
 例如，考虑一系列连续的运算，我们将一个变量依次乘以任意实数：
 
 ```cpp
-float x = 1; for (int i = 0; i < n; i++)  x *= a[i]; 
+float x = 1;
+for (int i = 0; i < n; i++)
+    x *= a[i]; 
 ```
 
 在第一次乘法之后，$x$ 相对于实数乘积的值被 $(1 + \epsilon)$ 所限制，并且每次额外的乘法之后，这个上限会乘以另一个 $(1 + \epsilon)$。通过归纳，经过 $n$ 次乘法后，计算出的值被 $(1 + \epsilon)^n = 1 + n \epsilon + O(\epsilon²)$ 和类似的下限所限制。
@@ -105,7 +113,9 @@ $$ f(x, y) = x² - y² = (x + y) \cdot (x - y) $$
 考虑标准的求和算法：
 
 ```cpp
-float s = 0; for (int i = 0; i < n; i++)  s += a[i]; 
+float s = 0;
+for (int i = 0; i < n; i++)
+    s += a[i]; 
 ```
 
 由于我们执行的是求和而不是乘法，其相对误差不再仅仅被 $O(\epsilon \cdot n)$ 所限制，而是严重依赖于输入。
@@ -113,7 +123,14 @@ float s = 0; for (int i = 0; i < n; i++)  s += a[i];
 在最荒谬的情况下，如果第一个值是 $2^{24}$，其他值都等于 $1$，那么无论 $n$ 如何，总和都将等于 $2^{24}$，这可以通过执行以下代码并观察它简单地打印出 $16777216 = 2^{24}$ 两次来验证：
 
 ```cpp
-const int n = (1<<24); printf("%d\n", n);   float s = n; for (int i = 0; i < n; i++)  s += 1.0;   printf("%f\n", s); 
+const int n = (1<<24);
+printf("%d\n", n);
+
+float s = n;
+for (int i = 0; i < n; i++)
+    s += 1.0;
+
+printf("%f\n", s); 
 ```
 
 这是因为 `float` 只有 23 位尾数位，所以 $2^{24} + 1$ 是第一个不能精确表示的整数，并且必须向下舍入，这发生在我们尝试将 $1$ 加到 $s = 2^{24}$ 的时候。误差确实是 $O(n \cdot \epsilon)$，但就绝对误差而言，不是相对误差：在上面的例子中，它是 $2$，如果最后一个数字恰好是 $-2^{24}$，它将无限增大。
@@ -121,7 +138,13 @@ const int n = (1<<24); printf("%d\n", n);   float s = n; for (int i = 0; i < n; 
 显然，解决方案是切换到更大的类型，例如 `double`，但这并不是一个可扩展的方法。一个优雅的解决方案是将未添加的部分存储在一个单独的变量中，然后将其添加到下一个变量中：
 
 ```cpp
-float s = 0, c = 0; for (int i = 0; i < n; i++) {  float y = a[i] - c; // c is zero on the first iteration float t = s + y;    // s may be big and y may be small, losing low-order bits of y c = (t - s) - y;    // (t - s) cancels high-order part of y s = t; } 
+float s = 0, c = 0;
+for (int i = 0; i < n; i++) {
+    float y = a[i] - c; // c is zero on the first iteration
+    float t = s + y;    // s may be big and y may be small, losing low-order bits of y
+    c = (t - s) - y;    // (t - s) cancels high-order part of y
+    s = t;
+} 
 ```
 
 这个技巧被称为 *Kahan 求和法*。它的相对误差被限制在 $2 \epsilon + O(n \epsilon²)$：第一项来自最后的求和，第二项是由于我们在每一步都处理小于 epsilon 的误差。

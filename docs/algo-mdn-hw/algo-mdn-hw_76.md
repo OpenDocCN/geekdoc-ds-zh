@@ -19,7 +19,12 @@ $$ C_{ij} = \sum_{k=1}^{n} A_{ik} \cdot B_{kj} $$
 要实现矩阵乘法，我们可以简单地将这个定义转换成代码，但我们将使用一维数组（即矩阵）而不是二维数组，以明确指针算术：
 
 ```cpp
-void matmul(const float *a, const float *b, float *c, int n) {  for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) for (int k = 0; k < n; k++) c[i * n + j] += a[i * n + k] * b[k * n + j]; } 
+void matmul(const float *a, const float *b, float *c, int n) {
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            for (int k = 0; k < n; k++)
+                c[i * n + j] += a[i * n + k] * b[k * n + j];
+} 
 ```
 
 由于后面的原因，我们将只使用$48$的倍数矩阵大小进行基准测试，但实现对所有其他大小都是正确的。我们还特别使用 32 位浮点数，尽管所有实现都可以很容易地推广到其他数据类型和操作。
@@ -35,7 +40,18 @@ void matmul(const float *a, const float *b, float *c, int n) {  for (int i = 0; 
 一种著名的优化方法，用于解决此问题是将矩阵$B$存储在*列主序*顺序中——或者，在矩阵乘法之前，将其*转置*。这需要$O(n²)$额外的操作，但确保在内层循环中顺序读取：
 
 ```cpp
-void matmul(const float *a, const float *_b, float *c, int n) {  float *b = new float[n * n];   for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) b[i * n + j] = _b[j * n + i];  for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) for (int k = 0; k < n; k++) c[i * n + j] += a[i * n + k] * b[j * n + k]; // <- note the indices } 
+void matmul(const float *a, const float *_b, float *c, int n) {
+    float *b = new float[n * n];
+
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            b[i * n + j] = _b[j * n + i];
+
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            for (int k = 0; k < n; k++)
+                c[i * n + j] += a[i * n + k] * b[j * n + k]; // <- note the indices
+} 
 ```
 
 这段代码运行时间为 ~12.4 秒，大约快 30%。
@@ -47,7 +63,47 @@ void matmul(const float *a, const float *_b, float *c, int n) {  float *b = new 
 现在我们所做的只是顺序读取 `a` 和 `b` 的元素，将它们相乘，并将结果加到一个累加变量中，我们可以使用 SIMD 指令来加速整个过程。使用 GCC 向量类型 来实现它相当直接——我们可以 对齐内存 矩阵行，用零填充它们，然后像计算任何其他 归约 一样计算乘加：
 
 ```cpp
-// a vector of 256 / 32 = 8 floats typedef float vec __attribute__ (( vector_size(32) ));   // a helper function that allocates n vectors and initializes them with zeros vec* alloc(int n) {  vec* ptr = (vec*) std::aligned_alloc(32, 32 * n); memset(ptr, 0, 32 * n); return ptr; }   void matmul(const float *_a, const float *_b, float *c, int n) {  int nB = (n + 7) / 8; // number of 8-element vectors in a row (rounded up)  vec *a = alloc(n * nB); vec *b = alloc(n * nB);   // move both matrices to the aligned region for (int i = 0; i < n; i++) { for (int j = 0; j < n; j++) { a[i * nB + j / 8][j % 8] = _a[i * n + j]; b[i * nB + j / 8][j % 8] = _b[j * n + i]; // <- b is still transposed } }   for (int i = 0; i < n; i++) { for (int j = 0; j < n; j++) { vec s{}; // initialize the accumulator with zeros  // vertical summation for (int k = 0; k < nB; k++) s += a[i * nB + k] * b[j * nB + k];  // horizontal summation for (int k = 0; k < 8; k++) c[i * n + j] += s[k]; } }   std::free(a); std::free(b); } 
+// a vector of 256 / 32 = 8 floats
+typedef float vec __attribute__ (( vector_size(32) ));
+
+// a helper function that allocates n vectors and initializes them with zeros
+vec* alloc(int n) {
+    vec* ptr = (vec*) std::aligned_alloc(32, 32 * n);
+    memset(ptr, 0, 32 * n);
+    return ptr;
+}
+
+void matmul(const float *_a, const float *_b, float *c, int n) {
+    int nB = (n + 7) / 8; // number of 8-element vectors in a row (rounded up)
+
+    vec *a = alloc(n * nB);
+    vec *b = alloc(n * nB);
+
+    // move both matrices to the aligned region
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            a[i * nB + j / 8][j % 8] = _a[i * n + j];
+            b[i * nB + j / 8][j % 8] = _b[j * n + i]; // <- b is still transposed
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            vec s{}; // initialize the accumulator with zeros
+
+            // vertical summation
+            for (int k = 0; k < nB; k++)
+                s += a[i * nB + k] * b[j * nB + k];
+
+            // horizontal summation
+            for (int k = 0; k < 8; k++)
+                c[i * n + j] += s[k];
+        }
+    }
+
+    std::free(a);
+    std::free(b);
+} 
 ```
 
 对于 $n = 1920$ 的性能现在大约是 2.3 GFLOPS——或者比转置但未向量化的版本高大约 4 倍。
@@ -59,7 +115,9 @@ void matmul(const float *a, const float *_b, float *c, int n) {  float *b = new 
 实际上可以；阻止这一点的唯一因素是 `c` 可能与 `a` 或 `b` 发生重叠。为了排除这种可能性，你可以通过向它添加 `__restrict__` 关键字来通知编译器你保证 `c` 不与任何东西 别名：
 
 ```cpp
-void matmul(const float *a, const float *_b, float * __restrict__ c, int n) {  // ... } 
+void matmul(const float *a, const float *_b, float * __restrict__ c, int n) {
+    // ...
+} 
 ```
 
 手动和自动向量化实现的表现大致相同。
@@ -89,7 +147,31 @@ void matmul(const float *a, const float *_b, float * __restrict__ c, int n) {  /
 为了避免多次获取数据，我们需要并行遍历这些行和列，并计算所有可能的$2 \times 2$乘积组合。以下是一个概念验证：
 
 ```cpp
-void kernel_2x2(int x, int y) {  int c00 = 0, c01 = 0, c10 = 0, c11 = 0;   for (int k = 0; k < n; k++) { // read rows int a0 = a[x][k]; int a1 = a[x + 1][k];   // read columns int b0 = b[k][y]; int b1 = b[k][y + 1];   // update all combinations c00 += a0 * b0; c01 += a0 * b1; c10 += a1 * b0; c11 += a1 * b1; }   // write the results to C c[x][y]         = c00; c[x][y + 1]     = c01; c[x + 1][y]     = c10; c[x + 1][y + 1] = c11; } 
+void kernel_2x2(int x, int y) {
+    int c00 = 0, c01 = 0, c10 = 0, c11 = 0;
+
+    for (int k = 0; k < n; k++) {
+        // read rows
+        int a0 = a[x][k];
+        int a1 = a[x + 1][k];
+
+        // read columns
+        int b0 = b[k][y];
+        int b1 = b[k][y + 1];
+
+        // update all combinations
+        c00 += a0 * b0;
+        c01 += a0 * b1;
+        c10 += a1 * b0;
+        c11 += a1 * b1;
+    }
+
+    // write the results to C
+    c[x][y]         = c00;
+    c[x][y + 1]     = c01;
+    c[x + 1][y]     = c10;
+    c[x + 1][y + 1] = c11;
+} 
 ```
 
 现在，我们可以简单地调用这个内核来处理$C$的所有$2 \times 2$子矩阵，但我们不会费心去评估它：尽管这个算法在 I/O 操作方面更好，但它仍然无法击败我们的基于 SIMD 的实现。相反，我们将扩展这种方法，并立即开发一个类似的*向量化*内核。
@@ -111,7 +193,26 @@ void kernel_2x2(int x, int y) {  int c00 = 0, c01 = 0, c10 = 0, c11 = 0;   for (
 由于这些原因，我们选择了 $6 \times 16$ 的内核。这样，我们一次处理 $96$ 个元素，这些元素存储在 $6 \times 2 = 12$ 个向量寄存器中。为了有效地更新它们，我们使用以下程序：
 
 ```cpp
-// update 6x16 submatrix C[x:x+6][y:y+16] // using A[x:x+6][l:r] and B[l:r][y:y+16] void kernel(float *a, vec *b, vec *c, int x, int y, int l, int r, int n) {  vec t[6][2]{}; // will be zero-filled and stored in ymm registers  for (int k = l; k < r; k++) { for (int i = 0; i < 6; i++) { // broadcast a[x + i][k] into a register vec alpha = vec{} + a[(x + i) * n + k]; // converts to a broadcast // multiply b[k][y:y+16] by it and update t[i][0] and t[i][1] for (int j = 0; j < 2; j++) t[i][j] += alpha * b[(k * n + y) / 8 + j]; // converts to an fma } }   // write the results back to C for (int i = 0; i < 6; i++) for (int j = 0; j < 2; j++) c[((x + i) * n + y) / 8 + j] += t[i][j]; } 
+// update 6x16 submatrix C[x:x+6][y:y+16]
+// using A[x:x+6][l:r] and B[l:r][y:y+16]
+void kernel(float *a, vec *b, vec *c, int x, int y, int l, int r, int n) {
+    vec t[6][2]{}; // will be zero-filled and stored in ymm registers
+
+    for (int k = l; k < r; k++) {
+        for (int i = 0; i < 6; i++) {
+            // broadcast a[x + i][k] into a register
+            vec alpha = vec{} + a[(x + i) * n + k]; // converts to a broadcast
+            // multiply b[k][y:y+16] by it and update t[i][0] and t[i][1]
+            for (int j = 0; j < 2; j++)
+                t[i][j] += alpha * b[(k * n + y) / 8 + j]; // converts to an fma
+        }
+    }
+
+    // write the results back to C
+    for (int i = 0; i < 6; i++)
+        for (int j = 0; j < 2; j++)
+            c[((x + i) * n + y) / 8 + j] += t[i][j];
+} 
 ```
 
 我们需要 `t` 以便编译器将这些元素存储在向量寄存器中。我们只需更新它们在 `c` 中的最终目标，但不幸的是，编译器将它们重新写回内存，导致速度降低（将 `__restrict__` 关键字包裹起来也没有帮助）。
@@ -119,7 +220,20 @@ void kernel_2x2(int x, int y) {  int c00 = 0, c01 = 0, c10 = 0, c11 = 0;   for (
 在展开这些循环并将 `b` 从 `i` 循环中提升出来（`b[(k * n + y) / 8 + j]` 不依赖于 `i`，可以在所有 6 次迭代中加载一次并重复使用），编译器生成的内容更接近以下内容：
 
 ```cpp
-for (int k = l; k < r; k++) {  __m256 b0 = _mm256_load_ps((__m256*) &b[k * n + y]; __m256 b1 = _mm256_load_ps((__m256*) &b[k * n + y + 8];  __m256 a0 = _mm256_broadcast_ps((__m128*) &a[x * n + k]); t00 = _mm256_fmadd_ps(a0, b0, t00); t01 = _mm256_fmadd_ps(a0, b1, t01);   __m256 a1 = _mm256_broadcast_ps((__m128*) &a[(x + 1) * n + k]); t10 = _mm256_fmadd_ps(a1, b0, t10); t11 = _mm256_fmadd_ps(a1, b1, t11);   // ... } 
+for (int k = l; k < r; k++) {
+    __m256 b0 = _mm256_load_ps((__m256*) &b[k * n + y];
+    __m256 b1 = _mm256_load_ps((__m256*) &b[k * n + y + 8];
+
+    __m256 a0 = _mm256_broadcast_ps((__m128*) &a[x * n + k]);
+    t00 = _mm256_fmadd_ps(a0, b0, t00);
+    t01 = _mm256_fmadd_ps(a0, b1, t01);
+
+    __m256 a1 = _mm256_broadcast_ps((__m128*) &a[(x + 1) * n + k]);
+    t10 = _mm256_fmadd_ps(a1, b0, t10);
+    t11 = _mm256_fmadd_ps(a1, b1, t11);
+
+    // ...
+} 
 ```
 
 我们使用了 $12+3=15$ 个向量寄存器和总共 $6 \times 3 + 2 = 20$ 条指令来执行 $16 \times 6 = 96$ 次更新。假设没有其他瓶颈，我们应该达到 `_mm256_fmadd_ps` 的吞吐量。
@@ -129,7 +243,32 @@ for (int k = l; k < r; k++) {  __m256 b0 = _mm256_load_ps((__m256*) &b[k * n + y
 其余的实现很简单。类似于之前的向量化实现，我们只需将矩阵移动到内存对齐数组中，并调用内核而不是最内层循环：
 
 ```cpp
-void matmul(const float *_a, const float *_b, float *_c, int n) {  // to simplify the implementation, we pad the height and width // so that they are divisible by 6 and 16 respectively int nx = (n + 5) / 6 * 6; int ny = (n + 15) / 16 * 16;  float *a = alloc(nx * ny); float *b = alloc(nx * ny); float *c = alloc(nx * ny);   for (int i = 0; i < n; i++) { memcpy(&a[i * ny], &_a[i * n], 4 * n); memcpy(&b[i * ny], &_b[i * n], 4 * n); // we don't need to transpose b this time }   for (int x = 0; x < nx; x += 6) for (int y = 0; y < ny; y += 16) kernel(a, (vec*) b, (vec*) c, x, y, 0, n, ny);   for (int i = 0; i < n; i++) memcpy(&_c[i * n], &c[i * ny], 4 * n);  std::free(a); std::free(b); std::free(c); } 
+void matmul(const float *_a, const float *_b, float *_c, int n) {
+    // to simplify the implementation, we pad the height and width
+    // so that they are divisible by 6 and 16 respectively
+    int nx = (n + 5) / 6 * 6;
+    int ny = (n + 15) / 16 * 16;
+
+    float *a = alloc(nx * ny);
+    float *b = alloc(nx * ny);
+    float *c = alloc(nx * ny);
+
+    for (int i = 0; i < n; i++) {
+        memcpy(&a[i * ny], &_a[i * n], 4 * n);
+        memcpy(&b[i * ny], &_b[i * n], 4 * n); // we don't need to transpose b this time
+    }
+
+    for (int x = 0; x < nx; x += 6)
+        for (int y = 0; y < ny; y += 16)
+            kernel(a, (vec*) b, (vec*) c, x, y, 0, n, ny);
+
+    for (int i = 0; i < n; i++)
+        memcpy(&_c[i * n], &c[i * ny], 4 * n);
+
+    std::free(a);
+    std::free(b);
+    std::free(c);
+} 
 ```
 
 这提高了基准性能，但仅提高了 ~40%：
@@ -163,7 +302,20 @@ void matmul(const float *_a, const float *_b, float *_c, int n) {  // to simplif
 这听起来很复杂，但我们可以通过仅仅增加三个外层`for`循环来实现它，这些循环共同被称为*宏内核*（而更新 6x16 子矩阵的高度优化的低级函数被称为*微内核*）：
 
 ```cpp
-const int s3 = 64;  // how many columns of B to select const int s2 = 120; // how many rows of A to select const int s1 = 240; // how many rows of B to select  for (int i3 = 0; i3 < ny; i3 += s3)  // now we are working with b[:][i3:i3+s3] for (int i2 = 0; i2 < nx; i2 += s2) // now we are working with a[i2:i2+s2][:] for (int i1 = 0; i1 < ny; i1 += s1) // now we are working with b[i1:i1+s1][i3:i3+s3] // and we need to update c[i2:i2+s2][i3:i3+s3] with [l:r] = [i1:i1+s1] for (int x = i2; x < std::min(i2 + s2, nx); x += 6) for (int y = i3; y < std::min(i3 + s3, ny); y += 16) kernel(a, (vec*) b, (vec*) c, x, y, i1, std::min(i1 + s1, n), ny); 
+const int s3 = 64;  // how many columns of B to select
+const int s2 = 120; // how many rows of A to select 
+const int s1 = 240; // how many rows of B to select
+
+for (int i3 = 0; i3 < ny; i3 += s3)
+    // now we are working with b[:][i3:i3+s3]
+    for (int i2 = 0; i2 < nx; i2 += s2)
+        // now we are working with a[i2:i2+s2][:]
+        for (int i1 = 0; i1 < ny; i1 += s1)
+            // now we are working with b[i1:i1+s1][i3:i3+s3]
+            // and we need to update c[i2:i2+s2][i3:i3+s3] with [l:r] = [i1:i1+s1]
+            for (int x = i2; x < std::min(i2 + s2, nx); x += 6)
+                for (int y = i3; y < std::min(i3 + s3, ny); y += 16)
+                    kernel(a, (vec*) b, (vec*) c, x, y, i1, std::min(i1 + s1, n), ny); 
 ```
 
 缓存阻塞完全消除了内存瓶颈：
@@ -205,7 +357,17 @@ $$ \underbrace{8}_{SIMD} \cdot \underbrace{2}_{thr.} \cdot \underbrace{2 \cdot 1
 有趣的是，整个操作可以简化为一个深度嵌套的`for`循环，并达到 BLAS 级别的性能（假设我们处于 2050 年，并使用 GCC 版本 35，它最终停止了寄存器溢出的错误）：
 
 ```cpp
-for (int i3 = 0; i3 < n; i3 += s3)  for (int i2 = 0; i2 < n; i2 += s2) for (int i1 = 0; i1 < n; i1 += s1) for (int x = i2; x < i2 + s2; x += 6) for (int y = i3; y < i3 + s3; y += 16) for (int k = i1; k < i1 + s1; k++) for (int i = 0; i < 6; i++) for (int j = 0; j < 2; j++) c[x * n / 8 + i * n / 8 + y / 8 + j] += (vec{} + a[x * n + i * n + k]) * b[n / 8 * k + y / 8 + j]; 
+for (int i3 = 0; i3 < n; i3 += s3)
+    for (int i2 = 0; i2 < n; i2 += s2)
+        for (int i1 = 0; i1 < n; i1 += s1)
+            for (int x = i2; x < i2 + s2; x += 6)
+                for (int y = i3; y < i3 + s3; y += 16)
+                    for (int k = i1; k < i1 + s1; k++)
+                        for (int i = 0; i < 6; i++)
+                            for (int j = 0; j < 2; j++)
+                                c[x * n / 8 + i * n / 8 + y / 8 + j]
+                                += (vec{} + a[x * n + i * n + k])
+                                   * b[n / 8 * k + y / 8 + j]; 
 ```
 
 还有一种方法可以执行渐近更少的算术运算——斯特拉斯算法——但它有一个很大的常数因子，并且仅对[非常大的矩阵](https://arxiv.org/pdf/1605.01078.pdf)（$n > 4000$）有效，在这些情况下，我们通常不得不使用多进程或某些近似降维方法。
@@ -227,13 +389,20 @@ $$ D_2 = D \circ D \\ D_4 = D_2 \circ D_2 \\ D_8 = D_4 \circ D_4 \\ \ldots $$
 …我们可以在 $O(\log n)$ 步中找到所有对最短路径：
 
 ```cpp
-for (int l = 0; l < logn; l++)  for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) for (int k = 0; k < n; k++) d[i][j] = min(d[i][j], d[i][k] + d[k][j]); 
+for (int l = 0; l < logn; l++)
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            for (int k = 0; k < n; k++)
+                d[i][j] = min(d[i][j], d[i][k] + d[k][j]); 
 ```
 
 这需要 $O(n³ \log n)$ 次操作。如果我们以特定的顺序执行这两个边松弛操作，我们只需一次遍历就能完成，这被称为 [Floyd-Warshall 算法](https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm)：
 
 ```cpp
-for (int k = 0; k < n; k++)  for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) d[i][j] = min(d[i][j], d[i][k] + d[k][j]); 
+for (int k = 0; k < n; k++)
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            d[i][j] = min(d[i][j], d[i][k] + d[k][j]); 
 ```
 
 有趣的是，将距离积向量化并在 $O(n³ \log n)$ 总操作中执行它 $O(\log n)$ 次（或可能更少）([或可能更少](https://arxiv.org/pdf/1904.01210.pdf))，比天真地执行 $O(n³)$ 次操作的 Floyd-Warshall 算法要快，尽管快得并不多。

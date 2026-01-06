@@ -15,13 +15,27 @@ $$ \begin{aligned} a^{2k} &= (a^k)² \\ a^{2k + 1} &= (a^k)² \cdot a \end{align
 由于我们已经有了一个递归，很自然地，我们将算法实现为一个匹配情况的递归函数：
 
 ```cpp
-const int M = 1e9 + 7; // modulo typedef unsigned long long u64;   u64 binpow(u64 a, u64 n) {  if (n == 0) return 1; if (n % 2 == 1) return binpow(a, n - 1) * a % M; else { u64 b = binpow(a, n / 2); return b * b % M; } } 
+const int M = 1e9 + 7; // modulo
+typedef unsigned long long u64;
+
+u64 binpow(u64 a, u64 n) {
+    if (n == 0)
+        return 1;
+    if (n % 2 == 1)
+        return binpow(a, n - 1) * a % M;
+    else {
+        u64 b = binpow(a, n / 2);
+        return b * b % M;
+    }
+} 
 ```
 
 在我们的基准测试中，我们使用 $n = m - 2$，这样我们就可以计算 $a$ 模 $m$ 的乘法逆元：
 
 ```cpp
-u64 inverse(u64 a) {  return binpow(a, M - 2); } 
+u64 inverse(u64 a) {
+    return binpow(a, M - 2);
+} 
 ```
 
 我们使用 $m = 10⁹+7$，这是一个在组合问题中计算校验和常用的模值，用于竞技编程——因为它是一个质数（允许通过二进制指数运算进行逆运算），足够大，不会在加法中溢出 `int`，不会在乘法中溢出 `long long`，并且容易输入为 `1e9 + 7`。
@@ -39,7 +53,18 @@ $$ a^{42} = a^{32+8+2} = a^{32} \cdot a⁸ \cdot a² $$
 为了计算这个乘积，我们可以遍历$n$的位，同时维护两个变量：$a^{2^k}$的值和考虑$n$的$k$个最低位后的当前乘积。在每一步中，如果$n$的第$k$位被设置，则将当前乘积乘以$a^{2^k}$，并且在任何情况下，将$a^k$平方以得到$a^{2^k \cdot 2} = a^{2^{k+1}}$，这将用于下一次迭代。
 
 ```cpp
-u64 binpow(u64 a, u64 n) {  u64 r = 1;  while (n) { if (n & 1) r = res * a % M; a = a * a % M; n >>= 1; }  return r; } 
+u64 binpow(u64 a, u64 n) {
+    u64 r = 1;
+
+    while (n) {
+        if (n & 1)
+            r = res * a % M;
+        a = a * a % M;
+        n >>= 1;
+    }
+
+    return r;
+} 
 ```
 
 迭代实现的每次调用大约需要 180 纳秒。繁重的计算保持不变；改进主要来自于减少的依赖链：`a = a * a % M`需要在循环继续之前完成，而现在它可以与`r = res * a % M`并发执行。
@@ -47,7 +72,18 @@ u64 binpow(u64 a, u64 n) {  u64 r = 1;  while (n) { if (n & 1) r = res * a % M; 
 性能还受益于$n$是一个常数，使得所有分支可预测，并让调度器提前知道需要执行什么。然而，编译器并没有利用这一点，也没有展开`while(n) n >>= 1`循环。我们可以将其重写为一个执行 30 次常量迭代的`for`循环：
 
 ```cpp
-u64 inverse(u64 a) {  u64 r = 1;  #pragma GCC unroll(30) for (int l = 0; l < 30; l++) { if ( (M - 2) >> l & 1 ) r = r * a % M; a = a * a % M; }   return r; } 
+u64 inverse(u64 a) {
+    u64 r = 1;
+
+    #pragma GCC unroll(30)
+    for (int l = 0; l < 30; l++) {
+        if ( (M - 2) >> l & 1 )
+            r = r * a % M;
+        a = a * a % M;
+    }
+
+    return r;
+} 
 ```
 
 这迫使编译器只生成我们需要的指令，从而再节省 10 纳秒，使总运行时间约为 170 纳秒。

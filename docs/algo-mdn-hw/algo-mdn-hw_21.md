@@ -23,7 +23,9 @@
 作为更自然发生的例子，考虑一个具有整数控制变量的循环的情况。现代 C++ 和像 Rust 这样的语言鼓励程序员使用无符号整数 (`size_t` / `usize`)，而 C 程序员则固执地继续使用 `int`。为了理解为什么，考虑以下 `for` 循环：
 
 ```cpp
-for (unsigned int i = 0; i < n; i++) {  // ... } 
+for (unsigned int i = 0; i < n; i++) {
+    // ...
+} 
 ```
 
 这个循环执行了多少次？从技术上讲有两个有效的答案：$n$ 和无穷大，后者是 $n$ 超过 $2^{32}$ 的情况，此时 $i$ 每 $2^{32}$ 次迭代就会重置为零。虽然前者可能是程序员假设的，但为了符合语言规范，编译器仍然必须插入额外的运行时检查并考虑两种情况，这些情况应该被优化不同。同时，`int` 版本将恰好执行 $n$ 次迭代，因为有符号溢出的可能性已经被定义为不存在。
@@ -35,7 +37,11 @@ for (unsigned int i = 0; i < n; i++) {  // ... }
 例如，Rust 在索引数组和其他随机访问结构时著名地使用了边界检查。在 C++ STL 中，`vector` 和 `array` 有一个“不安全”的 `[]` 操作符和一个“安全”的 `.at()` 方法，大致如下：
 
 ```cpp
-T at(size_t k) {  if (k >= size()) throw std::out_of_range("Array index exceeds its size"); return _memory[k]; } 
+T at(size_t k) {
+    if (k >= size())
+        throw std::out_of_range("Array index exceeds its size");
+    return _memory[k];
+} 
 ```
 
 有趣的是，这些检查在运行时很少真正执行，因为编译器通常可以在编译时证明每个访问都在边界内。例如，当从 1 迭代到数组大小并在每一步索引第 $i$ 个元素时，不可能发生任何非法操作，因此边界检查可以安全地优化掉。
@@ -47,7 +53,10 @@ T at(size_t k) {  if (k >= size()) throw std::out_of_range("Array index exceeds 
 Clang 有一个有用的 `__builtin_assume` 函数，你可以在其中放置一个保证为真的语句，编译器将使用这个假设进行优化。在 GCC 中，你可以使用 `__builtin_unreachable` 来做同样的事情：
 
 ```cpp
-void assume(bool pred) {  if (!pred) __builtin_unreachable(); } 
+void assume(bool pred) {
+    if (!pred)
+        __builtin_unreachable();
+} 
 ```
 
 例如，你可以在上面的例子中的 `at` 之前放置 `assume(k < vector.size())`，然后边界检查将被优化掉。
@@ -63,7 +72,9 @@ void assume(bool pred) {  if (!pred) __builtin_unreachable(); }
 对于整数运算，这不同，因为结果总是必须精确的。考虑除以 2 的情况：
 
 ```cpp
-unsigned div_unsigned(unsigned x) {  return x / 2; } 
+unsigned div_unsigned(unsigned x) {
+    return x / 2;
+} 
 ```
 
 一个广为人知的优化是将它替换为单个右移（`x >> 1`）：
@@ -75,7 +86,9 @@ shr eax
 这当然对所有 *正数* 是正确的，但对于一般情况又如何呢？
 
 ```cpp
-int div_signed(int x) {  return x / 2; } 
+int div_signed(int x) {
+    return x / 2;
+} 
 ```
 
 如果 `x` 是负数，那么简单的移位操作就不起作用了——无论移位是在零位还是符号位上执行：
@@ -87,13 +100,19 @@ int div_signed(int x) {  return x / 2; }
 因此，对于一般情况，我们必须插入一些辅助手段来使其工作：
 
 ```cpp
-mov  ebx, eax shr  ebx, 31    ; extract the sign bit add  eax, ebx   ; add 1 to the value if it is negative to ensure rounding towards zero sar  eax        ; this one shifts in sign bits 
+mov  ebx, eax
+shr  ebx, 31    ; extract the sign bit
+add  eax, ebx   ; add 1 to the value if it is negative to ensure rounding towards zero
+sar  eax        ; this one shifts in sign bits 
 ```
 
 当只有正数情况是我们所期望的，我们也可以使用 `assume` 机制来消除负 `x` 的可能性，并避免处理这个边界情况：
 
 ```cpp
-int div_assume(int x) {  assume(x >= 0); return x / 2; } 
+int div_assume(int x) {
+    assume(x >= 0);
+    return x / 2;
+} 
 ```
 
 尽管在这个特定情况下，可能最好的语法来表示我们只期望非负数是使用无符号整数类型。
@@ -107,7 +126,10 @@ int div_assume(int x) {  assume(x >= 0); return x / 2; }
 考虑以下示例：
 
 ```cpp
-void add(int *a, int *b, int n) {  for (int i = 0; i < n; i++) a[i] += b[i]; } 
+void add(int *a, int *b, int n) {
+    for (int i = 0; i < n; i++)
+        a[i] += b[i];
+} 
 ```
 
 由于这个循环的每次迭代都是独立的，它可以并行执行并 向量化。但从技术上讲，它真的可以吗？
@@ -117,7 +139,10 @@ void add(int *a, int *b, int n) {  for (int i = 0; i < n; i++) a[i] += b[i]; }
 这就是为什么我们有 `const` 和 `restrict` 关键字。第一个强制我们不会用指针变量修改内存，第二个是告诉编译器内存保证不会被别名化的方式。
 
 ```cpp
-void add(int * __restrict__ a, const int * __restrict__ b, int n) {  for (int i = 0; i < n; i++) a[i] += b[i]; } 
+void add(int * __restrict__ a, const int * __restrict__ b, int n) {
+    for (int i = 0; i < n; i++)
+        a[i] += b[i];
+} 
 ```
 
 这些关键字单独使用也是为了自文档化的好主意。
@@ -129,7 +154,9 @@ void add(int * __restrict__ a, const int * __restrict__ b, int n) {  for (int i 
 有一个后期提案建议将设计-by-contract 以合同属性的形式添加到 C++ 标准[http://www.hellenico.gr/cpp/w/cpp/language/attributes/contract.html]，这些属性在功能上等同于我们手工制作的、针对特定编译器的 `assume`：
 
 ```cpp
-T at(size_t k) [[ expects: k < n ]] {  return _memory[k]; } 
+T at(size_t k) [[ expects: k < n ]] {
+    return _memory[k];
+} 
 ```
 
 有 3 种类型的属性——`expects`、`ensures` 和 `assert`——分别用于在函数中指定前置和后置条件以及可以在程序中的任何地方放置的一般断言。
@@ -137,7 +164,19 @@ T at(size_t k) [[ expects: k < n ]] {  return _memory[k]; }
 不幸的是，这个令人兴奋的新特性[尚未最终标准化](https://www.reddit.com/r/cpp/comments/cmk7ek/what_happened_to_c20_contracts/)，更不用说在主要的 C++ 编译器中实现了。但也许，几年后，我们能够写出这样的代码：
 
 ```cpp
-bool is_power_of_two(int m) {  return m > 0 && (m & (m - 1) == 0); }   int mod_power_of_two(int x, int m)  [[ expects: x >= 0 ]] [[ expects: is_power_of_two(m) ]] [[ ensures r: r >= 0 && r < m ]] {  int r = x & (m - 1); [[ assert: r = x % m ]]; return r; } 
+bool is_power_of_two(int m) {
+    return m > 0 && (m & (m - 1) == 0);
+}
+
+int mod_power_of_two(int x, int m)
+    [[ expects: x >= 0 ]]
+    [[ expects: is_power_of_two(m) ]]
+    [[ ensures r: r >= 0 && r < m ]]
+{
+    int r = x & (m - 1);
+    [[ assert: r = x % m ]];
+    return r;
+} 
 ```
 
 其他面向性能的语言，如 [Rust](https://docs.rs/contracts/latest/contracts/) 和 [D](https://dlang.org/spec/contracts.html)，也提供了某些形式的合同编程。

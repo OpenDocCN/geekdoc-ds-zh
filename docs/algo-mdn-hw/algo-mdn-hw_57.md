@@ -17,7 +17,20 @@ L1/L2 缓存的延迟很小，因此不需要一个长的待处理请求管道�
 让我们尝试通过修改我们的指针追踪基准测试来更直接地测量可用的内存并行性，这样我们就可以并行地循环$D$个不同的周期，而不是只循环一个：
 
 ```cpp
-const int M = N / D; int p[M], q[D][M];   for (int d = 0; d < D; d++) {  iota(p, p + M, 0); random_shuffle(p, p + M); k[d] = p[M - 1]; for (int i = 0; i < M; i++) k[d] = q[d][k[d]] = p[i]; }   for (int i = 0; i < M; i++)  for (int d = 0; d < D; d++) k[d] = q[d][k[d]]; 
+const int M = N / D;
+int p[M], q[D][M];
+
+for (int d = 0; d < D; d++) {
+    iota(p, p + M, 0);
+    random_shuffle(p, p + M);
+    k[d] = p[M - 1];
+    for (int i = 0; i < M; i++)
+        k[d] = q[d][k[d]] = p[i];
+}
+
+for (int i = 0; i < M; i++)
+    for (int d = 0; d < D; d++)
+        k[d] = q[d][k[d]]; 
 ```
 
 将周期长度的总和固定在几个选定的大小，并尝试不同的$D$，我们得到略微不同的结果：
@@ -27,13 +40,19 @@ const int M = N / D; int p[M], q[D][M];   for (int d = 0; d < D; d++) {  iota(p,
 如预测的那样，L2 缓存的运行受到大约 6 个并发操作的限制，但较大的内存类型都在 13 到 17 之间达到最大值。由于逻辑寄存器存在冲突，您无法利用更多的内存通道。当通道数少于寄存器数时，您每条通道只能发出一个读取指令：
 
 ```cpp
-dec     edx movsx   rdi, DWORD PTR q[0+rdi*4] movsx   rsi, DWORD PTR q[1048576+rsi*4] movsx   rcx, DWORD PTR q[2097152+rcx*4] movsx   rax, DWORD PTR q[3145728+rax*4] jne     .L9 
+dec     edx
+movsx   rdi, DWORD PTR q[0+rdi*4]
+movsx   rsi, DWORD PTR q[1048576+rsi*4]
+movsx   rcx, DWORD PTR q[2097152+rcx*4]
+movsx   rax, DWORD PTR q[3145728+rax*4]
+jne     .L9 
 ```
 
 但当超过 15 时，您必须使用临时内存存储：
 
 ```cpp
-mov     edx, DWORD PTR q[0+rdx*4] mov     DWORD PTR [rbp-128+rax*4], edx 
+mov     edx, DWORD PTR q[0+rdx*4]
+mov     DWORD PTR [rbp-128+rax*4], edx 
 ```
 
 您并不总是能达到最大可能的内存并行级别，但对于大多数应用来说，十二个并发请求已经足够多了。[←内存共享](https://en.algorithmica.org/hpc/cpu-cache/sharing/)[预取→](https://en.algorithmica.org/hpc/cpu-cache/prefetching/)

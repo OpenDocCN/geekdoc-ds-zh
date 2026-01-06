@@ -5,7 +5,11 @@
 让我们考虑一个稍微复杂一些的例子：
 
 ```cpp
-loop:  add  edx, DWORD PTR [rax] add  rax, 4 cmp  rax, rcx jne  loop 
+loop:
+    add  edx, DWORD PTR [rax]
+    add  rax, 4
+    cmp  rax, rcx
+    jne  loop 
 ```
 
 它计算了一个 32 位整数数组的总和，就像简单的 `for` 循环一样。
@@ -33,13 +37,25 @@ loop:  add  edx, DWORD PTR [rax] add  rax, 4 cmp  rax, rcx jne  loop
 我们可以做的就是对循环进行展开，将迭代分组在一起——相当于在 C 语言中编写如下内容：
 
 ```cpp
-for (int i = 0; i < n; i += 4) {  s += a[i]; s += a[i + 1]; s += a[i + 2]; s += a[i + 3]; } 
+for (int i = 0; i < n; i += 4) {
+    s += a[i];
+    s += a[i + 1];
+    s += a[i + 2];
+    s += a[i + 3];
+} 
 ```
 
 在汇编语言中，它看起来可能像这样：
 
 ```cpp
-loop:  add  edx, [rax] add  edx, [rax+4] add  edx, [rax+8] add  edx, [rax+12] add  rax, 16 cmp  rax, rsi jne  loop 
+loop:
+    add  edx, [rax]
+    add  edx, [rax+4]
+    add  edx, [rax+8]
+    add  edx, [rax+12]
+    add  rax, 16
+    cmp  rax, rsi
+    jne  loop 
 ```
 
 现在我们只需要 3 条循环控制指令来处理 4 个有用的指令（从效率的$\frac{1}{4}$提升到$\frac{4}{7}$），并且这可以继续减少开销，几乎接近于零。
@@ -55,7 +71,11 @@ loop:  add  edx, [rax] add  edx, [rax+4] add  edx, [rax+8] add  edx, [rax+12] ad
 例如，`add`指令总是设置一系列标志，表示结果是否为零、是否为负、是否发生溢出或下溢等。利用这一机制，编译器通常会生成如下循环：
 
 ```cpp
- mov  rax, -100  ; replace 100 with the array size loop:  add  edx, DWORD PTR [rax + 100 + rcx] add  rax, 4 jnz  loop       ; checks if the result is zero 
+ mov  rax, -100  ; replace 100 with the array size
+loop:
+    add  edx, DWORD PTR [rax + 100 + rcx]
+    add  rax, 4
+    jnz  loop       ; checks if the result is zero 
 ```
 
 这段代码对人类来说读起来有点困难，但在重复部分中指令数量少了一条，这可能会对性能产生有意义的影响。[← 汇编语言](https://en.algorithmica.org/hpc/architecture/assembly/)[函数和递归 →](https://en.algorithmica.org/hpc/architecture/functions/)

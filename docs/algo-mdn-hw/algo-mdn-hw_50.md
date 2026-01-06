@@ -17,7 +17,9 @@
 假设我们有一个大小为 $N \times N$ 的方阵 $A$，我们需要对其进行转置。按照定义的朴素方法可能会这样做：
 
 ```cpp
-for (int i = 0; i < n; i++)  for (int j = 0; j < i; j++) swap(a[j * N + i], a[i * N + j]); 
+for (int i = 0; i < n; i++)
+    for (int j = 0; j < i; j++)
+        swap(a[j * N + i], a[i * N + j]); 
 ```
 
 在这里，我们使用了一个指向内存区域开头的单指针，而不是 2 维数组，以便更明确地描述其内存操作。
@@ -41,7 +43,28 @@ $$ \begin{pmatrix} A & B \\ C & D \end{pmatrix}^T= \begin{pmatrix} A^T & C^T \\ 
 在矩阵上实现分治法比在数组上要复杂一些，但主要思想是相同的。我们不想显式地复制子矩阵，而是想使用对它们的“视图”，并在数据开始适合 L1 缓存时切换到朴素方法（或者如果你事先不知道，可以选择像 $32 \times 32$ 这样的小尺寸）。我们还需要仔细处理当 $n$ 为奇数时无法将矩阵分成 4 个相等子矩阵的情况。
 
 ```cpp
-void transpose(int *a, int n, int N) {  if (n <= 32) { for (int i = 0; i < n; i++) for (int j = 0; j < i; j++) swap(a[i * N + j], a[j * N + i]); } else { int k = n / 2;   transpose(a, k, N); transpose(a + k, k, N); transpose(a + k * N, k, N); transpose(a + k * N + k, k, N);  for (int i = 0; i < k; i++) for (int j = 0; j < k; j++) swap(a[i * N + (j + k)], a[(i + k) * N + j]);  if (n & 1) for (int i = 0; i < n - 1; i++) swap(a[i * N + n - 1], a[(n - 1) * N + i]); } } 
+void transpose(int *a, int n, int N) {
+    if (n <= 32) {
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < i; j++)
+                swap(a[i * N + j], a[j * N + i]);
+    } else {
+        int k = n / 2;
+
+        transpose(a, k, N);
+        transpose(a + k, k, N);
+        transpose(a + k * N, k, N);
+        transpose(a + k * N + k, k, N);
+
+        for (int i = 0; i < k; i++)
+            for (int j = 0; j < k; j++)
+                swap(a[i * N + (j + k)], a[(i + k) * N + j]);
+
+        if (n & 1)
+            for (int i = 0; i < n - 1; i++)
+                swap(a[i * N + n - 1], a[(n - 1) * N + i]);
+    }
+} 
 ```
 
 该算法的 I/O 复杂度为 $O(\frac{N²}{B})$，因为我们只需要在每次归并阶段触摸大约一半的内存块，这意味着在每个阶段我们的问题都变得更小。
@@ -57,7 +80,11 @@ $$ C_{ij} = \sum_k A_{ik} B_{kj} $$
 原始算法只是将其定义直接转换成代码：
 
 ```cpp
-// don't forget to initialize c[][] with zeroes for (int i = 0; i < n; i++)  for (int j = 0; j < n; j++) for (int k = 0; k < n; k++) c[i * n + j] += a[i * n + k] * b[k * n + j]; 
+// don't forget to initialize c[][] with zeroes
+for (int i = 0; i < n; i++)
+    for (int j = 0; j < n; j++)
+        for (int k = 0; k < n; k++)
+            c[i * n + j] += a[i * n + k] * b[k * n + j]; 
 ```
 
 它需要访问总共 $O(N³)$ 个块，因为每个标量乘法都需要单独的块读取。
@@ -65,7 +92,15 @@ $$ C_{ij} = \sum_k A_{ik} B_{kj} $$
 一个著名的优化是首先转置 $B$：
 
 ```cpp
-for (int i = 0; i < n; i++)  for (int j = 0; j < i; j++) swap(b[j][i], b[i][j]) // ^ or use our faster transpose from before  for (int i = 0; i < n; i++)  for (int j = 0; j < n; j++) for (int k = 0; k < n; k++) c[i * n + j] += a[i * n + k] * b[j * n + k]; // <- note the indices 
+for (int i = 0; i < n; i++)
+    for (int j = 0; j < i; j++)
+        swap(b[j][i], b[i][j])
+// ^ or use our faster transpose from before
+
+for (int i = 0; i < n; i++)
+    for (int j = 0; j < n; j++)
+        for (int k = 0; k < n; k++)
+            c[i * n + j] += a[i * n + k] * b[j * n + k]; // <- note the indices 
 ```
 
 不论是使用原始方法还是我们之前开发的缓存无关方法进行转置，当一个矩阵被转置后进行矩阵乘法，其时间复杂度会达到 $O(N³/B + N²)$，因为所有的内存访问现在都是顺序的。
@@ -81,7 +116,39 @@ $$ \begin{pmatrix} A_{11} & A_{12} \\ A_{21} & A_{22} \\ \end{pmatrix} \begin{pm
 尽管实现起来稍微困难一些，因为我们现在有总共 8 次递归矩阵乘法：
 
 ```cpp
-void matmul(const float *a, const float *b, float *c, int n, int N) {  if (n <= 32) { for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) for (int k = 0; k < n; k++) c[i * N + j] += a[i * N + k] * b[k * N + j]; } else { int k = n / 2;   // c11 = a11 b11 + a12 b21 matmul(a,     b,         c, k, N); matmul(a + k, b + k * N, c, k, N);  // c12 = a11 b12 + a12 b22 matmul(a,     b + k,         c + k, k, N); matmul(a + k, b + k * N + k, c + k, k, N);  // c21 = a21 b11 + a22 b21 matmul(a + k * N,     b,         c + k * N, k, N); matmul(a + k * N + k, b + k * N, c + k * N, k, N);  // c22 = a21 b12 + a22 b22 mul(a + k * N,     b + k,         c + k * N + k, k, N); mul(a + k * N + k, b + k * N + k, c + k * N + k, k, N);   if (n & 1) { for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) for (int k = (i < n - 1 && j < n - 1) ? n - 1 : 0; k < n; k++) c[i * N + j] += a[i * N + k] * b[k * N + j]; } } } 
+void matmul(const float *a, const float *b, float *c, int n, int N) {
+    if (n <= 32) {
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                for (int k = 0; k < n; k++)
+                    c[i * N + j] += a[i * N + k] * b[k * N + j];
+    } else {
+        int k = n / 2;
+
+        // c11 = a11 b11 + a12 b21
+        matmul(a,     b,         c, k, N);
+        matmul(a + k, b + k * N, c, k, N);
+
+        // c12 = a11 b12 + a12 b22
+        matmul(a,     b + k,         c + k, k, N);
+        matmul(a + k, b + k * N + k, c + k, k, N);
+
+        // c21 = a21 b11 + a22 b21
+        matmul(a + k * N,     b,         c + k * N, k, N);
+        matmul(a + k * N + k, b + k * N, c + k * N, k, N);
+
+        // c22 = a21 b12 + a22 b22
+        mul(a + k * N,     b + k,         c + k * N + k, k, N);
+        mul(a + k * N + k, b + k * N + k, c + k * N + k, k, N);
+
+        if (n & 1) {
+            for (int i = 0; i < n; i++)
+                for (int j = 0; j < n; j++)
+                    for (int k = (i < n - 1 && j < n - 1) ? n - 1 : 0; k < n; k++)
+                        c[i * N + j] += a[i * N + k] * b[k * N + j];
+        }
+    }
+} 
 ```
 
 由于这里还有许多其他因素在起作用，我们不会对这个实现进行基准测试，而是只在外部内存模型中进行其理论性能分析。

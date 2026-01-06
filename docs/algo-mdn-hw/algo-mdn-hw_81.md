@@ -13,7 +13,8 @@
 段树很酷，可以做很多事情，但在这篇文章中，我们将专注于它们最简单的非平凡应用——*动态前缀和问题*：
 
 ```cpp
-void add(int k, int x); // react to a[k] += x (zero-based indexing) int sum(int k);         // return the sum of the first k elements (from 0 to k - 1) 
+void add(int k, int x); // react to a[k] += x (zero-based indexing)
+int sum(int k);         // return the sum of the first k elements (from 0 to k - 1) 
 ```
 
 由于我们必须支持两种类型的查询，我们的优化问题变成了多维的，最优解取决于查询的分布。例如，如果一种类型的查询非常罕见，我们只会优化另一种，这相对容易做到：
@@ -65,13 +66,35 @@ void add(int k, int x); // react to a[k] += x (zero-based indexing) int sum(int 
 如果我们正在“面向对象编程简介”课程中，我们会像这样递归地实现线段树：
 
 ```cpp
-struct segtree {  int lb, rb;                         // the range this node is responsible for int s = 0;                          // the sum of elements [lb, rb) segtree *l = nullptr, *r = nullptr; // pointers to its children  segtree(int lb, int rb) : lb(lb), rb(rb) { if (lb + 1 < rb) { // if the node is not a leaf, create children int m = (lb + rb) / 2; l = new segtree(lb, m); r = new segtree(m, rb); } }   void add(int k, int x) { /* react to a[k] += x */ } int sum(int k) { /* compute the sum of the first k elements */ } }; 
+struct segtree {
+    int lb, rb;                         // the range this node is responsible for 
+    int s = 0;                          // the sum of elements [lb, rb)
+    segtree *l = nullptr, *r = nullptr; // pointers to its children
+
+    segtree(int lb, int rb) : lb(lb), rb(rb) {
+        if (lb + 1 < rb) { // if the node is not a leaf, create children
+            int m = (lb + rb) / 2;
+            l = new segtree(lb, m);
+            r = new segtree(m, rb);
+        }
+    }
+
+    void add(int k, int x) { /* react to a[k] += x */ }
+    int sum(int k) { /* compute the sum of the first k elements */ }
+}; 
 ```
 
 如果我们需要在一个现有的数组上构建它，我们会像这样重写构造函数的主体：
 
 ```cpp
-if (lb + 1 == rb) {  s = a[lb]; // the node is a leaf -- its sum is just the element a[lb] } else {  int t = (lb + rb) / 2; l = new segtree(lb, t); r = new segtree(t, rb); s = l->s + r->s; // we can use the sums of children that we've just calculated } 
+if (lb + 1 == rb) {
+    s = a[lb]; // the node is a leaf -- its sum is just the element a[lb]
+} else {
+    int t = (lb + rb) / 2;
+    l = new segtree(lb, t);
+    r = new segtree(t, rb);
+    s = l->s + r->s; // we can use the sums of children that we've just calculated
+} 
 ```
 
 构造时间对我们来说没有太大的意义，所以为了减少心理负担，我们将假设在所有未来的实现中数组都是零初始化的。
@@ -79,13 +102,27 @@ if (lb + 1 == rb) {  s = a[lb]; // the node is a leaf -- its sum is just the ele
 现在，要实现 `add`，我们需要沿着树向下遍历直到达到一个叶节点，并将增量添加到 `s` 字段中：
 
 ```cpp
-void add(int k, int x) {  s += x; if (l != nullptr) { // check whether it is a leaf node if (k < l->rb) l->add(k, x); else r->add(k, x); } } 
+void add(int k, int x) {
+    s += x;
+    if (l != nullptr) { // check whether it is a leaf node
+        if (k < l->rb)
+            l->add(k, x);
+        else
+            r->add(k, x);
+    }
+} 
 ```
 
 要计算一个段的和，我们可以检查查询是否完全覆盖当前段或者完全不与它相交——然后立即返回这个节点的结果。如果都不是这种情况，我们将递归地将查询传递给子节点，以便它们自己解决问题：
 
 ```cpp
-int sum(int lq, int rq) {  if (rb <= lq && rb <= rq) // if we're fully inside the query, return the sum return s; if (rq <= lb || lq >= rb) // if we don't intersect with the query, return zero return 0; return l->sum(lq, rq) + r->sum(lq, rq); } 
+int sum(int lq, int rq) {
+    if (rb <= lq && rb <= rq) // if we're fully inside the query, return the sum
+        return s;
+    if (rq <= lb || lq >= rb) // if we don't intersect with the query, return zero
+        return 0;
+    return l->sum(lq, rq) + r->sum(lq, rq);
+} 
 ```
 
 此函数访问总共 $O(\log n)$ 个节点，因为它仅在段仅部分与查询相交时才产生子节点，并且最多有 $O(\log n)$ 个这样的段。
@@ -93,7 +130,13 @@ int sum(int lq, int rq) {  if (rb <= lq && rb <= rq) // if we're fully inside th
 对于 *前缀和*，这些检查可以简化为查询的左边界始终为零：
 
 ```cpp
-int sum(int k) {  if (rb <= k) return s; if (lb >= k) return 0; return l->sum(k) + r->sum(k); } 
+int sum(int k) {
+    if (rb <= k)
+        return s;
+    if (lb >= k)
+        return 0;
+    return l->sum(k) + r->sum(k);
+} 
 ```
 
 由于我们有两种类型的查询，我们也得到了两个图来查看：
@@ -153,13 +196,30 @@ int t[4 * N]; // contains the node sums
 现在，为了实现 `add`，我们创建一个类似的递归函数，但使用索引算术而不是指针。由于我们也不再在节点中存储段边界，我们需要重新计算它们并将它们作为参数传递给每个递归调用：
 
 ```cpp
-void add(int k, int x, int v = 1, int l = 0, int r = N) {  t[v] += x; if (l + 1 < r) { int m = (l + r) / 2; if (k < m) add(k, x, 2 * v, l, m); else add(k, x, 2 * v + 1, m, r); } } 
+void add(int k, int x, int v = 1, int l = 0, int r = N) {
+    t[v] += x;
+    if (l + 1 < r) {
+        int m = (l + r) / 2;
+        if (k < m)
+            add(k, x, 2 * v, l, m);
+        else
+            add(k, x, 2 * v + 1, m, r);
+    }
+} 
 ```
 
 前缀和查询的实现基本上是相同的：
 
 ```cpp
-int sum(int k, int v = 1, int l = 0, int r = N) {  if (l >= k) return 0; if (r <= k) return t[v]; int m = (l + r) / 2; return sum(k, 2 * v, l, m) + sum(k, 2 * v + 1, m, r); } 
+int sum(int k, int v = 1, int l = 0, int r = N) {
+    if (l >= k)
+        return 0;
+    if (r <= k)
+        return t[v];
+    int m = (l + r) / 2;
+    return sum(k, 2 * v, l, m)
+         + sum(k, 2 * v + 1, m, r);
+} 
 ```
 
 在递归函数中传递五个变量看起来有些笨拙，但性能的提升显然是值得的：
@@ -179,13 +239,40 @@ int sum(int k, int v = 1, int l = 0, int r = N) {  if (l >= k) return 0; if (r <
 由于 `add` 是尾递归且没有返回值，因此很容易将其转换为单个 `while` 循环：
 
 ```cpp
-void add(int k, int x) {  int v = 1, l = 0, r = N; while (l + 1 < r) { t[v] += x; v <<= 1; int m = (l + r) >> 1; if (k < m) r = m; else l = m, v++; } t[v] += x; } 
+void add(int k, int x) {
+    int v = 1, l = 0, r = N;
+    while (l + 1 < r) {
+        t[v] += x;
+        v <<= 1;
+        int m = (l + r) >> 1;
+        if (k < m)
+            r = m;
+        else
+            l = m, v++;
+    }
+    t[v] += x;
+} 
 ```
 
 对于 `sum` 查询进行相同的操作稍微困难一些，因为它有两个递归调用。关键技巧是注意到当我们进行这些调用时，其中一个是保证立即终止的，因为 `k` 只能位于一半中，因此我们可以在向下遍历树之前简单地检查这个条件：
 
 ```cpp
-int sum(int k) {  int v = 1, l = 0, r = N, s = 0; while (true) { int m = (l + r) >> 1; v <<= 1; if (k >= m) { s += t[v++]; if (k == m) break; l = m; } else { r = m; } } return s; } 
+int sum(int k) {
+    int v = 1, l = 0, r = N, s = 0;
+    while (true) {
+        int m = (l + r) >> 1;
+        v <<= 1;
+        if (k >= m) {
+            s += t[v++];
+            if (k == m)
+                break;
+            l = m;
+        } else {
+            r = m;
+        }
+    }
+    return s;
+} 
 ```
 
 这并没有在很大程度上提高更新查询的性能（因为它已经是尾递归的，编译器已经执行了类似的优化），但对于所有问题大小的前缀和查询，运行时间大约减半：
@@ -207,13 +294,29 @@ int t[2 * N];
 当 $n$ 是 2 的幂时，树的结构与之前完全相同，在实现查询时，我们可以利用这种自底向上的方法，从第 $k$ 个叶子节点（简单地索引为 $N + k$）开始，直到达到根节点：
 
 ```cpp
-void add(int k, int x) {  k += N; while (k != 0) { t[k] += x; k >>= 1; } } 
+void add(int k, int x) {
+    k += N;
+    while (k != 0) {
+        t[k] += x;
+        k >>= 1;
+    }
+} 
 ```
 
 要计算 $[l, r)$ 子段上的和，我们可以维护需要添加的第一个和最后一个元素的指针，在添加节点时分别增加/减少它们，并在它们收敛到相同的节点（这将是最小公共祖先）后停止：
 
 ```cpp
-int sum(int l, int r) {  l += N; r += N - 1; int s = 0; while (l <= r) { if ( l & 1) s += t[l++]; // l is a right child: add it and move to a cousin if (~r & 1) s += t[r--]; // r is a left child: add it and move to a cousin l >>= 1, r >>= 1; } return s; } 
+int sum(int l, int r) {
+    l += N;
+    r += N - 1;
+    int s = 0;
+    while (l <= r) {
+        if ( l & 1) s += t[l++]; // l is a right child: add it and move to a cousin
+        if (~r & 1) s += t[r--]; // r is a left child: add it and move to a cousin
+        l >>= 1, r >>= 1;
+    }
+    return s;
+} 
 ```
 
 惊讶的是，即使 $n$ 不是 2 的幂，这两个查询也能正确工作。为了理解原因，考虑一个 13 个元素的段树：
@@ -233,7 +336,16 @@ int sum(int l, int r) {  l += N; r += N - 1; int s = 0; while (l <= r) { if ( l 
 在运行基准测试时，我们使用 `sum(l, r)` 过程来计算一般子段和，并且将 `l` 固定为 `0`。为了在前缀和查询上获得更高的性能，我们想要避免维护 `l`，而只移动右边界，如下所示：
 
 ```cpp
-int sum(int k) {  int s = 0; k += N - 1; while (k != 0) { if (~k & 1) // if k is a right child s += t[k--]; k = k >> 1; } return s; } 
+int sum(int k) {
+    int s = 0;
+    k += N - 1;
+    while (k != 0) {
+        if (~k & 1) // if k is a right child
+            s += t[k--];
+        k = k >> 1;
+    }
+    return s;
+} 
 ```
 
 与之相反，这个前缀和实现只有在 $n$ 不是 2 的幂时才有效——因为 `k` 可能位于那个环绕部分，我们几乎会计算整个数组而不是一个小前缀。
@@ -243,19 +355,51 @@ int sum(int k) {  int s = 0; k += N - 1; while (k != 0) { if (~k & 1) // if k is
 在一般情况下，这可以通过几个周期内的预测来完成：
 
 ```cpp
-const int last_layer = 1 << __lg(2 * N - 1);   // calculate the index of the leaf k int leaf(int k) {  k += last_layer; k -= (k >= 2 * N) * N; return k; } 
+const int last_layer = 1 << __lg(2 * N - 1);
+
+// calculate the index of the leaf k
+int leaf(int k) {
+    k += last_layer;
+    k -= (k >= 2 * N) * N;
+    return k;
+} 
 ```
 
 当实现查询时，我们只需要调用 `leaf` 函数来获取正确的叶子索引：
 
 ```cpp
-void add(int k, int x) {  k = leaf(k); while (k != 0) { t[k] += x; k >>= 1; } }   int sum(int k) {  k = leaf(k - 1); int s = 0; while (k != 0) { if (~k & 1) s += t[k--]; k >>= 1; } return s; } 
+void add(int k, int x) {
+    k = leaf(k);
+    while (k != 0) {
+        t[k] += x;
+        k >>= 1;
+    }
+}
+
+int sum(int k) {
+    k = leaf(k - 1);
+    int s = 0;
+    while (k != 0) {
+        if (~k & 1)
+            s += t[k--];
+        k >>= 1;
+    }
+    return s;
+} 
 ```
 
 最后一点：通过将 `s += t[k--]` 行替换为 预测，我们可以使实现无分支（除了最后一个分支——我们仍然需要检查循环条件）：
 
 ```cpp
-int sum(int k) {  k = leaf(k - 1); int s = 0; while (k != 0) { s += (~k & 1) ? t[k] : 0; // will be replaced with a cmov k = (k - 1) >> 1; } return s; } 
+int sum(int k) {
+    k = leaf(k - 1);
+    int s = 0;
+    while (k != 0) {
+        s += (~k & 1) ? t[k] : 0; // will be replaced with a cmov
+        k = (k - 1) >> 1;
+    }
+    return s;
+} 
 ```
 
 当结合这些优化时，前缀和查询的运行速度会大大提高：
@@ -297,7 +441,9 @@ int t[N + 1]; // +1 because we use use one-based indexing
 要获取一个整数的最后一个设置的位，我们可以使用这个程序：
 
 ```cpp
-int lowbit(int x) {  return x & -x; } 
+int lowbit(int x) {
+    return x & -x;
+} 
 ```
 
 这个技巧是通过二进制中如何使用二进制补码来存储有符号数来实现的。当我们计算`-x`时，我们隐式地从 2 的某个大幂次中减去它：数字的一些前缀翻转，一些末尾的零保持不变，唯一一个保持不变的位是最后一个设置的位——这将是唯一一个幸存的`x & -x`。例如：
@@ -313,7 +459,12 @@ int lowbit(int x) {  return x & -x; }
 实现前缀和查询很简单。`t[k]`保存了我们需要的和，除了第一个`k - lowbit(k)`个元素，所以我们只需将其添加到结果中，然后跳转到`k - lowbit(k)`并继续这样做，直到我们达到数组的开始：
 
 ```cpp
-int sum(int k) {  int s = 0; for (; k != 0; k -= lowbit(k)) s += t[k]; return s; } 
+int sum(int k) {
+    int s = 0;
+    for (; k != 0; k -= lowbit(k))
+        s += t[k];
+    return s;
+} 
 ```
 
 由于我们反复从`k`中移除最低设置的位，并且由于这个程序与在段树中访问相同的左子节点等效，每个`sum`查询最多可以触及$O(\log n)$个节点：
@@ -325,13 +476,21 @@ int sum(int k) {  int s = 0; for (; k != 0; k -= lowbit(k)) s += t[k]; return s;
 为了稍微提高`sum`查询的性能，我们使用`k &= k - 1`一次性移除最低位，这比`k -= k & -k`快一个指令：
 
 ```cpp
-int sum(int k) {  int s = 0; for (; k != 0; k &= k - 1) s += t[k]; return s; } 
+int sum(int k) {
+    int s = 0;
+    for (; k != 0; k &= k - 1)
+        s += t[k];
+    return s;
+} 
 ```
 
 与所有之前的线段树实现不同，斐波那契树是一个结构，在其中计算子区间的和作为两个前缀和的差更容易、更高效：
 
 ```cpp
-// [l, r) int sum (int l, int r) {  return sum(r) - sum(l); } 
+// [l, r)
+int sum (int l, int r) {
+    return sum(r) - sum(l);
+} 
 ```
 
 更新查询的编码更容易，但不太直观。我们需要将值`x`添加到所有是叶子`k`的左子节点祖先的节点。这些节点的索引`m`大于`k`，但`m - lowbit(m) < k`，这样`k`就包含在它们的范围内。
@@ -339,7 +498,10 @@ int sum(int k) {  int s = 0; for (; k != 0; k &= k - 1) s += t[k]; return s; }
 所有这样的索引都需要与`k`有一个共同的前缀，然后是`k`中为`0`的位置的`1`，然后是一个零的尾缀，这样`1`就可以抵消，并且`m - lowbit(m)`的结果小于`k`。所有这样的索引都可以像这样迭代生成：
 
 ```cpp
-void add(int k, int x) {  for (k += 1; k <= N; k += k & -k) t[k] += x; } 
+void add(int k, int x) {
+    for (k += 1; k <= N; k += k & -k)
+        t[k] += x;
+} 
 ```
 
 重复向`k`添加最低设置的位使其“更均匀”，并将其提升到其下一个左子节点段树祖先：
@@ -359,7 +521,23 @@ Fenwick 树的性能与优化自底向上的段树在更新查询方面相似，
 一种消除这种效果的方法是在布局中插入“空洞”，如下所示：
 
 ```cpp
-inline constexpr int hole(int k) {  return k + (k >> 10); }   int t[hole(N) + 1];   void add(int k, int x) {  for (k += 1; k <= N; k += k & -k) t[hole(k)] += x; }   int sum(int k) {  int res = 0; for (; k != 0; k &= k - 1) res += t[hole(k)]; return res; } 
+inline constexpr int hole(int k) {
+    return k + (k >> 10);
+}
+
+int t[hole(N) + 1];
+
+void add(int k, int x) {
+    for (k += 1; k <= N; k += k & -k)
+        t[hole(k)] += x;
+}
+
+int sum(int k) {
+    int res = 0;
+    for (; k != 0; k &= k - 1)
+        res += t[hole(k)];
+    return res;
+} 
 ```
 
 计算空缺函数不是迭代之间的关键路径，因此它不会引入任何显著的开销，但完全消除了缓存关联性问题，并将大数组的延迟减少了高达 3 倍：
@@ -381,7 +559,25 @@ Fenwick 树速度快，但它们还存在一些其他小问题。类似于二分
 为了实现这种布局，我们可以使用与 S+树中使用的类似的 constexpr-基于的方法：
 
 ```cpp
-const int b = 4, B = (1 << b); // cache line size (in integers, not bytes)  // the height of the tree over an n-element array constexpr int height(int n) {  return (n <= B ? 1 : height(n / B) + 1); }   // where the h-th layer starts constexpr int offset(int h) {  int s = 0, n = N; while (h--) { n = (n + B - 1) / B; s += n * B; } return s; }   constexpr int H = height(N); alignas(64) int t[offset(H)]; // an array for storing nodes 
+const int b = 4, B = (1 << b); // cache line size (in integers, not bytes)
+
+// the height of the tree over an n-element array 
+constexpr int height(int n) {
+    return (n <= B ? 1 : height(n / B) + 1);
+}
+
+// where the h-th layer starts
+constexpr int offset(int h) {
+    int s = 0, n = N;
+    while (h--) {
+        n = (n + B - 1) / B;
+        s += n * B;
+    }
+    return s;
+}
+
+constexpr int H = height(N);
+alignas(64) int t[offset(H)]; // an array for storing nodes 
 ```
 
 这样，我们实际上将树的高度减少了大约$\frac{\log_B n}{\log_2 n} = \log_2 B$倍（如果$B = 16$，则约为 4 倍），但将节点内操作有效地实现变得非同小可。对于我们的问题，我们有两种主要选项：
@@ -397,7 +593,12 @@ const int b = 4, B = (1 << b); // cache line size (in integers, not bytes)  // t
 这使得`sum`查询非常快且易于实现：
 
 ```cpp
-int sum(int k) {  int s = 0; for (int h = 0; h < H; h++) s += t[offset(h) + (k >> (h * b))]; return s; } 
+int sum(int k) {
+    int s = 0;
+    for (int h = 0; h < H; h++)
+        s += t[offset(h) + (k >> (h * b))];
+    return s;
+} 
 ```
 
 `add`查询更复杂且较慢。我们需要只将一个数字添加到节点的后缀中，我们可以通过掩码不应修改的位置来实现这一点。
@@ -405,13 +606,38 @@ int sum(int k) {  int s = 0; for (int h = 0; h < H; h++) s += t[offset(h) + (k >
 我们可以预先计算一个$B \times B$的数组，对应于$B$个这样的掩码，这些掩码告诉，对于节点内$B$个位置中的每一个，是否需要更新某个前缀和值：
 
 ```cpp
-struct Precalc {  alignas(64) int mask[B][B];   constexpr Precalc() : mask{} { for (int k = 0; k < B; k++) for (int i = 0; i < B; i++) mask[k][i] = (i > k ? -1 : 0); } };   constexpr Precalc T; 
+struct Precalc {
+    alignas(64) int mask[B][B];
+
+    constexpr Precalc() : mask{} {
+        for (int k = 0; k < B; k++)
+            for (int i = 0; i < B; i++)
+                mask[k][i] = (i > k ? -1 : 0);
+    }
+};
+
+constexpr Precalc T; 
 ```
 
 除了这个掩码技巧之外，其余的计算足够简单，可以用 GCC 向量类型处理。当处理`add`查询时，我们只需使用这些掩码将它们与广播的`x`值进行位与操作以掩码它，然后将其添加到节点中存储的值：
 
 ```cpp
-typedef int vec __attribute__ (( vector_size(32) ));   constexpr int round(int k) {  return k & ~(B - 1); // = k / B * B }   void add(int k, int x) {  vec v = x + vec{}; for (int h = 0; h < H; h++) { auto a = (vec*) &t[offset(h) + round(k)]; auto m = (vec*) T.mask[k % B]; for (int i = 0; i < B / 8; i++) a[i] += v & m[i]; k >>= b; } } 
+typedef int vec __attribute__ (( vector_size(32) ));
+
+constexpr int round(int k) {
+    return k & ~(B - 1); // = k / B * B
+}
+
+void add(int k, int x) {
+    vec v = x + vec{};
+    for (int h = 0; h < H; h++) {
+        auto a = (vec*) &t[offset(h) + round(k)];
+        auto m = (vec*) T.mask[k % B];
+        for (int i = 0; i < B / 8; i++)
+            a[i] += v & m[i];
+        k >>= b;
+    }
+} 
 ```
 
 这样，`sum`查询比 Fenwick 树快 10 多倍，`add`查询快最多 4 倍：

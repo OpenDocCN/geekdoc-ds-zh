@@ -17,7 +17,17 @@
 这里是任何计算机科学入门教科书中都可以找到的搜索排序数组`t`中第一个不小于`x`的元素的常规方法：
 
 ```cpp
-int lower_bound(int x) {  int l = 0, r = n - 1; while (l < r) { int m = (l + r) / 2; if (t[m] >= x) r = m; else l = m + 1; } return t[l]; } 
+int lower_bound(int x) {
+    int l = 0, r = n - 1;
+    while (l < r) {
+        int m = (l + r) / 2;
+        if (t[m] >= x)
+            r = m;
+        else
+            l = m + 1;
+    }
+    return t[l];
+} 
 ```
 
 找到搜索范围的中点元素，将其与`x`比较，将范围缩小一半。其简单性令人赞叹。
@@ -25,7 +35,27 @@ int lower_bound(int x) {  int l = 0, r = n - 1; while (l < r) { int m = (l + r) 
 `std::lower_bound`采用类似的方法，但它需要更通用以支持具有非随机访问迭代器的容器，因此它使用搜索区间的第一个元素和大小，而不是其两个端点。为此，来自[Clang](https://github.com/llvm-mirror/libcxx/blob/78d6a7767ed57b50122a161b91f59f19c9bd0d19/include/algorithm#L4169)和[GCC](https://github.com/gcc-mirror/gcc/blob/d9375e490072d1aae73a93949aa158fcd2a27018/libstdc%2B%2B-v3/include/bits/stl_algobase.h#L1023)的实现都使用了这种元编程怪物：
 
 ```cpp
-template <class _Compare, class _ForwardIterator, class _Tp> _LIBCPP_CONSTEXPR_AFTER_CXX17 _ForwardIterator __lower_bound(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __value_, _Compare __comp) {  typedef typename iterator_traits<_ForwardIterator>::difference_type difference_type; difference_type __len = _VSTD::distance(__first, __last); while (__len != 0) { difference_type __l2 = _VSTD::__half_positive(__len); _ForwardIterator __m = __first; _VSTD::advance(__m, __l2); if (__comp(*__m, __value_)) { __first = ++__m; __len -= __l2 + 1; } else __len = __l2; } return __first; } 
+template <class _Compare, class _ForwardIterator, class _Tp>
+_LIBCPP_CONSTEXPR_AFTER_CXX17 _ForwardIterator
+__lower_bound(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __value_, _Compare __comp)
+{
+    typedef typename iterator_traits<_ForwardIterator>::difference_type difference_type;
+    difference_type __len = _VSTD::distance(__first, __last);
+    while (__len != 0)
+    {
+        difference_type __l2 = _VSTD::__half_positive(__len);
+        _ForwardIterator __m = __first;
+        _VSTD::advance(__m, __l2);
+        if (__comp(*__m, __value_))
+        {
+            __first = ++__m;
+            __len -= __l2 + 1;
+        }
+        else
+            __len = __l2;
+    }
+    return __first;
+} 
 ```
 
 如果编译器成功移除了抽象，它编译出的机器代码大致相同，并且平均延迟也大致相同，这预期随着数组大小的增加而增长：
@@ -41,7 +71,16 @@ template <class _Compare, class _ForwardIterator, class _Tp> _LIBCPP_CONSTEXPR_A
 如果你使用 perf 运行`std::lower_bound`，你会看到它的大部分时间都花在一条条件跳转指令上：
 
 ```cpp
- │35:   mov    %rax,%rdx 0.52 │      sar    %rdx 0.33 │      lea    (%rsi,%rdx,4),%rcx 4.30 │      cmp    (%rcx),%edi 65.39 │    ↓ jle    b0 0.07 │      sub    %rdx,%rax 9.32 │      lea    0x4(%rcx),%rsi 0.06 │      dec    %rax 1.37 │      test   %rax,%rax 1.11 │    ↑ jg     35 
+ │35:   mov    %rax,%rdx
+  0.52 │      sar    %rdx
+  0.33 │      lea    (%rsi,%rdx,4),%rcx
+  4.30 │      cmp    (%rcx),%edi
+ 65.39 │    ↓ jle    b0
+  0.07 │      sub    %rdx,%rax
+  9.32 │      lea    0x4(%rcx),%rsi
+  0.06 │      dec    %rax
+  1.37 │      test   %rax,%rax
+  1.11 │    ↑ jg     35 
 ```
 
 这种 pipeline stall 阻止了搜索的进行，它主要是由两个因素引起的：
@@ -57,19 +96,48 @@ template <class _Compare, class _ForwardIterator, class _Tp> _LIBCPP_CONSTEXPR_A
 我们可以用 predication 来替换分支。为了使任务更容易，我们可以采用 STL 方法，并使用搜索间隔的第一个元素和大小（而不是其第一个和最后一个元素）重写循环：
 
 ```cpp
-int lower_bound(int x) {  int *base = t, len = n; while (len > 1) { int half = len / 2; if (base[half - 1] < x) { base += half; len = len - half; } else { len = half; } } return *base; } 
+int lower_bound(int x) {
+    int *base = t, len = n;
+    while (len > 1) {
+        int half = len / 2;
+        if (base[half - 1] < x) {
+            base += half;
+            len = len - half;
+        } else {
+            len = half;
+        }
+    }
+    return *base;
+} 
 ```
 
 注意，在每次迭代中，`len`实际上只是减半，然后根据比较结果进行向下取整或向上取整。这种条件更新看起来是不必要的；为了避免它，我们可以说它总是向上取整：
 
 ```cpp
-int lower_bound(int x) {  int *base = t, len = n; while (len > 1) { int half = len / 2; if (base[half - 1] < x) base += half; len -= half; // = ceil(len / 2) } return *base; } 
+int lower_bound(int x) {
+    int *base = t, len = n;
+    while (len > 1) {
+        int half = len / 2;
+        if (base[half - 1] < x)
+            base += half;
+        len -= half; // = ceil(len / 2)
+    }
+    return *base;
+} 
 ```
 
 这样，我们只需要在每个迭代中更新搜索间隔的第一个元素，并使用条件移动将其大小减半：
 
 ```cpp
-int lower_bound(int x) {  int *base = t, len = n; while (len > 1) { int half = len / 2; base += (base[half - 1] < x) * half; // will be replaced with a "cmov" len -= half; } return *base; } 
+int lower_bound(int x) {
+    int *base = t, len = n;
+    while (len > 1) {
+        int half = len / 2;
+        base += (base[half - 1] < x) * half; // will be replaced with a "cmov"
+        len -= half;
+    }
+    return *base;
+} 
 ```
 
 注意，这个循环并不总是等同于标准的二分查找。因为它总是向上取整搜索间隔的大小，所以它访问了稍微不同的元素，并且可能比所需的比较多一次。除了简化每次迭代的计算外，它还使得在数组大小恒定时迭代次数保持不变，从而完全消除了分支预测错误。
@@ -85,7 +153,17 @@ int lower_bound(int x) {  int *base = t, len = n; while (len > 1) { int half = l
 对于无分支实现，这种情况不会发生，因为`cmov`被视为其他任何指令，分支预测器也不会试图窥视其操作数来预测未来。为了补偿这一点，我们可以通过显式请求左右子键来在软件中预取数据：
 
 ```cpp
-int lower_bound(int x) {  int *base = t, len = n; while (len > 1) { int half = len / 2; len -= half; __builtin_prefetch(&base[len / 2 - 1]); __builtin_prefetch(&base[half + len / 2 - 1]); base += (base[half - 1] < x) * half; } return *base; } 
+int lower_bound(int x) {
+    int *base = t, len = n;
+    while (len > 1) {
+        int half = len / 2;
+        len -= half;
+        __builtin_prefetch(&base[len / 2 - 1]);
+        __builtin_prefetch(&base[half + len / 2 - 1]);
+        base += (base[half - 1] < x) * half;
+    }
+    return *base;
+} 
 ```
 
 使用预取，在大数组上的性能大致相同：
@@ -111,7 +189,17 @@ int lower_bound(int x) {  int *base = t, len = n; while (len > 1) { int half = l
 为了说明第二种类型的缓存共享有多么重要，让我们尝试在搜索区间的元素中随机选择我们将要比较的元素，而不是中间的元素：
 
 ```cpp
-int lower_bound(int x) {  int l = 0, r = n - 1; while (l < r) { int m = l + rand() % (r - l); if (t[m] >= x) r = m; else l = m + 1; } return t[l]; } 
+int lower_bound(int x) {
+    int l = 0, r = n - 1;
+    while (l < r) {
+        int m = l + rand() % (r - l);
+        if (t[m] >= x)
+            r = m;
+        else
+            l = m + 1;
+    }
+    return t[l];
+} 
 ```
 
 理论上，这种随机二分搜索预计要比正常搜索多进行 30-40%的比较，但在实际计算机上，在大数组上的运行时间大约是 6 倍：
@@ -179,7 +267,17 @@ int lower_bound(int x) {  int l = 0, r = n - 1; while (l < r) { int m = l + rand
 要构建 Eytzinger 数组，我们可以进行这种偶数奇数 过滤 $O(\log n)$ 次——这可能是最快的方法——但为了简洁起见，我们将通过遍历原始搜索树来构建它。
 
 ```cpp
-int a[n], t[n + 1]; // the original sorted array and the eytzinger array we build //              ^ we need one element more because of one-based indexing  void eytzinger(int k = 1) {  static int i = 0; // <- careful running it on multiple arrays if (k <= n) { eytzinger(2 * k); t[k] = a[i++]; eytzinger(2 * k + 1); } } 
+int a[n], t[n + 1]; // the original sorted array and the eytzinger array we build
+//              ^ we need one element more because of one-based indexing
+
+void eytzinger(int k = 1) {
+    static int i = 0; // <- careful running it on multiple arrays
+    if (k <= n) {
+        eytzinger(2 * k);
+        t[k] = a[i++];
+        eytzinger(2 * k + 1);
+    }
+} 
 ```
 
 这个函数接受当前节点编号 `k`，递归地写出搜索区间中间左侧的所有元素，然后写出我们要比较的当前元素，最后递归地写出右侧的所有元素。这看起来有点复杂，但为了让你相信它有效，你只需要三个观察点：
@@ -201,7 +299,9 @@ int a[n], t[n + 1]; // the original sorted array and the eytzinger array we buil
 我们现在可以使用索引来下降这个数组：我们只需从 $k=1$ 开始，如果需要向左移动，则执行 $k := 2k$，如果需要向右移动，则执行 $k := 2k + 1$。我们甚至不再需要存储和重新计算搜索边界。这种简单性还让我们避免了分支：
 
 ```cpp
-int k = 1; while (k <= n)  k = 2 * k + (t[k] < x); 
+int k = 1;
+while (k <= n)
+    k = 2 * k + (t[k] < x); 
 ```
 
 唯一的问题是当我们需要恢复结果元素的索引时，因为 $k$ 并不直接指向它。考虑这个例子（其对应的树如上所示）：
@@ -224,7 +324,13 @@ eytzinger:  6 3 7 1 5 8 9 0 2 4
 这可以通过观察 $k$ 的二进制表示中的右转被记录为 1 位来优雅地完成，所以我们只需要找到二进制表示中的尾随 1 的数量，并将 $k$ 向右移动正好那么多位加一。为此，我们可以反转这个数（`~k`）并调用“找到第一个设置”指令：
 
 ```cpp
-int lower_bound(int x) {  int k = 1; while (k <= n) k = 2 * k + (t[k] < x); k >>= __builtin_ffs(~k); return t[k]; } 
+int lower_bound(int x) {
+    int k = 1;
+    while (k <= n)
+        k = 2 * k + (t[k] < x);
+    k >>= __builtin_ffs(~k);
+    return t[k];
+} 
 ```
 
 我们运行它，嗯，看起来并不那么好：
@@ -265,7 +371,15 @@ t = (int*) std::aligned_alloc(64, 4 * (n + 1));
 然后在每次迭代中预取索引为 $16 k$ 的元素：
 
 ```cpp
-int lower_bound(int x) {  int k = 1; while (k <= n) { __builtin_prefetch(t + k * 16); k = 2 * k + (t[k] < x); } k >>= __builtin_ffs(~k); return t[k]; } 
+int lower_bound(int x) {
+    int k = 1;
+    while (k <= n) {
+        __builtin_prefetch(t + k * 16);
+        k = 2 * k + (t[k] < x);
+    }
+    k >>= __builtin_ffs(~k);
+    return t[k];
+} 
 ```
 
 在大型数组上的性能比之前版本提高了 3-4 倍，比`std::lower_bound`提高了约 2 倍。仅仅增加两行代码就不错了：
@@ -297,7 +411,22 @@ __builtin_prefetch(t + k * 32);
 一种解决方法是使用无穷大填充数组到最接近的 2 的幂，但这会浪费内存。相反，我们通过始终执行一个固定的最小迭代次数，然后使用预测来可选地使最后一个比较与某个虚拟元素——这保证小于$x$，因此其比较将被取消：
 
 ```cpp
-t[0] = -1; // an element that is less than x iters = std::__lg(n + 1);   int lower_bound(int x) {  int k = 1;   for (int i = 0; i < iters; i++) k = 2 * k + (t[k] < x);   int *loc = (k <= n ? t + k : t); k = 2 * k + (*loc < x);   k >>= __builtin_ffs(~k);   return t[k]; } 
+t[0] = -1; // an element that is less than x
+iters = std::__lg(n + 1);
+
+int lower_bound(int x) {
+    int k = 1;
+
+    for (int i = 0; i < iters; i++)
+        k = 2 * k + (t[k] < x);
+
+    int *loc = (k <= n ? t + k : t);
+    k = 2 * k + (*loc < x);
+
+    k >>= __builtin_ffs(~k);
+
+    return t[k];
+} 
 ```
 
 图现在变得平滑了，在小数组上，它比无分支的二分查找慢了仅仅几个周期：

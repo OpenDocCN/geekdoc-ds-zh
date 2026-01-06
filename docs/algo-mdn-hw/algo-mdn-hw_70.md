@@ -13,7 +13,10 @@ SIMD 并行性最常用于*令人尴尬的并行*计算：这种情况下，你�
 考虑我们开始时的“a + b”示例：
 
 ```cpp
-void sum(int *a, int *b, int *c, int n) {  for (int i = 0; i < n; i++) c[i] = a[i] + b[i]; } 
+void sum(int *a, int *b, int *c, int n) {
+    for (int i = 0; i < n; i++)
+        c[i] = a[i] + b[i];
+} 
 ```
 
 让我们换位思考，想象一下当这个循环被向量化时可能会出什么问题。
@@ -27,13 +30,18 @@ void sum(int *a, int *b, int *c, int n) {  for (int i = 0; i < n; i++) c[i] = a[
 当编译器无法证明函数可能用于交集数组时，它必须生成两种实现变体——一个是向量化的，另一个是“安全的”——并插入运行时检查以在这两者之间进行选择。为了避免这些检查，我们可以通过添加`__restrict__`关键字来告诉编译器没有任何内存被别名化：
 
 ```cpp
-void add(int * __restrict__ a, const int * __restrict__ b, int n) {  for (int i = 0; i < n; i++) a[i] += b[i]; } 
+void add(int * __restrict__ a, const int * __restrict__ b, int n) {
+    for (int i = 0; i < n; i++)
+        a[i] += b[i];
+} 
 ```
 
 另一种特定于 SIMD 的方法是“忽略向量依赖”指令。这是一种通用方式，用来通知编译器循环迭代之间没有依赖关系：
 
 ```cpp
-#pragma GCC ivdep for (int i = 0; i < n; i++)  // ... 
+#pragma GCC ivdep
+for (int i = 0; i < n; i++)
+    // ... 
 ```
 
 **对齐。**编译器对这些数组的对齐情况一无所知，必须在开始向量化部分之前处理这些数组开头的一些元素，或者通过使用非对齐内存访问来潜在地损失一些性能。

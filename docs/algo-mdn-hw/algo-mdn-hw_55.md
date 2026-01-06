@@ -7,7 +7,8 @@ CPU 缓存系统中的数据传输基本单位不是单个比特和字节，而�
 为了证明这一点，我们在我们的增加循环中添加了一个“步长”参数。现在我们只触摸每$D$个元素：
 
 ```cpp
-for (int i = 0; i < N; i += D)  a[i]++; 
+for (int i = 0; i < N; i += D)
+    a[i]++; 
 ```
 
 如果我们用$D=1$和$D=16$运行它，我们可以观察到一些有趣的现象：
@@ -27,7 +28,18 @@ for (int i = 0; i < N; i += D)  a[i]++;
 我们可以使用这个效果来最小化我们的延迟基准测试中的缓存共享，以便更精确地测量它。我们需要对排列的索引进行**填充**，以便每个索引都位于自己的缓存行中：
 
 ```cpp
-struct padded_int {  int val; int padding[15]; };   padded_int q[N / 16];   // constructing a cycle from a random permutation // ...  for (int i = 0; i < N / 16; i++)  k = q[k].val; 
+struct padded_int {
+    int val;
+    int padding[15];
+};
+
+padded_int q[N / 16];
+
+// constructing a cycle from a random permutation
+// ...
+
+for (int i = 0; i < N / 16; i++)
+    k = q[k].val; 
 ```
 
 现在，每个索引在循环回来再次请求它的时候更有可能被踢出缓存：

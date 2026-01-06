@@ -13,7 +13,21 @@
 它在 2005 年左右在游戏开发社区中变得流行，当时他们发布了游戏的源代码。以下是 [其中的相关摘录](https://github.com/id-Software/Quake-III-Arena/blob/master/code/game/q_math.c#L552)，包括注释：
 
 ```cpp
-float Q_rsqrt(float number) {  long i; float x2, y; const float threehalfs = 1.5F;   x2 = number * 0.5F; y  = number; i  = * ( long * ) &y;                       // evil floating point bit level hacking i  = 0x5f3759df - ( i >> 1 );               // what the fuck? y  = * ( float * ) &i; y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration //  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed  return y; } 
+float Q_rsqrt(float number) {
+    long i;
+    float x2, y;
+    const float threehalfs = 1.5F;
+
+    x2 = number * 0.5F;
+    y  = number;
+    i  = * ( long * ) &y;                       // evil floating point bit level hacking
+    i  = 0x5f3759df - ( i >> 1 );               // what the fuck? 
+    y  = * ( float * ) &i;
+    y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+//  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+    return y;
+} 
 ```
 
 我们将逐步解释它是如何工作的，但首先，我们需要稍微绕个弯。
@@ -53,7 +67,8 @@ $$ \frac{I_y}{L} - (B - \sigma) \approx - \frac{1}{2} ( \frac{I_x}{L} - (B - \si
 结果表明，我们甚至不需要最初计算对数：上面的公式只是一个常数减去 $x$ 的整数重新解释的一半。它在代码中写成：
 
 ```cpp
-i = * ( long * ) &y; i = 0x5f3759df - ( i >> 1 ); 
+i = * ( long * ) &y;
+i = 0x5f3759df - ( i >> 1 ); 
 ```
 
 我们在第一行将 `y` 重新解释为整数，然后将其代入第二行的公式，其中第一个项是魔法数 $\frac{3}{2} L (B - \sigma) = \mathtt{0x5F3759DF}$，而第二个项是通过二进制移位而不是除法来计算的。
@@ -67,7 +82,8 @@ $$ f'(y) = - \frac{2}{y³} \implies y_{i+1} = y_{i} (\frac{3}{2} - \frac{x}{2} y
 这在代码中写成
 
 ```cpp
-x2 = number * 0.5F; y  = y * ( threehalfs - ( x2 * y * y ) ); 
+x2 = number * 0.5F;
+y  = y * ( threehalfs - ( x2 * y * y ) ); 
 ```
 
 初始近似值非常准确，以至于仅一次迭代就足以满足游戏开发的需求。在第一次迭代后，它就落在了正确答案的 99.8%范围内，并且可以通过进一步迭代来提高精度——这正是硬件所做的事情：[x86 指令](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,3009,5135,4870,4870,4872,4875,833,879,874,849,848,6715,4845,6046,3853,288,6570,6527,6527,90,7307,6385,5993&text=rsqrt&techs=AVX,AVX2)执行其中的一些操作，并保证相对误差不超过$1.5 \times 2^{-12}$。

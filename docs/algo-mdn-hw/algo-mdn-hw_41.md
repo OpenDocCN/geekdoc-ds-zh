@@ -27,19 +27,45 @@ $$ b \cdot x' + (a \bmod b) \cdot y' = g $$ 那么，为了得到初始输入的
 我们将算法实现为一个递归函数。由于它的输出不是单个整数，而是三个整数，所以我们通过引用传递系数：
 
 ```cpp
-int gcd(int a, int b, int &x, int &y) {  if (a == 0) { x = 0; y = 1; return b; } int x1, y1; int d = gcd(b % a, a, x1, y1); x = y1 - (b / a) * x1; y = x1; return d; } 
+int gcd(int a, int b, int &x, int &y) {
+    if (a == 0) {
+        x = 0;
+        y = 1;
+        return b;
+    }
+    int x1, y1;
+    int d = gcd(b % a, a, x1, y1);
+    x = y1 - (b / a) * x1;
+    y = x1;
+    return d;
+} 
 ```
 
 要计算逆元，我们只需传递$a$和$m$，然后返回算法找到的$x$系数。由于我们传递了两个正数，其中一个系数将是正的，另一个是负的（哪个是负的取决于迭代次数是奇数还是偶数），因此我们需要可选地检查$x$是否为负，并加上$m$以获得正确的余数：
 
 ```cpp
-int inverse(int a) {  int x, y; gcd(a, M, x, y); if (x < 0) x += M; return x; } 
+int inverse(int a) {
+    int x, y;
+    gcd(a, M, x, y);
+    if (x < 0)
+        x += M;
+    return x;
+} 
 ```
 
 它在 160 纳秒内完成——比使用二进制指数运算求逆数快 10 纳秒。为了进一步优化它，我们可以将其转换为迭代形式——这需要 135 纳秒：
 
 ```cpp
-int inverse(int a) {  int b = M, x = 1, y = 0; while (a != 1) { y -= b / a * x; b %= a; swap(a, b); swap(x, y); } return x < 0 ? x + M : x; } 
+int inverse(int a) {
+    int b = M, x = 1, y = 0;
+    while (a != 1) {
+        y -= b / a * x;
+        b %= a;
+        swap(a, b);
+        swap(x, y);
+    }
+    return x < 0 ? x + M : x;
+} 
 ```
 
 注意，与二进制指数运算不同，运行时间取决于$a$的值。例如，对于这个特定的$m$值（$10⁹ + 7$），最坏的情况是 564400443，算法执行了 37 次迭代，耗时 250 纳秒。

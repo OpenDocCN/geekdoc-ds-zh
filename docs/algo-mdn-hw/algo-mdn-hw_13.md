@@ -11,13 +11,18 @@
 作为案例研究，我们将创建一个介于 0 和 99（包括）之间的随机整数数组：
 
 ```cpp
-for (int i = 0; i < N; i++)  a[i] = rand() % 100; 
+for (int i = 0; i < N; i++)
+    a[i] = rand() % 100; 
 ```
 
 然后我们创建一个循环，将所有小于 50 的元素加起来：
 
 ```cpp
-volatile int s;   for (int i = 0; i < N; i++)  if (a[i] < 50) s += a[i]; 
+volatile int s;
+
+for (int i = 0; i < N; i++)
+    if (a[i] < 50)
+        s += a[i]; 
 ```
 
 我们将 $N = 10⁶$ 并多次运行这个循环，这样冷缓存效应就不会影响我们的结果。我们将累加变量标记为 `volatile`，这样编译器就不会向量化循环，交错其迭代，或者以任何其他方式“作弊”。
@@ -25,7 +30,17 @@ volatile int s;   for (int i = 0; i < N; i++)  if (a[i] < 50) s += a[i];
 在 Clang 上，这会产生如下汇编代码：
 
 ```cpp
- mov  rcx, -4000000 jmp  body counter:  add  rcx, 4 jz   finished   ; "jump if rcx became zero" body:  mov  edx, dword ptr [rcx + a + 4000000] cmp  edx, 49 jg   counter add  dword ptr [rsp + 12], edx jmp  counter 
+ mov  rcx, -4000000
+    jmp  body
+counter:
+    add  rcx, 4
+    jz   finished   ; "jump if rcx became zero"
+body:
+    mov  edx, dword ptr [rcx + a + 4000000]
+    cmp  edx, 49
+    jg   counter
+    add  dword ptr [rsp + 12], edx
+    jmp  counter 
 ```
 
 我们的目标是模拟一个完全不可预测的分支，并且我们成功地实现了它：代码对每个元素需要 ~14 个 CPU 循环。为了对它应该是什么样子做一个非常粗略的估计，我们可以假设分支在 `<` 和 `>=` 之间交替，并且每两次迭代中就有一次流水线预测错误。那么，每两次迭代：
@@ -43,7 +58,9 @@ volatile int s;   for (int i = 0; i < N; i++)  if (a[i] < 50) s += a[i];
 我们可以用一个可调整的参数 `P` 来替换硬编码的 `50`，这个参数实际上设置了 `<` 分支的概率：
 
 ```cpp
-for (int i = 0; i < N; i++)  if (a[i] < P) s += a[i]; 
+for (int i = 0; i < N; i++)
+    if (a[i] < P)
+        s += a[i]; 
 ```
 
 现在，如果我们为不同的 `P` 值进行基准测试，我们会得到一个看起来很有趣的图表：
@@ -63,7 +80,10 @@ for (int i = 0; i < N; i++)  if (a[i] < P) s += a[i];
 让我们将 `P` 重新设置为 50，然后在主求和循环之前先对数组进行排序：
 
 ```cpp
-for (int i = 0; i < N; i++)  a[i] = rand() % 100;   std::sort(a, a + n); 
+for (int i = 0; i < N; i++)
+    a[i] = rand() % 100;
+
+std::sort(a, a + n); 
 ```
 
 我们仍在处理相同的元素，但顺序不同，而且不再是 14 个周期，现在运行时间略多于 4 个周期，这正好是纯 `<` 和 `>=` 分支成本的平均值。
@@ -75,7 +95,9 @@ for (int i = 0; i < N; i++)  a[i] = rand() % 100;   std::sort(a, a + n);
 如果你知道哪个分支更有可能，将这个信息传递给编译器可能是有益的：
 
 ```cpp
-for (int i = 0; i < N; i++)  if (a[i] < P) [[likely]] s += a[i]; 
+for (int i = 0; i < N; i++)
+    if (a[i] < P) [[likely]]
+        s += a[i]; 
 ```
 
 当 `P = 75` 时，它每个元素测量约 7.3 个周期，而原始版本（没有提示）需要约 8.3 个周期。

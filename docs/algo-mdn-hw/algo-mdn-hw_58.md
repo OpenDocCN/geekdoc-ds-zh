@@ -17,7 +17,17 @@
 让我们修改指针追踪基准测试来展示硬件预取的效果。现在，我们以使 CPU 在遍历排列时请求连续的缓存行的方式生成我们的排列，但仍然以随机顺序访问缓存行内的元素：
 
 ```cpp
-int p[15], q[N];   iota(p, p + 15, 1);   for (int i = 0; i + 16 < N; i += 16) {  random_shuffle(p, p + 15); int k = i; for (int j = 0; j < 15; j++) k = q[k] = i + p[j]; q[k] = i + 16; } 
+int p[15], q[N];
+
+iota(p, p + 15, 1);
+
+for (int i = 0; i + 16 < N; i += 16) {
+    random_shuffle(p, p + 15);
+    int k = i;
+    for (int j = 0; j < 15; j++)
+        k = q[k] = i + p[j];
+    q[k] = i + 16;
+} 
 ```
 
 没有必要制作图表，因为这只会是平面的：延迟为 3ns，无论数组大小如何。即使指令调度器仍然无法告诉我们接下来要取什么，内存预取器只需通过查看内存访问就可以检测到一个模式，并在提前加载下一个缓存行，从而减轻延迟。
@@ -37,13 +47,23 @@ __builtin_prefetch(&a[k]);
 幸运的是，[线性同余发生器](https://en.wikipedia.org/wiki/Linear_congruential_generator)具有这样的性质：如果模数$n$是一个素数，那么发生器的周期将正好是$n$。因此，如果我们使用 LCG 生成的排列，其当前索引作为其状态，我们就会得到所有需要的属性：
 
 ```cpp
-const int n = find_prime(N); // largest prime not exceeding N  for (int i = 0; i < n; i++)  q[i] = (2 * i + 1) % n; 
+const int n = find_prime(N); // largest prime not exceeding N
+
+for (int i = 0; i < n; i++)
+    q[i] = (2 * i + 1) % n; 
 ```
 
 当我们运行它时，性能与正常随机排列相匹配。但现在我们得到了向前窥视的能力：
 
 ```cpp
-int k = 0;   for (int t = 0; t < K; t++) {  for (int i = 0; i < n; i++) { __builtin_prefetch(&q[(2 * k + 1) % n]); k = q[k]; } } 
+int k = 0;
+
+for (int t = 0; t < K; t++) {
+    for (int i = 0; i < n; i++) {
+        __builtin_prefetch(&q[(2 * k + 1) % n]);
+        k = q[k];
+    }
+} 
 ```
 
 计算下一个地址时会有一些开销，但对于足够大的数组来说，它几乎快了两倍：

@@ -35,7 +35,32 @@
 下面是一个纯 Python 中定义的 $1024 \times 1024$ 矩阵乘法的示例：
 
 ```cpp
-import time import random   n = 1024   a = [[random.random()  for row in range(n)] for col in range(n)]   b = [[random.random()  for row in range(n)] for col in range(n)]   c = [[0  for row in range(n)] for col in range(n)]   start = time.time()   for i in range(n):  for j in range(n): for k in range(n): c[i][j] += a[i][k] * b[k][j]   duration = time.time() - start print(duration) 
+import time
+import random
+
+n = 1024
+
+a = [[random.random()
+      for row in range(n)]
+      for col in range(n)]
+
+b = [[random.random()
+      for row in range(n)]
+      for col in range(n)]
+
+c = [[0
+      for row in range(n)]
+      for col in range(n)]
+
+start = time.time()
+
+for i in range(n):
+    for j in range(n):
+        for k in range(n):
+            c[i][j] += a[i][k] * b[k][j]
+
+duration = time.time() - start
+print(duration) 
 ```
 
 这段代码运行了 630 秒。这超过了 10 分钟！
@@ -61,7 +86,36 @@ import time import random   n = 1024   a = [[random.random()  for row in range(n
 与之前相同的矩阵乘法过程，但使用 Java 实现：
 
 ```cpp
-import java.util.Random;   public class Matmul {  static int n = 1024; static double[][] a = new double[n][n]; static double[][] b = new double[n][n]; static double[][] c = new double[n][n];   public static void main(String[] args) { Random rand = new Random();   for (int i = 0; i < n; i++) { for (int j = 0; j < n; j++) { a[i][j] = rand.nextDouble(); b[i][j] = rand.nextDouble(); c[i][j] = 0; } }   long start = System.nanoTime();   for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) for (int k = 0; k < n; k++) c[i][j] += a[i][k] * b[k][j];  double diff = (System.nanoTime() - start) * 1e-9; System.out.println(diff); } } 
+import java.util.Random;
+
+public class Matmul {
+    static int n = 1024;
+    static double[][] a = new double[n][n];
+    static double[][] b = new double[n][n];
+    static double[][] c = new double[n][n];
+
+    public static void main(String[] args) {
+        Random rand = new Random();
+
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                a[i][j] = rand.nextDouble();
+                b[i][j] = rand.nextDouble();
+                c[i][j] = 0;
+            }
+        }
+
+        long start = System.nanoTime();
+
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                for (int k = 0; k < n; k++)
+                    c[i][j] += a[i][k] * b[k][j];
+
+        double diff = (System.nanoTime() - start) * 1e-9;
+        System.out.println(diff);
+    }
+} 
 ```
 
 现在它运行需要 10 秒，相当于每次乘法大约 13 个 CPU 周期——比 Python 快 63 倍。考虑到我们需要从内存中非顺序地读取`b`的元素，运行时间大致符合预期。
@@ -75,7 +129,33 @@ JIT 编译不是语言本身的功能，而是其实现的功能。还有一个�
 现在轮到 C 了：
 
 ```cpp
-#include <stdlib.h> #include <stdio.h> #include <time.h>  #define n 1024 double a[n][n], b[n][n], c[n][n];   int main() {  for (int i = 0; i < n; i++) { for (int j = 0; j < n; j++) { a[i][j] = (double) rand() / RAND_MAX; b[i][j] = (double) rand() / RAND_MAX; } }   clock_t start = clock();   for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) for (int k = 0; k < n; k++) c[i][j] += a[i][k] * b[k][j];   float seconds = (float) (clock() - start) / CLOCKS_PER_SEC; printf("%.4f\n", seconds);  return 0; } 
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+
+#define n 1024
+double a[n][n], b[n][n], c[n][n];
+
+int main() {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            a[i][j] = (double) rand() / RAND_MAX;
+            b[i][j] = (double) rand() / RAND_MAX;
+        }
+    }
+
+    clock_t start = clock();
+
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            for (int k = 0; k < n; k++)
+                c[i][j] += a[i][k] * b[k][j];
+
+    float seconds = (float) (clock() - start) / CLOCKS_PER_SEC;
+    printf("%.4f\n", seconds);
+
+    return 0;
+} 
 ```
 
 如果你用`gcc -O3`编译它，它需要 9 秒。
@@ -91,7 +171,20 @@ JIT 编译不是语言本身的功能，而是其实现的功能。还有一个�
 最后，让我们看看一个专家优化的实现能做什么。我们将测试一个广泛使用的优化线性代数库，称为[OpenBLAS](https://www.openblas.net/)。使用它的最简单方法是回到 Python，并从`numpy`中调用它：
 
 ```cpp
-import time import numpy as np   n = 1024   a = np.random.rand(n, n) b = np.random.rand(n, n)   start = time.time()   c = np.dot(a, b)   duration = time.time() - start print(duration) 
+import time
+import numpy as np
+
+n = 1024
+
+a = np.random.rand(n, n)
+b = np.random.rand(n, n)
+
+start = time.time()
+
+c = np.dot(a, b)
+
+duration = time.time() - start
+print(duration) 
 ```
 
 现在它需要大约 0.12 秒：比自动向量化 C 版本快 5 倍，比我们最初的 Python 实现快 5250 倍！

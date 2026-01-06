@@ -7,7 +7,10 @@
 为了达到更高的精度，你可以在循环中重复调用函数，只计时一次，然后将总时间除以迭代次数：
 
 ```cpp
-clock_t start = clock(); do_something(); float seconds = float(clock() - start) / CLOCKS_PER_SEC; printf("do_something() took %.4f", seconds); 
+clock_t start = clock();
+do_something();
+float seconds = float(clock() - start) / CLOCKS_PER_SEC;
+printf("do_something() took %.4f", seconds); 
 ```
 
 这里有一个细微差别，那就是你不能用这种方法来测量特别快的函数的执行时间，因为`clock`函数返回当前时间戳（以微秒为单位，$10^{-6}$），并且它本身完成也需要几百纳秒。所有其他与时间相关的实用工具都具有至少微秒级的粒度，这在底层优化的世界中是永恒的。
@@ -15,7 +18,22 @@ clock_t start = clock(); do_something(); float seconds = float(clock() - start) 
 ### [#](https://en.algorithmica.org/hpc/profiling/instrumentation/#event-sampling)事件抽样
 
 ```cpp
-#include <stdio.h> #include <time.h>  const int N = 1e6;   int main() {  clock_t start = clock();   for (int i = 0; i < N; i++) clock(); // benchmarking the clock function itself  float duration = float(clock() - start) / CLOCKS_PER_SEC; printf("%.2fns per iteration\n", 1e9 * duration / N);   return 0; } 
+#include <stdio.h>
+#include <time.h>
+
+const int N = 1e6;
+
+int main() {
+    clock_t start = clock();
+
+    for (int i = 0; i < N; i++)
+        clock(); // benchmarking the clock function itself
+
+    float duration = float(clock() - start) / CLOCKS_PER_SEC;
+    printf("%.2fns per iteration\n", 1e9 * duration / N);
+
+    return 0;
+} 
 ```
 
 *仪器*是一个过于复杂的术语，意味着将计时器和其他跟踪代码插入到程序中。最简单的例子是在类 Unix 系统中使用`time`实用工具来测量整个程序的执行持续时间。
@@ -35,7 +53,12 @@ clock_t start = clock(); do_something(); float seconds = float(clock() - start) 
 从数学上讲，我们在这里所做的就是反复从[伯努利分布](https://en.wikipedia.org/wiki/Bernoulli_distribution)（$p$等于采样率）中进行抽样，直到我们得到一个成功。还有一个分布可以告诉我们需要多少次伯努利抽样迭代才能得到第一个正值，称为[几何分布](https://en.wikipedia.org/wiki/Geometric_distribution)。我们可以从它中进行抽样，并使用该值作为递减计数器：
 
 ```cpp
-void query() {  if (rand() % 100 == 0) { // update statistics } // main logic } 
+void query() {
+    if (rand() % 100 == 0) {
+        // update statistics
+    }
+    // main logic
+} 
 ```
 
 你还需要确保没有任何东西被缓存、被编译器优化掉或受到类似副作用的影响。这是一个单独且非常复杂的话题，我们将在本章末尾进行更详细的讨论。
@@ -43,7 +66,14 @@ void query() {  if (rand() % 100 == 0) { // update statistics } // main logic }
 以类似的方式，我们可以在代码中插入计数器来计算这些特定算法的统计数据。
 
 ```cpp
-void query() {  static next_sample = geometric_distribution(sample_rate); if (next_sample--) { next_sample = geometric_distribution(sample_rate); // ... } // ... } 
+void query() {
+    static next_sample = geometric_distribution(sample_rate);
+    if (next_sample--) {
+        next_sample = geometric_distribution(sample_rate);
+        // ...
+    }
+    // ...
+} 
 ```
 
 这样我们就可以消除每次调用时都需要采样新随机数的需要，只有在选择计算统计数据时才重置计数器。

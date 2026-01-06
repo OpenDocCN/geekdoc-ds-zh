@@ -11,13 +11,36 @@
 第一种方法将把这些字段定位在二维数组的行中。我们将把这个变体称为 *结构数组*（AoS）：
 
 ```cpp
-const int M = N / D; // # of memory accesses int p[M], q[M][D];   iota(p, p + M, 0); random_shuffle(p, p + M);   int k = p[M - 1];   for (int i = 0; i < M; i++)  q[k][0] = p[i];   for (int j = 1; j < D; j++) q[i][0] ^= (q[j][i] = rand());   k = q[k][0]; }   for (int i = 0; i < M; i++) {  int x = 0; for (int j = 0; j < D; j++) x ^= q[k][j]; k = x; } 
+const int M = N / D; // # of memory accesses
+int p[M], q[M][D];
+
+iota(p, p + M, 0);
+random_shuffle(p, p + M);
+
+int k = p[M - 1];
+
+for (int i = 0; i < M; i++)
+    q[k][0] = p[i];
+
+    for (int j = 1; j < D; j++)
+        q[i][0] ^= (q[j][i] = rand());
+
+    k = q[k][0];
+}
+
+for (int i = 0; i < M; i++) {
+    int x = 0;
+    for (int j = 0; j < D; j++)
+        x ^= q[k][j];
+    k = x;
+} 
 ```
 
 在第二种方法中，我们将它们分别放置。这样做最懒惰的方式是将二维数组 `q` 转置，并在所有后续访问中交换索引：
 
 ```cpp
-int q[D][M]; //    ^--^ 
+int q[D][M];
+//    ^--^ 
 ```
 
 通过类比，我们称这种变体为 *数组结构*（SoA）。显然，对于大的 $D$ 值，它的性能要差得多：
@@ -53,7 +76,13 @@ int q[D][M]; //    ^--^
 只要我们获取相同数量的缓存行，它们的位置并不重要，对吧？让我们测试一下，并在 AoS 代码中切换到 padded 整数：
 
 ```cpp
-struct padded_int {  int val; int padding[15]; };   const int M = N / D / 16; padded_int q[M][D]; 
+struct padded_int {
+    int val;
+    int padding[15];
+};
+
+const int M = N / D / 16;
+padded_int q[M][D]; 
 ```
 
 除了这一点，我们仍在计算$D$填充整数的异或和。我们获取了正好$D$个缓存行，但这次是顺序的。运行时间不应该与 SoA 不同，但这并不是发生的情况：

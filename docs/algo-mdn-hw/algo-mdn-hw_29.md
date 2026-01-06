@@ -15,13 +15,27 @@
 这有时甚至适用于处理单个输入的算法。例如，给 GCD 实现提供连续数字不是一个好主意，因为它使得分支非常可预测：
 
 ```cpp
-// don't do this int checksum = 0;   for (int a = 0; a < 1000; a++)  for (int b = 0; b < 1000; b++) checksum ^= gcd(a, b); 
+// don't do this
+int checksum = 0;
+
+for (int a = 0; a < 1000; a++)
+    for (int b = 0; b < 1000; b++)
+        checksum ^= gcd(a, b); 
 ```
 
 然而，如果我们随机采样这些相同的数字，分支预测变得困难得多，尽管处理相同的输入，但顺序改变后，基准测试需要更长的时间：
 
 ```cpp
-int a[1000], b[1000];   for (int i = 0; i < 1000; i++)  a[i] = rand() % 1000, b[i] = rand() % 1000;   int checksum = 0;   for (int t = 0; t < 1000; t++)  for (int i = 0; i < 1000; i++) checksum += gcd(a[i], b[i]); 
+int a[1000], b[1000];
+
+for (int i = 0; i < 1000; i++)
+    a[i] = rand() % 1000, b[i] = rand() % 1000;
+
+int checksum = 0;
+
+for (int t = 0; t < 1000; t++)
+    for (int i = 0; i < 1000; i++)
+        checksum += gcd(a[i], b[i]); 
 ```
 
 尽管对于大多数情况来说，最合理的做法是随机均匀地采样数据，但许多现实世界的应用具有远非均匀的分布，因此不能只选择一个。一般来说，一个好的基准应该针对特定应用，并尽可能使用代表你实际用例的数据集。
@@ -43,7 +57,13 @@ int a[1000], b[1000];   for (int i = 0; i < 1000; i++)  a[i] = rand() % 1000, b[
 当你编写如下代码时：
 
 ```cpp
-for (int i = 0; i < N; i++)  q[i] = rand();   int checksum = 0;   for (int i = 0; i < N; i++)  checksum ^= lower_bound(q[i]); 
+for (int i = 0; i < N; i++)
+    q[i] = rand();
+
+int checksum = 0;
+
+for (int i = 0; i < N; i++)
+    checksum ^= lower_bound(q[i]); 
 ```
 
 然后测量整个过程并除以迭代次数，你实际上是在测量查询的*吞吐量*——它在单位时间内可以处理多少操作。由于交错，这通常小于单独处理一个操作所需的时间。
@@ -51,7 +71,8 @@ for (int i = 0; i < N; i++)  q[i] = rand();   int checksum = 0;   for (int i = 0
 为了测量实际的*延迟*，你需要引入调用之间的依赖关系：
 
 ```cpp
-for (int i = 0; i < N; i++)  checksum ^= lower_bound(checksum ^ q[i]); 
+for (int i = 0; i < N; i++)
+    checksum ^= lower_bound(checksum ^ q[i]); 
 ```
 
 这通常在可能存在流水线停滞问题的算法中影响最大，例如，在比较有分支和无分支算法时。
@@ -61,7 +82,20 @@ for (int i = 0; i < N; i++)  checksum ^= lower_bound(checksum ^ q[i]);
 这可以通过在开始测量之前进行一次**预热运行**来解决：
 
 ```cpp
-// warm-up run  volatile checksum = 0;   for (int i = 0; i < N; i++)  checksum ^= lower_bound(q[i]);     // actual run  clock_t start = clock(); checksum = 0;   for (int i = 0; i < N; i++)  checksum ^= lower_bound(q[i]); 
+// warm-up run
+
+volatile checksum = 0;
+
+for (int i = 0; i < N; i++)
+    checksum ^= lower_bound(q[i]);
+
+// actual run
+
+clock_t start = clock();
+checksum = 0;
+
+for (int i = 0; i < N; i++)
+    checksum ^= lower_bound(q[i]); 
 ```
 
 如果答案验证比仅仅计算某种校验和更复杂，有时将预热运行与答案验证结合起来也很方便。

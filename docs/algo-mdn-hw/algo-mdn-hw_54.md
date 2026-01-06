@@ -7,7 +7,21 @@
 为了测量*延迟*，我们需要设计一个实验，在这个实验中，CPU 不能通过提前知道我们将请求的内存位置来作弊。确保这一点的 一种方法是通过生成一个大小为 $N$ 的随机排列，该排列对应于一个循环，然后反复遵循该排列：
 
 ```cpp
-int p[N], q[N];   // generating a random permutation iota(p, p + N, 0); random_shuffle(p, p + N);   // this permutation may contain multiple cycles, // so instead we use it to construct another permutation with a single cycle int k = p[N - 1]; for (int i = 0; i < N; i++)  k = q[k] = p[i];   for (int t = 0; t < K; t++)  for (int i = 0; i < N; i++) k = q[k]; 
+int p[N], q[N];
+
+// generating a random permutation
+iota(p, p + N, 0);
+random_shuffle(p, p + N);
+
+// this permutation may contain multiple cycles,
+// so instead we use it to construct another permutation with a single cycle
+int k = p[N - 1];
+for (int i = 0; i < N; i++)
+    k = q[k] = p[i];
+
+for (int t = 0; t < K; t++)
+    for (int i = 0; i < N; i++)
+        k = q[k]; 
 ```
 
 与线性迭代相比，以这种方式遍历数组的所有元素要慢得多——慢得多——多个数量级。这不仅使得 SIMD 成为不可能，而且还 使流水线停滞，创建了一个巨大的指令交通堵塞，所有指令都在等待从内存中获取单个数据。

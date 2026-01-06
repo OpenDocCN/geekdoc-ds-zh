@@ -51,13 +51,30 @@
 假设由于某种原因，你需要一个辅助函数来计算整数区间的长度。它接受两个参数，$x$ 和 $y$，但为了方便，它可能对应于 $[x, y]$ 或 $[y, x]$，这取决于哪个不为空。在纯 C 语言中，你可能写成这样：
 
 ```cpp
-int length(int x, int y) {  if (x > y) return x - y; else return y - x; } 
+int length(int x, int y) {
+    if (x > y)
+        return x - y;
+    else
+        return y - x;
+} 
 ```
 
 在 x86 汇编中，你可以以更多的方式实现它，这明显影响了性能。让我们先尝试直接将此代码映射到汇编中：
 
 ```cpp
-length:  cmp  edi, esi jle  less ; x > y sub  edi, esi mov  eax, edi done:  ret less:  ; x <= y sub  esi, edi mov  eax, esi jmp  done 
+length:
+    cmp  edi, esi
+    jle  less
+    ; x > y
+    sub  edi, esi
+    mov  eax, edi
+done:
+    ret
+less:
+    ; x <= y
+    sub  esi, edi
+    mov  eax, esi
+    jmp  done 
 ```
 
 虽然初始的 C 语言代码看起来非常对称，但汇编版本则不然。这导致了一个有趣的现象：一个分支可以比另一个分支稍微快一点执行：如果 `x > y`，那么 CPU 可以直接执行 `cmp` 和 `ret` 之间的 5 条指令，如果函数对齐，这些指令都会一次性被取到；而如果是 `x <= y` 的情况，则需要额外的两个跳转。
@@ -65,31 +82,62 @@ length:  cmp  edi, esi jle  less ; x > y sub  edi, esi mov  eax, edi done:  ret 
 可以合理地假设 `x > y` 的情况是不太可能的（为什么有人会计算反转区间的长度？），更像是几乎从未发生的异常。我们可以检测这种情况，并简单地交换 `x` 和 `y`：
 
 ```cpp
-int length(int x, int y) {  if (x > y) swap(x, y); return y - x; } 
+int length(int x, int y) {
+    if (x > y)
+        swap(x, y);
+    return y - x;
+} 
 ```
 
 汇编代码将像这样，就像通常的 if-without-else 模式一样：
 
 ```cpp
-length:  cmp  edi, esi jle  normal     ; if x <= y, no swap is needed, and we can skip the xchg xchg edi, esi normal:  sub  esi, edi mov  eax, esi ret 
+length:
+    cmp  edi, esi
+    jle  normal     ; if x <= y, no swap is needed, and we can skip the xchg
+    xchg edi, esi
+normal:
+    sub  esi, edi
+    mov  eax, esi
+    ret 
 ```
 
 现在的总指令长度是 6，比之前的 8 短。但仍然没有针对我们假设的情况进行优化：如果我们认为 `x > y` 永远不会发生，那么加载 `xchg edi, esi` 指令（它永远不会被执行）就是浪费。我们可以通过将其移出正常执行路径来解决这个问题：
 
 ```cpp
-length:  cmp  edi, esi jg   swap normal:  sub  esi, edi mov  eax, esi ret swap:  xchg edi, esi jmp normal 
+length:
+    cmp  edi, esi
+    jg   swap
+normal:
+    sub  esi, edi
+    mov  eax, esi
+    ret
+swap:
+    xchg edi, esi
+    jmp normal 
 ```
 
 这种技术在处理异常情况时非常实用，在高级代码中，你可以给编译器一个 提示，表明某个分支比另一个分支更有可能：
 
 ```cpp
-int length(int x, int y) {  if (x > y) [[unlikely]] swap(x, y); return y - x; } 
+int length(int x, int y) {
+    if (x > y) [[unlikely]]
+        swap(x, y);
+    return y - x;
+} 
 ```
 
 这种优化只有在你知道分支很少被取用的情况下才是有益的。当情况不是这样时，有其他方面比代码布局更重要，这迫使编译器避免任何分支——在这种情况下，通过替换为特殊的“条件移动”指令来实现，大致对应于三元表达式`(x > y ? y - x : x - y)`或调用`abs(x - y)`：
 
 ```cpp
-length:  mov   edx, edi mov   eax, esi sub   edx, esi sub   eax, edi cmp   edi, esi cmovg eax, edx  ; "mov if edi > esi" ret 
+length:
+    mov   edx, edi
+    mov   eax, esi
+    sub   edx, esi
+    sub   eax, edi
+    cmp   edi, esi
+    cmovg eax, edx  ; "mov if edi > esi"
+    ret 
 ```
 
 消除分支是一个重要的话题，我们将在下一章的很大一部分内容中更详细地讨论它。

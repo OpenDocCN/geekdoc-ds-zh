@@ -29,7 +29,8 @@ GCC 中有 4 个半主要优化级别用于提高速度：
 这些选项也可以通过使用编译器指令（pragmas）而不是编译标志来指定一个编译单元：
 
 ```cpp
-#pragma GCC optimize("O3") #pragma GCC target("avx2") 
+#pragma GCC optimize("O3")
+#pragma GCC target("avx2") 
 ```
 
 当你需要优化单个高性能过程而不增加整个项目的构建时间时，这很有用。
@@ -39,7 +40,18 @@ GCC 中有 4 个半主要优化级别用于提高速度：
 有时候你可能也希望在单个库中提供几个特定架构的实现。你可以使用基于属性的语法在编译时自动选择多版本函数：
 
 ```cpp
-__attribute__(( target("default") )) // fallback implementation int popcnt(int x) {  int s = 0; for (int i = 0; i < 32; i++) s += (x>>i&1); return s; }   __attribute__(( target("popcnt") )) // used if popcnt flag is enabled int popcnt(int x) {  return __builtin_popcount(x); } 
+__attribute__(( target("default") )) // fallback implementation
+int popcnt(int x) {
+    int s = 0;
+    for (int i = 0; i < 32; i++)
+        s += (x>>i&1);
+    return s;
+}
+
+__attribute__(( target("popcnt") )) // used if popcnt flag is enabled
+int popcnt(int x) {
+    return __builtin_popcount(x);
+} 
 ```
 
 在 Clang 中，你不能使用预处理指令从源代码中设置目标和优化标志，但你可以使用属性，就像在 GCC 中一样。[← 编译阶段](https://en.algorithmica.org/hpc/compilation/stages/)[情境优化 →](https://en.algorithmica.org/hpc/compilation/situational/)

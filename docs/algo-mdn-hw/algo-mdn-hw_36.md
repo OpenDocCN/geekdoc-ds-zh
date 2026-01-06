@@ -92,31 +92,46 @@ $$ \begin{aligned} -x &= 2^{32} - x \\ &= \bar{x} + 1 \end{aligned} $$
 没有 128 位寄存器可以存储这种乘积的结果，所以`mul`指令除了正常的`mul r r`形式，其中它将寄存器中的值相乘并保留结果的一半，还有一个`mul r`模式，其中它将`rax`寄存器中存储的任何值与其操作数相乘，并将结果写入两个寄存器——结果的较低 64 位将进入`rax`，较高的 64 位进入`rdx`：
 
 ```cpp
-; input: 64-bit integers a and b, stored in rsi and rdi ; output: 128-bit product a * b, stored in rax (lower 64-bit) and rdx (higher 64-bit) mov     rax, rdi mov     r8, rdx imul    rsi 
+; input: 64-bit integers a and b, stored in rsi and rdi
+; output: 128-bit product a * b, stored in rax (lower 64-bit) and rdx (higher 64-bit)
+mov     rax, rdi
+mov     r8, rdx
+imul    rsi 
 ```
 
 一些编译器有支持这种操作的独立类型。在 GCC 和 Clang 中，它可用作`__int128`：
 
 ```cpp
-void prod(int64_t a, int64_t b, __int128 *c) {  *c = a * (__int128) b; } 
+void prod(int64_t a, int64_t b, __int128 *c) {
+    *c = a * (__int128) b;
+} 
 ```
 
 它的典型用法是立即提取乘积的较低或较高部分，然后忘记它：
 
 ```cpp
-__int128_t x = 1; int64_t hi = x >> 64; int64_t lo = (int64_t) x; // will be just truncated 
+__int128_t x = 1;
+int64_t hi = x >> 64;
+int64_t lo = (int64_t) x; // will be just truncated 
 ```
 
 对于除乘法以外的所有目的，128 位整数只是作为两个寄存器捆绑在一起。这使得拥有一个完整的 128 位类型变得非常奇怪，因此除了基本算术操作之外，对其的支持有限。例如：
 
 ```cpp
-__int128_t add(__int128_t a, __int128_t b) {  return a + b; } 
+__int128_t add(__int128_t a, __int128_t b) {
+    return a + b;
+} 
 ```
 
 编译成：
 
 ```cpp
-add:  mov rax, rdi add rax, rdx    ; this sets the carry flag in case of an overflow adc rsi, rcx    ; +1 if the carry flag is set mov rdx, rsi ret 
+add:
+    mov rax, rdi
+    add rax, rdx    ; this sets the carry flag in case of an overflow
+    adc rsi, rcx    ; +1 if the carry flag is set
+    mov rdx, rsi
+    ret 
 ```
 
 其他平台提供了类似的机制来处理超过字大小的乘法。例如，Arm 有`mulhi`和`mullo`指令，返回乘积的较低和较高部分，而 x86 SIMD 扩展有类似的 32 位指令。

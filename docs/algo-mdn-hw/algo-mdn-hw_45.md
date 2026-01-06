@@ -27,7 +27,13 @@
 虚拟内存的机制还允许透明地使用外部内存类型。现代操作系统支持[内存映射](https://en.wikipedia.org/wiki/Mmap)，这允许你打开一个文件，并像它们在主内存中一样使用其内容：
 
 ```cpp
-// open a file containing 1024 random integers for reading and writing int fd = open("input.bin", O_RDWR); // map it into memory      size  allow reads and writes  write changes back to the file int* data = (int*) mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0); // sort it like if it was a normal integer array std::sort(data, data + 1024); // changes are eventually propagated to the file 
+// open a file containing 1024 random integers for reading and writing
+int fd = open("input.bin", O_RDWR);
+// map it into memory      size  allow reads and writes  write changes back to the file
+int* data = (int*) mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+// sort it like if it was a normal integer array
+std::sort(data, data + 1024);
+// changes are eventually propagated to the file 
 ```
 
 在这里，我们映射一个 4K 文件，它可以完全适应单个内存页面，但是当我们请求某个页面时，其读取将延迟执行，而其写入将被缓冲，并在操作系统决定时提交到文件系统（通常在程序终止或系统内存不足时）。

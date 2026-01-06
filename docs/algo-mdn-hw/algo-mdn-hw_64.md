@@ -5,7 +5,16 @@
 考虑以下小程序，其中我们计算整数数组的和：
 
 ```cpp
-const int n = 1e5; int a[n], s = 0;   int main() {  for (int t = 0; t < 100000; t++) for (int i = 0; i < n; i++) s += a[i];   return 0; } 
+const int n = 1e5;
+int a[n], s = 0;
+
+int main() {
+    for (int t = 0; t < 100000; t++)
+        for (int i = 0; i < n; i++)
+            s += a[i];
+
+    return 0;
+} 
 ```
 
 如果我们用普通的`g++ -O3`编译并运行，它将在 2.43 秒内完成。
@@ -13,7 +22,8 @@ const int n = 1e5; int a[n], s = 0;   int main() {  for (int t = 0; t < 100000; 
 现在，让我们在开头添加以下神奇指令：
 
 ```cpp
-#pragma GCC target("avx2") // ...the rest is the same as before 
+#pragma GCC target("avx2")
+// ...the rest is the same as before 
 ```
 
 在相同的环境下编译和运行，它将在 1.24 秒内完成。这几乎是两倍的速度，而我们没有更改任何代码行或优化级别。

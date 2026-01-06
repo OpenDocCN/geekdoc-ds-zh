@@ -7,7 +7,32 @@
 处理这种麻烦的最佳方式是完全避免模运算，推迟或用 预测 来替换它，这可以在计算模和时做到，例如：
 
 ```cpp
-const int M = 1e9 + 7;   // input: array of n integers in the [0, M) range // output: sum modulo M int slow_sum(int *a, int n) {  int s = 0; for (int i = 0; i < n; i++) s = (s + a[i]) % M; return s; }   int fast_sum(int *a, int n) {  int s = 0; for (int i = 0; i < n; i++) { s += a[i]; // s < 2 * M s = (s >= M ? s - M : s); // will be replaced with cmov } return s; }   int faster_sum(int *a, int n) {  long long s = 0; // 64-bit integer to handle overflow for (int i = 0; i < n; i++) s += a[i]; // will be vectorized return s % M; } 
+const int M = 1e9 + 7;
+
+// input: array of n integers in the [0, M) range
+// output: sum modulo M
+int slow_sum(int *a, int n) {
+    int s = 0;
+    for (int i = 0; i < n; i++)
+        s = (s + a[i]) % M;
+    return s;
+}
+
+int fast_sum(int *a, int n) {
+    int s = 0;
+    for (int i = 0; i < n; i++) {
+        s += a[i]; // s < 2 * M
+        s = (s >= M ? s - M : s); // will be replaced with cmov
+    }
+    return s;
+}
+
+int faster_sum(int *a, int n) {
+    long long s = 0; // 64-bit integer to handle overflow
+    for (int i = 0; i < n; i++)
+        s += a[i]; // will be vectorized
+    return s % M;
+} 
 ```
 
 然而，有时你只有一系列模乘法，没有好的方法可以避免计算除法的余数——除了使用 整数除法技巧，这需要一个常数模数和一些预计算。
@@ -55,13 +80,28 @@ $$ x < n \cdot n < r \cdot n \implies x / r < n $$ 和 $$ m = q \cdot n < r \cdo
 因此，我们只需检查结果是否为负，如果是，则将其加上 $n$，得到以下算法：
 
 ```cpp
-typedef __uint32_t u32; typedef __uint64_t u64;   const u32 n = 1e9 + 7, nr = inverse(n, 1ull << 32);   u32 reduce(u64 x) {  u32 q = u32(x) * nr;      // q = x * n' mod r u64 m = (u64) q * n;      // m = q * n u32 y = (x - m) >> 32;    // y = (x - m) / r return x < m ? y + n : y; // if y < 0, add n to make it be in the [0, n) range } 
+typedef __uint32_t u32;
+typedef __uint64_t u64;
+
+const u32 n = 1e9 + 7, nr = inverse(n, 1ull << 32);
+
+u32 reduce(u64 x) {
+    u32 q = u32(x) * nr;      // q = x * n' mod r
+    u64 m = (u64) q * n;      // m = q * n
+    u32 y = (x - m) >> 32;    // y = (x - m) / r
+    return x < m ? y + n : y; // if y < 0, add n to make it be in the [0, n) range
+} 
 ```
 
 最后这个检查相对便宜，但仍然在关键路径上。如果我们对结果在 $[0, 2 \cdot n - 2]$ 范围内而不是 $0, n)$ 范围内没有问题，我们可以将其删除，并无条件地将 $n$ 添加到结果中：
 
 ```cpp
-u32 reduce(u64 x) {  u32 q = u32(x) * nr; u64 m = (u64) q * n; u32 y = (x - m) >> 32; return y + n } 
+u32 reduce(u64 x) {
+    u32 q = u32(x) * nr;
+    u64 m = (u64) q * n;
+    u32 y = (x - m) >> 32;
+    return y + n
+} 
 ```
 
 我们也可以将计算图中的 `>> 32` 操作提前一步，并计算 $\lfloor x / r \rfloor - \lfloor m / r \rfloor$ 而不是 $(x - m) / r$。这是正确的，因为 $x$ 和 $m$ 的低 32 位无论如何都是相同的
@@ -71,13 +111,23 @@ $$ m = x \cdot n^\prime \cdot n \equiv x \pmod r $$
 但为什么我们自愿选择执行两次右移而不是一次呢？这是因为对于`((u64) q * n) >> 32`，我们需要执行一个 32 位乘法并取结果的最高 32 位（x86 的`mul`指令[已经写入一个单独的寄存器，所以这并不需要任何开销），而另一个右移`x >> 32`不在关键路径上。
 
 ```cpp
-u32 reduce(u64 x) {  u32 q = u32(x) * nr; u32 m = ((u64) q * n) >> 32; return (x >> 32) + n - m; } 
+u32 reduce(u64 x) {
+    u32 q = u32(x) * nr;
+    u32 m = ((u64) q * n) >> 32;
+    return (x >> 32) + n - m;
+} 
 ```
 
 Montgomery 乘法相较于其他模数缩减方法的主要优势之一是它不需要非常大的数据类型：它只需要一个$r \times r$的乘法，该乘法提取结果的下$r$位和上$r$位，这在大多数硬件上[有特殊支持](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=7395,7392,7269,4868,7269,7269,1820,1835,6385,5051,4909,4918,5051,7269,6423,7410,150,2138,1829,1944,3009,1029,7077,519,5183,4462,4490,1944,5055,5012,5055&techs=AVX,AVX2&text=mul)，这也使得它很容易推广到 SIMD 和更大的数据类型：
 
 ```cpp
-typedef __uint128_t u128;   u64 reduce(u128 x) const {  u64 q = u64(x) * nr; u64 m = ((u128) q * n) >> 64; return (x >> 64) + n - m; } 
+typedef __uint128_t u128;
+
+u64 reduce(u128 x) const {
+    u64 q = u64(x) * nr;
+    u64 m = ((u128) q * n) >> 64;
+    return (x >> 64) + n - m;
+} 
 ```
 
 注意，使用通用的整数除法技巧无法进行 128 位对 64 位的模数运算：编译器[回退](https://godbolt.org/z/fbEE4v4qr)到调用一个慢速的[长算术库函数](https://github.com/llvm-mirror/compiler-rt/blob/69445f095c22aac2388f939bedebf224a6efcdaf/lib/builtins/udivmodti4.c#L22)来支持它。
@@ -111,13 +161,52 @@ $$ \bar{x} = x \cdot r \bmod n = x \cdot r² $$
 将所有内容包装在一个单独的`constexpr`结构体中是很方便的：
 
 ```cpp
-struct Montgomery {  u32 n, nr;  constexpr Montgomery(u32 n) : n(n), nr(1) { // log(2³²) = 5 for (int i = 0; i < 5; i++) nr *= 2 - n * nr; }   u32 reduce(u64 x) const { u32 q = u32(x) * nr; u32 m = ((u64) q * n) >> 32; return (x >> 32) + n - m; // returns a number in the [0, 2 * n - 2] range // (add a "x < n ? x : x - n" type of check if you need a proper modulo) }   u32 multiply(u32 x, u32 y) const { return reduce((u64) x * y); }   u32 transform(u32 x) const { return (u64(x) << 32) % n; // can also be implemented as multiply(x, r² mod n) } }; 
+struct Montgomery {
+    u32 n, nr;
+
+    constexpr Montgomery(u32 n) : n(n), nr(1) {
+        // log(2^32) = 5
+        for (int i = 0; i < 5; i++)
+            nr *= 2 - n * nr;
+    }
+
+    u32 reduce(u64 x) const {
+        u32 q = u32(x) * nr;
+        u32 m = ((u64) q * n) >> 32;
+        return (x >> 32) + n - m;
+        // returns a number in the [0, 2 * n - 2] range
+        // (add a "x < n ? x : x - n" type of check if you need a proper modulo)
+    }
+
+    u32 multiply(u32 x, u32 y) const {
+        return reduce((u64) x * y);
+    }
+
+    u32 transform(u32 x) const {
+        return (u64(x) << 32) % n;
+        // can also be implemented as multiply(x, r^2 mod n)
+    }
+}; 
 ```
 
 为了测试其性能，我们可以将蒙哥马利乘法插入到二进制指数运算中：
 
 ```cpp
-constexpr Montgomery space(M);   int inverse(int _a) {  u64 a = space.transform(_a); u64 r = space.transform(1);  #pragma GCC unroll(30) for (int l = 0; l < 30; l++) { if ( (M - 2) >> l & 1 ) r = space.multiply(r, a); a = space.multiply(a, a); }   return space.reduce(r); } 
+constexpr Montgomery space(M);
+
+int inverse(int _a) {
+    u64 a = space.transform(_a);
+    u64 r = space.transform(1);
+
+    #pragma GCC unroll(30)
+    for (int l = 0; l < 30; l++) {
+        if ( (M - 2) >> l & 1 )
+            r = space.multiply(r, a);
+        a = space.multiply(a, a);
+    }
+
+    return space.reduce(r);
+} 
 ```
 
 而使用编译器生成的快速模运算技巧的普通二进制指数运算每次`inverse`调用需要大约 170ns，这个实现需要大约 166ns，如果我们省略`transform`和`reduce`，则可以降低到大约 158ns（一个合理的用例是将`inverse`用作更大模运算子程序的一部分）。这是一个小的改进，但蒙哥马利乘法对于 SIMD 应用和更大的数据类型变得更加有利。

@@ -15,13 +15,27 @@
 这是一个常用的操作，因此 x86 上有一个单独的指令用于计算单词的计数人口：
 
 ```cpp
-const int N = (1<<12); int a[N];   int popcnt() {  int res = 0; for (int i = 0; i < N; i++) res += __builtin_popcount(a[i]); return res; } 
+const int N = (1<<12);
+int a[N];
+
+int popcnt() {
+    int res = 0;
+    for (int i = 0; i < N; i++)
+        res += __builtin_popcount(a[i]);
+    return res;
+} 
 ```
 
 它还支持 64 位整数，将总吞吐量提高了一倍：
 
 ```cpp
-int popcnt_ll() {  long long *b = (long long*) a; int res = 0; for (int i = 0; i < N / 2; i++) res += __builtin_popcountl(b[i]); return res; } 
+int popcnt_ll() {
+    long long *b = (long long*) a;
+    int res = 0;
+    for (int i = 0; i < N / 2; i++)
+        res += __builtin_popcountl(b[i]);
+    return res;
+} 
 ```
 
 只需要两个指令：负载融合的计数人口和加法。它们都具有高吞吐量，因此代码在每周期处理大约$8+8=16$字节，因为它受限于这个 CPU 上的 4 位解码宽度。
@@ -31,7 +45,14 @@ int popcnt_ll() {  long long *b = (long long*) a; int res = 0; for (int i = 0; i
 常规的方法是逐位遍历二进制字符串：
 
 ```cpp
-__attribute__ (( optimize("no-tree-vectorize") )) int popcnt() {  int res = 0; for (int i = 0; i < N; i++) for (int l = 0; l < 32; l++) res += (a[i] >> l & 1); return res; } 
+__attribute__ (( optimize("no-tree-vectorize") ))
+int popcnt() {
+    int res = 0;
+    for (int i = 0; i < N; i++)
+        for (int l = 0; l < 32; l++)
+            res += (a[i] >> l & 1);
+    return res;
+} 
 ```
 
 如预期的那样，它每周期略快于 1/8 字节——大约是 0.2。
@@ -39,7 +60,25 @@ __attribute__ (( optimize("no-tree-vectorize") )) int popcnt() {  int res = 0; f
 我们可以尝试以字节为单位进行处理，而不是逐个位，通过预计算一个包含单个字节计数人口的 256 元素*查找表*，然后在迭代数组的原始字节时查询它：
 
 ```cpp
-struct Precalc {  alignas(64) char counts[256];   constexpr Precalc() : counts{} { for (int m = 0; m < 256; m++) for (int i = 0; i < 8; i++) counts[m] += (m >> i & 1); } };   constexpr Precalc P;   int popcnt() {  auto b = (unsigned char*) a; // careful: plain "char" is signed int res = 0; for (int i = 0; i < 4 * N; i++) res += P.counts[b[i]]; return res; } 
+struct Precalc {
+    alignas(64) char counts[256];
+
+    constexpr Precalc() : counts{} {
+        for (int m = 0; m < 256; m++)
+            for (int i = 0; i < 8; i++)
+                counts[m] += (m >> i & 1);
+    }
+};
+
+constexpr Precalc P;
+
+int popcnt() {
+    auto b = (unsigned char*) a; // careful: plain "char" is signed
+    int res = 0;
+    for (int i = 0; i < 4 * N; i++)
+        res += P.counts[b[i]];
+    return res;
+} 
 ```
 
 现在它每周期处理大约 2 个字节，如果我们切换到 16 位单词（`unsigned short`），则上升到约 2.7。
@@ -51,13 +90,55 @@ struct Precalc {  alignas(64) char counts[256];   constexpr Precalc() : counts{}
 因此，对于我们的用例，我们创建了一个 16 字节的查找表，其中包含每个半字节的计数，重复两次：
 
 ```cpp
-const reg lookup = _mm256_setr_epi8(  /* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2, /* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3, /* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3, /* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,   /* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2, /* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3, /* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3, /* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4 ); 
+const reg lookup = _mm256_setr_epi8(
+    /* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+    /* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+    /* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+    /* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4,
+
+    /* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2,
+    /* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3,
+    /* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3,
+    /* c */ 2, /* d */ 3, /* e */ 3, /* f */ 4
+); 
 ```
 
 现在，为了计算向量的计数，我们将每个字节拆分为低半字节和高半字节，然后使用此查找表检索它们的计数。唯一剩下的事情是仔细地将它们相加：
 
 ```cpp
-const reg low_mask = _mm256_set1_epi8(0x0f);   int popcnt() {  int k = 0;   reg t = _mm256_setzero_si256();   for (; k + 15 < N; k += 15) { reg s = _mm256_setzero_si256();  for (int i = 0; i < 15; i += 8) { reg x = _mm256_load_si256( (reg*) &a[k + i] );  reg l = _mm256_and_si256(x, low_mask); reg h = _mm256_and_si256(_mm256_srli_epi16(x, 4), low_mask);   reg pl = _mm256_shuffle_epi8(lookup, l); reg ph = _mm256_shuffle_epi8(lookup, h);   s = _mm256_add_epi8(s, pl); s = _mm256_add_epi8(s, ph); }   t = _mm256_add_epi64(t, _mm256_sad_epu8(s, _mm256_setzero_si256())); }   int res = hsum(t);   while (k < N) res += __builtin_popcount(a[k++]);   return res; } 
+const reg low_mask = _mm256_set1_epi8(0x0f);
+
+int popcnt() {
+    int k = 0;
+
+    reg t = _mm256_setzero_si256();
+
+    for (; k + 15 < N; k += 15) {
+        reg s = _mm256_setzero_si256();
+
+        for (int i = 0; i < 15; i += 8) {
+            reg x = _mm256_load_si256( (reg*) &a[k + i] );
+
+            reg l = _mm256_and_si256(x, low_mask);
+            reg h = _mm256_and_si256(_mm256_srli_epi16(x, 4), low_mask);
+
+            reg pl = _mm256_shuffle_epi8(lookup, l);
+            reg ph = _mm256_shuffle_epi8(lookup, h);
+
+            s = _mm256_add_epi8(s, pl);
+            s = _mm256_add_epi8(s, ph);
+        }
+
+        t = _mm256_add_epi64(t, _mm256_sad_epu8(s, _mm256_setzero_si256()));
+    }
+
+    int res = hsum(t);
+
+    while (k < N)
+        res += __builtin_popcount(a[k++]);
+
+    return res;
+} 
 ```
 
 此代码每个周期处理大约 30 字节。理论上，内循环可以执行 32 次，但我们必须每 15 次迭代停止一次，因为 8 位计数器可能会溢出。
@@ -71,7 +152,17 @@ const reg low_mask = _mm256_set1_epi8(0x0f);   int popcnt() {  int k = 0;   reg 
 在单线程标量情况下，通过维护一个每次写入时递增的计数器可以简单地实现：
 
 ```cpp
-int a[N], b[N];   int filter() {  int k = 0;   for (int i = 0; i < N; i++) if (a[i] < P) b[k++] = a[i];   return k; } 
+int a[N], b[N];
+
+int filter() {
+    int k = 0;
+
+    for (int i = 0; i < N; i++)
+        if (a[i] < P)
+            b[k++] = a[i];
+
+    return k;
+} 
 ```
 
 为了进行向量化，我们将使用 `_mm256_permutevar8x32_epi32` 内置函数。它接受一个值向量并使用索引向量单独选择它们。尽管名称如此，它并不*排列*值，而是*复制*它们以形成一个新的向量：结果中允许有重复。
@@ -93,13 +184,45 @@ int a[N], b[N];   int filter() {  int k = 0;   for (int i = 0; i < N; i++) if (a
 首先，我们需要预先计算排列：
 
 ```cpp
-struct Precalc {  alignas(64) int permutation[256][8];   constexpr Precalc() : permutation{} { for (int m = 0; m < 256; m++) { int k = 0; for (int i = 0; i < 8; i++) if (m >> i & 1) permutation[m][k++] = i; } } };   constexpr Precalc T; 
+struct Precalc {
+    alignas(64) int permutation[256][8];
+
+    constexpr Precalc() : permutation{} {
+        for (int m = 0; m < 256; m++) {
+            int k = 0;
+            for (int i = 0; i < 8; i++)
+                if (m >> i & 1)
+                    permutation[m][k++] = i;
+        }
+    }
+};
+
+constexpr Precalc T; 
 ```
 
 然后，我们可以实现算法本身：
 
 ```cpp
-const reg p = _mm256_set1_epi32(P);   int filter() {  int k = 0;   for (int i = 0; i < N; i += 8) { reg x = _mm256_load_si256( (reg*) &a[i] );  reg m = _mm256_cmpgt_epi32(p, x); int mask = _mm256_movemask_ps((__m256) m); reg permutation = _mm256_load_si256( (reg*) &T.permutation[mask] );  x = _mm256_permutevar8x32_epi32(x, permutation); _mm256_storeu_si256((reg*) &b[k], x);  k += __builtin_popcount(mask); }   return k; } 
+const reg p = _mm256_set1_epi32(P);
+
+int filter() {
+    int k = 0;
+
+    for (int i = 0; i < N; i += 8) {
+        reg x = _mm256_load_si256( (reg*) &a[i] );
+
+        reg m = _mm256_cmpgt_epi32(p, x);
+        int mask = _mm256_movemask_ps((__m256) m);
+        reg permutation = _mm256_load_si256( (reg*) &T.permutation[mask] );
+
+        x = _mm256_permutevar8x32_epi32(x, permutation);
+        _mm256_storeu_si256((reg*) &b[k], x);
+
+        k += __builtin_popcount(mask);
+    }
+
+    return k;
+} 
 ```
 
 向量化版本需要一些工作来实现，但它比标量版本快 6-7 倍（对于`P`的值无论是低还是高，速度提升略低，因为分支变得可预测）。

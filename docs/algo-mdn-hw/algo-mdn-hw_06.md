@@ -15,13 +15,20 @@ CPU 使用*机器语言*进行控制，它只是一串二进制编码的指令�
 直接进入主题，以下是如何在 Arm 汇编中添加两个数字（`*c = *a + *b`）的示例：
 
 ```cpp
-; *a = x0, *b = x1, *c = x2 ldr w0, [x0]    ; load 4 bytes from wherever x0 points into w0 ldr w1, [x1]    ; load 4 bytes from wherever x1 points into w1 add w0, w0, w1  ; add w0 with w1 and save the result to w0 str w0, [x2]    ; write contents of w0 to wherever x2 points 
+; *a = x0, *b = x1, *c = x2
+ldr w0, [x0]    ; load 4 bytes from wherever x0 points into w0
+ldr w1, [x1]    ; load 4 bytes from wherever x1 points into w1
+add w0, w0, w1  ; add w0 with w1 and save the result to w0
+str w0, [x2]    ; write contents of w0 to wherever x2 points 
 ```
 
 这是 x86 汇编中的相同操作：
 
 ```cpp
-; *a = rsi, *b = rdi, *c = rdx mov eax, DWORD PTR [rsi]  ; load 4 bytes from wherever rsi points into eax add eax, DWORD PTR [rdi]  ; add whatever is stored at rdi to eax mov DWORD PTR [rdx], eax  ; write contents of eax to wherever rdx points 
+; *a = rsi, *b = rdi, *c = rdx 
+mov eax, DWORD PTR [rsi]  ; load 4 bytes from wherever rsi points into eax
+add eax, DWORD PTR [rdi]  ; add whatever is stored at rdi to eax
+mov DWORD PTR [rdx], eax  ; write contents of eax to wherever rdx points 
 ```
 
 汇编语言相对于高级编程语言来说非常简单，因为它不需要复杂。它尽可能地反映了机器语言，直到机器代码和汇编之间几乎达到 1:1 的对应。实际上，你可以使用称为*反汇编*的过程将任何编译程序转换回其汇编形式——尽管非必要的内容，如注释将不会被保留。
@@ -105,7 +112,9 @@ SIZE PTR [base + index * scale + displacement]
 我们在本章中使用了 Intel 语法，并将继续在本书的其余部分优先使用它。为了比较，以下是在 AT&T 汇编中相同的 `*c = *a + *b` 示例的表示：
 
 ```cpp
-movl (%rsi), %eax addl (%rdi), %eax movl %eax, (%rdx) 
+movl (%rsi), %eax
+addl (%rdi), %eax
+movl %eax, (%rdx) 
 ```
 
 关键区别可以总结如下：
