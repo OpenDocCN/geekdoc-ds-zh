@@ -13,6 +13,7 @@
 +   [通用图形处理器架构](docs/gpgp-arch/README.md)
 +   [GPU 编程：何时、为何以及如何？](docs/gpu-prog-wwh/README.md)
 +   [认知科学的贝叶斯数据分析导论](docs/intd-bys-dtanls-cgnsci/README.md)
++   [R 和 Python 数据分析入门：对比学习法](docs/intd-r-py-dtanls-sdbysd-aprc/README.md)
 +   [统计学与数据分析导论 – 基于案例的方法](docs/intd-stat-dtanls/README.md)
 +   [数据科学简介](docs/intro-ds/README.md)
 +   [TouchDesigner 入门指南](docs/intro-tchdsn/README.md)
