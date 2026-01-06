@@ -1,0 +1,221 @@
+- en: Branchless Programming
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/pipelining/branchless/](https://en.algorithmica.org/hpc/pipelining/branchless/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: As we established in [the previous section](../branching), branches that can’t
+    be effectively predicted by the CPU are expensive as they may cause a long pipeline
+    stall to fetch new instructions after a branch mispredict. In this section, we
+    discuss the means of removing branches in the first place.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#predication)Predication'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are going to continue the same case study we’ve started before — we create
+    an array of random numbers and sum up all its elements below 50:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our goal is to eliminate the branch caused by the `if` statement. We can try
+    to get rid of it like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The loop now takes ~7 cycles per element instead of the original ~14\. Also,
+    the performance remains constant if we change `50` to some other threshold, so
+    it doesn’t depend on the branch probability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But wait… shouldn’t there still be a branch? How does `(a[i] < 50)` map to assembly?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are no Boolean types in assembly, nor any instructions that yield either
+    one or zero based on the result of the comparison, but we can compute it indirectly
+    like this: `(a[i] - 50) >> 31`. This trick relies on the [binary representation
+    of integers](/hpc/arithmetic/integer), specifically on the fact that if the expression
+    `a[i] - 50` is negative (implying `a[i] < 50`), then the highest bit of the result
+    will be set to one, which we can then extract using a right-shift.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another, more complicated way to implement this whole sequence is to convert
+    this sign bit into a mask and then use bitwise `and` instead of multiplication:
+    `((a[i] - 50) >> 31 - 1) & a[i]`. This makes the whole sequence one cycle faster,
+    considering that, unlike other instructions, `imul` takes 3 cycles:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that this optimization is not technically correct from the compiler’s
+    perspective: for the 50 lowest representable integers — those in the $[-2^{31},
+    - 2^{31} + 49]$ range — the result will be wrong due to underflow. We know that
+    all numbers are all between 0 and 100, and this won’t happen, but the compiler
+    doesn’t.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But the compiler actually elects to do something different. Instead of going
+    with this arithmetic trick, it used a special `cmov` (“conditional move”) instruction
+    that assigns a value based on a condition (which is computed and checked using
+    the flags register, the same way as for jumps):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'So the code above is actually closer to using a ternary operator like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Both variants are optimized by the compiler and produce the following assembly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This general technique is called *predication*, and it is roughly equivalent
+    to this algebraic trick:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: $$ x = c \cdot a + (1 - c) \cdot b $$
+  prefs: []
+  type: TYPE_NORMAL
+- en: This way you can eliminate branching, but this comes at the cost of evaluating
+    *both* branches and the `cmov` itself. Because evaluating the “>=” branch costs
+    nothing, the performance is exactly equal to [the “always yes” case](../branching/#branch-prediction)
+    in the branchy version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#when-predication-is-beneficial)When
+    Predication Is Beneficial'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using predication eliminates [a control hazard](../hazards) but introduces
+    a data hazard. There is still a pipeline stall, but it is a cheaper one: you only
+    need to wait for `cmov` to be resolved and not flush the entire pipeline in case
+    of a mispredict.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, there are many situations when it is more efficient to leave branchy
+    code as it is. This is the case when the cost of computing *both* branches instead
+    of just *one* outweighs the penalty for the potential branch mispredictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our example, the branchy code wins when the branch can be predicted with
+    a probability of more than ~75%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/2310bb67e7bb9ec6ac10dff44f8498e4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This 75% threshold is commonly used by the compilers as a heuristic for determining
+    whether to use the `cmov` or not. Unfortunately, this probability is usually unknown
+    at the compile time, so it needs to be provided in one of several ways:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can use [profile-guided optimization](/hpc/compilation/situational/#profile-guided-optimization)
+    which will decide for itself whether to use predication or not.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can use [likeliness attributes](../branching#hinting-likeliness-of-branches)
+    and [compiler-specific intrinsics](/hpc/compilation/situational) to hint at the
+    likeliness of branches: `__builtin_expect_with_probability` in GCC and `__builtin_unpredictable`
+    in Clang.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can rewrite branchy code using the ternary operator or various arithmetic
+    tricks, which acts as sort of an implicit contract between programmers and compilers:
+    if the programmer wrote the code this way, then it was probably meant to be branchless.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The “right way” is to use branching hints, but unfortunately, the support for
+    them is lacking. Right now [these hints seem to be lost](https://bugs.llvm.org/show_bug.cgi?id=40027)
+    by the time the compiler back-end decides whether a `cmov` is more beneficial.
+    There is [some progress](https://discourse.llvm.org/t/rfc-cmov-vs-branch-optimization/6040)
+    towards making it possible, but currently, there is no good way of forcing the
+    compiler to generate branch-free code, so sometimes the best hope is to just write
+    a small snippet in assembly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#larger-examples)Larger
+    Examples'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Strings.** Oversimplifying things, an `std::string` is comprised of a pointer
+    to a null-terminated `char` array (also known as a “C-string”) allocated somewhere
+    on the heap and one integer containing the string size.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A common value for a string is the empty string — which is also its default
+    value. You also need to handle them somehow, and the idiomatic approach is to
+    assign `nullptr` as the pointer and `0` as the string size, and then check if
+    the pointer is null or if the size is zero at the beginning of every procedure
+    involving strings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this requires a separate branch, which is costly (unless the majority
+    of strings are either empty or non-empty). To remove the check and thus also the
+    branch, we can allocate a “zero C-string,” which is just a zero byte allocated
+    somewhere, and then simply point all empty strings there. Now all string operations
+    with empty strings have to read this useless zero byte, but this is still much
+    cheaper than a branch misprediction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Binary search.** The standard binary search [can be implemented](/hpc/data-structures/binary-search)
+    without branches, and on small arrays (that fit into cache) it works ~4x faster
+    than the branchy `std::lower_bound`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Other than being more complex, it has another slight drawback in that it potentially
+    does more comparisons (constant $\lceil \log_2 n \rceil$ instead of either $\lfloor
+    \log_2 n \rfloor$ or $\lceil \log_2 n \rceil$) and can’t speculate on future memory
+    reads (which acts as prefetching, so it loses on very large arrays).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, data structures are made branchless by implicitly or explicitly
+    *padding* them so that their operations take a constant number of iterations.
+    Refer to [the article](/hpc/data-structures/binary-search) for more complex examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Data-parallel programming.** Branchless programming is very important for
+    [SIMD](/hpc/simd) applications because they don’t have branching in the first
+    place.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our array sum example, removing the `volatile` type qualifier from the accumulator
+    allows the compiler to [vectorize](/hpc/simd/auto-vectorization) the loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: It now works in ~0.3 per element, which is mainly [bottlenecked by the memory](/hpc/cpu-cache/bandwidth).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The compiler is usually able to vectorize any loop that doesn’t have branches
+    or dependencies between the iterations — and some specific small deviations from
+    that, such as [reductions](/hpc/simd/reduction) or simple loops that contain just
+    one if-without-else. Vectorization of anything more complex is a very nontrivial
+    problem, which may involve various techniques such as [masking](/hpc/simd/masking)
+    and [in-register permutations](/hpc/simd/shuffling). [← The Cost of Branching](https://en.algorithmica.org/hpc/pipelining/branching/)[Instruction
+    Tables →](https://en.algorithmica.org/hpc/pipelining/tables/)
+  prefs: []
+  type: TYPE_NORMAL

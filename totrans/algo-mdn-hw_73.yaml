@@ -1,0 +1,461 @@
+- en: Integer Factorization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/algorithms/factorization/](https://en.algorithmica.org/hpc/algorithms/factorization/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The problem of factoring integers into primes is central to computational [number
+    theory](/hpc/number-theory/). It has been [studied](https://www.cs.purdue.edu/homes/ssw/chapter3.pdf)
+    since at least the 3rd century BC, and [many methods](https://en.wikipedia.org/wiki/Category:Integer_factorization_algorithms)
+    have been developed that are efficient for different inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this case study, we specifically consider the factorization of *word-sized*
+    integers: those on the order of $10^9$ and $10^{18}$. Untypical for this book,
+    in this one, you may actually learn an asymptotically better algorithm: we start
+    with a few basic approaches and gradually build up to the $O(\sqrt[4]{n})$-time
+    *Pollard’s rho algorithm* and optimize it to the point where it can factorize
+    60-bit semiprimes in 0.3-0.4ms and ~3 times faster than the previous state-of-the-art.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#benchmark)Benchmark'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For all methods, we will implement `find_factor` function that takes a positive
+    integer $n$ and returns any of its non-trivial divisors (or `1` if the number
+    is prime):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To find the full factorization, you can apply it to $n$, reduce it, and continue
+    until a new factor can no longer be found:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: After each removed factor, the problem becomes considerably smaller, so the
+    worst-case running time of full factorization is equal to the worst-case running
+    time of a `find_factor` call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For many factorization algorithms, including those presented in this section,
+    the running time scales with the smaller prime factor. Therefore, to provide worst-case
+    input, we use *semiprimes:* products of two prime numbers $p \le q$ that are on
+    the same order of magnitude. We generate a $k$-bit semiprime as the product of
+    two random $\lfloor k / 2 \rfloor$-bit primes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since some of the algorithms are inherently randomized, we also tolerate a small
+    (<1%) percentage of false-negative errors (when `find_factor` returns `1` despite
+    number $n$ being composite), although this rate can be reduced to almost zero
+    without significant performance penalties.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#trial-division)Trial
+    division'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The most basic approach is to try every integer smaller than $n$ as a divisor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can notice that if $n$ is divided by $d < \sqrt n$, then it is also divided
+    by $\frac{n}{d} > \sqrt n$, and there is no need to check for it separately. This
+    lets us stop trial division early and only check for potential divisors that do
+    not exceed $\sqrt n$:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: In our benchmark, $n$ is a semiprime, and we always find the lesser divisor,
+    so both $O(n)$ and $O(\sqrt n)$ implementations perform the same and are able
+    to factorize ~2k 30-bit numbers per second — while taking whole 20 seconds to
+    factorize a single 60-bit number.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#lookup-table)Lookup
+    Table'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Nowadays, you can type `factor 57` in your Linux terminal or Google search bar
+    to get the factorization of any number. But before computers were invented, it
+    was more practical to use *factorization tables:* special books containing factorizations
+    of the first $N$ numbers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also use this approach to compute these lookup tables [during compile
+    time](/hpc/compilation/precalc/). To save space, we can store only the smallest
+    divisor of a number. Since the smallest divisor does not exceed the $\sqrt n$,
+    we need just one byte per a 16-bit integer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this approach, we can process 3M 16-bit integers per second, although it
+    would probably [get slower](../hpc/cpu-cache/bandwidth/) for larger numbers. While
+    it requires just a few milliseconds and 64KB of memory to calculate and store
+    the divisors of the first $2^{16}$ numbers, it does not scale well for larger
+    inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#wheel-factorization)Wheel
+    factorization'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To save paper space, pre-computer era factorization tables typically excluded
+    numbers divisible by $2$ and $5$, making the factorization table ½ × ⅘ = 0.4 of
+    its original size. In the decimal numeral system, you can quickly determine whether
+    a number is divisible by $2$ or $5$ (by looking at its last digit) and keep dividing
+    the number $n$ by $2$ or $5$ while it is possible, eventually arriving at some
+    entry in the factorization table.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can apply a similar trick to trial division by first checking if the number
+    is divisible by $2$ and then only considering odd divisors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: With 50% fewer divisions to perform, this algorithm works twice as fast.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This method can be extended: if the number is not divisible by $3$, we can
+    also ignore all multiples of $3$, and the same goes for all other divisors. The
+    problem is, as we increase the number of primes to exclude, it becomes less straightforward
+    to iterate only over the numbers not divisible by them as they follow an irregular
+    pattern — unless the number of primes is small.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, if we consider $2$, $3$, and $5$, then, among the first $90$ numbers,
+    we only need to check:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You can notice a pattern: the sequence repeats itself every $30$ numbers. This
+    is not surprising since the remainder modulo $2 \times 3 \times 5 = 30$ is all
+    we need to determine whether a number is divisible by $2$, $3$, or $5$. This means
+    that we only need to check $8$ numbers with specific remainders out of every $30$,
+    proportionally improving the performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As expected, it works $\frac{30}{8} = 3.75$ times faster than the naive trial
+    division, processing about 7.6k 30-bit numbers per second. The performance can
+    be improved further by considering more primes, but the returns are diminishing:
+    adding a new prime $p$ reduces the number of iterations by $\frac{1}{p}$ but increases
+    the size of the skip-list by a factor of $p$, requiring proportionally more memory.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#precomputed-primes)Precomputed
+    Primes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we keep increasing the number of primes in wheel factorization, we eventually
+    exclude all composite numbers and only check for prime factors. In this case,
+    we don’t need this array of offsets but just the array of primes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: This approach lets us process almost 20k 30-bit integers per second, but it
+    does not work for larger (64-bit) numbers unless they have small ($< 2^{16}$)
+    factors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that this is actually an asymptotic optimization: there are $O(\frac{n}{\ln
+    n})$ primes among the first $n$ numbers, so this algorithm performs $O(\frac{\sqrt
+    n}{\ln \sqrt n})$ operations, while wheel factorization only eliminates a large
+    but constant fraction of divisors. If we extend it to 64-bit numbers and precompute
+    every prime under $2^{32}$ (storing which would require several hundred megabytes
+    of memory), the relative speedup would grow by a factor of $\frac{\ln \sqrt{n^2}}{\ln
+    \sqrt n} = 2 \cdot \frac{1/2}{1/2} \cdot \frac{\ln n}{\ln n} = 2$.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All variants of trial division, including this one, are bottlenecked by the
+    speed of integer division, which can be [optimized](/hpc/arithmetic/division/)
+    if we know the divisors in advance and allow for some additional precomputation.
+    In our case, it is suitable to use [the Lemire division check](/hpc/arithmetic/division/#lemire-reduction):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This makes the algorithm ~18x faster: we can now factorize **~350k** 30-bit
+    numbers per second, which is actually the most efficient algorithm we have for
+    this number range. While it can probably be optimized even further by performing
+    these checks in parallel with [SIMD](/hpc/simd), we will stop there and try a
+    different, asymptotically better approach.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#pollards-rho-algorithm)Pollard’s
+    Rho Algorithm'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pollard’s rho is a randomized $O(\sqrt[4]{n})$ integer factorization algorithm
+    that makes use of the [birthday paradox](https://en.wikipedia.org/wiki/Birthday_problem):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One only needs to draw $d = \Theta(\sqrt{n})$ random numbers between $1$ and
+    $n$ to get a collision with high probability.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The reasoning behind it is that each of the $d$ added element has a $\frac{d}{n}$
+    chance of colliding with some other element, implying that the expected number
+    of collisions is $\frac{d^2}{n}$. If $d$ is asymptotically smaller than $\sqrt
+    n$, then this ratio grows to zero as $n \to \infty$, and to infinity otherwise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider some function $f(x)$ that takes a remainder $x \in [0, n)$ and maps
+    it to some other remainder of $n$ in a way that seems random from the number theory
+    point of view. Specifically, we will use $f(x) = x^2 + 1 \bmod n$, which is random
+    enough for our purposes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, consider a graph where each number-vertex $x$ has an edge pointing to $f(x)$.
+    Such graphs are called *functional*. In functional graphs, the “trajectory” of
+    any element — the path we walk if we start from that element and keep following
+    the edges — is a path that eventually loops around (because the set of vertices
+    is limited, and at some point, we have to go to a vertex we have already visited).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/a14a3b0aa1faeb544fa4ed1c27885e32.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The trajectory of an element resembles the greek letter ρ (rho), which is what
+    the algorithm is named after
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider a trajectory of some particular element $x_0$:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: $$ x_0, \; f(x_0), \; f(f(x_0)), \; \ldots $$
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s make another sequence out of this one by reducing each element modulo
+    $p$, the smallest prime divisor of $n$.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Lemma.** The expected length of the reduced sequence before it turns into
+    a cycle is $O(\sqrt[4]{n})$.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Proof:** Since $p$ is the smallest divisor, $p \leq \sqrt n$. Each time we
+    follow a new edge, we essentially generate a random number between $0$ and $p$
+    (we treat $f$ as a “deterministically-random” function). The birthday paradox
+    states that we only need to generate $O(\sqrt p) = O(\sqrt[4]{n})$ numbers until
+    we get a collision and thus enter a loop.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since we don’t know $p$, this mod-$p$ sequence is only imaginary, but if find
+    a cycle in it — that is, $i$ and $j$ such that
+  prefs: []
+  type: TYPE_NORMAL
+- en: '$$ f^i(x_0) \equiv f^j(x_0) \pmod p $$ then we can also find $p$ itself as
+    $$ p = \gcd(|f^i(x_0) - f^j(x_0)|, n) $$ The algorithm itself just finds this
+    cycle and $p$ using this GCD trick and Floyd’s “[tortoise and hare](https://en.wikipedia.org/wiki/Cycle_detection#Floyd''s_tortoise_and_hare)”
+    algorithm: we maintain two pointers $i$ and $j = 2i$ and check that $$ \gcd(|f^i(x_0)
+    - f^j(x_0)|, n) \neq 1 $$'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'which is equivalent to comparing $f^i(x_0)$ and $f^j(x_0)$ modulo $p$. Since
+    $j$ (hare) is increasing at twice the rate of $i$ (tortoise), their difference
+    is increasing by $1$ each iteration and eventually will become equal to (or a
+    multiple of) the cycle length, with $i$ and $j$ pointing to the same elements.
+    And as we proved half a page ago, reaching a cycle would only require $O(\sqrt[4]{n})$
+    iterations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: While it processes only ~25k 30-bit integers — which is almost 15 times slower
+    than by checking each prime using a fast division trick — it dramatically outperforms
+    every $\tilde{O}(\sqrt n)$ algorithm for 60-bit numbers, factorizing around 90
+    of them per second.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#pollard-brent-algorithm)Pollard-Brent
+    Algorithm'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Floyd’s cycle-finding algorithm has a problem in that it moves iterators more
+    than necessary: at least half of the vertices are visited one additional time
+    by the slower iterator.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One way to solve it is to memorize the values $x_i$ that the faster iterator
+    visits and, every two iterations, compute the GCD using the difference of $x_i$
+    and $x_{\lfloor i / 2 \rfloor}$. But it can also be done without extra memory
+    using a different principle: the tortoise doesn’t move on every iteration, but
+    it gets reset to the value of the faster iterator when the iteration number becomes
+    a power of two. This lets us save additional iterations while still using the
+    same GCD trick to compare $x_i$ and $x_{2^{\lfloor \log_2 i \rfloor}}$ on each
+    iteration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we also set an upper limit on the number of iterations so that the
+    algorithm finishes in a reasonable amount of time and returns `1` if $n$ turns
+    out to be a prime.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It actually does *not* improve performance and even makes the algorithm ~1.5x
+    *slower*, which probably has something to do with the fact that $x$ is stale.
+    It spends most of the time computing the GCD and not advancing the iterator —
+    in fact, the time requirement of this algorithm is currently $O(\sqrt[4]{n} \log
+    n)$ because of it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of [optimizing the GCD itself](../gcd), we will optimize the number
+    of its invocations. We can use the fact that if one of $a$ and $b$ contains factor
+    $p$, then $a \cdot b \bmod n$ will also contain it, so instead of computing $\gcd(a,
+    n)$ and $\gcd(b, n)$, we can compute $\gcd(a \cdot b \bmod n, n)$. This way, we
+    can group the calculations of GCP in groups of $M = O(\log n)$ we remove $\log
+    n$ out of the asymptotic:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now it performs 425 factorizations per second, bottlenecked by the speed of
+    modulo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#optimizing-the-modulo)Optimizing
+    the Modulo'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The final step is to apply [Montgomery multiplication](/hpc/number-theory/montgomery/).
+    Since the modulo is constant, we can perform all computations — advancing the
+    iterator, multiplication, and even computing the GCD — in the Montgomery space
+    where reduction is cheap:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This implementation can processes around 3k 60-bit integers per second, which
+    is ~3x faster than what [PARI](https://pari.math.u-bordeaux.fr/) / [SageMath’s
+    `factor`](https://doc.sagemath.org/html/en/reference/structure/sage/structure/factorization.html)
+    / `cat semiprimes.txt | time factor` measures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#further-improvements)Further
+    Improvements'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Optimizations.** There is still a lot of potential for optimization in our
+    implementation of the Pollard’s algorithm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could probably use a better cycle-finding algorithm, exploiting the fact
+    that the graph is random. For example, there is little chance that we enter the
+    loop in within the first few iterations (the length of the cycle and the path
+    we walk before entering it should be equal in expectation since before we loop
+    around, we choose the vertex of the path we’ve walked independently), so we may
+    just advance the iterator for some time before starting the trials with the GCD
+    trick.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Our current approach is bottlenecked by advancing the iterator (the latency
+    of Montgomery multiplication is much higher than its reciprocal throughput), and
+    while we are waiting for it to complete, we could perform more than just one trial
+    using the previous values.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'If we run $p$ independent instances of the algorithm with different seeds in
+    parallel and stop when one of them finds the answer, it would finish $\sqrt p$
+    times faster (the reasoning is similar to the Birthday paradox; try to prove it
+    yourself). We don’t have to use multiple cores for that: there is a lot of untapped
+    [instruction-level parallelism](/hpc/pipelining/), so we could concurrently run
+    two or three of the same operations on the same thread, or use [SIMD](/hpc/simd)
+    instructions to perform 4 or 8 multiplications in parallel.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: I would not be surprised to see another 3x improvement and throughput of ~10k/sec.
+    If you [implement](https://github.com/sslotin/amh-code/tree/main/factor) some
+    of these ideas, please [let me know](http://sereja.me/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Errors.** Another aspect that we need to handle in a practical implementation
+    is possible errors. Our current implementation has a 0.7% error rate for 60-bit
+    integers, and it grows higher if the numbers are lower. These errors come from
+    three main sources:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A cycle simply not being found (the algorithm is inherently random, and there
+    is no guarantee that it will be found). In this case, we need to perform a primality
+    test and optionally start again.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `p` variable becoming zero (because both $p$ and $q$ can get into the product).
+    It becomes increasingly more likely as we decrease size of the inputs or increase
+    the constant `M`. In this case, we need to either restart the process or (better)
+    roll back the last $M$ iterations and perform the trials one by one.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Overflows in the Montgomery multiplication. Our current implementation is pretty
+    loose with them, and if $n$ is large, we need to add more `x > mod ? x - mod :
+    x` kind of statements to deal with overflows.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Larger numbers.** These issues become less important if we exclude small
+    numbers and numbers with small prime factors using the algorithms we’ve implemented
+    before. In general, the optimal approach should depend on the size of the numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Smaller than $2^{16}$: use a lookup table;'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Smaller than $2^{32}$: use a list of precomputed primes with a fast divisibility
+    check;'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Smaller than $2^{64}$ or so: use Pollard’s rho algorithm with Montgomery multiplication;'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Smaller than $10^{50}$: switch to [Lenstra elliptic curve factorization](https://en.wikipedia.org/wiki/Lenstra_elliptic-curve_factorization);'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Smaller than $10^{100}$: switch to [Quadratic Sieve](https://en.wikipedia.org/wiki/Quadratic_sieve);'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Larger than $10^{100}$: switch to [General Number Field Sieve](https://en.wikipedia.org/wiki/General_number_field_sieve).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The last three approaches are very different from what we’ve been doing and
+    require much more advanced number theory, and they deserve an article (or a full-length
+    university course) of their own. [← Binary GCD](https://en.algorithmica.org/hpc/algorithms/gcd/)[Argmin
+    with SIMD →](https://en.algorithmica.org/hpc/algorithms/argmin/)
+  prefs: []
+  type: TYPE_NORMAL

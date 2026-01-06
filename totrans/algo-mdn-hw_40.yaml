@@ -1,0 +1,116 @@
+- en: Binary Exponentiation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/number-theory/exponentiation/](https://en.algorithmica.org/hpc/number-theory/exponentiation/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: In modular arithmetic (and computational algebra in general), you often need
+    to raise a number to the $n$-th power — to do [modular division](../modular/#modular-division),
+    perform [primality tests](../modular/#fermats-theorem), or compute some combinatorial
+    values — ­and you usually want to spend fewer than $\Theta(n)$ operations calculating
+    it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Binary exponentiation*, also known as *exponentiation by squaring*, is a method
+    that allows for computation of the $n$-th power using $O(\log n)$ multiplications,
+    relying on the following observation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '$$ \begin{aligned} a^{2k} &= (a^k)^2 \\ a^{2k + 1} &= (a^k)^2 \cdot a \end{aligned}
+    $$ To compute $a^n$, we can recursively compute $a^{\lfloor n / 2 \rfloor}$, square
+    it, and then optionally multiply by $a$ if $n$ is odd, corresponding to the following
+    recurrence: $$ a^n = f(a, n) = \begin{cases} 1, && n = 0 \\ f(a, \frac{n}{2})^2,
+    && 2 \mid n \\ f(a, n - 1) \cdot a, && 2 \nmid n \end{cases} $$'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since $n$ is at least halved every two recursive transitions, the depth of this
+    recurrence and the total number of multiplications will be at most $O(\log n)$.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/number-theory/exponentiation/#recursive-implementation)Recursive
+    Implementation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we already have a recurrence, it is natural to implement the algorithm as
+    a case matching recursive function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In our benchmark, we use $n = m - 2$ so that we compute the [multiplicative
+    inverse](../modular/#modular-division) of $a$ modulo $m$:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use $m = 10^9+7$, which is a modulo value commonly used in competitive programming
+    to calculate checksums in combinatorial problems — because it is prime (allowing
+    inverse via binary exponentiation), sufficiently large, not overflowing `int`
+    in addition, not overflowing `long long` in multiplication, and easy to type as
+    `1e9 + 7`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since we use it as compile-time constant in the code, the compiler can optimize
+    the modulo by [replacing it with multiplication](/hpc/arithmetic/division/) (even
+    if it is not a compile-time constant, it is still cheaper to compute the magic
+    constants by hand once and use them for fast reduction).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The execution path — and consequently the running time — depends on the value
+    of $n$. For this particular $n$, the baseline implementation takes around 330ns
+    per call. As recursion introduces some [overhead](/hpc/architecture/functions/),
+    it makes sense to unroll the implementation into an iterative procedure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/number-theory/exponentiation/#iterative-implementation)Iterative
+    Implementation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The result of $a^n$ can be represented as the product of $a$ to some powers
+    of two — those that correspond to 1s in the binary representation of $n$. For
+    example, if $n = 42 = 32 + 8 + 2$, then
+  prefs: []
+  type: TYPE_NORMAL
+- en: $$ a^{42} = a^{32+8+2} = a^{32} \cdot a^8 \cdot a^2 $$
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To calculate this product, we can iterate over the bits of $n$ maintaining
+    two variables: the value of $a^{2^k}$ and the current product after considering
+    $k$ lowest bits of $n$. On each step, we multiply the current product by $a^{2^k}$
+    if the $k$-th bit of $n$ is set, and, in either case, square $a^k$ to get $a^{2^k
+    \cdot 2} = a^{2^{k+1}}$ that will be used on the next iteration.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The iterative implementation takes about 180ns per call. The heavy calculations
+    are the same; the improvement mainly comes from the reduced dependency chain:
+    `a = a * a % M` needs to finish before the loop can proceed, and it can now execute
+    concurrently with `r = res * a % M`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The performance also benefits from $n$ being a constant, [making all branches
+    predictable](/hpc/pipelining/branching/) and letting the scheduler know what needs
+    to be executed in advance. The compiler, however, does not take advantage of it
+    and does not unroll the `while(n) n >>= 1` loop. We can rewrite it as a `for`
+    loop that performs constant 30 iterations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This forces the compiler to generate only the instructions we need, shaving
+    off another 10ns and making the total running time ~170ns.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the performance depends not only on the binary length of $n$, but
+    also on the number of binary 1s. If $n$ is $2^{30}$, it takes around 20ns less
+    as we don’t have to to perform any off-path multiplications. [← Modular Arithmetic](https://en.algorithmica.org/hpc/number-theory/modular/)[Extended
+    Euclidean Algorithm →](https://en.algorithmica.org/hpc/number-theory/euclid-extended/)
+  prefs: []
+  type: TYPE_NORMAL

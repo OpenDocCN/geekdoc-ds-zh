@@ -1,0 +1,206 @@
+- en: In-Register Shuffles
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/simd/shuffling/](https://en.algorithmica.org/hpc/simd/shuffling/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[Masking](../masking) lets you apply operations to only a subset of vector
+    elements. It is a very effective and frequently used data manipulation technique,
+    but in many cases, you need to perform more advanced operations that involve permuting
+    values inside a vector register instead of just blending them with other vectors.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem is that adding a separate element-shuffling instruction for each
+    possible use case in hardware is unfeasible. What we can do though is to add just
+    one general permutation instruction that takes the indices of a permutation and
+    produces these indices using precomputed lookup tables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This general idea is perhaps too abstract, so let’s jump straight to the examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/simd/shuffling/#shuffles-and-popcount)Shuffles
+    and Popcount'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Population count*, also known as the *Hamming weight*, is the count of `1`
+    bits in a binary string.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is a frequently used operation, so there is a separate instruction on x86
+    that computes the population count of a word:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It also supports 64-bit integers, improving the total throughput twofold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The only two instructions required are load-fused popcount and addition. They
+    both have a high throughput, so the code processes about $8+8=16$ bytes per cycle
+    as it is limited by the decode width of 4 on this CPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These instructions were added to x86 CPUs around 2008 with SSE4\. Let’s temporarily
+    go back in time before vectorization even became a thing and try to implement
+    popcount by other means.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The naive way is to go through the binary string bit by bit:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: As anticipated, it works just slightly faster than ⅛-th of a byte per cycle
+    — at around 0.2.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can try to process in bytes instead of individual bits by [precomputing](/hpc/compilation/precalc)
+    a small 256-element *lookup table* that contains the population counts of individual
+    bytes and then query it while iterating over raw bytes of the array:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: It now processes around 2 bytes per cycle, rising to ~2.7 if we switch to 16-bit
+    words (`unsigned short`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This solution is still very slow compared to the `popcnt` instruction, but
+    now it can be vectorized. Instead of trying to speed it up through [gather](../moving#non-contiguous-load)
+    instructions, we will go for another approach: make the lookup table small enough
+    to fit inside a register and then use a special [pshufb](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=pshuf&techs=AVX,AVX2&expand=6331)
+    instruction to look up its values in parallel.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The original `pshufb` introduced in 128-bit SSE3 takes two registers: the lookup
+    table containing 16 byte values and a vector of 16 4-bit indices (0 to 15), specifying
+    which bytes to pick for each position. In 256-bit AVX2, instead of a 32-byte lookup
+    table with awkward 5-bit indices, we have an instruction that independently the
+    same shuffling operation over two 128-bit lanes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, for our use case, we create a 16-byte lookup table with population counts
+    for each nibble (half-byte), repeated twice:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, to compute the population count of a vector, we split each of its bytes
+    into the lower and higher nibbles and then use this lookup table to retrieve their
+    counts. The only thing left is to carefully sum them up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code processes around 30 bytes per cycle. Theoretically, the inner loop
+    could do 32, but we have to stop it every 15 iterations because the 8-bit counters
+    can overflow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `pshufb` instruction is so instrumental in some SIMD algorithms that [Wojciech
+    Muła](http://0x80.pl/) — the guy who came up with this algorithm — took it as
+    his [Twitter handle](https://twitter.com/pshufb). You can calculate population
+    counts even faster: check out his [GitHub repository](https://github.com/WojciechMula/sse-popcount)
+    with different vectorized popcount implementations and his [recent paper](https://arxiv.org/pdf/1611.07612.pdf)
+    for a detailed explanation of the state-of-the-art.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/simd/shuffling/#permutations-and-lookup-tables)Permutations
+    and Lookup Tables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our last major example in this chapter is the `filter`. It is a very important
+    data processing primitive that takes an array as input and writes out only the
+    elements that satisfy a given predicate (in their original order).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In a single-threaded scalar case, it is trivially implemented by maintaining
+    a counter that is incremented on each write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To vectorize it, we will use the `_mm256_permutevar8x32_epi32` intrinsic. It
+    takes a vector of values and individually selects them with a vector of indices.
+    Despite the name, it doesn’t *permute* values but just *copies* them to form a
+    new vector: duplicates in the result are allowed.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The general idea of our algorithm is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: calculate the predicate on a vector of data — in this case, this means performing
+    the comparisons to get the mask;
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: use the `movemask` instruction to get a scalar 8-bit mask;
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: use this mask to index a lookup table that returns a permutation moving the
+    elements that satisfy the predicate to the beginning of the vector (in their original
+    order);
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: use the `_mm256_permutevar8x32_epi32` intrinsic to permute the values;
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: write the whole permuted vector to the buffer — it may have some trailing garbage,
+    but its prefix is correct;
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: calculate the population count of the scalar mask and move the buffer pointer
+    by that number.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'First, we need to precompute the permutations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we can implement the algorithm itself:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The vectorized version takes some work to implement, but it is 6-7x faster than
+    the scalar one (the speedup is slightly less for either low or high values of
+    `P` as the [branch becomes predictable](/hpc/pipelining/branching)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/057627d1402dd58e05fbb7be94527260.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The loop performance is still relatively low — taking 4 CPU cycles per iteration
+    — because, on this particular CPU (Zen 2), `movemask`, `permute`, and `store`
+    have low throughput and all have to go through the same execution port (P2). On
+    most other x86 CPUs, you can expect it to be ~2x faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Filtering can also be implemented considerably faster on AVX-512: it has a
+    special “[compress](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=7395,7392,7269,4868,7269,7269,1820,1835,6385,5051,4909,4918,5051,7269,6423,7410,150,2138,1829,1944,3009,1029,7077,519,5183,4462,4490,1944,1395&text=_mm512_mask_compress_epi32)”
+    instruction that takes a vector of data and a mask and writes its unmasked elements
+    contiguously. It makes a huge difference in algorithms that rely on various filtering
+    subroutines, such as quicksort. [← Masking and Blending](https://en.algorithmica.org/hpc/simd/masking/)[Auto-Vectorization
+    and SPMD →](https://en.algorithmica.org/hpc/simd/auto-vectorization/)'
+  prefs: []
+  type: TYPE_NORMAL

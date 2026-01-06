@@ -1,0 +1,142 @@
+- en: Memory Paging
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/cpu-cache/paging/](https://en.algorithmica.org/hpc/cpu-cache/paging/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Consider [yet again](../associativity) the strided incrementing loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We change the stride $D$ and increase the array size proportionally so that
+    the total number of iterations $N$ remains constant. As the total number of memory
+    accesses also remains constant, for all $D \geq 16$, we should be fetching exactly
+    $N$ cache lines — or $64 \cdot N = 2^6 \cdot 2^{13} = 2^{19}$ bytes, to be exact.
+    This precisely fits into the L2 cache, regardless of the step size, and the throughput
+    graph should look flat.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This time, we consider a larger range of $D$ values, up to 1024\. Starting
+    from around 256, the graph is definitely not flat:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/b651bca2cb9d842c46dee30f3adfcf8d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This anomaly is also due to the cache system, although the standard L1-L3 data
+    caches have nothing to do with it. [Virtual memory](/hpc/external-memory/virtual)
+    is at fault, in particular the *translation lookaside buffer* (TLB), which is
+    a cache responsible for retrieving the physical addresses of the virtual memory
+    pages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On [my CPU](https://en.wikichip.org/wiki/amd/microarchitectures/zen_2), there
+    are two levels of TLB:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The L1 TLB has 64 entries, and if the page size is 4K, then it can handle $64
+    \times 4K = 512K$ of active memory without going to the L2 TLB.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The L2 TLB has 2048 entries, and it can handle $2048 \times 4K = 8M$ of memory
+    without going to the page table.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'How much memory is allocated when $D$ becomes equal to 256? You’ve guessed
+    it: $8K \times 256 \times 4B = 8M$, exactly the limit of what the L2 TLB can handle.
+    When $D$ gets larger than that, some requests start getting redirected to the
+    main page table, which has a large latency and very limited throughput, which
+    bottlenecks the whole computation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/paging/#changing-page-size)Changing
+    Page Size'
+  prefs: []
+  type: TYPE_NORMAL
+- en: That 8MB of slowdown-free memory seems like a very tight restriction. While
+    we can’t change the characteristics of the hardware to lift it, we *can* increase
+    the page size, which would in turn reduce the pressure on the TLB capacity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Modern operating systems allow us to set the page size both globally and for
+    individual allocations. CPUs only support a defined set of page sizes — mine,
+    for example, can use either 4K or 2M pages. Another typical page size is 1G —
+    it is usually only relevant for server-grade hardware with hundreds of gigabytes
+    of RAM. Anything over the default 4K is called *huge pages* on Linux and *large
+    pages* on Windows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On Linux, there is a special system file that governs the allocation of huge
+    pages. Here is how to make the kernel give you huge pages on every allocation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Enabling huge pages globally like this isn’t always a good idea because it
+    decreases memory granularity and raises the minimum memory that a process consumes
+    — and some environments have more processes than free megabytes of memory. So,
+    in addition to `always` and `never`, there is a third option in that file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`madvise` is a special system call that lets the program advise the kernel
+    on whether to use huge pages or not, which can be used for allocating huge pages
+    on-demand. If it is enabled, you can use it in C++ like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can only request a memory region to be allocated using huge pages if it
+    has the corresponding alignment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Windows has similar functionality. Its memory API combines these two functions
+    into one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In both cases, `array_size` should be a multiple of `page_size`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/paging/#impact-of-huge-pages)Impact
+    of Huge Pages'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Both variants of allocating huge pages immediately flatten the curve:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/0ec1bff689bffbef53892443318cc4f6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Enabling huge pages also improves [latency](../latency) by up to 10-15% for
+    arrays that don’t fit into the L2 cache:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/e0a470f7d9fd055e77703ed863939964.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In general, enabling huge pages is a good idea when you have any sort of sparse
+    reads, as they usually slightly improve and ([almost](../aos-soa)) never hurt
+    performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That said, you shouldn’t rely on huge pages if possible, as they aren’t always
+    available due to either hardware or computing environment restrictions. There
+    are [many](../cache-lines) [other](../prefetching) [reasons](../aos-soa) why grouping
+    data accesses spatially may be beneficial, which automatically solves the paging
+    problem. [← Cache Associativity](https://en.algorithmica.org/hpc/cpu-cache/associativity/)[AoS
+    and SoA →](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/)
+  prefs: []
+  type: TYPE_NORMAL

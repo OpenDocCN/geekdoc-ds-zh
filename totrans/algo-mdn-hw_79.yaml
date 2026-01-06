@@ -1,0 +1,705 @@
+- en: Static B-Trees
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/data-structures/s-tree/](https://en.algorithmica.org/hpc/data-structures/s-tree/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: This section is a follow-up to the [previous one](../binary-search), where we
+    optimized binary search by the means of removing branching and improving the memory
+    layout. Here, we will also be searching in sorted arrays, but this time we are
+    not limited to fetching and comparing only one element at a time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we generalize the techniques we developed for binary search
+    to *static B-trees* and accelerate them further using [SIMD instructions](/hpc/simd).
+    In particular, we develop two new implicit data structures:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The [first](#b-tree-layout) is based on the memory layout of a B-tree, and,
+    depending on the array size, it is up to 8x faster than `std::lower_bound` while
+    using the same space as the array and only requiring a permutation of its elements.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The [second](#b-tree-layout-1) is based on the memory layout of a B+ tree, and
+    it is up to 15x faster than `std::lower_bound` while using just 6-7% more memory
+    — or 6-7% **of** the memory if we can keep the original sorted array.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To distinguish them from B-trees — the structures with pointers, hundreds to
+    thousands of keys per node, and empty spaces in them — we will use the names *S-tree*
+    and *S+ tree* respectively to refer to these particular memory layouts^([1](#fn:1)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To the best of my knowledge, this is a significant improvement over the existing
+    [approaches](http://kaldewey.com/pubs/FAST__SIGMOD10.pdf). As before, we are using
+    Clang 10 targeting a Zen 2 CPU, but the performance improvements should approximately
+    transfer to most other platforms, including Arm-based chips. Use [this single-source
+    benchmark](https://github.com/sslotin/amh-code/blob/main/binsearch/standalone.cc)
+    of the final implementation if you want to test it on your machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a long article, and since it also serves as a [textbook](/hpc/) case
+    study, we will improve the algorithm incrementally for pedagogical goals. If you
+    are already an expert and feel comfortable reading [intrinsic](/hpc/simd/intrinsics)-heavy
+    code with little to no context, you can jump straight to the [final implementation](#implicit-b-tree-1).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '## [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#b-tree-layout)B-Tree
+    Layout'
+  prefs: []
+  type: TYPE_NORMAL
+- en: B-trees generalize the concept of binary search trees by allowing nodes to have
+    more than two children. Instead of a single key, a node of a B-tree of order $k$
+    can contain up to $B = (k - 1)$ keys stored in sorted order and up to $k$ pointers
+    to child nodes. Each child $i$ satisfies the property that all keys in its subtree
+    are between keys $(i - 1)$ and $i$ of the parent node (if they exist).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/4f60bffaa67095dbf30912dfd8934530.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A B-tree of order 4
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main advantage of this approach is that it reduces the tree height by $\frac{\log_2
+    n}{\log_k n} = \frac{\log k}{\log 2} = \log_2 k$ times, while fetching each node
+    still takes roughly the same time — as long it fits into a single [memory block](/hpc/external-memory/hierarchy/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: B-trees were primarily developed for the purpose of managing on-disk databases,
+    where the latency of randomly fetching a single byte is comparable with the time
+    it takes to read the next 1MB of data sequentially. For our use case, we will
+    be using the block size of $B = 16$ elements — or $64$ bytes, the size of the
+    cache line — which makes the tree height and the total number of cache line fetches
+    per query $\log_2 17 \approx 4$ times smaller compared to the binary search.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#implicit-b-tree)Implicit
+    B-Tree'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Storing and fetching pointers in a B-tree node wastes precious cache space and
+    decreases performance, but they are essential for changing the tree structure
+    on inserts and deletions. But when there are no updates and the structure of a
+    tree is *static*, we can get rid of the pointers, which makes the structure *implicit*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One of the ways to achieve this is by generalizing the [Eytzinger numeration](../binary-search#eytzinger-layout)
+    to $(B + 1)$-ary trees:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The root node is numbered $0$.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Node $k$ has $(B + 1)$ child nodes numbered $\{k \cdot (B + 1) + i + 1\}$ for
+    $i \in [0, B]$.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This way, we can only use $O(1)$ additional memory by allocating one large
+    two-dimensional array of keys and relying on index arithmetic to locate children
+    nodes in the tree:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This numeration automatically makes the B-tree complete or almost complete with
+    the height of $\Theta(\log_{B + 1} n)$. If the length of the initial array is
+    not a multiple of $B$, the last block is padded with the largest value of its
+    data type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#construction)Construction'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can construct the B-tree similar to how we constructed the Eytzinger array
+    — by traversing the search tree:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is correct because each value of the initial array will be copied to a unique
+    position in the resulting array, and the tree height is $\Theta(\log_{B+1} n)$
+    because $k$ is multiplied by $(B + 1)$ each time we descend into a child node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that this numeration causes a slight imbalance: left-er children may have
+    larger subtrees, although this is only true for $O(\log_{B+1} n)$ parent nodes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#searches)Searches'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To find the lower bound, we need to fetch the $B$ keys in a node, find the first
+    key $a_i$ not less than $x$, descend to the $i$-th child — and continue until
+    we reach a leaf node. There is some variability in how to find that first key.
+    For example, we could do a tiny internal binary search that makes $O(\log B)$
+    iterations, or maybe just compare each key sequentially in $O(B)$ time until we
+    find the local lower bound, hopefully exiting from the loop a bit early.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But we are not going to do that — because we can use [SIMD](/hpc/simd). It
+    doesn’t work well with branching, so essentially what we want to do is to compare
+    against all $B$ elements regardless, compute a bitmask out of these comparisons,
+    and then use the `ffs` instruction to find the bit corresponding to the first
+    non-lesser element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Unfortunately, the compilers are not smart enough to [auto-vectorize](/hpc/simd/auto-vectorization/)
+    this code yet, so we have to optimize it manually. In AVX2, we can load 8 elements,
+    compare them against the search key, producing a [vector mask](/hpc/simd/masking/),
+    and then extract the scalar mask from it with `movemask`. Here is a minimized
+    illustrated example of what we want to do:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since we are limited to processing 8 elements at a time (half our block / cache
+    line size), we have to split the elements into two groups and then combine the
+    two 8-bit masks. To do this, it will be slightly easier to swap the condition
+    for `x > y` and compute the inverted mask instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, to process the entire block, we need to call it twice and combine the
+    masks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To descend down the tree, we use `ffs` on that mask to get the correct child
+    number and just call the `go` function we defined earlier:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: To actually return the result in the end, we’d want to just fetch `btree[k][i]`
+    in the last node we visited, but the problem is that sometimes the local lower
+    bound doesn’t exist ($i \ge B$) because $x$ happens to be greater than all the
+    keys in the node. We could, in theory, do the same thing we did for the [Eytzinger
+    binary search](../binary-search/#search-implementation) and restore the correct
+    element *after* we calculate the last index, but we don’t have a nice bit trick
+    this time and have to do a lot of [divisions by 17](/hpc/arithmetic/division)
+    to compute it, which will be slow and almost certainly not worth it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead, we can just remember and return the last local lower bound we encountered
+    when we descended the tree:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This implementation outperforms all previous binary search implementations,
+    and by a huge margin:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/2fa2b4761b12c79e9e1cf99a0eedee1a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is very good — but we can optimize it even further.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#optimization)Optimization'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before everything else, let’s allocate the memory for the array on a [hugepage](/hpc/cpu-cache/paging):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This slightly improves the performance on larger array sizes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/739fc2fb53756d97df07d614ec9c8632.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Ideally, we’d also need to enable hugepages for all [previous implementations](../binary-search)
+    to make the comparison fair, but it doesn’t matter that much because they all
+    have some form of prefetching that alleviates this problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With that settled, let’s begin real optimization. First of all, we’d want to
+    use compile-time constants instead of variables as much as possible because it
+    lets the compiler embed them in the machine code, unroll loops, optimize arithmetic,
+    and do all sorts of other nice stuff for us for free. Specifically, we want to
+    know the tree height in advance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we can find the local lower bound in nodes faster. Instead of calculating
+    it separately for two 8-element blocks and merging two 8-bit masks, we combine
+    the vector masks using the [packs](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,4870,6715,4845,3853,90,7307,5993,2692,6946,6949,5456,6938,5456,1021,3007,514,518,7253,7183,3892,5135,5260,3915,4027,3873,7401,4376,4229,151,2324,2310,2324,4075,6130,4875,6385,5259,6385,6250,1395,7253,6452,7492,4669,4669,7253,1039,1029,4669,4707,7253,7242,848,879,848,7251,4275,879,874,849,833,6046,7250,4870,4872,4875,849,849,5144,4875,4787,4787,4787,5227,7359,7335,7392,4787,5259,5230,5223,6438,488,483,6165,6570,6554,289,6792,6554,5230,6385,5260,5259,289,288,3037,3009,590,604,5230,5259,6554,6554,5259,6547,6554,3841,5214,5229,5260,5259,7335,5259,519,1029,515,3009,3009,3011,515,6527,652,6527,6554,288,3841,5230,5259,5230,5259,305,5259,591,633,633,5259,5230,5259,5259,3017,3018,3037,3018,3017,3016,3013,5144&text=_mm256_packs_epi32&techs=AVX,AVX2)
+    instruction and readily extract it using `movemask` just once:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This instruction converts 32-bit integers stored in two registers to 16-bit
+    integers stored in one register — in our case, effectively joining the vector
+    masks into one. Note that we’ve swapped the order of comparison — this lets us
+    not invert the mask in the end, but we have to subtract^([2](#fn:2)) one from
+    the search key once in the beginning to make it correct (otherwise, it works as
+    `upper_bound`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The problem is, it does this weird interleaving where the result is written
+    in the `a1 b1 a2 b2` order instead of `a1 a2 b1 b2` that we want — many AVX2 instructions
+    tend to do that. To correct this, we need to [permute](/hpc/simd/shuffling) the
+    resulting vector, but instead of doing it during the query time, we can just permute
+    every node during preprocessing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we just call `permute(&btree[k])` right after we are done building the node.
+    There are probably faster ways to swap the middle elements, but we will leave
+    it here as the preprocessing time is not that important for now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This new SIMD routine is significantly faster because the extra `movemask`
+    is slow, and also blending the two masks takes quite a few instructions. Unfortunately,
+    we now can’t just do the `res = btree[k][i]` update anymore because the elements
+    are permuted. We can solve this problem with some bit-level trickery in terms
+    of `i`, but indexing a small lookup table turns out to be faster and also doesn’t
+    require a new branch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: This `update` procedure takes some time, but it’s not on the critical path between
+    the iterations, so it doesn’t affect the actual performance that much.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Stitching it all together (and leaving out some other minor optimizations):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All this work saved us 15-20% or so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/6c21a658d77311db69d58129c0fd6b1b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: It doesn’t feel very satisfying so far, but we will reuse these optimization
+    ideas later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two main problems with the current implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `update` procedure is quite costly, especially considering that it is very
+    likely going to be useless: 16 out of 17 times, we can just fetch the result from
+    the last block.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We do a non-constant number of iterations, causing branch prediction problems
+    similar to how it did for the [Eytzinger binary search](../binary-search/#removing-the-last-branch);
+    you can also see it on the graph this time, but the latency bumps have a period
+    of $2^4$.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To address these problems, we need to change the layout a little bit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '## [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#b-tree-layout-1)B+
+    Tree Layout'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Most of the time, when people talk about B-trees, they really mean *B+ trees*,
+    which is a modification that distinguishes between the two types of nodes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Internal nodes* store up to $B$ keys and $(B + 1)$ pointers to child nodes.
+    The key number $i$ is always equal to the smallest key in the subtree of the $(i
+    + 1)$-th child node.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Data nodes* or *leaves* store up to $B$ keys, the pointer to the next leaf
+    node, and, optionally, an associated value for each key — if the structure is
+    used as a key-value map.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The advantages of this approach include faster search time (as the internal
+    nodes only store keys) and the ability to quickly iterate over a range of entries
+    (by following next leaf node pointers), but this comes at the cost of some memory
+    overhead: we have to store copies of keys in the internal nodes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/5130488f9c80507bf3f273b0e631ed26.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A B+ tree of order 4
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Back to our use case, this layout can help us solve our two problems:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Either the last node we descend into has the local lower bound, or it is the
+    first key of the next leaf node, so we don’t need to call `update` on each iteration.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The depth of all leaves is constant because B+ trees grow at the root and not
+    at the leaves, which removes the need for branching.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The disadvantage is that this layout is not *succinct*: we need some additional
+    memory to store the internal nodes — about $\frac{1}{16}$-th of the original array
+    size, to be exact — but the performance improvement will be more than worth it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#implicit-b-tree-1)Implicit
+    B+ Tree'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To be more explicit with pointer arithmetic, we will store the entire tree
+    in a single one-dimensional array. To minimize index computations during run time,
+    we will store each layer sequentially in this array and use compile time computed
+    offsets to address them: the keys of the node number `k` on layer `h` start with
+    `btree[offset(h) + k * B]`, and its `i`-th child will at `btree[offset(h - 1)
+    + (k * (B + 1) + i) * B]`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To implement all that, we need slightly more `constexpr` functions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that we store the layers in reverse order, but the nodes within a layer
+    and data in them are still left-to-right, and also the layers are numbered bottom-up:
+    the leaves form the zeroth layer, and the root is the layer `H - 1`. These are
+    just arbitrary decisions — it is just slightly easier to implement in code.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#construction-1)Construction'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To construct the tree from a sorted array `a`, we first need to copy it into
+    the zeroth layer and pad it with infinities:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we build the internal nodes, layer by layer. For each key, we need to descend
+    to the right of it in, always go left until we reach a leaf node, and then take
+    its first key — it will be the smallest on the subtree:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And just the finishing touch — we need to permute keys in internal nodes to
+    search them faster:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: We start from `offset(1)`, and we specifically don’t permute leaf nodes and
+    leave the array in the original sorted order. The motivation is that we’d need
+    to do this complex index translation we do in `update` if the keys were permuted,
+    and it is on the critical path when this is the last operation. So, just for this
+    layer, we switch to the original mask-blending local lower bound procedure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#searching)Searching'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The search procedure becomes simpler than for the B-tree layout: we don’t need
+    to do `update` and only execute a fixed number of iterations — although the last
+    one with some special treatment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Switching to the B+ layout more than paid off: the S+ tree is 1.5-3x faster
+    compared to the optimized S-tree:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/3445e6f05c2d8637433f0eeec9f6b6c0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The spikes at the high end of the graph are caused by the L1 TLB not being
+    large enough: it has 64 entries, so it can handle at most 64 × 2 = 128MB of data,
+    which is exactly what is required for storing `2^25` integers. The S+ tree hits
+    this limit slightly sooner because of the ~7% memory overhead.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#comparison-with-stdlower_bound)Comparison
+    with `std::lower_bound`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We’ve come a long way from binary search:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/b5dcb44b94f85f96c019569f69f9ef85.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'On these scales, it makes more sense to look at the relative speedup:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/9de39a37218422144830e42cec429b70.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The cliffs at the beginning of the graph are because the running time of `std::lower_bound`
+    grows smoothly with the array size, while for an S+ tree, it is locally flat and
+    increases in discrete steps when a new layer needs to be added.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One important asterisk we haven’t discussed is that what we are measuring is
+    not real latency, but the *reciprocal throughput* — the total time it takes to
+    execute a lot of queries divided by the number of queries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To measure *actual* latency, we need to introduce a dependency between the
+    loop iterations so that the next query can’t start before the previous one finishes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In terms of real latency, the speedup is not that impressive:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/e7a566ec44f7e1d098083d3bc809e1c2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A lot of the performance boost of the S+ tree comes from removing branching
+    and minimizing memory requests, which allows overlapping the execution of more
+    adjacent queries — apparently, around three on average.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although nobody except maybe the HFT people cares about real latency, and everybody
+    actually measures throughput even when using the word “latency,” this nuance is
+    still something to take into account when predicting the possible speedup in user
+    applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#modifications-and-further-optimizations)Modifications
+    and Further Optimizations'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To minimize the number of memory accesses during a query, we can increase the
+    block size. To find the local lower bound in a 32-element node (spanning two cache
+    lines and four AVX2 registers), we can use a [similar trick](https://github.com/sslotin/amh-code/blob/a74495a2c19dddc697f94221629c38fee09fa5ee/binsearch/bplus32.cc#L94)
+    that uses two `packs_epi32` and one `packs_epi16` to combine masks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also try to use the cache more efficiently by controlling where each
+    tree layer is stored in the cache hierarchy. We can do that by prefetching nodes
+    to a [specific level](/hpc/cpu-cache/prefetching/#software-prefetching) and using
+    [non-temporal reads](/hpc/cpu-cache/bandwidth/#bypassing-the-cache) during queries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'I implemented two versions of these optimizations: the one with a block size
+    of 32 and the one where the last read is non-temporal. They don’t improve the
+    throughput:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/e513b7d0dc4921d196ab5817075dec54.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '…but they do make the latency lower:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/962e358aff53be491a9139a7dafd9a42.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Ideas that I have not yet managed to implement but consider highly perspective
+    are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Make the block size non-uniform. The motivation is that the slowdown from having
+    one 32-element layer is less than from having two separate layers. Also, the root
+    is often not full, so perhaps sometimes it should have only 8 keys or even just
+    one key. Picking the optimal layer configuration for a given array size should
+    remove the spikes from the relative speedup graph and make it look more like its
+    upper envelope.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: I know how to do it with code generation, but I went for a generic solution
+    and tried to [implement](https://github.com/sslotin/amh-code/blob/main/binsearch/bplus-adaptive.cc)
+    it with the facilities of modern C++, but the compiler can’t produce optimal code
+    this way.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Group nodes with one or two generations of its descendants (~300 nodes / ~5k
+    keys) so that they are close in memory — in the spirit of what [FAST](http://kaldewey.com/pubs/FAST__SIGMOD10.pdf)
+    calls hierarchical blocking. This reduces the severity of TLB misses and also
+    may improve the latency as the memory controller may choose to keep the [RAM row
+    buffer](/hpc/cpu-cache/aos-soa/#ram-specific-timings) open, anticipating local
+    reads.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Optionally use prefetching on some specific layers. Aside from to the $\frac{1}{17}$-th
+    chance of it fetching the node we need, the hardware prefetcher may also get some
+    of its neighbors for us if the data bus is not busy. It also has the same TLB
+    and row buffer effects as with blocking.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Other possible minor optimizations include:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Permuting the nodes of the last layer as well — if we only need the index and
+    not the value.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Reversing the order in which the layers are stored to left-to-right so that
+    the first few layers are on the same page.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Rewriting the whole thing in assembly, as the compiler seems to struggle with
+    pointer arithmetic.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Using [blending](/hpc/simd/masking) instead of `packs`: you can odd-even shuffle
+    node keys (`[1 3 5 7] [2 4 6 8]`), compare against the search key, and then blend
+    the low 16 bits of the first register mask with the high 16 bits of the second.
+    Blending is slightly faster on many architectures, and it may also help to alternate
+    between packing and blending as they use different subsets of ports. (Thanks to
+    Const-me from HackerNews for [suggesting](https://news.ycombinator.com/item?id=30381912)
+    it.)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Using [popcount](/hpc/simd/shuffling/#shuffles-and-popcount) instead of `tzcnt`:
+    the index `i` is equal to the number of keys less than `x`, so we can compare
+    `x` against all keys, combine the vector mask any way we want, call `maskmov`,
+    and then calculate the number of set bits with `popcnt`. This removes the need
+    to store the keys in any particular order, which lets us skip the permutation
+    step and also use this procedure on the last layer as well.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Defining the key $i$ as the *maximum* key in the subtree of child $i$ instead
+    of the *minimum* key in the subtree of child $(i + 1)$. The correctness doesn’t
+    change, but this guarantees that the result will be stored in the last node we
+    access (and not in the first element of the next neighbor node), which lets us
+    fetch slightly fewer cache lines.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that the current implementation is specific to AVX2 and may require some
+    non-trivial changes to adapt to other platforms. It would be interesting to port
+    it for Intel CPUs with AVX-512 and Arm CPUs with 128-bit NEON, which may require
+    some [trickery](https://github.com/WebAssembly/simd/issues/131) to work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With these optimizations implemented, I wouldn’t be surprised to see another
+    10-30% improvement and over 10x speedup over `std::lower_bound` on large arrays
+    for some platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#as-a-dynamic-tree)As
+    a Dynamic Tree'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The comparison is even more favorable against `std::set` and other pointer-based
+    trees. In our benchmark, we add the same elements (without measuring the time
+    it takes to add them) and use the same lower bound queries, and the S+ tree is
+    up to 30x faster:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/25753683e5199d6dc6feba258cf22581.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This suggests that we can probably use this approach to also improve on *dynamic*
+    search trees by a large margin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To validate this hypothesis, I added an array of 17 indices for each node that
+    point to where their children should be and used this array to descend the tree
+    instead of the usual implicit numbering. This array is separate from the tree,
+    not aligned, and isn’t even on a hugepage — the only optimization we do is prefetch
+    the first and the last pointer of a node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'I also added [B-tree from Abseil](https://abseil.io/blog/20190812-btree) to
+    the comparison, which is the only widely-used B-tree implementation I know of.
+    It performs just slightly better than `std::lower_bound`, while the S+ tree with
+    pointers is ~15x faster for large arrays:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/1999d0c055a6f6c41ff6dc14b7a49b61.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Of course, this comparison is not fair, as implementing a dynamic search tree
+    is a more high-dimensional problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We’d also need to implement the update operation, which will not be that efficient,
+    and for which we’d need to sacrifice the fanout factor. But it still seems possible
+    to implement a 10-20x faster `std::set` and a 3-5x faster `absl::btree_set`, depending
+    on how you define “faster” — and this is one of the things we’ll [attempt to do
+    next](../b-tree).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#acknowledgements)Acknowledgements'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This [StackOverflow answer](https://stackoverflow.com/questions/20616605/using-simd-avx-sse-for-tree-traversal)
+    by Cory Nelson is where I took the permuted 16-element search trick from.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '* * *'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[Similar to B-trees](https://en.wikipedia.org/wiki/B-tree#Origin), “the more
+    you think about what the S in S-trees means, the better you understand S-trees.” [↩︎](#fnref:1)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'If you need to work with [floating-point](/hpc/arithmetic/float) keys, consider
+    whether `upper_bound` will suffice — because if you need `lower_bound` specifically,
+    then subtracting one or the machine epsilon from the search key doesn’t work:
+    you need to [get the previous representable number](https://stackoverflow.com/questions/10160079/how-to-find-nearest-next-previous-double-value-numeric-limitsepsilon-for-give)
+    instead. Aside from some corner cases, this essentially means reinterpreting its
+    bits as an integer, subtracting one, and reinterpreting it back as a float (which
+    magically works because of how [IEEE-754 floating-point numbers](/hpc/arithmetic/ieee-754)
+    are stored in memory). [↩︎](#fnref:2) [← Binary Search](https://en.algorithmica.org/hpc/data-structures/binary-search/)[Search
+    Trees →](https://en.algorithmica.org/hpc/data-structures/b-tree/)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

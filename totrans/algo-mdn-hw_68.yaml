@@ -1,0 +1,248 @@
+- en: Masking and Blending
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/simd/masking/](https://en.algorithmica.org/hpc/simd/masking/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: One of the bigger challenges of SIMD programming is that its options for control
+    flow are very limited — because the operations you apply to a vector are the same
+    for all its elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This makes the problems that are usually trivially resolved with an `if` or
+    any other type of branching much harder. With SIMD, they have to be dealt with
+    by the means of various [branchless programming](/hpc/pipelining/branchless) techniques,
+    which aren’t always that straightforward to apply.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/simd/masking/#masking)Masking'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The main way to make a computation branchless is through *predication* — computing
+    the results of both branches and then using either some arithmetic trick or a
+    special “conditional move” instruction:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To vectorize this loop, we are going to need two new instructions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`_mm256_cmpgt_epi32`, which compares the integers in two vectors and produces
+    a mask of all ones if the first element is more than the second and a mask of
+    full zeros otherwise.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`_mm256_blendv_epi8`, which blends (combines) the values of two vectors based
+    on the provided mask.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'By masking and blending the elements of a vector so that only the selected
+    subset of them is affected by computation, we can perform predication in a manner
+    similar to the conditional move:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: (Minor details such as [horizontal summation and accounting for the remainder
+    of the array](../reduction) are omitted for brevity.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is how predication is usually done in SIMD, but it isn’t always the most
+    optimal approach. We can use the fact that one of the blended values is zero,
+    and use bitwise `and` with the mask instead of blending:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: This loop performs slightly faster because on this particular CPU, the vector
+    `and` takes one cycle less than `blend`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Several other instructions support masks as inputs, most notably:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `_mm256_blend_epi32` intrinsic is a `blend` that takes an 8-bit integer
+    mask instead of a vector (which is why it doesn’t have `v` at the end).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `_mm256_maskload_epi32` and `_mm256_maskstore_epi32` intrinsics that load/store
+    a SIMD block from memory and `and` it with a mask in one go.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can also use predication with built-in vector types:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: All these versions work at around 13 GFLOPS as this example is so simple that
+    the compiler can vectorize the loop all by itself. Let’s move on to more complex
+    examples that can’t be auto-vectorized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/simd/masking/#searching)Searching'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next example, we need to find a specific value in an array and return
+    its position (aka `std::find`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To benchmark the `find` function, we fill the array with numbers from $0$ to
+    $(N - 1)$ and then repeatedly search for a random element:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The scalar version gives ~4 GFLOPS of performance. This number includes the
+    elements we haven’t had to process, so divide this number by two in your head
+    (the expected fraction of the elements we have to check).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To vectorize it, we need to compare a vector of its elements with the searched
+    value for equality, producing a mask, and then somehow check if this mask is zero.
+    If it isn’t, the needed element is somewhere within this block of 8.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To check if the mask is zero, we can use the `_mm256_movemask_ps` intrinsic,
+    which takes the first bit of each 32-bit element in a vector and produces an 8-bit
+    integer mask out of them. We can then check if this mask is non-zero — and if
+    it is, also immediately get the index with the `ctz` instruction:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This version gives ~20 GFLOPS or about 5 times faster than the scalar one.
+    It only uses 3 instructions in the hot loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Checking if a vector is zero is a common operation, and there is an operation
+    similar to `test` in SIMD that we can use:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We are still using `movemask` to do `ctz` later, but the hot loop is now one
+    instruction shorter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: This doesn’t improve performance much because both both `vptest` and `vmovmskps`
+    have a throughput of one and will bottleneck the computation regardless of anything
+    else we do in the loop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To work around this limitation, we can iterate in blocks of 16 elements and
+    combine the results of independent comparisons of two 256-bit AVX2 registers using
+    a bitwise `or`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this obstacle removed, the performance now peaks at ~34 GFLOPS. But why
+    not 40? Shouldn’t it be twice as fast?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is how one iteration of the loop looks in assembly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Every iteration, we need to execute 5 instructions. While the throughputs of
+    all relevant execution ports allow to do that in one cycle on average, we can’t
+    do that because the decode width of this particular CPU (Zen 2) is 4\. Therefore,
+    the performance is limited by ⅘ of what it could have been.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To mitigate this, we can once again double the number of SIMD blocks we process
+    on each iteration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: It now shows the throughput of 43 GFLOPS — or about 10x faster than the original
+    scalar implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Extending it to 64 values per cycle doesn’t help: small arrays suffer from
+    the overhead of all these additional `movemask`-s when we hit the condition, and
+    larger arrays are bottlenecked by [memory bandwidth](/hpc/cpu-cache/bandwidth)
+    anyway.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/simd/masking/#counting-values)Counting
+    Values'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As the final exercise, let’s find the count of a value in an array instead
+    of just its first occurrence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To vectorize it, we just need to convert the comparison mask to either one
+    or zero per element and calculate the sum:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Both implementations yield ~15 GFLOPS: the compiler can vectorize the first
+    one all by itself.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But a trick that the compiler can’t find is to notice that the mask of all
+    ones is [minus one](/hpc/arithmetic/integer) when reinterpreted as an integer.
+    So we can skip the and-the-lowest-bit part and use the mask itself, and then just
+    negate the final result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This doesn’t improve the performance in this particular architecture because
+    the throughput is actually bottlenecked by updating `s`: there is a dependency
+    on the previous iteration, so the loop can’t proceed faster than one iteration
+    per CPU cycle. We can make use of [instruction-level parallelism](../reduction#instruction-level-parallelism)
+    if we split the accumulator in two:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: It now gives ~22 GFLOPS of performance, which is as high as it can get.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When adapting this code for shorter data types, keep in mind that the accumulator
+    may overflow. To work around this, add another accumulator of larger size and
+    regularly stop the loop to add the values in the local accumulator to it and then
+    reset the local accumulator. For example, for 8-bit integers, this means creating
+    another inner loop that does $\lfloor \frac{256-1}{8} \rfloor = 15$ iterations.
+    [← Reductions](https://en.algorithmica.org/hpc/simd/reduction/)[In-Register Shuffles
+    →](https://en.algorithmica.org/hpc/simd/shuffling/)
+  prefs: []
+  type: TYPE_NORMAL

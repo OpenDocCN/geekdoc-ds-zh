@@ -1,0 +1,157 @@
+- en: Statistical Profiling
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/profiling/events/](https://en.algorithmica.org/hpc/profiling/events/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[Instrumentation](../instrumentation) is a rather tedious way of doing profiling,
+    especially if you are interested in multiple small sections of the program. And
+    even if it can be partially automated by the tooling, it still won’t help you
+    gather some fine-grained statistics because of its inherent overhead.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another, less invasive approach to profiling is to interrupt the execution of
+    a program at random intervals and look where the instruction pointer is. The number
+    of times the pointer stopped in each function’s block would be roughly proportional
+    to the total time spent executing these functions. You can also get some other
+    useful information this way, like finding out which functions are called by which
+    functions by inspecting [the call stack](/hpc/architecture/functions).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This could, in principle, be done by just running a program with `gdb` and `ctrl+c`‘ing
+    it at random intervals but modern CPUs and operating systems provide special utilities
+    for this type of profiling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/profiling/events/#hardware-events)Hardware
+    Events'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hardware *performance counters* are special registers built into microprocessors
+    that can store the counts of certain hardware-related activities. They are cheap
+    to add on a microchip, as they are basically just binary counters with an activation
+    wire connected to them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each performance counter is connected to a large subset of circuitry and can
+    be configured to be incremented on a particular hardware event, such as a branch
+    mispredict or a cache miss. You can reset a counter at the start of a program,
+    run it, and output its stored value at the end, and it will be equal to the exact
+    number of times a certain event has been triggered throughout the execution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can also keep track of multiple events by multiplexing between them, that
+    is, stopping the program in even intervals and reconfiguring the counters. The
+    result in this case will not be exact, but a statistical approximation. One nuance
+    here is that its accuracy can’t be improved by simply increasing the sampling
+    frequency because it would affect the performance too much and thus skew the distribution,
+    so to collect multiple statistics, you would need to run the program for longer
+    periods of time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overall, event-driven statistical profiling is usually the most effective and
+    easy way to diagnose performance issues.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/profiling/events/#profiling-with-perf)Profiling
+    with perf'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performance analysis tools that rely on the event sampling techniques described
+    above are called *statistical profilers*. There are many of them, but the one
+    we will mainly use in this book is [perf](https://perf.wiki.kernel.org/), which
+    is a statistical profiler shipped with the Linux kernel. On non-Linux systems,
+    you can use [VTune](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html#gs.cuc0ks)
+    from Intel, which provides roughly the same functionality for our purposes. It
+    is available for free, although it is proprietary, and you need to refresh your
+    community license every 90 days, while perf is free as in freedom.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Perf is a command-line application that generates reports based on the live
+    execution of programs. It does not need the source and can profile a very wide
+    range of applications, even those that involve multiple processes and interaction
+    with the operating system.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For explanation purposes, I have written a small program that creates an array
+    of a million random integers, sorts it, and then does a million binary searches
+    on it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After compiling it (`g++ -O3 -march=native example.cc -o run`), we can run
+    it with `perf stat ./run`, which outputs the counts of basic performance events
+    during its execution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can see that the execution took 0.53 seconds or 852M cycles at an effective
+    1.32 GHz clock rate, over which 479M instructions were executed. There were also
+    122.7M branches, and 15.7% of them were mispredicted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can get a list of all supported events with `perf list`, and then specify
+    a list of specific events you want with the `-e` option. For example, for diagnosing
+    binary search, we mostly care about cache misses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: By itself, `perf stat` simply sets up performance counters for the whole program.
+    It can tell you the total number of branch mispredictions, but it won’t tell you
+    *where* they are happening, let alone *why* they are happening.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To try the stop-the-world approach we discussed previously, we need to use `perf
+    record <cmd>`, which records profiling data and dumps it as a `perf.data` file,
+    and then call `perf report` to inspect it. I highly advise you to go and try it
+    yourselves because the last command is interactive and colorful, but for those
+    that can’t do it right now, I’ll try to describe it the best I can.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When you call `perf report`, it first displays a `top`-like interactive report
+    that tells you which functions are taking how much time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that, for each function, just its *overhead* is listed and not the total
+    running time (e.g., `setup` includes `std::__introsort_loop` but only its own
+    overhead is accounted as 3.43%). There are tools for constructing [flame graphs](https://www.brendangregg.com/flamegraphs.html)
+    out of perf reports to make them more clear. You also need to account for possible
+    inlining, which is apparently what happened with `std::lower_bound` here. Perf
+    also tracks shared libraries (like `libc`) and, in general, any other spawned
+    processes: if you want, you can launch a web browser with perf and see what’s
+    happening inside.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, you can “zoom in” on any of these functions, and, among others things,
+    it will offer to show you its disassembly with an associated heatmap. For example,
+    here is the assembly for `query`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: On the left column is the fraction of times that the instruction pointer stopped
+    on a specific line. You can see that we spend ~65% of the time on the jump instruction
+    because it has a comparison operator before it, indicating that the control flow
+    waits there for this comparison to be decided.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of intricacies such as [pipelining](/hpc/pipelining) and out-of-order
+    execution, “now” is not a well-defined concept in modern CPUs, so the data is
+    slightly inaccurate as the instruction pointer drifts a little bit forward. The
+    instruction-level data is still useful, but at the individual cycle level, we
+    need to switch to [something more precise](../simulation). [← Instrumentation](https://en.algorithmica.org/hpc/profiling/instrumentation/)[Program
+    Simulation →](https://en.algorithmica.org/hpc/profiling/simulation/)
+  prefs: []
+  type: TYPE_NORMAL

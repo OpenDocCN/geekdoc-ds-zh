@@ -1,0 +1,107 @@
+- en: Reductions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/simd/reduction/](https://en.algorithmica.org/hpc/simd/reduction/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '*Reduction* (also known as *folding* in functional programming) is the action
+    of computing the value of some associative and commutative operation (i.e., $(a
+    \circ b) \circ c = a \circ (b \circ c)$ and $a \circ b = b \circ a$) over a range
+    of arbitrary elements.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The simplest example of reduction is calculating the sum an array:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The naive approach is not so straightforward to vectorize, because the state
+    of the loop (sum $s$ on the current prefix) depends on the previous iteration.
+    The way to overcome this is to split a single scalar accumulator $s$ into 8 separate
+    ones, so that $s_i$ would contain the sum of every 8th element of the original
+    array, shifted by $i$:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: $$ s_i = \sum_{j=0}^{n / 8} a_{8 \cdot j + i } $$
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we store these 8 accumulators in a single 256-bit vector, we can update
+    them all at once by adding consecutive 8-element segments of the array. With [vector
+    extensions](../x86-simd), this is straightforward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can use this approach for other reductions, such as for finding the minimum
+    or the xor-sum of an array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/simd/reduction/#instruction-level-parallelism)Instruction-Level
+    Parallelism'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our implementation matches what the compiler produces automatically, but it
+    is actually suboptimal: when we use just one accumulator, [we have to wait](/hpc/pipelining/throughput)
+    one cycle between the loop iterations for a vector addition to complete, while
+    the [throughput](/hpc/pipelining/tables/) of corresponding instruction is 2 on
+    this microarchitecture.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we again divide the array in $B \geq 2$ parts and use a *separate* accumulator
+    for each, we can saturate the throughput of vector addition and increase the performance
+    twofold:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you have more than 2 relevant execution ports, you can increase the `B` constant
+    accordingly, but the $n$-fold performance increase will only apply to arrays that
+    fit into L1 cache — [memory bandwidth](/hpc/cpu-cache/bandwidth) will be the bottleneck
+    for anything larger.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/simd/reduction/#horizontal-summation)Horizontal
+    Summation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The part where we sum up the 8 accumulators stored in a vector register into
+    a single scalar to get the total sum is called “horizontal summation.”
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although extracting and adding every scalar one by one only takes a constant
+    number of cycles, it can be computed slightly faster using a [special instruction](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=_mm256_hadd_epi32&expand=2941)
+    that adds together pairs of adjacent elements in a register.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/81ecce41823f2ec0950f81c7ee46d064.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Horizontal summation in SSE/AVX. Note how the output is stored: the (a b a
+    b) interleaving is common for reducing operations'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since it is a very specific operation, it can only be done with SIMD intrinsics
+    — although the compiler probably emits roughly the same procedure for the scalar
+    code anyway:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: There are [other similar instructions](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#techs=AVX,AVX2&ig_expand=3037,3009,5135,4870,4870,4872,4875,833,879,874,849,848,6715,4845&text=horizontal),
+    e.g., for integer multiplication or calculating absolute differences between adjacent
+    elements (used in image processing).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is also one specific instruction, `_mm_minpos_epu16`, that calculates
+    the horizontal minimum and its index among eight 16-bit integers. This is the
+    only horizontal reduction that works in one go: all others are computed in multiple
+    steps. [← Moving Data](https://en.algorithmica.org/hpc/simd/moving/)[Masking and
+    Blending →](https://en.algorithmica.org/hpc/simd/masking/)'
+  prefs: []
+  type: TYPE_NORMAL

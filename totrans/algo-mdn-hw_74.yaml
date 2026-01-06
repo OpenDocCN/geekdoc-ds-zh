@@ -1,0 +1,282 @@
+- en: Argmin with SIMD
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/algorithms/argmin/](https://en.algorithmica.org/hpc/algorithms/argmin/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Computing the *minimum* of an array is [easily vectorizable](/hpc/simd/reduction),
+    as it is not different from any other reduction: in AVX2, you just need to use
+    a convenient `_mm256_min_epi32` intrinsic as the inner operation. It computes
+    the minimum of two 8-element vectors in one cycle — even faster than in the scalar
+    case, which requires at least a comparison and a conditional move.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finding the *index* of that minimum element (*argmin*) is much harder, but it
+    is still possible to vectorize very efficiently. In this section, we design an
+    algorithm that computes the argmin (almost) at the speed of computing the minimum
+    and ~15x faster than the naive scalar approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/argmin/#scalar-baseline)Scalar
+    Baseline'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For our benchmark, we create an array of random 32-bit integers, and then repeatedly
+    try to find the index of the minimum among them (the first one if it isn’t unique):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: For the sake of exposition, we assume that $N$ is a power of two, and run all
+    our experiments for $N=2^{13}$ so that the [memory bandwidth](/hpc/cpu-cache/bandwidth)
+    is not a concern.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To implement argmin in the scalar case, we just need to maintain the index
+    instead of the minimum value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: It works at around 1.5 GFLOPS — meaning $1.5 \cdot 10^9$ values per second processed
+    on average, or about 0.75 values per cycle (the CPU is clocked at 2GHz).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s compare it to `std::min_element`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The version from GCC gives ~0.28 GFLOPS — apparently, the compiler couldn’t
+    pierce through all the abstractions. Another reminder to never use STL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/argmin/#vector-of-indices)Vector
+    of Indices'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The problem with vectorizing the scalar implementation is that there is a dependency
+    between consequent iterations. When we optimized [array sum](/hpc/simd/reduction),
+    we faced the same problem, and we solved it by splitting the array into 8 slices,
+    each representing a subset of its indices with the same remainder modulo 8\. We
+    can apply the same trick here, except that we also have to take array indices
+    into account.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When we have the consecutive elements and their indices in vectors, we can
+    process them in parallel using [predication](/hpc/pipelining/branchless):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: It works at around 8-8.5 GFLOPS. There is still some inter-dependency between
+    the iterations, so we can optimize it by considering more than 8 elements per
+    iteration and taking advantage of the [instruction-level parallelism](/hpc/simd/reduction#instruction-level-parallelism).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This would help performance a lot, but not enough to match the speed of computing
+    the minimum (~24 GFLOPS) because there is another bottleneck. On each iteration,
+    we need a load-fused comparison, a load-fused minimum, a blend, and an addition
+    — that is 4 instructions in total to process 8 elements. Since the decode width
+    of this CPU (Zen 2) is just 4, the performance will still be limited by 8 × 2
+    = 16 GFLOPS even if we somehow got rid of all the other bottlenecks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead, we will switch to another approach that requires fewer instructions
+    per element.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/argmin/#branches-arent-scary)Branches
+    Aren’t Scary'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we run the scalar version, how often do we update the minimum?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Intuition tells us that, if all the values are drawn independently at random,
+    then the event when the next element is less than all the previous ones shouldn’t
+    be frequent. More precisely, it equals the reciprocal of the number of processed
+    elements. Therefore, the expected number of times the `a[i] < a[k]` condition
+    is satisfied equals the sum of the harmonic series:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: $$ \frac{1}{2} + \frac{1}{3} + \frac{1}{4} + \ldots + \frac{1}{n} = O(\ln(n))
+    $$
+  prefs: []
+  type: TYPE_NORMAL
+- en: So the minimum is updated around 5 times for a hundred-element array, 7 for
+    a thousand-element, and just 14 for a million-element array — which isn’t large
+    at all when looked at as a fraction of all is-new-minimum checks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The compiler probably couldn’t figure it out on its own, so let’s [explicitly
+    provide](/hpc/compilation/situational) this information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The compiler [optimized the machine code layout](/hpc/architecture/layout),
+    and the CPU is now able to execute the loop at around 2 GFLOPS — a slight but
+    sizeable improvement from 1.5 GFLOPS of the non-hinted loop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the idea: if we are only updating the minimum a dozen or so times during
+    the entire computation, we can ditch all the vector-blending and index updating
+    and just maintain the minimum and regularly check if it has changed. Inside this
+    check, we can use however slow method of updating the argmin we want because it
+    will only be called a few times.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To implement it with SIMD, all we need to do on each iteration is a vector
+    load, a comparison, and a test-if-zero:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It already performs at ~8.5 GFLOPS, but now the loop is bottlenecked by the
+    `testz` instruction which only has a throughput of one. The solution is to load
+    two consecutive SIMD blocks and use the minimum of them so that the `testz` effectively
+    processes 16 elements in one go:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This version works in ~10 GFLOPS. To remove the other obstacles, we can do
+    two things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Increase the block size to 32 elements to allow for more instruction-level parallelism.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Optimize the local argmin: instead of calculating its exact location, we can
+    just save the index of the block and then come back at the end and find it just
+    once. This lets us only compute the minimum on each positive check and broadcast
+    it to a vector, which is simpler and much faster.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'With these two optimizations implemented, the performance increases to a whopping
+    ~22 GFLOPS:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is almost as high as it can get as just computing the minimum itself works
+    at around 24-25 GFLOPS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The only problem of all these branch-happy SIMD implementations is that they
+    rely on the minimum being updated very infrequently. This is true for random input
+    distributions, but not in the worst case. If we fill the array with a sequence
+    of decreasing numbers, the performance of the last implementation drops to about
+    2.7 GFLOPS — almost 10 times as slow (although still faster than the scalar code
+    because we only calculate the minimum on each block).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One way to fix this is to do the same thing that the quicksort-like randomized
+    algorithms do: just shuffle the input yourself and iterate over the array in random
+    order. This lets you avoid this worst-case penalty, but it is tricky to implement
+    due to RNG- and [memory](/hpc/cpu-cache/prefetching)-related issues. There is
+    a simpler solution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/argmin/#find-the-minimum-then-find-the-index)Find
+    the Minimum, Then Find the Index'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We know how to [calculate the minimum of an array](/hpc/simd/reduction) fast
+    and how to [find an element in an array](/hpc/simd/masking#searching) fast — so
+    why don’t we just separately compute the minimum and then find it?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we implement the two subroutines optimally (check the linked articles), the
+    performance will be ~18 GFLOPS for random arrays and ~12 GFLOPS for decreasing
+    arrays — which makes sense as we are expected to read the array 1.5 and 2 times
+    respectively. This isn’t that bad by itself — at least we avoid the 10x worst-case
+    performance penalty — but the problem is that this penalized performance also
+    translates to larger arrays, when we are bottlenecked by the [memory bandwidth](/hpc/cpu-cache/bandwidth)
+    rather than compute.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Luckily, we already know how to fix it. We can split the array into blocks of
+    fixed size $B$ and compute the minima on these blocks while also maintaining the
+    global minimum. When the minimum on a new block is lower than the global minimum,
+    we update it and also remember the block number of where the global minimum currently
+    is. After we’ve processed the entire array, we just return to that block and scan
+    through its $B$ elements to find the argmin.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This way we only process $(N + B)$ elements and don’t have to sacrifice neither
+    ½ nor ⅓ of the performance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: This results for the final implementation are ~22 and ~19 GFLOPS for random
+    and decreasing arrays respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The full implementation, including both `min()` and `find()`, is about 100 lines
+    long. [Take a look](https://github.com/sslotin/amh-code/blob/main/argmin/combined.cc)
+    if you want, although it is still far from being production-grade.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/argmin/#summary)Summary'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here are the results combined for all implementations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Take these results with a grain of salt: the measurements are [quite noisy](/hpc/profiling/noise),
+    they were done for just for two input distributions, for a specific array size
+    ($N=2^{13}$, the size of the L1 cache), for a specific architecture (Zen 2), and
+    for a specific and slightly outdated compiler (GCC 9.3) — the compiler optimizations
+    were also very fragile to little changes in the benchmarking code.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are also still some minor things to optimize, but the potential improvement
+    is less than 10% so I didn’t bother. One day I may pluck up the courage, optimize
+    the algorithm to the theoretical limit, handle the non-divisible-by-block-size
+    array sizes and non-aligned memory cases, and then re-run the benchmarks properly
+    on many architectures, with p-values and such. In case someone does it before
+    me, please [ping me back](http://sereja.me/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/algorithms/argmin/#acknowledgements)Acknowledgements'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first, index-based SIMD algorithm was [originally designed](http://0x80.pl/notesen/2018-10-03-simd-index-of-min.html)
+    by Wojciech Muła in 2018.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thanks to Zach Wegner for [pointing out](https://twitter.com/zwegner/status/1491520929138151425)
+    that the performance of the Muła’s algorithm is improved when implemented manually
+    using intrinsics (I originally used the [GCC vector types](/hpc/simd/intrinsics/#gcc-vector-extensions)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: After publication, I’ve discovered that [Marshall Lochbaum](https://www.aplwiki.com/wiki/Marshall_Lochbaum),
+    the creator of [BQN](https://mlochbaum.github.io/BQN/), designed a [very similar
+    algorithm](https://forums.dyalog.com/viewtopic.php?f=13&t=1579&sid=e2cbd69817a17a6e7b1f76c677b1f69e#p6239)
+    while he was working on Dyalog APL in 2019\. Pay more attention to the world of
+    array programming languages! [← Integer Factorization](https://en.algorithmica.org/hpc/algorithms/factorization/)[Prefix
+    Sum with SIMD →](https://en.algorithmica.org/hpc/algorithms/prefix/)
+  prefs: []
+  type: TYPE_NORMAL

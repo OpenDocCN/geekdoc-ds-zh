@@ -1,0 +1,169 @@
+- en: Benchmarking
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://en.algorithmica.org/hpc/profiling/benchmarking/](https://en.algorithmica.org/hpc/profiling/benchmarking/)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'Most good software engineering practices in one way or another address the
+    issue of making *development cycles* faster: you want to compile your software
+    faster (build systems), catch bugs as soon as possible (static analysis, continuous
+    integration), release as soon as the new version is ready (continuous deployment),
+    and react to user feedback without much delay (agile development).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Performance engineering is not different. If you do it correctly, it should
+    also resemble a cycle:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Run the program and collect metrics.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Figure out where the bottleneck is.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Remove the bottleneck and go to step 1.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In this section, we will talk about benchmarking and discuss some practical
+    techniques that make this cycle shorter and help you iterate faster. Most of the
+    advice comes from working on this book, so you can find many real examples of
+    described setups in the [code repository](https://github.com/sslotin/ahm-code)
+    for this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/profiling/benchmarking/#benchmarking-inside-c)Benchmarking
+    Inside C++'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are several approaches to writing benchmarking code. Perhaps the most
+    popular one is to include several same-language implementations you want to compare
+    in one file, separately invoke them from the `main` function, and calculate all
+    the metrics you want in the same source file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The disadvantage of this method is that you need to write a lot of boilerplate
+    code and duplicate it for each implementation, but it can be partially neutralized
+    with metaprogramming. For example, when you are benchmarking multiple [gcd](/hpc/algorithms/gcd)
+    implementations, you can reduce benchmarking code considerably with this higher-order
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is a very low-overhead method that lets you run more experiments and [get
+    more accurate results](../noise) from them. You still have to perform some repeated
+    actions, but they can be largely automated with frameworks, [Google benchmark
+    library](https://github.com/google/benchmark) being the most popular choice for
+    C++. Some programming languages also have handy built-in tools for benchmarking:
+    special mention here goes to [Python’s timeit function](https://docs.python.org/3/library/timeit.html)
+    and [Julia’s @benchmark macro](https://github.com/JuliaCI/BenchmarkTools.jl).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although *efficient* in terms of execution speed, C and C++ are not the most
+    *productive* languages, especially when it comes to analytics. When your algorithm
+    depends on some parameters such as the input size, and you need to collect more
+    than just one data point from each implementation, you really want to integrate
+    your benchmarking code with the outside environment and analyze the results using
+    something else.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/profiling/benchmarking/#splitting-up-implementations)Splitting
+    Up Implementations'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One way to improve modularity and reusability is to separate all testing and
+    analytics code from the actual implementation of the algorithm, and also make
+    it so that different versions are implemented in separate files, but have the
+    same interface.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In C/C++, you can do this by creating a single header file (e.g., `gcd.hh`)
+    with a function interface and all its benchmarking code in `main`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then you create many implementation files for each algorithm version (e.g.,
+    `v1.cc`, `v2.cc`, and so on, or some meaningful names if applicable) that all
+    include that single header file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The whole purpose of doing this is to be able to benchmark a specific algorithm
+    version from the command line without touching any source code files. For this
+    purpose, you may also want to expose any parameters that it may have — for example,
+    by parsing them from the command line arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another way to do it is to use C-style global defines and then pass them with
+    the `-D N=...` flag during compilation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: This way you can make use of compile-time constants, which may be very beneficial
+    for the performance of some algorithms, at the expense of having to re-build the
+    program each time you want to change the parameter, which considerably increases
+    the time you need to collect metrics across a range of parameter values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/profiling/benchmarking/#makefiles)Makefiles'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Splitting up source files allows you to speed up compilation using a caching
+    build system such as [Make](https://en.wikipedia.org/wiki/Make_(software)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'I usually carry a version of this Makefile across my projects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can now compile `example.cc` with `make example`, and automatically run
+    it with `make example.run`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can also add scripts for calculating statistics in the Makefile, or incorporate
+    it with `perf stat` calls to make profiling automatic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '### [#](https://en.algorithmica.org/hpc/profiling/benchmarking/#jupyter-notebooks)Jupyter
+    Notebooks'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To speed up high-level analytics, you can create a Jupyter notebook where you
+    put all your scripts and do all the plots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is convenient to add a wrapper for benchmarking an implementation, which
+    just returns a scalar result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then you can use it to write clean analytics code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once established, this workflow makes you iterate much faster and focus on optimizing
+    the algorithm itself. [← Machine Code Analyzers](https://en.algorithmica.org/hpc/profiling/mca/)[Getting
+    Accurate Results →](https://en.algorithmica.org/hpc/profiling/noise/)
+  prefs: []
+  type: TYPE_NORMAL
