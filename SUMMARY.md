@@ -1,3 +1,4 @@
++   [算法神秘档案](docs/arcn-algo-arc/README.md)
 +   [数据科学的艺术](docs/art-ds/README.md)
 +   [CUDA 应用设计与开发](docs/cuda-app-dsn-dev/README.md)
 +   [CUDA 示例](docs/cuda-ex/README.md)
