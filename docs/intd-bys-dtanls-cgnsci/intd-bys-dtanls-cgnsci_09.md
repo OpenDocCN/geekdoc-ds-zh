@@ -1,1 +1,1 @@
-# \(p(\theta|n,k)\)
+# $p(\theta|n,k)$

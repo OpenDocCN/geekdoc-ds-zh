@@ -1,4 +1,4 @@
-# 认知科学中的贝叶斯数据分析简介
+# 认知科学的贝叶斯数据分析导论
 
 > 原文：[`bruno.nicenboim.me/bayescogsci/`](https://bruno.nicenboim.me/bayescogsci/)
 
