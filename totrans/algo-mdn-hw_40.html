@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Binary Exponentiation</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Binary Exponentiation</h1>
+<blockquote>原文：<a href="https://en.algorithmica.org/hpc/number-theory/exponentiation/">https://en.algorithmica.org/hpc/number-theory/exponentiation/</a></blockquote><div id="search"><input id="search-bar" type="search" placeholder="Search this book…" oninput="search()"/><div id="search-count"/><div id="search-results"/></div><header><div class="info"/></header><article><p>In modular arithmetic (and computational algebra in general), you often need to raise a number to the $n$-th power — to do <a href="../modular/#modular-division">modular division</a>, perform <a href="../modular/#fermats-theorem">primality tests</a>, or compute some combinatorial values — ­and you usually want to spend fewer than $\Theta(n)$ operations calculating it.</p><p><em>Binary exponentiation</em>, also known as <em>exponentiation by squaring</em>, is a method that allows for computation of the $n$-th power using $O(\log n)$ multiplications, relying on the following observation:</p>$$
+\begin{aligned}
+a^{2k} &amp;= (a^k)^2
+\\  a^{2k + 1}   &amp;= (a^k)^2 \cdot a
+\end{aligned}
+$$
+To compute $a^n$, we can recursively compute $a^{\lfloor n / 2 \rfloor}$, square it, and then optionally multiply by $a$ if $n$ is odd, corresponding to the following recurrence:
+$$
+a^n = f(a, n) = \begin{cases}
+1, &amp;&amp; n = 0
+\\ f(a, \frac{n}{2})^2,   &amp;&amp; 2 \mid n
+\\ f(a, n - 1) \cdot a, &amp;&amp; 2 \nmid n
+\end{cases}
+
+    $$
+ <p>Since $n$ is at least halved every two recursive transitions, the depth of this recurrence and the total number of multiplications will be at most $O(\log n)$.</p><span class="anchor" id="recursive-implementation"/><h3><a class="anchor-link" href="https://en.algorithmica.org/hpc/number-theory/exponentiation/#recursive-implementation">#</a>Recursive Implementation</h3><p>As we already have a recurrence, it is natural to implement the algorithm as a case matching recursive function:</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="k">const</span> <span class="kt">int</span> <span class="n">M</span> <span class="o">=</span> <span class="mf">1e9</span> <span class="o">+</span> <span class="mi">7</span><span class="p">;</span> <span class="c1">// modulo
+</span></span></span><span class="line"><span class="cl"><span class="c1"/><span class="k">typedef</span> <span class="kt">unsigned</span> <span class="kt">long</span> <span class="kt">long</span> <span class="n">u64</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">u64</span> <span class="nf">binpow</span><span class="p">(</span><span class="n">u64</span> <span class="n">a</span><span class="p">,</span> <span class="n">u64</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">binpow</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">a</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">u64</span> <span class="n">b</span> <span class="o">=</span> <span class="n">binpow</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">n</span> <span class="o">/</span> <span class="mi">2</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">b</span> <span class="o">*</span> <span class="n">b</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>In our benchmark, we use $n = m - 2$ so that we compute the <a href="../modular/#modular-division">multiplicative inverse</a> of $a$ modulo $m$:</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="n">u64</span> <span class="nf">inverse</span><span class="p">(</span><span class="n">u64</span> <span class="n">a</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">binpow</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">M</span> <span class="o">-</span> <span class="mi">2</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>We use $m = 10^9+7$, which is a modulo value commonly used in competitive programming to calculate checksums in combinatorial problems — because it is prime (allowing inverse via binary exponentiation), sufficiently large, not overflowing <code>int</code> in addition, not overflowing <code>long long</code> in multiplication, and easy to type as <code>1e9 + 7</code>.</p><p>Since we use it as compile-time constant in the code, the compiler can optimize the modulo by <a href="/hpc/arithmetic/division/">replacing it with multiplication</a> (even if it is not a compile-time constant, it is still cheaper to compute the magic constants by hand once and use them for fast reduction).</p><p>The execution path — and consequently the running time — depends on the value of $n$. For this particular $n$, the baseline implementation takes around 330ns per call. As recursion introduces some <a href="/hpc/architecture/functions/">overhead</a>, it makes sense to unroll the implementation into an iterative procedure.</p><span class="anchor" id="iterative-implementation"/><h3><a class="anchor-link" href="https://en.algorithmica.org/hpc/number-theory/exponentiation/#iterative-implementation">#</a>Iterative Implementation</h3><p>The result of $a^n$ can be represented as the product of $a$ to some powers of two — those that correspond to 1s in the binary representation of $n$. For example, if $n = 42 = 32 + 8 + 2$, then</p>$$
+a^{42} = a^{32+8+2} = a^{32} \cdot a^8 \cdot a^2
+$$<p>To calculate this product, we can iterate over the bits of $n$ maintaining two variables: the value of $a^{2^k}$ and the current product after considering $k$ lowest bits of $n$. On each step, we multiply the current product by $a^{2^k}$ if the $k$-th bit of $n$ is set, and, in either case, square $a^k$ to get $a^{2^k \cdot 2} = a^{2^{k+1}}$ that will be used on the next iteration.</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="n">u64</span> <span class="nf">binpow</span><span class="p">(</span><span class="n">u64</span> <span class="n">a</span><span class="p">,</span> <span class="n">u64</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">u64</span> <span class="n">r</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">n</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">r</span> <span class="o">=</span> <span class="n">res</span> <span class="o">*</span> <span class="n">a</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">a</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">n</span> <span class="o">&gt;&gt;=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>The iterative implementation takes about 180ns per call. The heavy calculations are the same; the improvement mainly comes from the reduced dependency chain: <code>a = a * a % M</code> needs to finish before the loop can proceed, and it can now execute concurrently with <code>r = res * a % M</code>.</p><p>The performance also benefits from $n$ being a constant, <a href="/hpc/pipelining/branching/">making all branches predictable</a> and letting the scheduler know what needs to be executed in advance. The compiler, however, does not take advantage of it and does not unroll the <code>while(n) n &gt;&gt;= 1</code> loop. We can rewrite it as a <code>for</code> loop that performs constant 30 iterations:</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="n">u64</span> <span class="nf">inverse</span><span class="p">(</span><span class="n">u64</span> <span class="n">a</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">u64</span> <span class="n">r</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="cp">#pragma GCC unroll(30)
+</span></span></span><span class="line"><span class="cl"><span class="cp"/>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">l</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">l</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">;</span> <span class="n">l</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="n">M</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="n">l</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">r</span> <span class="o">=</span> <span class="n">r</span> <span class="o">*</span> <span class="n">a</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">a</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>This forces the compiler to generate only the instructions we need, shaving off another 10ns and making the total running time ~170ns.</p><p>Note that the performance depends not only on the binary length of $n$, but also on the number of binary 1s. If $n$ is $2^{30}$, it takes around 20ns less as we don’t have to to perform any off-path multiplications.</p></article><div class="nextprev"><div class="left"><a href="https://en.algorithmica.org/hpc/number-theory/modular/" id="prev-article">← Modular Arithmetic</a></div><div class="right"><a href="https://en.algorithmica.org/hpc/number-theory/euclid-extended/" id="next-article">Extended Euclidean Algorithm →</a></div></div>    
+</body>
+</html>

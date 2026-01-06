@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Integer Division</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Integer Division</h1>
+<blockquote>原文：<a href="https://en.algorithmica.org/hpc/arithmetic/division/">https://en.algorithmica.org/hpc/arithmetic/division/</a></blockquote><div id="search"><input id="search-bar" type="search" placeholder="Search this book…" oninput="search()"/><div id="search-count"/><div id="search-results"/></div><header><div class="info"/></header><article><p>Compared to other arithmetic operations, division works very poorly on x86 and computers in general. Both floating-point and integer division is notoriously hard to implement in hardware. The circuitry takes a lot of space in the ALU, the computation has a lot of stages, and as the result, <code>div</code> and its siblings routinely take 10-20 cycles to complete, with latency being slightly less on smaller data type sizes.</p><span class="anchor" id="division-and-modulo-in-x86"/><h3><a class="anchor-link" href="https://en.algorithmica.org/hpc/arithmetic/division/#division-and-modulo-in-x86">#</a>Division and Modulo in x86</h3><p>Since nobody wants to duplicate all this mess for a separate modulo operation, the <code>div</code> instruction serves both purposes. To perform a 32-bit integer division, you need to put the dividend <em>specifically</em> in the <code>eax</code> register and call <code>div</code> with the divisor as its sole operand. After this, the quotient will be stored in <code>eax</code> and the remainder will be stored in <code>edx</code>.</p><p>The only caveat is that the dividend actually needs to be stored in <em>two</em> registers, <code>eax</code> and <code>edx</code>: this mechanism enables 64-by-32 or even 128-by-64 division, similar to how <a href="../integer">128-bit multiplication</a> works. When performing the usual 32-by-32 signed division, we need to sign-extend <code>eax</code> to 64 bits and store its higher part in <code>edx</code>:</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nasm" data-lang="nasm"><span class="line"><span class="cl"><span class="nf">div</span><span class="p">(</span><span class="nv">int</span><span class="p">,</span> <span class="nv">int</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mov</span>  <span class="nb">eax</span><span class="p">,</span> <span class="nb">edi</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">cdq</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">idiv</span> <span class="nb">esi</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">ret</span>
+</span></span></code></pre></div><p>For unsigned division, you can just set <code>edx</code> to zero so that it doesn’t interfere:</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nasm" data-lang="nasm"><span class="line"><span class="cl"><span class="nf">div</span><span class="p">(</span><span class="nv">unsigned</span><span class="p">,</span> <span class="nv">unsigned</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mov</span>  <span class="nb">eax</span><span class="p">,</span> <span class="nb">edi</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">xor</span>  <span class="nb">edx</span><span class="p">,</span> <span class="nb">edx</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">div</span>  <span class="nb">esi</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">ret</span>
+</span></span></code></pre></div><p>An in both cases, in addition to the quotient in <code>eax</code>, you can also access the remainder as <code>edx</code>:</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nasm" data-lang="nasm"><span class="line"><span class="cl"><span class="nf">mod</span><span class="p">(</span><span class="nv">unsigned</span><span class="p">,</span> <span class="nv">unsigned</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mov</span>  <span class="nb">eax</span><span class="p">,</span> <span class="nb">edi</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">xor</span>  <span class="nb">edx</span><span class="p">,</span> <span class="nb">edx</span> 
+</span></span><span class="line"><span class="cl">    <span class="nf">div</span>  <span class="nb">esi</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mov</span>  <span class="nb">eax</span><span class="p">,</span> <span class="nb">edx</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">ret</span>
+</span></span></code></pre></div><p>You can also divide 128-bit integer (stored in <code>rdx:rax</code>) by a 64-bit integer:</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nasm" data-lang="nasm"><span class="line"><span class="cl"><span class="nf">div</span><span class="p">(</span><span class="nv">u128</span><span class="p">,</span> <span class="nv">u64</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">; a = rdi + rsi, b = rdx</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mov</span>  <span class="nb">rcx</span><span class="p">,</span> <span class="nb">rdx</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mov</span>  <span class="nb">rax</span><span class="p">,</span> <span class="nb">rdi</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mov</span>  <span class="nb">rdx</span><span class="p">,</span> <span class="nb">rsi</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">div</span>  <span class="nb">edx</span> 
+</span></span><span class="line"><span class="cl">    <span class="nf">ret</span>
+</span></span></code></pre></div><p>The high part of the dividend should be less than the divisor, otherwise an overflow occurs. Because of this constraint, it is <a href="https://danlark.org/2020/06/14/128-bit-division/">hard</a> to get compilers to produce this code by themselves: if you divide a <a href="../integer">128-bit integer type</a> by a 64-bit integer, the compiler will bubble-wrap it with additional checks which may actually be unnecessary.</p><span class="anchor" id="division-by-constants"/><h3><a class="anchor-link" href="https://en.algorithmica.org/hpc/arithmetic/division/#division-by-constants">#</a>Division by Constants</h3><p>Integer division is painfully slow, even when fully implemented in hardware, but it can be avoided in certain cases if the divisor is constant. A well-known example is the division by a power of two, which can be replaced by a one-cycle binary shift: the <a href="/hpc/algorithms/gcd">binary GCD algorithm</a> is a delightful showcase of this technique.</p><p>In the general case, there are several clever tricks that replace division with multiplication at the cost of a bit of precomputation. All these tricks are based on the following idea. Consider the task of dividing one floating-point number $x$ by another floating-point number $y$, when $y$ is known in advance. What we can do is to calculate a constant</p>$$
+d \approx y^{-1}
+$$
+and then, during runtime, we will calculate
+$$
+x / y = x \cdot y^{-1} \approx x \cdot d
+$$<p>The result of $\frac{1}{y}$ will be at most $\epsilon$ off, and the multiplication $x \cdot d$ will only add another $\epsilon$ and therefore will be at most $2 \epsilon + \epsilon^2 = O(\epsilon)$ off, which is tolerable for the floating-point case.</p><span class="anchor" id="barrett-reduction"/><h3><a class="anchor-link" href="https://en.algorithmica.org/hpc/arithmetic/division/#barrett-reduction">#</a>Barrett Reduction</h3><p>How to generalize this trick for integers? Calculating <code>int d = 1 / y</code> doesn’t seem to work, because it will just be zero. The best thing we can do is to express it as</p>$$
+d = \frac{m}{2^s}
+$$
+and then find a “magic” number $m$ and a binary shift $s$ such that <code>x / y == (x * m) &gt;&gt; s</code> for all <code>x</code> within range.
+$$
+\lfloor x / y \rfloor
+= \lfloor x \cdot y^{-1} \rfloor
+= \lfloor x \cdot d \rfloor
+= \lfloor x \cdot \frac{m}{2^s} \rfloor
+$$<p>It can be shown that such a pair always exists, and compilers actually perform an optimization like that by themselves. Every time they encounter a division by a constant, they replace it with a multiplication and a binary shift. Here is the generated assembly for dividing an <code>unsigned long long</code> by $(10^9 + 7)$:</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nasm" data-lang="nasm"><span class="line"><span class="cl"><span class="c1">;  input (rdi): x</span>
+</span></span><span class="line"><span class="cl"><span class="c1">; output (rax): x mod (m=1e9+7)</span>
+</span></span><span class="line"><span class="cl"><span class="nf">mov</span>    <span class="nb">rax</span><span class="p">,</span> <span class="nb">rdi</span>
+</span></span><span class="line"><span class="cl"><span class="nf">movabs</span> <span class="nb">rdx</span><span class="p">,</span> <span class="o">-</span><span class="mi">8543223828751151131</span>  <span class="c1">; load magic constant into a register</span>
+</span></span><span class="line"><span class="cl"><span class="nf">mul</span>    <span class="nb">rdx</span>                        <span class="c1">; perform multiplication</span>
+</span></span><span class="line"><span class="cl"><span class="nf">mov</span>    <span class="nb">rax</span><span class="p">,</span> <span class="nb">rdx</span>
+</span></span><span class="line"><span class="cl"><span class="nf">shr</span>    <span class="nb">rax</span><span class="p">,</span> <span class="mi">29</span>                    <span class="c1">; binary shift of the result</span>
+</span></span></code></pre></div><p>This technique is called <em>Barrett reduction</em>, and it’s called “reduction” because it is mostly used for modulo operations, which can be replaced with a single division, multiplication and subtraction by the virtue of this formula:</p>$$
+r = x - \lfloor x / y \rfloor \cdot y
+$$<p>This method requires some precomputation, including performing one actual division. Therefore, this is only beneficial when you perform not just one but a few divisions, all with the same constant divisor.</p><span class="anchor" id="why-it-works"/><h3><a class="anchor-link" href="https://en.algorithmica.org/hpc/arithmetic/division/#why-it-works">#</a>Why It Works</h3><p>It is not very clear why such $m$ and $s$ always exist, let alone how to find them. But given a fixed $s$, intuition tells us that $m$ should be as close to $2^s/y$ as possible for $2^s$ to cancel out. So there are two natural choices: $\lfloor 2^s/y \rfloor$ and $\lceil 2^s/y \rceil$. The first one doesn’t work, because if you substitute</p>$$
+\Bigl \lfloor \frac{x \cdot \lfloor 2^s/y \rfloor}{2^s} \Bigr \rfloor
+$$
+then for any integer $\frac{x}{y}$ where $y$ is not even, the result will be strictly less than the truth. This only leaves the other case, $m = \lceil 2^s/y \rceil$. Now, let’s try to derive the lower and upper bounds for the result of the computation:
+$$
+\lfloor x / y \rfloor
+= \Bigl \lfloor \frac{x \cdot m}{2^s} \Bigr \rfloor
+= \Bigl \lfloor \frac{x \cdot \lceil 2^s /y \rceil}{2^s} \Bigr \rfloor
+$$
+Let’s start with the bounds for $m$:
+$$
+2^s / y
+\le
+\lceil 2^s / y \rceil
+&lt;
+2^s / y + 1
+$$
+And now for the whole expression:
+$$
+x / y - 1
+&lt;
+\Bigl \lfloor \frac{x \cdot \lceil 2^s /y \rceil}{2^s} \Bigr \rfloor
+&lt;
+x / y + x / 2^s
+$$<p>We can see that the result falls somewhere in a range of size $(1 + \frac{x}{2^s})$, and if this range always has exactly one integer for all possible $x / y$, then the algorithm is guaranteed to give the right answer. Turns out, we can always set $s$ to be high enough to achieve it.</p><p>What will be the worst case here? How to pick $x$ and $y$ so that the $(x/y - 1, x/y + x / 2^s)$ range contains two integers? We can see that integer ratios don’t work because the left border is not included, and assuming $x/2^s &lt; 1$, only $x/y$ itself will be in the range. The worst case is actually the $x/y$ that comes closest to $1$ without exceeding it. For $n$-bit integers, that is the second-largest possible integer divided by the first-largest:</p>$$
+\begin{aligned}
+x = 2^n - 2
+\\ y = 2^n - 1
+\end{aligned}
+$$<p>In this case, the lower bound will be $(\frac{2^n-2}{2^n-1} - 1)$ and the upper bound will be $(\frac{2^n-2}{2^n-1} + \frac{2^n-2}{2^s})$. The left border is as close to a whole number as possible, and the size of the whole range is the second largest possible. And here is the punchline: if $s \ge n$, then the only integer contained in this range is $1$, and so the algorithm will always return it.</p><span class="anchor" id="lemire-reduction"/><h3><a class="anchor-link" href="https://en.algorithmica.org/hpc/arithmetic/division/#lemire-reduction">#</a>Lemire Reduction</h3><p>Barrett reduction is a bit complicated, and also generates a length instruction sequence for modulo because it is computed indirectly. There is a new (<a href="https://arxiv.org/pdf/1902.01961.pdf">2019</a>) method, which is simpler and actually faster for modulo in some cases. It doesn’t have a conventional name yet, but I am going to refer to it as <a href="https://lemire.me/blog/">Lemire</a> reduction.</p><p>Here is the main idea. Consider the floating-point representation of some integer fraction:</p>$$
+\frac{179}{6} = 11101.1101010101\ldots = 29\tfrac{5}{6} \approx 29.83
+$$<p>How can we “dissect” it to get the parts we need?</p><ul><li>To get the integer part (29), we can just floor or truncate it before the dot.</li><li>To get the fractional part (⅚), we can just take what is after the dots.</li><li>To get the remainder (5), we can multiply the fractional part by the divisor.</li></ul><p>Now, for 32-bit integers, we can set $s = 64$ and look at the computation that we do in the multiply-and-shift scheme:</p>$$
+\lfloor x / y \rfloor
+= \Bigl \lfloor \frac{x \cdot m}{2^s} \Bigr \rfloor
+= \Bigl \lfloor \frac{x \cdot \lceil 2^s /y \rceil}{2^s} \Bigr \rfloor
+$$<p>What we really do here is we multiply $x$ by a floating-point constant ($x \cdot m$) and then truncate the result $(\lfloor \frac{\cdot}{2^s} \rfloor)$.</p><p>What if we took not the highest bits but the lowest? This would correspond to the fractional part — and if we multiply it back by $y$ and truncate the result, this will be exactly the remainder:</p>$$
+r = \Bigl \lfloor \frac{ (x \cdot \lceil 2^s /y \rceil \bmod 2^s) \cdot y }{2^s} \Bigr \rfloor
+$$<p>This works perfectly because what we do here can be interpreted as just three chained floating-point multiplications with the total relative error of $O(\epsilon)$. Since $\epsilon = O(\frac{1}{2^s})$ and $s = 2n$, the error will always be less than one, and hence the result will be exact.</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="kt">uint32_t</span> <span class="n">y</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">uint64_t</span> <span class="n">m</span> <span class="o">=</span> <span class="kt">uint64_t</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> <span class="c1">// ceil(2^64 / y)
+</span></span></span><span class="line"><span class="cl"><span class="c1"/>
+</span></span><span class="line"><span class="cl"><span class="kt">uint32_t</span> <span class="nf">mod</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint64_t</span> <span class="n">lowbits</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="n">x</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">((</span><span class="n">__uint128_t</span><span class="p">)</span> <span class="n">lowbits</span> <span class="o">*</span> <span class="n">y</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">64</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">uint32_t</span> <span class="nf">div</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">((</span><span class="n">__uint128_t</span><span class="p">)</span> <span class="n">m</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">64</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>We can also check divisibility of $x$ by $y$ with just one multiplication using the fact that the remainder of division is zero if and only if the fractional part (the lower 64 bits of $m \cdot x$) does not exceed $m$ (otherwise, it would become a nonzero number when multiplied back by $y$ and right-shifted by 64).</p><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c++" data-lang="c++"><span class="line"><span class="cl"><span class="kt">bool</span> <span class="nf">is_divisible</span><span class="p">(</span><span class="kt">uint32_t</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">m</span> <span class="o">*</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">m</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>The only downside of this method is that it needs integer types four times the original size to perform the multiplication, while other reduction methods can work with just the double.</p><p>There is also a way to compute 64x64 modulo by carefully manipulating the halves of intermediate results; the implementation is left as an exercise to the reader.</p><span class="anchor" id="further-reading"/><h3><a class="anchor-link" href="https://en.algorithmica.org/hpc/arithmetic/division/#further-reading">#</a>Further Reading</h3><p>Check out <a href="https://github.com/ridiculousfish/libdivide">libdivide</a> and <a href="https://gmplib.org/">GMP</a> for more general implementations of optimized integer division.</p><p>It is also worth reading <a href="https://www.amazon.com/Hackers-Delight-2nd-Henry-Warren/dp/0321842685">Hacker’s Delight</a>, which has a whole chapter dedicated to integer division.</p></article><div class="nextprev"><div class="left"><a href="https://en.algorithmica.org/hpc/arithmetic/integer/" id="prev-article">← Integer Numbers</a></div><div class="right"><a href="https://en.algorithmica.org/hpc/number-theory/" id="next-article">../Number Theory →</a></div></div>    
+</body>
+</html>
