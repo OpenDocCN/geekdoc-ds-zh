@@ -1,43 +1,59 @@
 - en: Machine Code Layout
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 机器代码布局
 - en: 原文：[https://en.algorithmica.org/hpc/architecture/layout/](https://en.algorithmica.org/hpc/architecture/layout/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/architecture/layout/](https://en.algorithmica.org/hpc/architecture/layout/)
 - en: 'Computer engineers like to mentally split the [pipeline of a CPU](/hpc/pipelining)
     into two parts: the *front-end*, where instructions are fetched from memory and
     decoded, and the *back-end*, where they are scheduled and finally executed. Typically,
     the performance is bottlenecked by the execution stage, and for this reason, most
     of our efforts in this book are going to be spent towards optimizing around the
     back-end.'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算机工程师喜欢将 CPU 的 [流水线](/hpc/pipelining) 在心理上分为两部分：*前端*，在这里指令从内存中取出并解码，以及*后端*，在这里它们被调度并最终执行。通常，性能瓶颈在于执行阶段，因此，本书的大部分努力都将致力于优化后端。
 - en: But sometimes the reverse can happen when the front-end doesn’t feed instructions
     to the back-end fast enough to saturate it. This can happen for many reasons,
     all ultimately having something to do with how the machine code is laid out in
     memory, and affect performance in anecdotal ways, such as removing unused code,
     swapping “if” branches, or even changing the order of function declarations causing
     performance to either improve or deteriorate.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 但有时情况可能相反，当前端没有足够快地将指令提供给后端以使其饱和时。这可能由许多原因造成，所有这些原因最终都与机器代码在内存中的布局有关，并以轶事的方式影响性能，例如删除未使用的代码、交换“if”分支，甚至改变函数声明的顺序，导致性能要么提高要么下降。
 - en: '### [#](https://en.algorithmica.org/hpc/architecture/layout/#cpu-front-end)CPU
     Front-End'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/architecture/layout/#cpu-front-end)CPU
+    前端'
 - en: 'Before the machine code gets transformed into instructions, and the CPU understands
     what the programmer wants, it first needs to go through two important stages that
     we are interested in: *fetch* and *decode*.'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 在机器代码被转换为指令，并且 CPU 理解程序员想要什么之前，它首先需要经过两个我们感兴趣的重要阶段：*取指*和*解码*。
 - en: 'During the **fetch** stage, the CPU simply loads a fixed-size chunk of bytes
     from the main memory, which contains the binary encodings of some number of instructions.
     This block size is typically 32 bytes on x86, although it may vary on different
     machines. An important nuance is that this block has to be [aligned](/hpc/cpu-cache/cache-lines):
     the address of the chunk must be multiple of its size (32B, in our case).'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 在**取指**阶段，CPU 简单地从主内存中加载一个固定大小的字节数组，其中包含一些指令的二进制编码。这个块的大小在 x86 上通常是 32 字节，尽管在不同的机器上可能会有所不同。一个重要的细微差别是，这个块必须[对齐](/hpc/cpu-cache/cache-lines)：块地址必须是其大小的倍数（在我们的例子中是
+    32B）。
 - en: 'Next comes the **decode** stage: the CPU looks at this chunk of bytes, discards
     everything that comes before the instruction pointer, and splits the rest of them
     into instructions. Machine instructions are encoded using a variable number of
@@ -48,94 +64,130 @@
     width*. On my CPU (a [Zen 2](https://en.wikichip.org/wiki/amd/microarchitectures/zen_2)),
     the decode width is 4, which means that on each cycle, up to 4 instructions can
     be decoded and passed to the next stage.'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来是**解码**阶段：CPU 查看这个字节数组，丢弃所有在指令指针之前的部分，并将剩余的部分拆分为指令。机器指令使用可变数量的字节进行编码：像 `inc
+    rax` 这样简单且非常常见的指令只需要一个字节，而一些编码了常量和修改行为前缀的晦涩指令可能需要多达 15 个字节。因此，从 32 字节块中可以解码出可变数量的指令，但不超过称为*解码宽度*的特定机器相关限制。在我的
+    CPU（一个 [Zen 2](https://en.wikichip.org/wiki/amd/microarchitectures/zen_2)）上，解码宽度是
+    4，这意味着在每个周期内，最多可以解码并传递给下一阶段的指令数量为 4。
 - en: 'The stages work in a pipelined fashion: if the CPU can tell (or [predict](/hpc/pipelining/branching/))
     which instruction block it needs next, then the fetch stage doesn’t wait for the
     last instruction in the current block to be decoded and loads the next one right
     away.'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些阶段以流水线的方式工作：如果 CPU 能够预测（或 [预测](/hpc/pipelining/branching/)）它需要的下一个指令块，那么取指阶段不需要等待当前块中的最后一个指令被解码，就可以立即加载下一个指令。
 - en: '### [#](https://en.algorithmica.org/hpc/architecture/layout/#code-alignment)Code
     Alignment'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/architecture/layout/#code-alignment)代码对齐'
 - en: Other things being equal, compilers typically prefer instructions with shorter
     machine code, because this way more instructions can fit in a single 32B fetch
     block, and also because it reduces the size of the binary. But sometimes the reverse
     is prefereable, due to the fact that the fetched instructions’ blocks must be
     aligned.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 在其他条件相同的情况下，编译器通常更喜欢较短的机器代码指令，因为这样可以在单个32B获取块中放入更多的指令，同时也因为这样可以减少二进制文件的大小。但有时相反的情况更可取，这是因为取出的指令块必须对齐。
 - en: Imagine that you need to execute an instruction sequence that starts on the
     last byte of a 32B-aligned block. You may be able to execute the first instruction
     without additional delay, but for the subsequent ones, you have to wait for one
     additional cycle to do another instruction fetch. If the code block was aligned
     on a 32B boundary, then up to 4 instructions could be decoded and then executed
     concurrently (unless they are extra long or interdependent).
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设你需要执行一个从32B对齐块的最后一个字节开始的指令序列。你可能能够无额外延迟地执行第一条指令，但对于随后的指令，你必须等待一个额外的周期来执行另一个指令检索。如果代码块是对齐在32B边界上，那么最多可以有4条指令被解码并随后并发执行（除非它们特别长或相互依赖）。
 - en: 'Having this in mind, compilers often do a seemingly harmful optimization: they
     sometimes prefer instructions with longer machine codes, and even insert dummy
     instructions that do nothing^([1](#fn:1)) in order to get key jump locations aligned
     on a suitable power-of-two boundary.'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑到这一点，编译器通常会进行看似有害的优化：它们有时会偏好较长的机器代码指令，甚至插入无用的指令^([1](#fn:1))，以便将关键跳转位置对齐到合适的2的幂次边界。
 - en: In GCC, you can use `-falign-labels=n` flag to specify a particular alignment
     policy, [replacing](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html)
     `-labels` with `-function`, `-loops`, or `-jumps` if you want to be more selective.
     On `-O2` and `-O3` levels of optimization, it is enabled by default — without
     setting a particular alignment, in which case it uses a (usually reasonable) machine-dependent
     default value.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GCC中，你可以使用`-falign-labels=n`标志来指定特定的对齐策略，[替换](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html)
+    `-labels` 为 `-function`、`-loops` 或 `-jumps`，如果你想要更具有选择性。在`-O2`和`-O3`优化级别上，它默认启用——没有设置特定的对齐，在这种情况下，它使用一个（通常是合理的）机器相关的默认值。
 - en: '### [#](https://en.algorithmica.org/hpc/architecture/layout/#instruction-cache)Instruction
     Cache'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/architecture/layout/#instruction-cache)指令缓存'
 - en: The instructions are stored and fetched using largely the same [memory system](/hpc/cpu-cache)
     as for the data, except maybe the lower layers of cache are replaced with a separate
     *instruction cache* (because you wouldn’t want a random data read to kick out
     the code that processes it).
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 指令的存储和检索主要使用与数据相同的[内存系统](/hpc/cpu-cache)，除了可能将缓存的下层替换为单独的*指令缓存*（因为你不希望随机的数据读取将处理它的代码踢出）。
 - en: 'The instruction cache is crucial in situations when you either:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 指令缓存对于以下情况至关重要：
 - en: don’t know what instructions you are going to execute next, and need to fetch
     the next block with [low latency](/hpc/cpu-cache/latency),
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 不确定你将要执行哪些指令，并且需要以[低延迟](/hpc/cpu-cache/latency)获取下一个块，
 - en: or are executing a long sequence of verbose-but-quick-to-process instructions,
     and need [high bandwidth](/hpc/cpu-cache/bandwidth).
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 或者正在执行一系列冗长但快速处理的指令，并且需要[高带宽](/hpc/cpu-cache/bandwidth)。
 - en: 'The memory system can therefore become the bottleneck for programs with large
     machine code. This consideration limits the applicability of the optimization
     techniques we’ve previously discussed:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，内存系统可能成为大型机器代码程序的瓶颈。这种考虑限制了之前讨论的优化技术的适用性：
 - en: '[Inlining functions](../functions) is not always optimal, because it reduces
     code sharing and increases the binary size, requiring more instruction cache.'
+  id: totrans-20
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[内联函数](../functions)并不总是最优的，因为它减少了代码共享并增加了二进制文件的大小，需要更多的指令缓存。'
 - en: '[Unrolling loops](../loops) is only beneficial up to some extent, even if the
     number of iterations is known during compile time: at some point, the CPU would
     have to fetch both instructions and data from the main memory, in which case it
     will likely be bottlenecked by the memory bandwidth.'
+  id: totrans-21
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '[展开循环](../loops)只有在一定程度上是有益的，即使编译时已知迭代次数：在某个点上，CPU将不得不从主内存中获取指令和数据，在这种情况下，它很可能会因为内存带宽而成为瓶颈。'
 - en: Huge [code alignments](#code-alignment) increase the binary size, again requiring
     more instruction cache. Spending one more cycle on fetch is a minor penalty compared
     to missing the cache and waiting for the instructions to be fetched from the main
     memory.
+  id: totrans-22
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 大量的 [代码对齐](#code-alignment) 会增加二进制文件的大小，再次需要更多的指令缓存。相比从主内存中取指令并等待，多一个周期的取指令时间是一个小的惩罚。
 - en: Another aspect is that placing frequently used instruction sequences on the
     same [cache lines](/hpc/cpu-cache/cache-lines) and [memory pages](/hpc/cpu-cache/paging)
     improves [cache locality](/hpc/external-memory/locality). To improve instruction
@@ -144,92 +196,143 @@
     idea further, check out Facebook’s [Binary Optimization and Layout Tool](https://engineering.fb.com/2018/06/19/data-infrastructure/accelerate-large-scale-applications-with-bolt/),
     which was recently [merged](https://github.com/llvm/llvm-project/commit/4c106cfdf7cf7eec861ad3983a3dd9a9e8f3a8ae)
     into LLVM.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个方面是，将频繁使用的指令序列放置在相同的 [缓存行](/hpc/cpu-cache/cache-lines) 和 [内存页](/hpc/cpu-cache/paging)
+    上，可以提高 [缓存局部性](/hpc/external-memory/locality)。为了提高指令缓存利用率，你应该将热代码与热代码组合，将冷代码与冷代码组合，并在可能的情况下移除死代码（未使用的代码）。如果你想进一步探索这个想法，可以查看
+    Facebook 的 [二进制优化和布局工具](https://engineering.fb.com/2018/06/19/data-infrastructure/accelerate-large-scale-applications-with-bolt/)，该工具最近已被
+    [合并](https://github.com/llvm/llvm-project/commit/4c106cfdf7cf7eec861ad3983a3dd9a9e8f3a8ae)
+    到 LLVM 中。
 - en: '### [#](https://en.algorithmica.org/hpc/architecture/layout/#unequal-branches)Unequal
     Branches'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/architecture/layout/#unequal-branches)
+    不等分支'
 - en: 'Suppose that for some reason you need a helper function that calculates the
     length of an integer interval. It takes two arguments, $x$ and $y$, but for convenience,
     it may correspond to either $[x, y]$ or $[y, x]$, depending on which one is non-empty.
     In plain C, you would probably write something like this:'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设由于某种原因，你需要一个辅助函数来计算整数区间的长度。它接受两个参数，$x$ 和 $y$，但为了方便，它可能对应于 $[x, y]$ 或 $[y,
+    x]$，这取决于哪个不为空。在纯 C 语言中，你可能写成这样：
 - en: '[PRE0]'
+  id: totrans-26
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'In x86 assembly, there is a lot more variability to how you can implement it,
     noticeably impacting performance. Let’s start with trying to map this code directly
     into assembly:'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 x86 汇编中，你可以以更多的方式实现它，这明显影响了性能。让我们先尝试直接将此代码映射到汇编中：
 - en: '[PRE1]'
+  id: totrans-28
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'While the initial C code seems very symmetrical, the assembly version isn’t.
     This results in an interesting quirk that one branch can be executed slightly
     faster than the other: if `x > y`, then the CPU can just execute the 5 instructions
     between `cmp` and `ret`, which, if the function is aligned, are all going to be
     fetched in one go; while in case of `x <= y`, two more jumps are required.'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然初始的 C 语言代码看起来非常对称，但汇编版本则不然。这导致了一个有趣的现象：一个分支可以比另一个分支稍微快一点执行：如果 `x > y`，那么 CPU
+    可以直接执行 `cmp` 和 `ret` 之间的 5 条指令，如果函数对齐，这些指令都会一次性被取到；而如果是 `x <= y` 的情况，则需要额外的两个跳转。
 - en: 'It may be reasonable to assume that the `x > y` case is *unlikely* (why would
     anyone calculate the length of an inverted interval?), more like an exception
     that mostly never happens. We can detect this case, and simply swap `x` and `y`:'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以合理地假设 `x > y` 的情况是不太可能的（为什么有人会计算反转区间的长度？），更像是几乎从未发生的异常。我们可以检测这种情况，并简单地交换 `x`
+    和 `y`：
 - en: '[PRE2]'
+  id: totrans-31
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'The assembly would go like this, as it typically does for the if-without-else
     patterns:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 汇编代码将像这样，就像通常的 if-without-else 模式一样：
 - en: '[PRE3]'
+  id: totrans-33
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'The total instruction length is 6 now, down from 8\. But it is still not quite
     optimized for our assumed case: if we think that `x > y` never happens, then we
     are wasteful when loading the `xchg edi, esi` instruction that is never going
     to be executed. We can solve this by moving it outside the normal execution path:'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在的总指令长度是 6，比之前的 8 短。但仍然没有针对我们假设的情况进行优化：如果我们认为 `x > y` 永远不会发生，那么加载 `xchg edi,
+    esi` 指令（它永远不会被执行）就是浪费。我们可以通过将其移出正常执行路径来解决这个问题：
 - en: '[PRE4]'
+  id: totrans-35
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'This technique is quite handy when handling exceptions cases in general, and
     in high-level code, you can give the compiler a [hint](/hpc/compilation/situational)
     that a certain branch is more likely than the other:'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种技术在处理异常情况时非常实用，在高级代码中，你可以给编译器一个 [提示](/hpc/compilation/situational)，表明某个分支比另一个分支更有可能：
 - en: '[PRE5]'
+  id: totrans-37
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'This optimization is only beneficial when you know that a branch is very rarely
     taken. When this is not the case, there are [other aspects](/hpc/pipelining/hazards)
     more important than the code layout, that compel compilers to avoid any branching
     at all — in this case by replacing it with a special “conditional move” instruction,
     roughly corresponding to the ternary expression `(x > y ? y - x : x - y)` or calling
     `abs(x - y)`:'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: '这种优化只有在你知道分支很少被取用的情况下才是有益的。当情况不是这样时，有[其他方面](/hpc/pipelining/hazards)比代码布局更重要，这迫使编译器避免任何分支——在这种情况下，通过替换为特殊的“条件移动”指令来实现，大致对应于三元表达式`(x
+    > y ? y - x : x - y)`或调用`abs(x - y)`：'
 - en: '[PRE6]'
+  id: totrans-39
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: Eliminating branches is an important topic, and we will spend [much of the next
     chapter](/hpc/pipelining/branching) discussing it in more detail.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 消除分支是一个重要的话题，我们将在下一章的很大一部分内容中更详细地讨论它。
 - en: '* * *'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: 'Such instructions are called no-op, or NOP instructions. On x86, the “official
     way” of doing nothing is `xchg rax, rax` (swap a register with itself): the CPU
     recognizes it and doesn’t spend extra cycles executing it, except for the decode
     stage. The `nop` shorthand maps to the same machine code. [↩︎](#fnref:1) [← Indirect
     Branching](https://en.algorithmica.org/hpc/architecture/indirect/)[../Instruction-Level
     Parallelism →](https://en.algorithmica.org/hpc/pipelining/)'
+  id: totrans-42
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 这样的指令被称为空操作，或NOP指令。在x86架构中，执行空操作的“官方方法”是`xchg rax, rax`（交换一个寄存器与其自身）：CPU会识别它，并且不会在执行阶段之外额外消耗周期，除了解码阶段。`nop`缩写映射到相同的机器代码。[↩︎](#fnref:1)
+    [← 间接分支](https://en.algorithmica.org/hpc/architecture/indirect/)[../指令级并行处理 →](https://en.algorithmica.org/hpc/pipelining/)

@@ -1,201 +1,309 @@
 - en: Cache-Oblivious Algorithms
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 无缓存感知算法
 - en: 原文：[https://en.algorithmica.org/hpc/external-memory/oblivious/](https://en.algorithmica.org/hpc/external-memory/oblivious/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/external-memory/oblivious/](https://en.algorithmica.org/hpc/external-memory/oblivious/)
 - en: 'In the context of the [external memory model](../model), there are two types
     of efficient algorithms:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[外部存储模型](../model)的背景下，有两种类型的有效算法：
 - en: '*Cache-aware* algorithms that are efficient for *known* $B$ and $M$.'
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*缓存感知*算法对已知的 $B$ 和 $M$ 有效。'
 - en: '*Cache-oblivious* algorithms that are efficient for *any* $B$ and $M$.'
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*无缓存感知*算法对任何 $B$ 和 $M$ 都有效。'
 - en: 'For example, [external merge sorting](../sorting) is a cache-aware, but not
     cache-oblivious algorithm: we need to know the memory characteristics of the system,
     namely the ratio of available memory to the block size, to find the right $k$
     to perform $k$-way merge sort.'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，[外部归并排序](../sorting)是一个缓存感知但不是无缓存感知的算法：我们需要知道系统的内存特性，即可用内存与块大小的比率，以找到正确的
+    $k$ 来执行 $k$-路归并排序。
 - en: Cache-oblivious algorithms are interesting because they automatically become
     optimal for all memory levels in the cache hierarchy, and not just the one for
     which they were specifically tuned. In this article, we consider some of their
     applications in matrix calculations.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 无缓存感知算法很有趣，因为它们会自动对所有缓存层次结构中的内存级别变得最优，而不仅仅是它们被特别调整的那个级别。在这篇文章中，我们考虑了它们在矩阵计算中的一些应用。
 - en: '## [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#matrix-transposition)Matrix
     Transposition'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#matrix-transposition)矩阵转置'
 - en: 'Assume we have a square matrix $A$ of size $N \times N$, and we need to transpose
     it. The naive by-definition approach would go something like this:'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设我们有一个大小为 $N \times N$ 的方阵 $A$，我们需要对其进行转置。按照定义的朴素方法可能会这样做：
 - en: '[PRE0]'
+  id: totrans-9
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Here we used a single pointer to the beginning of the memory region instead
     of a 2d array to be more explicit about its memory operations.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们使用了一个指向内存区域开头的单指针，而不是2维数组，以便更明确地描述其内存操作。
 - en: The I/O complexity of this code is $O(N^2)$ because the writes are not sequential.
     If you try to swap the iteration variables, it will be the other way around, but
     the result is going to be the same.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 该代码的I/O复杂度为 $O(N^2)$，因为写入不是顺序的。如果你尝试交换迭代变量，情况将相反，但结果将是相同的。
 - en: '### [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#algorithm)Algorithm'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#algorithm)算法'
 - en: 'The *cache-oblivious* algorithm relies on the following block matrix identity:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: '*无缓存感知*算法依赖于以下块矩阵恒等式：'
 - en: $$ \begin{pmatrix} A & B \\ C & D \end{pmatrix}^T= \begin{pmatrix} A^T & C^T
     \\ B^T & D^T \end{pmatrix} $$
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \begin{pmatrix} A & B \\ C & D \end{pmatrix}^T= \begin{pmatrix} A^T & C^T
+    \\ B^T & D^T \end{pmatrix} $$
 - en: 'It lets us solve the problem recursively using a divide-and-conquer approach:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 它允许我们使用分治法递归地解决问题：
 - en: Divide the input matrix into 4 smaller matrices.
+  id: totrans-16
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将输入矩阵分成4个更小的矩阵。
 - en: Transpose each one recursively.
+  id: totrans-17
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 递归地转置每一个。
 - en: Combine results by swapping the corner result matrices.
+  id: totrans-18
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 通过交换角结果矩阵来组合结果。
 - en: Implementing D&C on matrices is a bit more complex than on arrays, but the main
     idea is the same. Instead of copying submatrices explicitly, we want to use “views”
     into them, and also switch to the naive method when the data starts fitting in
     the L1 cache (or pick something small like $32 \times 32$ if you don’t know it
     in advance). We also need to carefully handle the case when we have odd $n$ and
     thus can’t split the matrix into 4 equal submatrices.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 在矩阵上实现分治法比在数组上要复杂一些，但主要思想是相同的。我们不想显式地复制子矩阵，而是想使用对它们的“视图”，并在数据开始适合L1缓存时切换到朴素方法（或者如果你事先不知道，可以选择像
+    $32 \times 32$ 这样的小尺寸）。我们还需要仔细处理当 $n$ 为奇数时无法将矩阵分成4个相等子矩阵的情况。
 - en: '[PRE1]'
+  id: totrans-20
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: The I/O complexity of the algorithm is $O(\frac{N^2}{B})$, as we only need to
     touch roughly half the memory blocks during each merge stage, meaning that on
     each stage our problem becomes smaller.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 该算法的I/O复杂度为 $O(\frac{N^2}{B})$，因为我们只需要在每次归并阶段触摸大约一半的内存块，这意味着在每个阶段我们的问题都变得更小。
 - en: Adapting this code for the general case of non-square matrices is left as an
     exercise to the reader.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 将此代码适应非方阵的一般情况留给读者作为练习。
 - en: '## [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#matrix-multiplication)Matrix
     Multiplication'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#matrix-multiplication)矩阵乘法'
 - en: 'Next, let’s consider something slightly more complex: matrix multiplication.'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，让我们考虑一个稍微复杂一些的问题：矩阵乘法。
 - en: $$ C_{ij} = \sum_k A_{ik} B_{kj} $$
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ C_{ij} = \sum_k A_{ik} B_{kj} $$
 - en: 'The naive algorithm just translates its definition into code:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 原始算法只是将其定义直接转换成代码：
 - en: '[PRE2]'
+  id: totrans-27
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: It needs to access $O(N^3)$ blocks in total as each scalar multiplication needs
     a separate block read.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 它需要访问总共 $O(N^3)$ 个块，因为每个标量乘法都需要单独的块读取。
 - en: 'One well-known optimization is to transpose $B$ first:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个著名的优化是首先转置 $B$：
 - en: '[PRE3]'
+  id: totrans-30
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Whether the transpose is done naively or with the cache-oblivious method we
     previously developed, the matrix multiplication with one of the matrices transposed
     would work in $O(N^3/B + N^2)$ as all memory accesses are now sequential.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 不论是使用原始方法还是我们之前开发的缓存无关方法进行转置，当一个矩阵被转置后进行矩阵乘法，其时间复杂度会达到 $O(N^3/B + N^2)$，因为所有的内存访问现在都是顺序的。
 - en: It seems like we can’t do better, but it turns out we can.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 看起来我们无法做得更好，但事实并非如此。
 - en: '### [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#algorithm)Algorithm'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#algorithm)算法'
 - en: 'Cache-oblivious matrix multiplication relies on essentially the same trick
     as the transposition. We need to divide the data until it fits into lowest cache
     (i.e., $N^2 \leq M$). For matrix multiplication, this equates to using this formula:'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 缓存无关矩阵乘法依赖于与转置基本相同的技巧。我们需要将数据分割，直到它适合最低的缓存（即，$N^2 \leq M$）。对于矩阵乘法，这相当于使用以下公式：
 - en: $$ \begin{pmatrix} A_{11} & A_{12} \\ A_{21} & A_{22} \\ \end{pmatrix} \begin{pmatrix}
     B_{11} & B_{12} \\ B_{21} & B_{22} \\ \end{pmatrix} = \begin{pmatrix} A_{11} B_{11}
     + A_{12} B_{21} & A_{11} B_{12} + A_{12} B_{22}\\ A_{21} B_{11} + A_{22} B_{21}
     & A_{21} B_{12} + A_{22} B_{22}\\ \end{pmatrix} $$
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \begin{pmatrix} A_{11} & A_{12} \\ A_{21} & A_{22} \\ \end{pmatrix} \begin{pmatrix}
+    B_{11} & B_{12} \\ B_{21} & B_{22} \\ \end{pmatrix} = \begin{pmatrix} A_{11} B_{11}
+    + A_{12} B_{21} & A_{11} B_{12} + A_{12} B_{22}\\ A_{21} B_{11} + A_{22} B_{21}
+    & A_{21} B_{12} + A_{22} B_{22}\\ \end{pmatrix} $$
 - en: 'It is slightly harder to implement though because we now have a total of 8
     recursive matrix multiplications:'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管实现起来稍微困难一些，因为我们现在有总共8次递归矩阵乘法：
 - en: '[PRE4]'
+  id: totrans-37
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: Because there are many other factors in play here, we are not going to benchmark
     this implementation, and instead just do its theoretical performance analysis
     in external memory model.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于这里还有许多其他因素在起作用，我们不会对这个实现进行基准测试，而是只在外部内存模型中进行其理论性能分析。
 - en: '### [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#analysis)Analysis'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#analysis)分析'
 - en: Arithmetic complexity of the algorithm remains is the same, because the recurrence
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 算法的算术复杂度保持不变，因为递归
 - en: $$ T(N) = 8 \cdot T(N/2) + \Theta(N^2) $$
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ T(N) = 8 \cdot T(N/2) + \Theta(N^2) $$
 - en: is solved by $T(N) = \Theta(N^3)$.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过 $T(N) = \Theta(N^3)$ 得到解决。
 - en: 'It doesn’t seem like we “conquered” anything yet, but let’s think about its
     I/O complexity:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 看起来我们还没有“征服”什么，但让我们来考虑它的I/O复杂度：
 - en: $$ T(N) = \begin{cases} O(\frac{N^2}{B}) & N \leq \sqrt M & \text{(we only need
     to read it)} \\ 8 \cdot T(N/2) + O(\frac{N^2}{B}) & \text{otherwise} \end{cases}
     $$ The recurrence is dominated by $O((\frac{N}{\sqrt M})^3)$ base cases, meaning
     that the total complexity is $$ T(N) = O\left(\frac{(\sqrt{M})^2}{B} \cdot \left(\frac{N}{\sqrt
     M}\right)^3\right) = O\left(\frac{N^3}{B\sqrt{M}}\right) $$
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ T(N) = \begin{cases} O(\frac{N^2}{B}) & N \leq \sqrt M & \text{(我们只需要读取它)}
+    \\ 8 \cdot T(N/2) + O(\frac{N^2}{B}) & \text{否则} \end{cases} $$ 该递归主要由 $O((\frac{N}{\sqrt
+    M})^3)$ 的基本案例主导，意味着总复杂度是 $$ T(N) = O\left(\frac{(\sqrt{M})^2}{B} \cdot \left(\frac{N}{\sqrt
+    M}\right)^3\right) = O\left(\frac{N^3}{B\sqrt{M}}\right) $$
 - en: This is better than just $O(\frac{N^3}{B})$, and by quite a lot.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 这比仅仅 $O(\frac{N^3}{B})$ 要好，而且好得多。
 - en: '### [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#strassen-algorithm)Strassen
     Algorithm'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#strassen-algorithm)Strassen算法'
 - en: In a spirit similar to the Karatsuba algorithm, matrix multiplication can be
     decomposed in a way that involves 7 matrix multiplications of size $\frac{n}{2}$,
     and the master theorem tells us that such divide-and-conquer algorithm would work
     in $O(n^{\log_2 7}) \approx O(n^{2.81})$ time and a similar asymptotic in the
     external memory model.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 在类似于Karatsuba算法的精神下，矩阵乘法可以被分解成涉及7次大小为 $\frac{n}{2}$ 的矩阵乘法，主定理告诉我们这样的分治算法的时间复杂度会是
+    $O(n^{\log_2 7}) \approx O(n^{2.81})$，在外部内存模型中也有类似的渐近复杂度。
 - en: 'This technique, known as the Strassen algorithm, similarly splits each matrix
     into 4:'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种技术被称为Strassen算法，同样将每个矩阵分成4部分：
 - en: '$$ \begin{pmatrix} C_{11} & C_{12} \\ C_{21} & C_{22} \\ \end{pmatrix} =\begin{pmatrix}
     A_{11} & A_{12} \\ A_{21} & A_{22} \\ \end{pmatrix} \begin{pmatrix} B_{11} & B_{12}
     \\ B_{21} & B_{22} \\ \end{pmatrix} $$ But then it computes intermediate products
@@ -206,29 +314,50 @@
     - B_{11}) & C_{22} &= M_1 - M_2 + M_3 + M_6 \\ M_5 &= (A_{11} + A_{12}) B_{22}
     \\ M_6 &= (A_{21} - A_{11}) (B_{11} + B_{12}) \\ M_7 &= (A_{12} - A_{22}) (B_{21}
     + B_{22}) \end{aligned} $$'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \begin{pmatrix} C_{11} & C_{12} \\ C_{21} & C_{22} \\ \end{pmatrix} =\begin{pmatrix}
+    A_{11} & A_{12} \\ A_{21} & A_{22} \\ \end{pmatrix} \begin{pmatrix} B_{11} & B_{12}
+    \\ B_{21} & B_{22} \\ \end{pmatrix} $$ 但随后它计算了$\frac{N}{2} \times \frac{N}{2}$矩阵的中间乘积并将它们组合以得到矩阵$C$：$$
+    \begin{aligned} M_1 &= (A_{11} + A_{22})(B_{11} + B_{22}) & C_{11} &= M_1 + M_4
+    - M_5 + M_7 \\ M_2 &= (A_{21} + A_{22}) B_{11} & C_{12} &= M_3 + M_5 \\ M_3 &=
+    A_{11} (B_{21} - B_{22}) & C_{21} &= M_2 + M_4 \\ M_4 &= A_{22} (B_{21} - B_{11})
+    & C_{22} &= M_1 - M_2 + M_3 + M_6 \\ M_5 &= (A_{11} + A_{12}) B_{22} \\ M_6 &=
+    (A_{21} - A_{11}) (B_{11} + B_{12}) \\ M_7 &= (A_{12} - A_{22}) (B_{21} + B_{22})
+    \end{aligned} $$
 - en: You can verify these formulas with simple substitution if you feel like it.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你愿意，可以通过简单的替换来验证这些公式。
 - en: As far as I know, none of the mainstream optimized linear algebra libraries
     use the Strassen algorithm, although there are [some prototype implementations](https://arxiv.org/pdf/1605.01078.pdf)
     that are efficient for matrices larger than 2000 or so.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 就我所知，主流的优化线性代数库中没有使用斯特拉斯算法，尽管有一些[原型实现](https://arxiv.org/pdf/1605.01078.pdf)对于大于2000左右的矩阵是有效的。
 - en: This technique can and actually has been extended multiple times to reduce the
     asymptotic even further by considering more submatrix products. As of 2020, current
     world record is $O(n^{2.3728596})$. Whether you can multiply matrices in $O(n^2)$
     or at least $O(n^2 \log^k n)$ time is an open problem.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种技术可以，并且实际上已经多次扩展，通过考虑更多的子矩阵乘积来进一步降低渐进复杂度。截至2020年，当前的世界纪录是$O(n^{2.3728596})$。你能否在$O(n^2)$或至少$O(n^2
+    \log^k n)$时间内乘法矩阵是一个未解决的问题。
 - en: '## [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#further-reading)Further
     Reading'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/external-memory/oblivious/#further-reading)进一步阅读'
 - en: For a solid theoretical viewpoint, consider reading [Cache-Oblivious Algorithms
     and Data Structures](https://erikdemaine.org/papers/BRICS2002/paper.pdf) by Erik
     Demaine. [← Eviction Policies](https://en.algorithmica.org/hpc/external-memory/policies/)[Spatial
     and Temporal Locality →](https://en.algorithmica.org/hpc/external-memory/locality/)
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了获得坚实的理论观点，可以考虑阅读Erik Demaine的[《Cache-Oblivious Algorithms and Data Structures》](https://erikdemaine.org/papers/BRICS2002/paper.pdf)。[←驱逐策略](https://en.algorithmica.org/hpc/external-memory/policies/)[空间和时间局部性→](https://en.algorithmica.org/hpc/external-memory/locality/)

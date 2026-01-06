@@ -1,139 +1,201 @@
 - en: Prefetching
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 预取
 - en: 原文：[https://en.algorithmica.org/hpc/cpu-cache/prefetching/](https://en.algorithmica.org/hpc/cpu-cache/prefetching/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/cpu-cache/prefetching/](https://en.algorithmica.org/hpc/cpu-cache/prefetching/)
 - en: Taking advantage of the [free concurrency](../mlp) available in memory hardware,
     it can be beneficial to *prefetch* data that is likely to be accessed next if
     its location can be predicted. This is easy to do when there are no [data of control
     hazards](/hpc/pipelining/hazards) in the pipeline and the CPU can just run ahead
     of the instruction stream and execute memory operations out of order.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 利用内存硬件中可用的[自由并发](../mlp)，如果可以预测其位置，则预取可能被访问的数据是有益的。当流水线中没有[数据或控制冒险](/hpc/pipelining/hazards)时，CPU可以提前于指令流运行并执行内存操作，这种情况下很容易做到。
 - en: 'But sometimes the memory locations aren’t in the instruction stream, and yet
     they can still be predicted with high probability. In these cases, they can be
     prefetched by other means:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 但有时内存位置不在指令流中，但它们仍然可以以高概率预测。在这些情况下，可以通过其他方式预取：
 - en: Explicitly, by separately reading the next data word or any of the bytes in
     the same cache line, so that it is lifted in the cache hierarchy.
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 显式地，通过单独读取下一个数据字或同一缓存行中的任何字节，以便将其提升到缓存层次结构中。
 - en: Implicitly, by using simple access patterns such as linear iteration, which
     are detectable by the memory hardware that can start prefetching automatically.
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 隐式地，通过使用简单的访问模式，如线性迭代，这些模式可以通过能够自动启动预取的内存硬件检测到。
 - en: Hiding memory latency is crucial for achieving performance, so in this section,
     we will look into prefetching techniques.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 隐藏内存延迟对于实现性能至关重要，因此在本节中，我们将探讨预取技术。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/prefetching/#hardware-prefetching)Hardware
     Prefetching'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/prefetching/#hardware-prefetching)
+    硬件预取'
 - en: 'Let’s modify the [pointer chasing](../latency) benchmark to show the effect
     of hardware prefetching. Now, we generate our permutation in a way that makes
     the CPU request consecutive cache lines when iterating over the permutation, but
     still accessing the elements inside a cache line in random order:'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们修改[指针追踪](../latency)基准测试来展示硬件预取的效果。现在，我们以使CPU在遍历排列时请求连续的缓存行的方式生成我们的排列，但仍然以随机顺序访问缓存行内的元素：
 - en: '[PRE0]'
+  id: totrans-9
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'There is no point in making a graph because it would be just flat: the latency
     is 3ns regardless of the array size. Even though the instruction scheduler still
     can’t tell what we are going to fetch next, the memory prefetcher can detect a
     pattern just by looking at the memory accesses and start loading the next cache
     line ahead of time, mitigating the latency.'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 没有必要制作图表，因为这只会是平面的：延迟为3ns，无论数组大小如何。即使指令调度器仍然无法告诉我们接下来要取什么，内存预取器只需通过查看内存访问就可以检测到一个模式，并在提前加载下一个缓存行，从而减轻延迟。
 - en: Hardware prefetching is smart enough for most use cases, but it only detects
     simple patterns. You can iterate forward and backward over multiple arrays in
     parallel, perhaps with small-to-medium strides, but that’s about it. For anything
     more complex, the prefetcher won’t figure out what’s happening, and we need to
     help it out ourselves.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 硬件预取对于大多数用例来说足够智能，但它只能检测到简单的模式。你可以并行地向前和向后遍历多个数组，可能使用小到中等的步长，但这仅限于此。对于更复杂的情况，预取器无法弄清楚发生了什么，我们需要自己帮助它。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/prefetching/#software-prefetching)Software
     Prefetching'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/prefetching/#software-prefetching)
+    软件预取'
 - en: 'The simplest way to do software prefetching is to load any byte in the cache
     line with the `mov` or any other memory instruction, but CPUs have a separate
     `prefetch` instruction that lifts a cache line without doing anything with it.
     This instruction isn’t a part of the C or C++ standard, but is available in most
     compilers as the `__builtin_prefetch` intrinsic:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 软件预取的最简单方法是使用`mov`或任何其他内存指令加载缓存行中的任何字节，但CPU有一个单独的`prefetch`指令，该指令可以提升缓存行而不对其进行任何操作。这个指令不是C或C++标准的一部分，但在大多数编译器中作为`__builtin_prefetch`内建函数可用：
 - en: '[PRE1]'
+  id: totrans-14
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: It’s quite hard to come up with a *simple* example when it can be useful. To
     make the pointer chasing benchmark benefit from software prefetching, we need
     to construct a permutation that at the same time loops around the whole array,
     can’t be predicted by hardware prefetcher, and has easily computable next addresses.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 当它能派上用场时，很难想出一个*简单*的例子。为了让指针追踪基准测试从软件预取中受益，我们需要构建一个排列，它同时绕整个数组循环，不能被硬件预取器预测，并且有容易计算的下一个地址。
 - en: 'Luckily, the [linear congruential generator](https://en.wikipedia.org/wiki/Linear_congruential_generator)
     has the property that if the modulus $n$ is a prime number, then the period of
     the generator will be exactly $n$. So we get all the properties we need if we
     use a permutation generated by the LCG with the current index as its state:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 幸运的是，[线性同余发生器](https://en.wikipedia.org/wiki/Linear_congruential_generator)具有这样的性质：如果模数$n$是一个素数，那么发生器的周期将正好是$n$。因此，如果我们使用LCG生成的排列，其当前索引作为其状态，我们就会得到所有需要的属性：
 - en: '[PRE2]'
+  id: totrans-17
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'When we run it, the performance matches a normal random permutation. But now
     we get the ability to peek ahead:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们运行它时，性能与正常随机排列相匹配。但现在我们得到了向前窥视的能力：
 - en: '[PRE3]'
+  id: totrans-19
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'There is some overhead to computing the next address, but for arrays large
     enough, it is almost two times faster:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算下一个地址时会有一些开销，但对于足够大的数组来说，它几乎快了两倍：
 - en: '![](../Images/3bfccc02083790ffa4ddd3297d7bf0ea.png)'
+  id: totrans-21
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/3bfccc02083790ffa4ddd3297d7bf0ea.png)'
 - en: 'Interestingly, we can prefetch more than just one element ahead, making use
     of this pattern in the LCG function:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 有趣的是，我们可以预取不止一个元素，利用LCG函数中的这个模式：
 - en: $$ \begin{aligned} f(x) &= 2 \cdot x + 1 \\ f^2(x) &= 4 \cdot x + 2 + 1 \\ f^3(x)
     &= 8 \cdot x + 4 + 2 + 1 \\ &\ldots \\ f^k(x) &= 2^k \cdot x + (2^k - 1) \end{aligned}
     $$
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \begin{aligned} f(x) &= 2 \cdot x + 1 \\ f^2(x) &= 4 \cdot x + 2 + 1 \\ f^3(x)
+    &= 8 \cdot x + 4 + 2 + 1 \\ &\ldots \\ f^k(x) &= 2^k \cdot x + (2^k - 1) \end{aligned}
+    $$
 - en: 'Hence, to load the `D`-th element ahead, we can do this:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，为了预取前方的第`D`个元素，我们可以这样做：
 - en: '[PRE4]'
+  id: totrans-25
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: If we execute this request on every iteration, we will be simultaneously prefetching
     `D` elements ahead on average, increasing the throughput by `D` times. Ignoring
     some issues such as the integer overflow when `D` is too large, we can reduce
     the average latency arbitrarily close to the cost of computing the next index
     (which, in this case, is dominated by the [modulo operation](/hpc/arithmetic/division)).
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们在每次迭代上执行此请求，我们将在平均上同时预取`D`个元素，将吞吐量提高`D`倍。忽略一些问题，例如当`D`太大时的整数溢出，我们可以将平均延迟降低到接近计算下一个索引的成本（在这种情况下，由[模运算](/hpc/arithmetic/division)主导）。
 - en: '![](../Images/77b30bf5058b2fae823154acfdb0c8e6.png)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/77b30bf5058b2fae823154acfdb0c8e6.png)'
 - en: Note that this is an artificial example, and you actually fail more often than
     not when trying to insert software prefetching into practical programs. This is
     largely because you need to issue a separate memory instruction that may compete
     for resources with the others. At the same time, hardware prefetching is 100%
     harmless as it only activates when the memory and cache buses are not busy.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，这是一个人为的例子，实际上在尝试将软件预取插入实际程序时，失败的情况更多。这主要是因为你需要发出一个可能与其他资源竞争的单独内存指令。同时，硬件预取在内存和缓存总线不忙时才激活，因此100%无害。
 - en: You can also specify a specific level of cache the data needs to be brought
     to when doing software prefetching — when you aren’t sure if you will be using
     it and don’t want to kick out what is already in the L1 cache. You can use it
@@ -141,5 +203,8 @@
     parameter, specifying the cache level. This is useful in combination with [non-temporal
     loads and stores](../bandwidth#bypassing-the-cache). [← Memory-Level Parallelism](https://en.algorithmica.org/hpc/cpu-cache/mlp/)[Alignment
     and Packing →](https://en.algorithmica.org/hpc/cpu-cache/alignment/)
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 在进行软件预取时，你也可以指定数据需要被带到缓存的具体级别——当你不确定是否会使用它，并且不想将L1缓存中的内容替换掉时。你可以使用`_mm_prefetch`内建函数，它将一个整数值作为第二个参数，指定缓存级别。这与[非临时加载和存储](../bandwidth#bypassing-the-cache)结合使用很有用。[←
+    存储器级并行性](https://en.algorithmica.org/hpc/cpu-cache/mlp/)[对齐和打包 →](https://en.algorithmica.org/hpc/cpu-cache/alignment/)

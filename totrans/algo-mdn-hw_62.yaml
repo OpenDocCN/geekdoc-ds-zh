@@ -1,142 +1,210 @@
 - en: Memory Paging
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 内存分页
 - en: 原文：[https://en.algorithmica.org/hpc/cpu-cache/paging/](https://en.algorithmica.org/hpc/cpu-cache/paging/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/cpu-cache/paging/](https://en.algorithmica.org/hpc/cpu-cache/paging/)
 - en: 'Consider [yet again](../associativity) the strided incrementing loop:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 再次考虑[这个](../associativity)步进增量循环：
 - en: '[PRE0]'
+  id: totrans-3
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: We change the stride $D$ and increase the array size proportionally so that
     the total number of iterations $N$ remains constant. As the total number of memory
     accesses also remains constant, for all $D \geq 16$, we should be fetching exactly
     $N$ cache lines — or $64 \cdot N = 2^6 \cdot 2^{13} = 2^{19}$ bytes, to be exact.
     This precisely fits into the L2 cache, regardless of the step size, and the throughput
     graph should look flat.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们改变步长$D$并按比例增加数组大小，使得总迭代次数$N$保持不变。由于总的内存访问次数也保持不变，对于所有$D \geq 16$，我们应该正好获取$N$个缓存行——或者更确切地说，$64
+    \cdot N = 2^6 \cdot 2^{13} = 2^{19}$字节。这正好适合L2缓存，无论步长大小如何，吞吐量图应该看起来是平的。
 - en: 'This time, we consider a larger range of $D$ values, up to 1024\. Starting
     from around 256, the graph is definitely not flat:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 这次，我们考虑一个更广泛的$D$值范围，直到1024。从大约256开始，图表显然不是平的：
 - en: '![](../Images/b651bca2cb9d842c46dee30f3adfcf8d.png)'
+  id: totrans-6
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/b651bca2cb9d842c46dee30f3adfcf8d.png)'
 - en: This anomaly is also due to the cache system, although the standard L1-L3 data
     caches have nothing to do with it. [Virtual memory](/hpc/external-memory/virtual)
     is at fault, in particular the *translation lookaside buffer* (TLB), which is
     a cache responsible for retrieving the physical addresses of the virtual memory
     pages.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种异常也是由于缓存系统引起的，尽管标准的L1-L3数据缓存与此无关。[虚拟内存](/hpc/external-memory/virtual)才是问题所在，特别是*转换后备缓冲区*（TLB），这是一个负责检索虚拟内存页面物理地址的缓存。
 - en: 'On [my CPU](https://en.wikichip.org/wiki/amd/microarchitectures/zen_2), there
     are two levels of TLB:'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[我的CPU](https://en.wikichip.org/wiki/amd/microarchitectures/zen_2)上，有两个级别的TLB：
 - en: The L1 TLB has 64 entries, and if the page size is 4K, then it can handle $64
     \times 4K = 512K$ of active memory without going to the L2 TLB.
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: L1 TLB有64个条目，如果页面大小是4K，那么它可以处理$64 \times 4K = 512K$的活跃内存而不需要访问L2 TLB。
 - en: The L2 TLB has 2048 entries, and it can handle $2048 \times 4K = 8M$ of memory
     without going to the page table.
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: L2 TLB有2048个条目，它可以处理$2048 \times 4K = 8M$的内存而不需要访问页面表。
 - en: 'How much memory is allocated when $D$ becomes equal to 256? You’ve guessed
     it: $8K \times 256 \times 4B = 8M$, exactly the limit of what the L2 TLB can handle.
     When $D$ gets larger than that, some requests start getting redirected to the
     main page table, which has a large latency and very limited throughput, which
     bottlenecks the whole computation.'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 当$D$等于256时，分配了多少内存？你已经猜到了：$8K \times 256 \times 4B = 8M$，正好是L2 TLB可以处理的极限。当$D$超过这个值时，一些请求开始被重定向到主页面表，它具有很大的延迟和非常有限的吞吐量，这会阻塞整个计算。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/paging/#changing-page-size)Changing
     Page Size'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/paging/#changing-page-size)更改页面大小'
 - en: That 8MB of slowdown-free memory seems like a very tight restriction. While
     we can’t change the characteristics of the hardware to lift it, we *can* increase
     the page size, which would in turn reduce the pressure on the TLB capacity.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 那个无延迟的8MB内存似乎是一个非常严格的限制。虽然我们无法改变硬件的特性来提高它，但我们*可以*增加页面大小，这反过来会减少对TLB容量的压力。
 - en: Modern operating systems allow us to set the page size both globally and for
     individual allocations. CPUs only support a defined set of page sizes — mine,
     for example, can use either 4K or 2M pages. Another typical page size is 1G —
     it is usually only relevant for server-grade hardware with hundreds of gigabytes
     of RAM. Anything over the default 4K is called *huge pages* on Linux and *large
     pages* on Windows.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 现代操作系统允许我们全局设置页面大小，也可以为单个分配设置。CPU只支持一组定义的页面大小——例如，我的CPU可以使用4K或2M页面。另一个典型的页面大小是1G——它通常只与具有数百GB
+    RAM的服务器级硬件相关。超过默认的4K的任何东西在Linux上被称为*大页*，在Windows上称为*大页*。
 - en: 'On Linux, there is a special system file that governs the allocation of huge
     pages. Here is how to make the kernel give you huge pages on every allocation:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 在Linux上，有一个特殊的系统文件控制着大页的分配。以下是让内核在每次分配时都给你大页的方法：
 - en: '[PRE1]'
+  id: totrans-16
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Enabling huge pages globally like this isn’t always a good idea because it
     decreases memory granularity and raises the minimum memory that a process consumes
     — and some environments have more processes than free megabytes of memory. So,
     in addition to `always` and `never`, there is a third option in that file:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 以这种方式全局启用大页并不总是好主意，因为它会降低内存粒度，并提高进程消耗的最小内存量——而且一些环境中的进程数量超过了可用的内存兆字节。因此，在该文件中除了`always`和`never`之外，还有一个第三种选择：
 - en: '[PRE2]'
+  id: totrans-18
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: '`madvise` is a special system call that lets the program advise the kernel
     on whether to use huge pages or not, which can be used for allocating huge pages
     on-demand. If it is enabled, you can use it in C++ like this:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: '`madvise`是一个特殊的系统调用，允许程序建议内核是否使用大页，这可以用于按需分配大页。如果启用，你可以在C++中使用它如下：'
 - en: '[PRE3]'
+  id: totrans-20
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: You can only request a memory region to be allocated using huge pages if it
     has the corresponding alignment.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 只有当内存区域具有相应的对齐方式时，你才能请求使用大页进行分配。
 - en: 'Windows has similar functionality. Its memory API combines these two functions
     into one:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: Windows具有类似的功能。它的内存API将这两个功能合并为一个：
 - en: '[PRE4]'
+  id: totrans-23
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: In both cases, `array_size` should be a multiple of `page_size`.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这两种情况下，`array_size`应该是`page_size`的倍数。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/paging/#impact-of-huge-pages)Impact
     of Huge Pages'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/paging/#impact-of-huge-pages)大页的影响'
 - en: 'Both variants of allocating huge pages immediately flatten the curve:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 两种分配大页的变体立即使曲线平坦：
 - en: '![](../Images/0ec1bff689bffbef53892443318cc4f6.png)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/0ec1bff689bffbef53892443318cc4f6.png)'
 - en: 'Enabling huge pages also improves [latency](../latency) by up to 10-15% for
     arrays that don’t fit into the L2 cache:'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 启用大页还可以通过高达10-15%的幅度提高不适合L2缓存的数组的[延迟](../latency)：
 - en: '![](../Images/e0a470f7d9fd055e77703ed863939964.png)'
+  id: totrans-29
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/e0a470f7d9fd055e77703ed863939964.png)'
 - en: In general, enabling huge pages is a good idea when you have any sort of sparse
     reads, as they usually slightly improve and ([almost](../aos-soa)) never hurt
     performance.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常情况下，当你有任何类型的稀疏读取时，启用大页是一个好主意，因为它们通常略微提高性能，([几乎](../aos-soa))永远不会损害性能。
 - en: That said, you shouldn’t rely on huge pages if possible, as they aren’t always
     available due to either hardware or computing environment restrictions. There
     are [many](../cache-lines) [other](../prefetching) [reasons](../aos-soa) why grouping
     data accesses spatially may be beneficial, which automatically solves the paging
     problem. [← Cache Associativity](https://en.algorithmica.org/hpc/cpu-cache/associativity/)[AoS
     and SoA →](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/)
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 话虽如此，如果可能的话，你不应该依赖大页，因为它们可能由于硬件或计算环境限制而不可用。有许多[其他](../cache-lines) [原因](../prefetching)
+    [理由](../aos-soa)表明，在空间上对数据访问进行分组可能是有益的，这会自动解决分页问题。[← 缓存关联性](https://en.algorithmica.org/hpc/cpu-cache/associativity/)[AoS和SoA
+    →](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/)

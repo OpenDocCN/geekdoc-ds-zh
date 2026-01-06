@@ -1,162 +1,242 @@
 - en: Matrix Multiplication
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 矩阵乘法
 - en: 原文：[https://en.algorithmica.org/hpc/algorithms/matmul/](https://en.algorithmica.org/hpc/algorithms/matmul/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/algorithms/matmul/](https://en.algorithmica.org/hpc/algorithms/matmul/)
 - en: In this case study, we will design and implement several algorithms for matrix
     multiplication.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个案例研究中，我们将设计和实现几个矩阵乘法算法。
 - en: We start with the naive “for-for-for” algorithm and incrementally improve it,
     eventually arriving at a version that is 50 times faster and matches the performance
     of BLAS libraries while being under 40 lines of C.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们从简单的“for-for-for”算法开始，并逐步改进它，最终得到一个比BLAS库性能快50倍，且C代码行数少于40行的版本。
 - en: All implementations are compiled with GCC 13 and run on a [Zen 2](https://en.wikichip.org/wiki/amd/microarchitectures/zen_2)
     CPU clocked at 2GHz.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有实现都是使用GCC 13编译，并在2GHz的[Zen 2](https://en.wikichip.org/wiki/amd/microarchitectures/zen_2)
+    CPU上运行。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#baseline)Baseline'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#baseline)基线'
 - en: 'The result of multiplying an $l \times n$ matrix $A$ by an $n \times m$ matrix
     $B$ is defined as an $l \times m$ matrix $C$ such that:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 将$l \times n$矩阵$A$乘以$n \times m$矩阵$B$的结果定义为$l \times m$矩阵$C$，使得：
 - en: $$ C_{ij} = \sum_{k=1}^{n} A_{ik} \cdot B_{kj} $$
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ C_{ij} = \sum_{k=1}^{n} A_{ik} \cdot B_{kj} $$
 - en: For simplicity, we will only consider *square* matrices, where $l = m = n$.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了简单起见，我们只考虑*方阵*，其中$l = m = n$。
 - en: 'To implement matrix multiplication, we can simply transfer this definition
     into code, but instead of two-dimensional arrays (aka matrices), we will be using
     one-dimensional arrays to be explicit about pointer arithmetic:'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 要实现矩阵乘法，我们可以简单地将这个定义转换成代码，但我们将使用一维数组（即矩阵）而不是二维数组，以明确指针算术：
 - en: '[PRE0]'
+  id: totrans-10
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: For reasons that will become apparent later, we will only use matrix sizes that
     are multiples of $48$ for benchmarking, but the implementations remain correct
     for all others. We also use [32-bit floats](/hpc/arithmetic/ieee-754) specifically,
     although all implementations can be easily [generalized](#generalizations) to
     other data types and operations.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于后面的原因，我们将只使用$48$的倍数矩阵大小进行基准测试，但实现对所有其他大小都是正确的。我们还特别使用[32位浮点数](/hpc/arithmetic/ieee-754)，尽管所有实现都可以很容易地[推广](#generalizations)到其他数据类型和操作。
 - en: Compiled with `g++ -O3 -march=native -ffast-math -funroll-loops`, the naive
     approach multiplies two matrices of size $n = 1920 = 48 \times 40$ in ~16.7 seconds.
     To put it in perspective, this is approximately $\frac{1920^3}{16.7 \times 10^9}
     \approx 0.42$ useful operations per nanosecond (GFLOPS), or roughly 5 CPU cycles
     per multiplication, which doesn’t look that good yet.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用`g++ -O3 -march=native -ffast-math -funroll-loops`编译，原始方法在~16.7秒内乘以大小为$n =
+    1920 = 48 \times 40$的两个矩阵。为了更直观地说明，这大约是$\frac{1920^3}{16.7 \times 10^9} \approx
+    0.42$个每纳秒的有效操作（GFLOPS），或者大约每个乘法5个CPU周期，看起来还不是很好。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#transposition)Transposition'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#transposition)转置'
 - en: In general, when optimizing an algorithm that processes large quantities of
     data — and $1920^2 \times 3 \times 4 \approx 42$ MB clearly is a large quantity
     as it can’t fit into any of the [CPU caches](/hpc/cpu-cache) — one should always
     start with memory before optimizing arithmetic, as it is much more likely to be
     the bottleneck.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，当优化处理大量数据的算法时——$1920^2 \times 3 \times 4 \approx 42$ MB显然是大量数据，因为它无法装入任何CPU缓存——在优化算术之前，应该始终从内存开始，因为它更有可能是瓶颈。
 - en: The field $C_{ij}$ can be thought of as the dot product of row $i$ of matrix
     $A$ and column $j$ of matrix $B$. As we increment `k` in the inner loop above,
     we are reading the matrix `a` sequentially, but we are jumping over $n$ elements
     as we iterate over a column of `b`, which is [not as fast](/hpc/cpu-cache/aos-soa)
     as sequential iteration.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 字段$C_{ij}$可以看作是矩阵$A$的第$i$行和矩阵$B$的第$j$列的点积。当我们在上面的内层循环中增加`k`时，我们正在顺序读取矩阵`a`，但我们迭代`b`的列时跳过了$n$个元素，这[不如顺序迭代快](/hpc/cpu-cache/aos-soa)。
 - en: 'One [well-known](/hpc/external-memory/oblivious/#matrix-multiplication) optimization
     that tackles this problem is to store matrix $B$ in *column-major* order — or,
     alternatively, to *transpose* it before the matrix multiplication. This requires
     $O(n^2)$ additional operations but ensures sequential reads in the innermost loop:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 一种[著名的](/hpc/external-memory/oblivious/#matrix-multiplication)优化方法，用于解决此问题是将矩阵$B$存储在*列主序*顺序中——或者，在矩阵乘法之前，将其*转置*。这需要$O(n^2)$额外的操作，但确保在内层循环中顺序读取：
 - en: '[PRE1]'
+  id: totrans-17
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: This code runs in ~12.4s, or about 30% faster.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 这段代码运行时间为 ~12.4 秒，大约快 30%。
 - en: As we will see in a bit, there are more important benefits to transposing it
     than just the sequential memory reads.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 如我们稍后将看到的，转置它比仅仅的顺序内存读取有更多重要的好处。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#vectorization)Vectorization'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#vectorization) 向量化'
 - en: 'Now that all we do is just sequentially read the elements of `a` and `b`, multiply
     them, and add the result to an accumulator variable, we can use [SIMD](/hpc/simd/)
     instructions to speed it all up. It is pretty straightforward to implement using
     [GCC vector types](/hpc/simd/intrinsics/#gcc-vector-extensions) — we can [memory-align](/hpc/cpu-cache/alignment/)
     matrix rows, pad them with zeros, and then compute the multiply-sum as we would
     normally compute any other [reduction](/hpc/simd/reduction/):'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们所做的只是顺序读取 `a` 和 `b` 的元素，将它们相乘，并将结果加到一个累加变量中，我们可以使用 [SIMD](/hpc/simd/) 指令来加速整个过程。使用
+    [GCC 向量类型](/hpc/simd/intrinsics/#gcc-vector-extensions) 来实现它相当直接——我们可以 [对齐内存](/hpc/cpu-cache/alignment/)
+    矩阵行，用零填充它们，然后像计算任何其他 [归约](/hpc/simd/reduction/) 一样计算乘加：
 - en: '[PRE2]'
+  id: totrans-22
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: The performance for $n = 1920$ is now around 2.3 GFLOPS — or another ~4 times
     higher compared to the transposed but not vectorized version.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于 $n = 1920$ 的性能现在大约是 2.3 GFLOPS——或者比转置但未向量化的版本高大约 4 倍。
 - en: '![](../Images/00d5459969621e683c4e77b5a7a95845.png)'
+  id: totrans-24
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/00d5459969621e683c4e77b5a7a95845.png)'
 - en: This optimization looks neither too complex nor specific to matrix multiplication.
     Why can’t the compiler [auto-vectorizee](/hpc/simd/auto-vectorization/) the inner
     loop by itself?
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种优化看起来既不复杂也不特定于矩阵乘法。为什么编译器不能自己 [自动向量化](/hpc/simd/auto-vectorization/) 内循环呢？
 - en: 'It actually can; the only thing preventing that is the possibility that `c`
     overlaps with either `a` or `b`. To rule it out, you can communicate to the compiler
     that you guarantee `c` is not [aliased](/hpc/compilation/contracts/#memory-aliasing)
     with anything by adding the `__restrict__` keyword to it:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 实际上可以；阻止这一点的唯一因素是 `c` 可能与 `a` 或 `b` 发生重叠。为了排除这种可能性，你可以通过向它添加 `__restrict__`
+    关键字来通知编译器你保证 `c` 不与任何东西 [别名](/hpc/compilation/contracts/#memory-aliasing)：
 - en: '[PRE3]'
+  id: totrans-27
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Both manually and auto-vectorized implementations perform roughly the same.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 手动和自动向量化实现的表现大致相同。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#memory-efficiency)Memory
     efficiency'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#memory-efficiency)
+    内存效率'
 - en: What is interesting is that the implementation efficiency depends on the problem
     size.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 有趣的是，实现效率取决于问题大小。
 - en: At first, the performance (defined as the number of useful operations per second)
     increases as the overhead of the loop management and the horizontal reduction
     decreases. Then, at around $n=256$, it starts smoothly decreasing as the matrices
     stop fitting into the [cache](/hpc/cpu-cache/) ($2 \times 256^2 \times 4 = 512$
     KB is the size of the L2 cache), and the performance becomes bottlenecked by the
     [memory bandwidth](/hpc/cpu-cache/bandwidth/).
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，性能（定义为每秒有用操作的次数）随着循环管理和水平减少的开销增加而增加。然后，大约在 $n=256$ 时，随着矩阵不再适合缓存（$2 \times
+    256^2 \times 4 = 512$ KB 是 L2 缓存的容量），性能开始平稳下降，性能瓶颈由 [内存带宽](/hpc/cpu-cache/bandwidth/)
+    造成。
 - en: '![](../Images/975e5f9450e0945c80efa3a5e008db91.png)'
+  id: totrans-32
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/975e5f9450e0945c80efa3a5e008db91.png)'
 - en: It is also interesting that the naive implementation is mostly on par with the
     non-vectorized transposed version — and even slightly better because it doesn’t
     need to perform a transposition.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 还有趣的是，原始实现主要与非向量化的转置版本相当——甚至略好，因为它不需要执行转置。
 - en: 'One might think that there would be some general performance gain from doing
     sequential reads since we are fetching fewer cache lines, but this is not the
     case: fetching the first column of `b` indeed takes more time, but the next 15
     column reads will be in the same cache lines as the first one, so they will be
     cached anyway — unless the matrix is so large that it can’t even fit `n * cache_line_size`
     bytes into the cache, which is not the case for any practical matrix sizes.'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 有些人可能会认为通过进行顺序读取会有一些通用的性能提升，因为我们正在获取更少的缓存行，但这并不是事实：读取 `b` 的第一列确实需要更多时间，但接下来的
+    15 列读取将与第一列位于相同的缓存行中，所以它们无论如何都会被缓存——除非矩阵如此之大以至于连 `n * cache_line_size` 字节都放不进缓存，这对于任何实际矩阵大小来说都不是问题。
 - en: 'Instead, the performance deteriorates on only a few specific matrix sizes due
     to the effects of [cache associativity](/hpc/cpu-cache/associativity/): when $n$
     is a multiple of a large power of two, we are fetching the addresses of `b` that
@@ -164,139 +244,204 @@
     This explains the 30% performance dip for $n = 1920 = 2^7 \times 3 \times 5$,
     and you can see an even more noticeable one for $1536 = 2^9 \times 3$: it is roughly
     3 times slower than for $n=1535$.'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 相反，性能在只有少数特定的矩阵大小上下降，这是由于[缓存关联性](/hpc/cpu-cache/associativity/)的影响：当$n$是2的大幂次的倍数时，我们正在获取`b`的地址，这些地址很可能映射到相同的缓存行，这减少了有效的缓存大小。这解释了$n
+    = 1920 = 2^7 \times 3 \times 5$时的30%性能下降，你可以看到对于$1536 = 2^9 \times 3$的更明显的下降：它大约比$n=1535$慢3倍。
 - en: So, counterintuitively, transposing the matrix doesn’t help with caching — and
     in the naive scalar implementation, we are not really bottlenecked by the memory
     bandwidth anyway. But our vectorized implementation certainly is, so let’s work
     on its I/O efficiency.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 所以，出人意料的是，转置矩阵并不能帮助缓存——而且在原始标量实现中，我们实际上并不是由内存带宽瓶颈所限制。但我们的向量化实现确实如此，所以让我们专注于其I/O效率。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#register-reuse)Register
     reuse'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#register-reuse)寄存器重用'
 - en: Using a Python-like notation to refer to submatrices, to compute the cell $C[x][y]$,
     we need to calculate the dot product of $A[x][:]$ and $B[:][y]$, which requires
     fetching $2n$ elements, even if we store $B$ in column-major order.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用类似Python的符号来引用子矩阵，为了计算单元格$C[x][y]$，我们需要计算$A[x][:]$和B[:][y]$的点积，这需要获取$2n$个元素，即使我们以列主序存储$B$。
 - en: To compute $C[x:x+2][y:y+2]$, a $2 \times 2$ submatrix of $C$, we would need
     two rows from $A$ and two columns from $B$, namely $A[x:x+2][:]$ and $B[:][y:y+2]$,
     containing $4n$ elements in total, to update *four* elements instead of *one*
     — which is $\frac{2n / 1}{4n / 4} = 2$ times better in terms of I/O efficiency.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 要计算$C[x:x+2][y:y+2]$，即$C$的$2 \times 2$子矩阵，我们需要从$A$中获取两行和从$B$中获取两列，即$A[x:x+2][:]$和$B[:][y:y+2]$，总共包含$4n$个元素，来更新*四个*元素，而不是*一个*——这在I/O效率方面是$\frac{2n
+    / 1}{4n / 4} = 2$倍更好。
 - en: 'To avoid fetching data more than once, we need to iterate over these rows and
     columns in parallel and calculate all $2 \times 2$ possible combinations of products.
     Here is a proof of concept:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了避免多次获取数据，我们需要并行遍历这些行和列，并计算所有可能的$2 \times 2$乘积组合。以下是一个概念验证：
 - en: '[PRE4]'
+  id: totrans-41
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'We can now simply call this kernel on all 2x2 submatrices of $C$, but we won’t
     bother evaluating it: although this algorithm is better in terms of I/O operations,
     it would still not beat our SIMD-based implementation. Instead, we will extend
     this approach and develop a similar *vectorized* kernel right away.'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们可以简单地调用这个内核来处理$C$的所有$2 \times 2$子矩阵，但我们不会费心去评估它：尽管这个算法在I/O操作方面更好，但它仍然无法击败我们的基于SIMD的实现。相反，我们将扩展这种方法，并立即开发一个类似的*向量化*内核。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#designing-the-kernel)Designing
     the kernel'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#designing-the-kernel)内核设计'
 - en: Instead of designing a kernel that computes an $h \times w$ submatrix of $C$
     from scratch, we will declare a function that *updates* it using columns from
     $l$ to $r$ of $A$ and rows from $l$ to $r$ of $B$. For now, this seems like an
     over-generalization, but this function interface will prove useful later.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 而不是从头开始设计一个计算$C$的$h \times w$子矩阵的内核，我们将声明一个函数，使用$A$的$l$到$r$列和$B$的$l$到$r$行来*更新*它。目前来看，这似乎是一个过度泛化的方法，但这个函数接口将在以后证明是有用的。
 - en: 'To determine $h$ and $w$, we have several performance considerations:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了确定$h$和$w$，我们有几个性能考虑因素：
 - en: In general, to compute an $h \times w$ submatrix, we need to fetch $2 \cdot
     n \cdot (h + w)$ elements. To optimize the I/O efficiency, we want the $\frac{h
     \cdot w}{h + w}$ ratio to be high, which is achieved with large and square-ish
     submatrices.
+  id: totrans-46
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 通常，为了计算$h \times w$子矩阵，我们需要获取$2 \cdot n \cdot (h + w)$个元素。为了优化I/O效率，我们希望$\frac{h
+    \cdot w}{h + w}$的比率很高，这可以通过大而接近正方形的子矩阵来实现。
 - en: We want to use the [FMA](https://en.wikipedia.org/wiki/FMA_instruction_set)
     (“fused multiply-add”) instruction available on all modern x86 architectures.
     As you can guess from the name, it performs the `c += a * b` operation — which
     is the core of a dot product — on 8-element vectors in one go, which saves us
     from executing vector multiplication and addition separately.
+  id: totrans-47
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们希望使用所有现代 x86 架构上可用的 [FMA](https://en.wikipedia.org/wiki/FMA_instruction_set)（“融合乘加”）指令。正如你从名称中可以猜到的，它一次在
+    8 元素向量上执行 `c += a * b` 操作——这是点积的核心——从而避免了分别执行向量乘法和加法。
 - en: To achieve better utilization of this instruction, we want to make use of [instruction-level
     parallelism](/hpc/pipelining/). On Zen 2, the `fma` instruction has a latency
     of 5 and a throughput of 2, meaning that we need to concurrently execute at least
     $5 \times 2 = 10$ of them to saturate its execution ports.
+  id: totrans-48
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 为了更好地利用这个指令，我们希望利用 [指令级并行性](/hpc/pipelining/)。在 Zen 2 上，`fma` 指令的延迟为 5，吞吐量为
+    2，这意味着我们需要同时执行至少 $5 \times 2 = 10$ 个指令来饱和其执行端口。
 - en: We want to avoid register spill (move data to and from registers more than necessary),
     and we only have $16$ logical vector registers that we can use as accumulators
     (minus those that we need to hold temporary values).
+  id: totrans-49
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们希望避免寄存器溢出（将数据在寄存器和内存之间移动超过必要次数），我们只有 $16$ 个逻辑向量寄存器可以用作累加器（减去那些我们需要存储临时值的寄存器）。
 - en: 'For these reasons, we settle on a $6 \times 16$ kernel. This way, we process
     $96$ elements at once that are stored in $6 \times 2 = 12$ vector registers. To
     update them efficiently, we use the following procedure:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于这些原因，我们选择了 $6 \times 16$ 的内核。这样，我们一次处理 $96$ 个元素，这些元素存储在 $6 \times 2 = 12$
+    个向量寄存器中。为了有效地更新它们，我们使用以下程序：
 - en: '[PRE5]'
+  id: totrans-51
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: We need `t` so that the compiler stores these elements in vector registers.
     We could just update their final destinations in `c`, but, unfortunately, the
     compiler re-writes them back to memory, causing a slowdown (wrapping everything
     in `__restrict__` keywords doesn’t help).
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们需要 `t` 以便编译器将这些元素存储在向量寄存器中。我们只需更新它们在 `c` 中的最终目标，但不幸的是，编译器将它们重新写回内存，导致速度降低（将
+    `__restrict__` 关键字包裹起来也没有帮助）。
 - en: 'After unrolling these loops and hoisting `b` out of the `i` loop (`b[(k * n
     + y) / 8 + j]` does not depend on `i` and can be loaded once and reused in all
     6 iterations), the compiler generates something more similar to this:'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 在展开这些循环并将 `b` 从 `i` 循环中提升出来（`b[(k * n + y) / 8 + j]` 不依赖于 `i`，可以在所有 6 次迭代中加载一次并重复使用），编译器生成的内容更接近以下内容：
 - en: '[PRE6]'
+  id: totrans-54
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: We are using $12+3=15$ vector registers and a total of $6 \times 3 + 2 = 20$
     instructions to perform $16 \times 6 = 96$ updates. Assuming that there are no
     other bottleneks, we should be hitting the throughput of `_mm256_fmadd_ps`.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们使用了 $12+3=15$ 个向量寄存器和总共 $6 \times 3 + 2 = 20$ 条指令来执行 $16 \times 6 = 96$ 次更新。假设没有其他瓶颈，我们应该达到
+    `_mm256_fmadd_ps` 的吞吐量。
 - en: Note that this kernel is architecture-specific. If we didn’t have `fma`, or
     if its throughput/latency were different, or if the SIMD width was 128 or 512
     bits, we would have made different design choices. Multi-platform BLAS implementations
     ship [many kernels](https://github.com/xianyi/OpenBLAS/tree/develop/kernel), each
     written in assembly by hand and optimized for a particular architecture.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，这个内核是架构特定的。如果没有 `fma`，或者其吞吐量/延迟不同，或者 SIMD 宽度为 128 或 512 位，我们将会做出不同的设计选择。多平台
+    BLAS 实现包含了 [许多内核](https://github.com/xianyi/OpenBLAS/tree/develop/kernel)，每个都是手动用汇编编写的，并针对特定架构进行了优化。
 - en: 'The rest of the implementation is straightforward. Similar to the previous
     vectorized implementation, we just move the matrices to memory-aligned arrays
     and call the kernel instead of the innermost loop:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 其余的实现很简单。类似于之前的向量化实现，我们只需将矩阵移动到内存对齐数组中，并调用内核而不是最内层循环：
 - en: '[PRE7]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'This improves the benchmark performance, but only by ~40%:'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 这提高了基准性能，但仅提高了 ~40%：
 - en: '![](../Images/f2657a7ecd6c529f6e6452ee1e44234e.png)'
+  id: totrans-60
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/f2657a7ecd6c529f6e6452ee1e44234e.png)'
 - en: 'The speedup is much higher (2-3x) on smaller arrays, indicating that there
     is still a memory bandwidth problem:'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 在较小的数组上，速度提升更高（2-3 倍），这表明仍然存在内存带宽问题：
 - en: '![](../Images/40a8fec92b43c74fb7f4f8f73db525c7.png)'
+  id: totrans-62
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/40a8fec92b43c74fb7f4f8f73db525c7.png)'
 - en: Now, if you’ve read the section on [cache-oblivious algorithms](/hpc/external-memory/oblivious/),
     you know that one universal solution to these types of things is to split all
     matrices into four parts, perform eight recursive block matrix multiplications,
@@ -304,11 +449,15 @@
     but there is some [overhead to recursion](/hpc/architecture/functions/), and it
     also doesn’t allow us to fine-tune the algorithm, so instead, we will follow a
     different, simpler approach.
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，如果你已经阅读了关于[缓存无关算法](/hpc/external-memory/oblivious/)的部分，你就会知道解决这类问题的通用方法是将所有矩阵分成四部分，执行八次递归的块矩阵乘法，并仔细组合结果。这个方案在实践中是可行的，但存在一些[递归开销](/hpc/architecture/functions/)，而且它也不允许我们微调算法，因此，我们将采用不同的、更简单的方法。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#blocking)Blocking'
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#blocking)阻塞'
 - en: 'The *cache-aware* alternative to the divide-and-conquer trick is *cache blocking*:
     splitting the data into blocks that can fit into the cache and processing them
     one by one. If we have more than one layer of cache, we can do hierarchical blocking:
@@ -316,215 +465,321 @@
     into blocks that fit into the L2 cache, and so on. This approach requires knowing
     the cache sizes in advance, but it is usually easier to implement and also faster
     in practice.'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 与分而治之技巧的*缓存感知*替代方案是*缓存阻塞*：将数据分成可以放入缓存的块，并逐个处理它们。如果我们有多层缓存，我们可以进行分层阻塞：首先选择一个适合L3缓存的块数据，然后将其分成适合L2缓存的块，依此类推。这种方法需要事先知道缓存大小，但通常更容易实现，并且在实践中也更快。
 - en: 'Cache blocking is less trivial to do with matrices than with arrays, but the
     general idea is this:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 与数组相比，缓存阻塞在矩阵上做起来不那么简单，但基本思路是这样的：
 - en: Select a submatrix of $B$ that fits into the L3 cache (say, a subset of its
     columns).
+  id: totrans-67
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 选择适合L3缓存的$B$的子矩阵（例如，其列的一个子集）。
 - en: Select a submatrix of $A$ that fits into the L2 cache (say, a subset of its
     rows).
+  id: totrans-68
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 选择适合L2缓存的$A$的子矩阵（例如，其行的一个子集）。
 - en: Select a submatrix of the previously selected submatrix of $B$ (a subset of
     its rows) that fits into the L1 cache.
+  id: totrans-69
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 选择适合L1缓存的$B$的子矩阵（例如，其行的一个子集）。
 - en: Update the relevant submatrix of $C$ using the kernel.
+  id: totrans-70
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用内核更新$C$的相关子矩阵。
 - en: Here is a good [visualization](https://jukkasuomela.fi/cache-blocking-demo/)
     by Jukka Suomela (it features many different approaches; you are interested in
     the last one).
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里有一个由Jukka Suomela提供的良好[可视化](https://jukkasuomela.fi/cache-blocking-demo/)（它展示了多种不同的方法；你感兴趣的是最后一种）。
 - en: 'Note that the decision to start this process with matrix $B$ is not arbitrary.
     During the kernel execution, we are reading the elements of $A$ much slower than
     the elements of $B$: we fetch and broadcast just one element of $A$ and then multiply
     it with $16$ elements of $B$. Therefore, we want $B$ to be in the L1 cache while
     $A$ can stay in the L2 cache and not the other way around.'
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，开始这个过程选择矩阵$B$的决定并非任意。在内核执行期间，我们读取$A$的元素比读取$B$的元素慢得多：我们只获取并广播$A$的一个元素，然后与$B$的16个元素相乘。因此，我们希望$B$在L1缓存中，而$A$可以留在L2缓存中，而不是反过来。
 - en: 'This sounds complicated, but we can implement it with just three more outer
     `for` loops, which are collectively called *macro-kernel* (and the highly optimized
     low-level function that updates a 6x16 submatrix is called *micro-kernel*):'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 这听起来很复杂，但我们可以通过仅仅增加三个外层`for`循环来实现它，这些循环共同被称为*宏内核*（而更新6x16子矩阵的高度优化的低级函数被称为*微内核*）：
 - en: '[PRE8]'
+  id: totrans-74
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Cache blocking completely removes the memory bottleneck:'
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 缓存阻塞完全消除了内存瓶颈：
 - en: '![](../Images/e03a7a28939cc2aa9d85d80e659b63ad.png)'
+  id: totrans-76
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/e03a7a28939cc2aa9d85d80e659b63ad.png)'
 - en: 'The performance is no longer (significantly) affected by the problem size:'
+  id: totrans-77
   prefs: []
   type: TYPE_NORMAL
+  zh: 性能不再（显著）受问题大小的影响：
 - en: '![](../Images/3c3d2bcb24bee8e8ec7020c3651d3570.png)'
+  id: totrans-78
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/3c3d2bcb24bee8e8ec7020c3651d3570.png)'
 - en: 'Notice that the dip at $1536$ is still there: cache associativity still affects
     the performance. To mitigate this, we can adjust the step constants or insert
     holes into the layout, but we will not bother doing that for now.'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，$1536$ 处的下降趋势仍然存在：缓存关联性仍然影响性能。为了减轻这一点，我们可以调整步长常数或在内布局中插入空隙，但现在我们不会去麻烦做这些。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#optimization)Optimization'
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#optimization)优化'
 - en: 'To approach closer to the performance limit, we need a few more optimizations:'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了接近性能极限，我们需要一些额外的优化：
 - en: Remove memory allocation and operate directly on the arrays that are passed
     to the function. Note that we don’t need to do anything with `a` as we are reading
     just one element at a time, and we can use an [unaligned](/hpc/simd/moving/#aligned-loads-and-stores)
     `store` for `c` as we only use it rarely, so our only concern is reading `b`.
+  id: totrans-82
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 移除内存分配，并直接在传递给函数的数组上操作。请注意，我们不需要对`a`做任何事情，因为我们一次只读取一个元素，并且我们可以使用一个[非对齐的](/hpc/simd/moving/#aligned-loads-and-stores)
+    `store`来操作`c`，因为我们很少使用它，所以我们唯一关心的是读取`b`。
 - en: Get rid of the `std::min` so that the size parameters are (mostly) constant
     and can be embedded into the machine code by the compiler (which also lets it
     [unroll](/hpc/architecture/loops/) the micro-kernel loop more efficiently and
     avoid runtime checks).
+  id: totrans-83
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 移除`std::min`，使得大小参数（大部分情况下）保持不变，并可以被编译器嵌入到机器代码中（这也让编译器能够更有效地[展开](/hpc/architecture/loops/)微内核循环，并避免运行时检查）。
 - en: Rewrite the micro-kernel by hand using 12 vector variables (the compiler seems
     to struggle with keeping them in registers and writes them first to a temporary
     memory location and only then to $C$).
+  id: totrans-84
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 手动使用12个向量变量重写微内核（编译器似乎难以将它们保持在寄存器中，首先将它们写入临时内存位置，然后再写入$C$）。
 - en: These optimizations are straightforward but quite tedious to implement, so we
     are not going to list [the code](https://github.com/sslotin/amh-code/blob/main/matmul/v5-unrolled.cc)
     here in the article. It also requires some more work to effectively support “weird”
     matrix sizes, which is why we only run benchmarks for sizes that are multiple
     of $48 = \frac{6 \cdot 16}{\gcd(6, 16)}$.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些优化方法简单但实现起来相当繁琐，所以我们不会在文章中列出[代码](https://github.com/sslotin/amh-code/blob/main/matmul/v5-unrolled.cc)。它还需要做更多的工作来有效地支持“奇怪”的矩阵大小，这就是为什么我们只为大小是$48
+    = \frac{6 \cdot 16}{\gcd(6, 16)}$的倍数的矩阵运行基准测试。
 - en: 'These individually small improvements compound and result in another 50% improvement:'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些单独的小改进累积起来，又带来了50%的性能提升：
 - en: '![](../Images/f3b30c45c12e557f364590624dbeadfe.png)'
+  id: totrans-87
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/f3b30c45c12e557f364590624dbeadfe.png)'
 - en: 'We are actually not that far from the theoretical performance limit — which
     can be calculated as the SIMD width times the `fma` instruction throughput times
     the clock frequency:'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们实际上离理论性能极限并不远——这可以通过SIMD宽度乘以`fma`指令吞吐量乘以时钟频率来计算：
 - en: $$ \underbrace{8}_{SIMD} \cdot \underbrace{2}_{thr.} \cdot \underbrace{2 \cdot
     10^9}_{cycles/sec} = 32 \; GFLOPS \;\; (3.2 \cdot 10^{10}) $$
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \underbrace{8}_{SIMD} \cdot \underbrace{2}_{thr.} \cdot \underbrace{2 \cdot
+    10^9}_{cycles/sec} = 32 \; GFLOPS \;\; (3.2 \cdot 10^{10}) $$
 - en: 'It is more representative to compare against some practical library, such as
     [OpenBLAS](https://www.openblas.net/). The laziest way to do it is to simply [invoke
     matrix multiplication from NumPy](/hpc/complexity/languages/#blas). There may
     be some minor overhead due to Python, but it ends up reaching 80% of the theoretical
     limit, which seems plausible (a 20% overhead is okay: matrix multiplication is
     not the only thing that CPUs are made for).'
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 与一些实际库进行比较，例如[OpenBLAS](https://www.openblas.net/)，更具代表性。最懒惰的方法是简单地从NumPy中[调用矩阵乘法](/hpc/complexity/languages/#blas)。由于Python可能存在一些轻微的开销，但最终可以达到理论极限的80%，这似乎是合理的（20%的开销是可以接受的：矩阵乘法并不是CPU的唯一用途）。
 - en: '![](../Images/3df0f282b3daecc24455ce8a340c9b27.png)'
+  id: totrans-91
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/3df0f282b3daecc24455ce8a340c9b27.png)'
 - en: We’ve reached ~93% of BLAS performance and ~75% of the theoretical performance
     limit, which is really great for what is essentially just 40 lines of C.
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经达到了约93%的BLAS性能和约75%的理论性能极限，这对于本质上只有40行C代码来说是非常了不起的。
 - en: 'Interestingly, the whole thing can be rolled into just one deeply nested `for`
     loop with a BLAS level of performance (assuming that we’re in 2050 and using GCC
     version 35, which finally stopped screwing up with register spilling):'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 有趣的是，整个操作可以简化为一个深度嵌套的`for`循环，并达到BLAS级别的性能（假设我们处于2050年，并使用GCC版本35，它最终停止了寄存器溢出的错误）：
 - en: '[PRE9]'
+  id: totrans-94
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: There is also an approach that performs asymptotically fewer arithmetic operations
     — [the Strassen algorithm](/hpc/external-memory/oblivious/#strassen-algorithm)
     — but it has a large constant factor, and it is only efficient for [very large
     matrices](https://arxiv.org/pdf/1605.01078.pdf) ($n > 4000$), where we typically
     have to use either multiprocessing or some approximate dimensionality-reducing
     methods anyway.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 还有一种方法可以执行渐近更少的算术运算——[斯特拉斯算法](/hpc/external-memory/oblivious/#strassen-algorithm)——但它有一个很大的常数因子，并且仅对[非常大的矩阵](https://arxiv.org/pdf/1605.01078.pdf)（$n
+    > 4000$）有效，在这些情况下，我们通常不得不使用多进程或某些近似降维方法。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#generalizations)Generalizations'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#generalizations)推广'
 - en: 'FMA also supports 64-bit floating-point numbers, but it does not support integers:
     you need to perform addition and multiplication separately, which results in decreased
     performance. If you can guarantee that all intermediate results can be represented
     exactly as 32- or 64-bit floating-point numbers (which is [often the case](/hpc/arithmetic/errors/)),
     it may be faster to just convert them to and from floats.'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: FMA 也支持 64 位浮点数，但它不支持整数：你需要分别执行加法和乘法，这会导致性能下降。如果你可以保证所有中间结果都可以精确地表示为 32 位或 64
+    位浮点数（这通常是情况），那么直接将它们转换为浮点数再转换回来可能更快。
 - en: 'This approach can be also applied to some similar-looking computations. One
     example is the “min-plus matrix multiplication” defined as:'
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法也可以应用于一些看起来相似的计算。一个例子是定义为“min-plus 矩阵乘法”的计算：
 - en: $$ (A \circ B)_{ij} = \min_{1 \le k \le n} (A_{ik} + B_{kj}) $$
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ (A \circ B)_{ij} = \min_{1 \le k \le n} (A_{ik} + B_{kj}) $$
 - en: 'It is also known as the “distance product” due to its graph interpretation:
     when applied to itself $(D \circ D)$, the result is the matrix of shortest paths
     of length two between all pairs of vertices in a fully-connected weighted graph
     specified by the edge weight matrix $D$.'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 它也被称为“距离积”，因为它具有图解释：当应用于自身 $(D \circ D)$ 时，结果是所有成对顶点在完全连接加权图中的最短路径矩阵，该图由边权重矩阵
+    $D$ 指定。
 - en: A cool thing about the distance product is that if we iterate the process and
     calculate
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 距离积的一个有趣之处在于，如果我们迭代这个过程并计算
 - en: $$ D_2 = D \circ D \\ D_4 = D_2 \circ D_2 \\ D_8 = D_4 \circ D_4 \\ \ldots $$
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ D_2 = D \circ D \\ D_4 = D_2 \circ D_2 \\ D_8 = D_4 \circ D_4 \\ \ldots $$
 - en: '…we can find all-pairs shortest paths in $O(\log n)$ steps:'
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: …我们可以在 $O(\log n)$ 步中找到所有对最短路径：
 - en: '[PRE10]'
+  id: totrans-104
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'This requires $O(n^3 \log n)$ operations. If we do these two-edge relaxations
     in a particular order, we can do it with just one pass, which is known as the
     [Floyd-Warshall algorithm](https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm):'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 这需要 $O(n^3 \log n)$ 次操作。如果我们以特定的顺序执行这两个边松弛操作，我们只需一次遍历就能完成，这被称为 [Floyd-Warshall
+    算法](https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm)：
 - en: '[PRE11]'
+  id: totrans-106
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: Interestingly, similarly vectorizing the distance product and executing it $O(\log
     n)$ times ([or possibly fewer](https://arxiv.org/pdf/1904.01210.pdf)) in $O(n^3
     \log n)$ total operations is faster than naively executing the Floyd-Warshall
     algorithm in $O(n^3)$ operations, although not by a lot.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 有趣的是，将距离积向量化并在 $O(n^3 \log n)$ 总操作中执行它 $O(\log n)$ 次（或可能更少）([或可能更少](https://arxiv.org/pdf/1904.01210.pdf))，比天真地执行
+    $O(n^3)$ 次操作的 Floyd-Warshall 算法要快，尽管快得并不多。
 - en: As an exercise, try to speed up this “for-for-for” computation. It is harder
     to do than in the matrix multiplication case because now there is a logical dependency
     between the iterations, and you need to perform updates in a particular order,
     but it is still possible to design [a similar kernel and a block iteration order](https://github.com/sslotin/amh-code/blob/main/floyd/blocked.cc)
     that achieves a 30-50x total speedup.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为练习，尝试加快这个“for-for-for”计算。这比矩阵乘法案例更难，因为现在迭代之间存在逻辑依赖关系，你需要按特定顺序执行更新，但仍然可以设计[一个类似的内核和块迭代顺序](https://github.com/sslotin/amh-code/blob/main/floyd/blocked.cc)，从而实现
+    30-50 倍的总速度提升。
 - en: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#acknowledgements)Acknowledgements'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/algorithms/matmul/#acknowledgements)致谢'
 - en: The final algorithm was originally designed by Kazushige Goto, and it is the
     basis of GotoBLAS and OpenBLAS. The author himself describes it in more detail
     in “[Anatomy of High-Performance Matrix Multiplication](https://www.cs.utexas.edu/~flame/pubs/GotoTOMS_revision.pdf)”.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 最终算法最初由 Kazushige Goto 设计，它是 GotoBLAS 和 OpenBLAS 的基础。作者本人更详细地描述了它，在 “[Anatomy
+    of High-Performance Matrix Multiplication](https://www.cs.utexas.edu/~flame/pubs/GotoTOMS_revision.pdf)”。
 - en: The exposition style is inspired by the “[Programming Parallel Computers](http://ppc.cs.aalto.fi/)”
     course by Jukka Suomela, which features a [similar case study](http://ppc.cs.aalto.fi/ch2/)
     on speeding up the distance product. [← Prefix Sum with SIMD](https://en.algorithmica.org/hpc/algorithms/prefix/)[../Data
     Structures Case Studies →](https://en.algorithmica.org/hpc/data-structures/)
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 展示风格受到了 Jukka Suomela 的 “[Programming Parallel Computers](http://ppc.cs.aalto.fi/)”
+    课程的影响，该课程包含一个关于加速距离积的[类似案例研究](http://ppc.cs.aalto.fi/ch2/)。[← 使用 SIMD 的前缀和](https://en.algorithmica.org/hpc/algorithms/prefix/)[→
+    数据结构案例研究](https://en.algorithmica.org/hpc/data-structures/)

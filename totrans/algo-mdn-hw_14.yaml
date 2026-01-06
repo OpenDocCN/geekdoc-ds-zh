@@ -1,148 +1,216 @@
 - en: Branchless Programming
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 无分支编程
 - en: 原文：[https://en.algorithmica.org/hpc/pipelining/branchless/](https://en.algorithmica.org/hpc/pipelining/branchless/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/pipelining/branchless/](https://en.algorithmica.org/hpc/pipelining/branchless/)
 - en: As we established in [the previous section](../branching), branches that can’t
     be effectively predicted by the CPU are expensive as they may cause a long pipeline
     stall to fetch new instructions after a branch mispredict. In this section, we
     discuss the means of removing branches in the first place.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 如我们在[上一节](../branching)中所述，CPU无法有效预测的分支是昂贵的，因为它们可能导致分支预测错误后长时间流水线停滞以获取新指令。在本节中，我们将讨论消除分支的方法。
 - en: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#predication)Predication'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#predication)预测'
 - en: 'We are going to continue the same case study we’ve started before — we create
     an array of random numbers and sum up all its elements below 50:'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将继续之前开始的同一种案例研究——我们创建一个随机数字数组，并计算所有小于50的元素的总和：
 - en: '[PRE0]'
+  id: totrans-5
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Our goal is to eliminate the branch caused by the `if` statement. We can try
     to get rid of it like this:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们的目标是消除由`if`语句引起的分支。我们可以尝试这样消除它：
 - en: '[PRE1]'
+  id: totrans-7
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: The loop now takes ~7 cycles per element instead of the original ~14\. Also,
     the performance remains constant if we change `50` to some other threshold, so
     it doesn’t depend on the branch probability.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 循环现在每个元素需要大约7个周期，而不是原来的大约14个周期。此外，如果我们改变`50`为其他阈值，性能仍然保持不变，因此它不依赖于分支概率。
 - en: But wait… shouldn’t there still be a branch? How does `(a[i] < 50)` map to assembly?
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 但是等等…难道不应该仍然有一个分支吗？`(a[i] < 50)`是如何映射到汇编中的？
 - en: 'There are no Boolean types in assembly, nor any instructions that yield either
     one or zero based on the result of the comparison, but we can compute it indirectly
     like this: `(a[i] - 50) >> 31`. This trick relies on the [binary representation
     of integers](/hpc/arithmetic/integer), specifically on the fact that if the expression
     `a[i] - 50` is negative (implying `a[i] < 50`), then the highest bit of the result
     will be set to one, which we can then extract using a right-shift.'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 在汇编中不存在布尔类型，也没有基于比较结果返回1或0的指令，但我们可以间接地这样计算：`(a[i] - 50) >> 31`。这个技巧依赖于整数的[二进制表示](/hpc/arithmetic/integer)，特别是以下事实：如果表达式`a[i]
+    - 50`是负数（意味着`a[i] < 50`），那么结果的最高位将被设置为1，然后我们可以通过右移来提取它。
 - en: '[PRE2]'
+  id: totrans-11
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Another, more complicated way to implement this whole sequence is to convert
     this sign bit into a mask and then use bitwise `and` instead of multiplication:
     `((a[i] - 50) >> 31 - 1) & a[i]`. This makes the whole sequence one cycle faster,
     considering that, unlike other instructions, `imul` takes 3 cycles:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 实现整个序列的另一种更复杂的方法是将符号位转换为掩码，然后使用位运算`and`而不是乘法：`((a[i] - 50) >> 31 - 1) & a[i]`。考虑到与其他指令不同，`imul`需要3个周期，这使得整个序列快一个周期。
 - en: '[PRE3]'
+  id: totrans-13
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Note that this optimization is not technically correct from the compiler’s
     perspective: for the 50 lowest representable integers — those in the $[-2^{31},
     - 2^{31} + 49]$ range — the result will be wrong due to underflow. We know that
     all numbers are all between 0 and 100, and this won’t happen, but the compiler
     doesn’t.'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，从编译器的角度来看，这种优化在技术上是不正确的：对于50个最低的可表示整数——那些在$[-2^{31}, - 2^{31} + 49]$范围内的整数——结果将因为下溢而出错。我们知道所有数字都在0到100之间，这种情况不会发生，但编译器不知道。
 - en: 'But the compiler actually elects to do something different. Instead of going
     with this arithmetic trick, it used a special `cmov` (“conditional move”) instruction
     that assigns a value based on a condition (which is computed and checked using
     the flags register, the same way as for jumps):'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 但编译器实际上选择做不同的事情。它没有使用这个算术技巧，而是使用了一个特殊的`cmov`（“条件移动”）指令，该指令根据条件（使用标志寄存器计算和检查，与跳转相同）分配一个值。
 - en: '[PRE4]'
+  id: totrans-16
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'So the code above is actually closer to using a ternary operator like this:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，上面的代码实际上更接近使用三元运算符，如下所示：
 - en: '[PRE5]'
+  id: totrans-18
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Both variants are optimized by the compiler and produce the following assembly:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 这两种变体都经过编译器优化，并产生以下汇编代码：
 - en: '[PRE6]'
+  id: totrans-20
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'This general technique is called *predication*, and it is roughly equivalent
     to this algebraic trick:'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种通用技术被称为*预测*，它大致等同于以下代数技巧：
 - en: $$ x = c \cdot a + (1 - c) \cdot b $$
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ x = c \cdot a + (1 - c) \cdot b $$
 - en: This way you can eliminate branching, but this comes at the cost of evaluating
     *both* branches and the `cmov` itself. Because evaluating the “>=” branch costs
     nothing, the performance is exactly equal to [the “always yes” case](../branching/#branch-prediction)
     in the branchy version.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样你可以消除分支，但这也意味着要评估 *两个* 分支以及 `cmov` 本身。因为评估“>=”分支不花费任何代价，所以性能与分支版本中的[“总是是”情况](../branching/#branch-prediction)完全相同。
 - en: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#when-predication-is-beneficial)When
     Predication Is Beneficial'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#when-predication-is-beneficial)当预测有益时'
 - en: 'Using predication eliminates [a control hazard](../hazards) but introduces
     a data hazard. There is still a pipeline stall, but it is a cheaper one: you only
     need to wait for `cmov` to be resolved and not flush the entire pipeline in case
     of a mispredict.'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用预测消除了[控制冒险](../hazards)，但引入了数据冒险。仍然会有流水线停顿，但这是一个更便宜的停顿：你只需要等待 `cmov` 解决，而不是在预测错误的情况下清空整个流水线。
 - en: However, there are many situations when it is more efficient to leave branchy
     code as it is. This is the case when the cost of computing *both* branches instead
     of just *one* outweighs the penalty for the potential branch mispredictions.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，有许多情况下，保持分支代码不变会更有效率。这种情况发生在计算 *两个* 分支的成本超过了只计算 *一个* 分支的惩罚。
 - en: In our example, the branchy code wins when the branch can be predicted with
     a probability of more than ~75%.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的例子中，当分支可以被预测的概率超过 ~75% 时，分支代码获胜。
 - en: '![](../Images/2310bb67e7bb9ec6ac10dff44f8498e4.png)'
+  id: totrans-28
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/2310bb67e7bb9ec6ac10dff44f8498e4.png)'
 - en: 'This 75% threshold is commonly used by the compilers as a heuristic for determining
     whether to use the `cmov` or not. Unfortunately, this probability is usually unknown
     at the compile time, so it needs to be provided in one of several ways:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个 75% 的阈值通常被编译器用作确定是否使用 `cmov` 的启发式方法。不幸的是，这个概率通常在编译时是未知的，因此需要以几种方式之一提供：
 - en: We can use [profile-guided optimization](/hpc/compilation/situational/#profile-guided-optimization)
     which will decide for itself whether to use predication or not.
+  id: totrans-30
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们可以使用[基于配置文件优化](/hpc/compilation/situational/#profile-guided-optimization)，它将自行决定是否使用预测。
 - en: 'We can use [likeliness attributes](../branching#hinting-likeliness-of-branches)
     and [compiler-specific intrinsics](/hpc/compilation/situational) to hint at the
     likeliness of branches: `__builtin_expect_with_probability` in GCC and `__builtin_unpredictable`
     in Clang.'
+  id: totrans-31
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们可以使用[可能性属性](../branching#hinting-likeliness-of-branches)和[编译器特定的内建函数](/hpc/compilation/situational)来提示分支的可能性：GCC
+    中的 `__builtin_expect_with_probability` 和 Clang 中的 `__builtin_unpredictable`。
 - en: 'We can rewrite branchy code using the ternary operator or various arithmetic
     tricks, which acts as sort of an implicit contract between programmers and compilers:
     if the programmer wrote the code this way, then it was probably meant to be branchless.'
+  id: totrans-32
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们可以使用三元运算符或各种算术技巧重写分支代码，这相当于程序员和编译器之间的一种隐式合同：如果程序员这样编写代码，那么它可能意味着要无分支。
 - en: The “right way” is to use branching hints, but unfortunately, the support for
     them is lacking. Right now [these hints seem to be lost](https://bugs.llvm.org/show_bug.cgi?id=40027)
     by the time the compiler back-end decides whether a `cmov` is more beneficial.
@@ -150,66 +218,93 @@
     towards making it possible, but currently, there is no good way of forcing the
     compiler to generate branch-free code, so sometimes the best hope is to just write
     a small snippet in assembly.
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: “正确的方法”是使用分支提示，但不幸的是，对它们的支持不足。目前，这些提示似乎在编译器后端决定是否使用 `cmov` 时已经丢失了。[这些提示似乎丢失了](https://bugs.llvm.org/show_bug.cgi?id=40027)。有一些进展[朝着使其成为可能的方向](https://discourse.llvm.org/t/rfc-cmov-vs-branch-optimization/6040)，但目前还没有好的方法可以强制编译器生成无分支代码，所以有时最好的希望就是简单地写一小段汇编代码。
 - en: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#larger-examples)Larger
     Examples'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/pipelining/branchless/#larger-examples)更大的例子'
 - en: '**Strings.** Oversimplifying things, an `std::string` is comprised of a pointer
     to a null-terminated `char` array (also known as a “C-string”) allocated somewhere
     on the heap and one integer containing the string size.'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: '**字符串**。简化来说，`std::string` 由一个指向堆上某个位置的以 null 结尾的 `char` 数组（也称为“C-string”）的指针和一个包含字符串大小的整数组成。'
 - en: A common value for a string is the empty string — which is also its default
     value. You also need to handle them somehow, and the idiomatic approach is to
     assign `nullptr` as the pointer and `0` as the string size, and then check if
     the pointer is null or if the size is zero at the beginning of every procedure
     involving strings.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 字符串的一个常见值是空字符串——这也是它的默认值。你还需要以某种方式处理它们，并且习惯性的方法是分配`nullptr`作为指针和`0`作为字符串大小，然后在涉及字符串的每个过程的开始处检查指针是否为空或大小是否为零。
 - en: However, this requires a separate branch, which is costly (unless the majority
     of strings are either empty or non-empty). To remove the check and thus also the
     branch, we can allocate a “zero C-string,” which is just a zero byte allocated
     somewhere, and then simply point all empty strings there. Now all string operations
     with empty strings have to read this useless zero byte, but this is still much
     cheaper than a branch misprediction.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，这需要单独的分支，这是代价高昂的（除非大多数字符串要么是空的，要么是非空的）。为了移除检查以及分支，我们可以分配一个“零C字符串”，这只是一个在某个地方分配的零字节，然后简单地将所有空字符串指向那里。现在所有涉及空字符串的字符串操作都必须读取这个无用的零字节，但这仍然比分支预测错误便宜得多。
 - en: '**Binary search.** The standard binary search [can be implemented](/hpc/data-structures/binary-search)
     without branches, and on small arrays (that fit into cache) it works ~4x faster
     than the branchy `std::lower_bound`:'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: '**二分搜索。**标准的二分搜索[可以无分支实现](/hpc/data-structures/binary-search)，在小型数组（适合缓存）上它比分支的`std::lower_bound`快约4倍：'
 - en: '[PRE7]'
+  id: totrans-39
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: Other than being more complex, it has another slight drawback in that it potentially
     does more comparisons (constant $\lceil \log_2 n \rceil$ instead of either $\lfloor
     \log_2 n \rfloor$ or $\lceil \log_2 n \rceil$) and can’t speculate on future memory
     reads (which acts as prefetching, so it loses on very large arrays).
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了更复杂之外，它还有一个轻微的缺点，即它可能进行更多的比较（常数 $\lceil \log_2 n \rceil$ 而不是 $\lfloor \log_2
+    n \rfloor$ 或 $\lceil \log_2 n \rceil$），并且不能预测未来的内存读取（这充当预取，因此在大数组上会损失性能）。
 - en: In general, data structures are made branchless by implicitly or explicitly
     *padding* them so that their operations take a constant number of iterations.
     Refer to [the article](/hpc/data-structures/binary-search) for more complex examples.
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，通过隐式或显式地*填充*数据结构，使它们的操作需要恒定的迭代次数，从而实现无分支。有关更复杂的示例，请参阅[该文章](/hpc/data-structures/binary-search)。
 - en: '**Data-parallel programming.** Branchless programming is very important for
     [SIMD](/hpc/simd) applications because they don’t have branching in the first
     place.'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: '**数据并行编程。**无分支编程对于[SIMD](/hpc/simd)应用非常重要，因为这些应用一开始就没有分支。'
 - en: 'In our array sum example, removing the `volatile` type qualifier from the accumulator
     allows the compiler to [vectorize](/hpc/simd/auto-vectorization) the loop:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的数组求和示例中，从累加器中移除`volatile`类型限定符允许编译器[向量化](/hpc/simd/auto-vectorization)循环：
 - en: '[PRE8]'
+  id: totrans-44
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: It now works in ~0.3 per element, which is mainly [bottlenecked by the memory](/hpc/cpu-cache/bandwidth).
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在它每元素大约需要0.3秒，这主要是[受内存](/hpc/cpu-cache/bandwidth)瓶颈的影响。
 - en: The compiler is usually able to vectorize any loop that doesn’t have branches
     or dependencies between the iterations — and some specific small deviations from
     that, such as [reductions](/hpc/simd/reduction) or simple loops that contain just
@@ -217,5 +312,8 @@
     problem, which may involve various techniques such as [masking](/hpc/simd/masking)
     and [in-register permutations](/hpc/simd/shuffling). [← The Cost of Branching](https://en.algorithmica.org/hpc/pipelining/branching/)[Instruction
     Tables →](https://en.algorithmica.org/hpc/pipelining/tables/)
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器通常能够将没有分支或迭代间依赖的任何循环进行向量化——以及一些特定的微小偏差，例如[归约](/hpc/simd/reduction)或只包含一个if-without-else的简单循环。更复杂的任何内容的向量化都是一个非常非平凡的问题，可能涉及各种技术，如[掩码](/hpc/simd/masking)和[寄存器内排列](/hpc/simd/shuffling)。[←
+    分支的成本](https://en.algorithmica.org/hpc/pipelining/branching/)[指令表 →](https://en.algorithmica.org/hpc/pipelining/tables/)

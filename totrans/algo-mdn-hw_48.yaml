@@ -1,153 +1,224 @@
 - en: List Ranking
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 列表排名
 - en: 原文：[https://en.algorithmica.org/hpc/external-memory/list-ranking/](https://en.algorithmica.org/hpc/external-memory/list-ranking/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/external-memory/list-ranking/](https://en.algorithmica.org/hpc/external-memory/list-ranking/)
 - en: In this section, we will apply [external sorting](../sorting) and [joining](../sorting#joining)
     to solve a problem that seems useless on the surface but is actually a key primitive
     used in a large number of external memory and parallel algorithms.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将应用 [外部排序](../sorting) 和 [连接](../sorting#joining) 来解决一个表面上看似无用的但实际是大量外部内存和并行算法中使用的关键原语的问题。
 - en: '**Problem.** Given a singly-linked list, compute the *rank* of each element,
     equal to its distance from the *last* element.'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: '**问题**。给定一个单链表，计算每个元素的 *排名*，等于其从 *最后一个* 元素的距离。'
 - en: '![](../Images/0ea7a7d56e8a07d6abcef3fbb24c0932.png)'
+  id: totrans-4
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/0ea7a7d56e8a07d6abcef3fbb24c0932.png)'
 - en: Example input and output for the list ranking problem
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 列表排名问题的示例输入和输出
 - en: 'This problem can be trivially solved in the RAM model: you just traverse the
     entire list with a counter. But this pointer jumping wouldn’t work well in the
     external memory setting because the list nodes are stored arbitrarily, and in
     the worst case, reading each new node may require reading a new block.'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 RAM 模型中，这个问题可以轻易解决：你只需遍历整个列表并使用计数器。但在外部内存设置中，这种方法不会很好工作，因为列表节点是任意存储的，在最坏的情况下，读取每个新节点可能需要读取一个新的块。
 - en: '### [#](https://en.algorithmica.org/hpc/external-memory/list-ranking/#algorithm)Algorithm'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/external-memory/list-ranking/#algorithm)算法'
 - en: Consider a slightly more general version of the problem. Now, each element has
     a *weight* $w_i$, and for each element, we need to compute the sum of the weights
     of all its preceding elements instead of just its rank. To solve the initial problem,
     we can just set all weights equal to 1.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑这个问题的一个稍微更一般的形式。现在，每个元素都有一个 *权重* $w_i$，并且对于每个元素，我们需要计算其所有先前元素权重的总和，而不仅仅是它的排名。为了解决初始问题，我们可以将所有权重都设置为
+    1。
 - en: The main idea of the algorithm is to remove some fraction of elements, recursively
     solve the problem, and then use these weight-ranks to reconstruct the answer for
     the initial problem — which is the tricky part.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 算法的核心思想是移除一些元素的一部分，递归地解决问题，然后使用这些权重-排名来重建初始问题的答案——这是难点所在。
 - en: 'Consider some three consecutive elements $x$, $y$ and $z$. Assume that we deleted
     $y$ and solved the problem for the remaining list, which included $x$ and $z$,
     and now we need to restore the answer for the original triplet. The weight of
     $x$ would be correct as it is, but we need to calculate the answer for $y$ and
     adjust it for $z$, namely:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑一些连续的三个元素 $x$，$y$ 和 $z$。假设我们删除了 $y$，并解决了剩余列表的问题，该列表包括 $x$ 和 $z$，现在我们需要恢复原始三元组的答案。$x$
+    的权重是正确的，但我们需要计算 $y$ 的答案并调整 $z$，即：
 - en: $w_y’ = w_y + w_x$
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: $w_y’ = w_y + w_x$
 - en: $w_z’ = w_z + w_y + w_x$
+  id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: $w_z’ = w_z + w_y + w_x$
 - en: Now, we can just delete, say, the first element, solve the problem recursively,
     and recalculate weights for the original array. But, unfortunately, it would work
     in quadratic time, because to make the update, we would need to know where its
     neighbors are, and since we can’t hold the entire array in memory, we would need
     to scan it each time.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们只需删除，比如说，第一个元素，递归地解决问题，然后重新计算原始数组的权重。但不幸的是，这将在二次时间内完成，因为为了进行更新，我们需要知道其邻居的位置，而且由于我们无法在内存中保留整个数组，我们每次都需要扫描它。
 - en: 'Therefore, on each step, we want to remove as many elements as possible. But
     we also have a constraint: we can’t remove two consecutive elements because then
     merging results wouldn’t be that simple.'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在每一步，我们希望尽可能多地移除元素。但我们还有一个约束：我们不能移除两个连续的元素，因为那样合并结果就不会那么简单了。
 - en: 'Ideally, we want to split our list into even and odd elements, but doing this
     is not simpler than the initial problem. One workaround is to choose the elements
     at random: toss a coin for each element, and then remove all “heads” after which
     a “tail” follows. This way no two consecutive elements will ever be selected,
     and on average we get rid of ¼ of the current list. The arithmetic complexity
     of this solution would still be linear, because'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 理想情况下，我们希望将我们的列表分为偶数和奇数元素，但这样做并不比初始问题简单。一种解决方案是随机选择元素：为每个元素抛硬币，然后在出现“尾”之后移除所有“头”。这样就不会有两个连续的元素被选中，并且平均来说，我们可以去掉当前列表的四分之一。这个解决方案的算术复杂度仍然是线性的，因为
 - en: $$ T(N) = T\left(\frac{3}{4} N\right) = O(N) $$
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ T(N) = T\left(\frac{3}{4} N\right) = O(N) $$
 - en: 'The only tricky part here is how to implement the merge step in external memory.
     To do it efficiently, we need to maintain our list in the following form:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里唯一棘手的部分是如何在外部内存中实现合并步骤。为了有效地做到这一点，我们需要以以下形式维护我们的列表：
 - en: List of tuples $(i, j)$ indicating that element $j$ follows after element $i$
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 元组$(i, j)$的列表，表示元素$j$在元素$i$之后
 - en: List of tuples $(i, w_i)$ indicating that element $i$ currently has weight $w_i$
+  id: totrans-19
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 元素$i$当前具有权重$w_i$的元组$(i, w_i)$的列表
 - en: A list of deleted elements
+  id: totrans-20
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 被删除元素的列表
 - en: Now, to restore the answer after randomly deleting some elements and recursively
     solving the smaller problem, we need to iterate over all lists using three pointers
     looking for deleted elements. and for each such element, we will write $(j, w_i)$
     to a separate table, which would signify that before the recursive step we need
     to add $w_i$ to $j$. We can then join this new table with initial weights, add
     these additional weights to them.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，为了在随机删除一些元素并递归解决更小的问题后恢复答案，我们需要使用三个指针遍历所有列表，寻找被删除的元素。对于每个这样的元素，我们将$(j, w_i)$写入一个单独的表，这表示在递归步骤之前我们需要将$w_i$加到$j$上。然后我们可以将这个新表与初始权重连接起来，将这些额外的权重加到它们上面。
 - en: After coming back from the recursion, we need to update weights for the deleted
     elements, which we can do with the same technique, iterating over reversed connections
     instead of direct ones.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 在递归返回后，我们需要更新被删除元素的权重，我们可以使用相同的技术，通过迭代反向连接而不是直接连接来实现。
 - en: I/O complexity of this algorithm with therefore be the same as joining, namely
     $SORT(N) = O\left(\frac{N}{B} \log_{\frac{M}{B}} \frac{N}{M} \right)$.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 该算法的I/O复杂度将与连接相同，即$SORT(N) = O\left(\frac{N}{B} \log_{\frac{M}{B}} \frac{N}{M}
+    \right)$。
 - en: '### [#](https://en.algorithmica.org/hpc/external-memory/list-ranking/#applications)Applications'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/external-memory/list-ranking/#applications)
+    应用'
 - en: List ranking is especially useful in graph algorithms.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 列表排序在图算法中特别有用。
 - en: 'For example, we can obtain the Euler tour of a tree in external memory by constructing
     a linked list from the tree that corresponds to its Euler tour and then applying
     the list ranking algorithm — the ranks of each node will be the same as its index
     $tin_v$ in the Euler tour. To construct this list, we need to:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，我们可以通过从对应于其欧拉遍历的树构造一个链表来在外部内存中获取树的欧拉遍历，然后应用列表排序算法——每个节点的排名将与它在欧拉遍历中的索引$tin_v$相同。为了构建这个列表，我们需要：
 - en: split each undirected edge into two directed ones;
+  id: totrans-27
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将每条无向边分成两条有向边；
 - en: duplicate the parent node for each up-edge (because list nodes can only have
     one incoming edge, but we visit some vertices multiple times);
+  id: totrans-28
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 对于每个向上边（因为列表节点只能有一个入边，但我们访问一些顶点多次）复制父节点；
 - en: route each such node either to the “next sibling,” if it has one, or otherwise
     to its own parent;
+  id: totrans-29
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将每个这样的节点路由到“下一个兄弟”，如果有的话，否则路由到其自己的父节点；
 - en: and then finally break the resulting cycle at the root.
+  id: totrans-30
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 然后在根节点处最终断开形成的循环。
 - en: This general technique is called *tree contraction*, and it serves as the basis
     for a large number of tree algorithms.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种通用技术被称为*树收缩*，它是大量树算法的基础。
 - en: The same approach can be applied to parallel algorithms, and we will cover that
     much more deeply in part II. [← External Sorting](https://en.algorithmica.org/hpc/external-memory/sorting/)[Eviction
     Policies →](https://en.algorithmica.org/hpc/external-memory/policies/)
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 同样的方法可以应用于并行算法，我们将在第二部分更深入地探讨这一点。[← 外部排序](https://en.algorithmica.org/hpc/external-memory/sorting/)[驱逐策略
+    →](https://en.algorithmica.org/hpc/external-memory/policies/)

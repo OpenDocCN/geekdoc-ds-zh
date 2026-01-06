@@ -1,324 +1,462 @@
 - en: Intrinsics and Vector Types
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 内联函数和向量类型
 - en: 原文：[https://en.algorithmica.org/hpc/simd/intrinsics/](https://en.algorithmica.org/hpc/simd/intrinsics/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/simd/intrinsics/](https://en.algorithmica.org/hpc/simd/intrinsics/)
 - en: The most low-level way to use SIMD is to use the assembly vector instructions
     directly — they aren’t different from their scalar equivalents at all — but we
     are not going to do that. Instead, we will use *intrinsic* functions mapping to
     these instructions that are available in modern C/C++ compilers.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用SIMD最低级的方式是直接使用汇编向量指令——它们与它们的标量等效物完全相同——但我们不会这样做。相反，我们将使用映射到这些指令的现代C/C++编译器中可用的*内联*函数。
 - en: In this section, we will go through the basics of their syntax, and in the rest
     of this chapter, we will use them extensively to do things that are actually interesting.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将介绍它们的语法基础，并在本章的其余部分广泛使用它们来完成一些真正有趣的事情。
 - en: '## [#](https://en.algorithmica.org/hpc/simd/intrinsics/#setup)Setup'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/simd/intrinsics/#setup)设置'
 - en: To use x86 intrinsics, we need to do a little groundwork.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 要使用x86内联函数，我们需要做一些前期准备工作。
 - en: First, we need to determine which extensions are supported by the hardware.
     On Linux, you can call `cat /proc/cpuinfo`, and on other platforms, you’d better
     go to [WikiChip](https://en.wikichip.org/wiki/WikiChip) and look it up there using
     the name of the CPU. In either case, there should be a `flags` section that lists
     the codes of all supported vector extensions.
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要确定硬件支持哪些扩展。在Linux上，你可以通过调用`cat /proc/cpuinfo`来获取信息，在其他平台上，你最好去[WikiChip](https://en.wikichip.org/wiki/WikiChip)网站，使用CPU的名称进行查找。在任一情况下，都应该有一个`flags`部分，列出了所有支持的向量扩展的代码。
 - en: 'There is also a special [CPUID](https://en.wikipedia.org/wiki/CPUID) assembly
     instruction that lets you query various information about the CPU, including the
     support of particular vector extensions. It is primarily used to get such information
     in runtime and avoid distributing a separate binary for each microarchitecture.
     Its output information is returned very densely in the form of feature masks,
     so compilers provide built-in methods to make sense of it. Here is an example:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，还有一个特殊的[CPUID](https://en.wikipedia.org/wiki/CPUID)汇编指令，允许你查询有关CPU的各种信息，包括特定向量扩展的支持情况。它主要用于在运行时获取此类信息，以避免为每个微架构分发单独的二进制文件。其输出信息以特征掩码的形式非常密集地返回，因此编译器提供了内置方法来理解它。以下是一个示例：
 - en: '[PRE0]'
+  id: totrans-8
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Second, we need to include a header file that contains the subset of intrinsics
     we need. Similar to `<bits/stdc++.h>` in GCC, there is the `<x86intrin.h>` header
     that contains all of them, so we will just use that.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 其次，我们需要包含一个包含所需内联函数子集的头文件。类似于GCC中的`<bits/stdc++.h>`，有一个`<x86intrin.h>`头文件包含了所有这些函数，所以我们只需使用它。
 - en: And last, we need to [tell the compiler](/hpc/compilation/flags) that the target
     CPU actually supports these extensions. This can be done either with `#pragma
     GCC target(...)` [as we did before](../), or with the `-march=...` flag in the
     compiler options. If you are compiling and running the code on the same machine,
     you can set `-march=native` to auto-detect the microarchitecture.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们需要[通知编译器](/hpc/compilation/flags)目标CPU实际上支持这些扩展。这可以通过`#pragma GCC target(...)`（就像我们之前做的那样[../]）或编译器选项中的`-march=...`标志来实现。如果你在同一台机器上编译和运行代码，你可以设置`-march=native`来自动检测微架构。
 - en: 'In all further code examples, assume that they begin with these lines:'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 在所有后续的代码示例中，假设它们以以下行开始：
 - en: '[PRE1]'
+  id: totrans-12
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: We will focus on AVX2 and the previous SIMD extensions in this chapter, which
     should be available on 95% of all desktop and server computers, although the general
     principles transfer on AVX512, Arm Neon, and other SIMD architectures just as
     well.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们将重点关注AVX2和之前的SIMD扩展，这些扩展应该适用于95%以上的桌面和服务器计算机，尽管一般原则在AVX512、Arm Neon和其他SIMD架构上也同样适用。
 - en: '### [#](https://en.algorithmica.org/hpc/simd/intrinsics/#simd-registers)SIMD
     Registers'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/simd/intrinsics/#simd-registers)SIMD寄存器'
 - en: 'The most notable distinction between SIMD extensions is the support for wider
     registers:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: SIMD扩展之间最显著的区分是更宽的寄存器支持：
 - en: SSE (1999) added 16 128-bit registers called `xmm0` through `xmm15`.
+  id: totrans-16
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: SSE（1999）增加了16个128位的寄存器，称为`xmm0`到`xmm15`。
 - en: AVX (2011) added 16 256-bit registers called `ymm0` through `ymm15`.
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: AVX（2011）增加了16个256位的寄存器，称为`ymm0`到`ymm15`。
 - en: AVX512 (2017) added^([1](#fn:1)) 16 512-bit registers called `zmm0` through
     `zmm15`.
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: AVX512（2017）增加了16个512位的寄存器，称为`zmm0`到`zmm15`。
 - en: As you can guess from the naming, and also from the fact that 512 bits already
     occupy a full cache line, x86 designers are not planning to add wider registers
     anytime soon.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 如您从命名和512位已经占满整个缓存行这一事实中可以猜到的，x86设计者并不打算在近期内添加更宽的寄存器。
 - en: 'C/C++ compilers implement special *vector types* that refer to the data stored
     in these registers:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: C/C++编译器实现了特殊的*向量类型*，这些类型指的是存储在这些寄存器中的数据：
 - en: 128-bit `__m128`, `__m128d` and `__m128i` types for single-precision floating-point,
     double-precision floating-point and various integer data respectively;
+  id: totrans-21
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 128位的`__m128`, `__m128d`和`__m128i`类型分别用于单精度浮点数、双精度浮点数和各种整数数据；
 - en: 256-bit `__m256`, `__m256d`, `__m256i`;
+  id: totrans-22
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 256位的`__m256`, `__m256d`, `__m256i`;
 - en: 512-bit `__m512`, `__m512d`, `__m512i`.
+  id: totrans-23
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 512位的`__m512`, `__m512d`, `__m512i`。
 - en: 'Registers themselves can hold data of any kind: these types are only used for
     type checking. You can convert a vector variable to another vector type the same
     way you would normally convert any other type, and it won’t cost you anything.'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 寄存器本身可以存储任何类型的数据：这些类型仅用于类型检查。您可以通过与转换任何其他类型相同的方式将向量变量转换为另一个向量类型，而且这不会花费您任何代价。
 - en: '### [#](https://en.algorithmica.org/hpc/simd/intrinsics/#simd-intrinsics)SIMD
     Intrinsics'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/simd/intrinsics/#simd-intrinsics)SIMD内联函数'
 - en: '*Intrinsics* are just C-style functions that do something with these vector
     data types, usually by simply calling the associated assembly instruction.'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: '*内联函数*只是C风格的函数，它们对这些向量数据类型进行操作，通常是通过简单地调用相关的汇编指令。'
 - en: 'For example, here is a cycle that adds together two arrays of 64-bit floating-point
     numbers using AVX intrinsics:'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，这里是一个使用AVX内联函数将两个64位浮点数数组相加的循环：
 - en: '[PRE2]'
+  id: totrans-28
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'The main challenge of using SIMD is getting the data into contiguous fixed-sized
     blocks suitable for loading into registers. In the code above, we may in general
     have a problem if the length of the array is not divisible by the block size.
     There are two common solutions to this:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用SIMD的主要挑战是将数据放入连续的固定大小块中，以便加载到寄存器中。在上面的代码中，如果数组长度不能被块大小整除，我们可能会遇到一般性问题。对此有两种常见的解决方案：
 - en: We can “overshoot” by iterating over the last incomplete segment either way.
     To make sure we don’t segfault by trying to read from or write to a memory region
     we don’t own, we need to pad the arrays to the nearest block size (typically with
     some “neutral” element, e.g., zero).
+  id: totrans-30
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们可以通过迭代最后一个不完整的段来“超出”范围。为了确保我们不会通过尝试从或写入我们不拥有的内存区域而引发段错误，我们需要将数组填充到最近的块大小（通常使用一些“中性”元素，例如零）。
 - en: Make one iteration less and write a little loop in the end that calculates the
     remainder normally (with scalar operations).
+  id: totrans-31
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 少做一次迭代，并在最后写一个小循环来正常计算余数（使用标量操作）。
 - en: 'Humans prefer #1 because it is simpler and results in less code, and compilers
     prefer #2 because they don’t really have another legal option.'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 人类更喜欢#1，因为它更简单，生成的代码更少，而编译器更喜欢#2，因为它们实际上没有其他合法的选项。
 - en: '### [#](https://en.algorithmica.org/hpc/simd/intrinsics/#instruction-references)Instruction
     References'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/simd/intrinsics/#instruction-references)指令参考'
 - en: 'Most SIMD intrinsics follow a naming convention similar to `_mm<size>_<action>_<type>`
     and correspond to a single analogously named assembly instruction. They become
     relatively self-explanatory once you get used to the assembly naming conventions,
     although sometimes it does seem like their names were generated by cats walking
     on keyboards (explain this: [punpcklqdq](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,3009,4870,4870,4872,4875,833,879,874,849,848,6715,4845,6046,3853,288,6570,6527,6527,90,7307,6385,5993,2692,6946,6949,5456,6938,5456,1021,3007,514,518,4875,7253,7183,3892,5135,5260,5259,6385,3915,4027,3873,7401&techs=AVX,AVX2&text=punpcklqdq)).'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数SIMD内联函数遵循类似于`_mm<size>_<action>_<type>`的命名约定，并对应于一个类似命名的汇编指令。一旦您习惯了汇编命名约定，它们就相对容易理解，尽管有时它们的名称似乎是由猫在键盘上走动生成的（解释：[punpcklqdq](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,3009,4870,4870,4872,4875,833,879,874,849,848,6715,4845,6046,3853,288,6570,6527,6527,90,7307,6385,5993,2692,6946,6949,5456,6938,5456,1021,3007,514,518,4875,7253,7183,3892,5135,5260,5259,6385,3915,4027,3873,7401&techs=AVX,AVX2&text=punpcklqdq)))。
 - en: 'Here are a few more examples, just so that you get the gist of it:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里有一些额外的例子，以便您了解其精髓：
 - en: '`_mm_add_epi16`: add two 128-bit vectors of 16-bit *extended packed integers*,
     or simply said, `short`s.'
+  id: totrans-36
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`_mm_add_epi16`：将两个16位*扩展打包整数*的128位向量相加，或者简单地说，就是`short`类型。'
 - en: '`_mm256_acos_pd`: calculate elementwise $\arccos$ for 4 *packed doubles*.'
+  id: totrans-37
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`_mm256_acos_pd`：对4个*打包双精度浮点数*进行逐元素计算$\arccos$。'
 - en: '`_mm256_broadcast_sd`: broadcast (copy) a `double` from a memory location to
     all 4 elements of the result vector.'
+  id: totrans-38
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`_mm256_broadcast_sd`: 将内存位置中的一个`double`类型的数据广播（复制）到结果向量的所有4个元素。'
 - en: '`_mm256_ceil_pd`: round up each of 4 `double`s to the nearest integer.'
+  id: totrans-39
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`_mm256_ceil_pd`: 将每个4个`double`类型的数据向上取整到最近的整数。'
 - en: '`_mm256_cmpeq_epi32`: compare 8+8 packed `int`s and return a mask that contains
     ones for equal element pairs.'
+  id: totrans-40
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`_mm256_cmpeq_epi32`: 比较两组各8个打包的`int`类型的数据，并返回一个掩码，其中包含相等的元素对。'
 - en: '`_mm256_blendv_ps`: pick elements from one of two vectors according to a mask.'
+  id: totrans-41
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`_mm256_blendv_ps`: 根据掩码从两个向量中选择元素。'
 - en: 'As you may have guessed, there is a combinatorially very large number of intrinsics,
     and in addition to that, some instructions also have immediate values — so their
     intrinsics require compile-time constant parameters: for example, the floating-point
     comparison instruction [has 32 different modifiers](https://stackoverflow.com/questions/16988199/how-to-choose-avx-compare-predicate-variants).'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 如你所猜，内联函数的数量组合上非常庞大，而且除此之外，一些指令也有立即数——因此它们的内联函数需要编译时常量参数：例如，浮点比较指令[有32种不同的修饰符](https://stackoverflow.com/questions/16988199/how-to-choose-avx-compare-predicate-variants)。
 - en: For some reason, there are some operations that are agnostic to the type of
     data stored in registers, but only take a specific vector type (usually 32-bit
     float) — you just have to convert to and from it to use that intrinsic. To simplify
     the examples in this chapter, we will mostly work with 32-bit integers (`epi32`)
     in 256-bit AVX2 registers.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于某种原因，有一些操作对寄存器中存储的数据类型是无关的，但只接受特定的向量类型（通常是32位浮点数）——你只需将其转换为和从它转换以使用该内联函数。为了简化本章的示例，我们将主要使用256位AVX2寄存器中的32位整数（`epi32`）。
 - en: A very helpful reference for x86 SIMD intrinsics is the [Intel Intrinsics Guide](https://software.intel.com/sites/landingpage/IntrinsicsGuide/),
     which has groupings by categories and extensions, descriptions, pseudocode, associated
     assembly instructions, and their latency and throughput on Intel microarchitectures.
     You may want to bookmark that page.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于x86 SIMD内联函数，一个非常有用的参考资料是[英特尔内联函数指南](https://software.intel.com/sites/landingpage/IntrinsicsGuide/)，它按类别和扩展分组，包含描述、伪代码、相关的汇编指令以及它们在英特尔微架构上的延迟和吞吐量。你可能想要将该页面添加到书签中。
 - en: The Intel reference is useful when you know that a specific instruction exists
     and just want to look up its name or performance info. When you don’t know whether
     it exists, this [cheat sheet](https://db.in.tum.de/~finis/x86%20intrinsics%20cheat%20sheet%20v1.0.pdf)
     may do a better job.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你知道存在一个特定的指令，只想查找其名称或性能信息时，英特尔参考很有用。当你不知道它是否存在时，这个[速查表](https://db.in.tum.de/~finis/x86%20intrinsics%20cheat%20sheet%20v1.0.pdf)可能做得更好。
 - en: '**Instruction selection.** Note that compilers do not necessarily pick the
     exact instruction that you specify. Similar to the scalar `c = a + b` we [discussed
     before](/hpc/analyzing-performance/assembly), there is a fused vector addition
     instruction too, so instead of using 2+1+1=4 instructions per loop cycle, compiler
     [rewrites the code above](https://godbolt.org/z/dMz8E5Ye8) with blocks of 3 instructions
     like this:'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: '**指令选择**。请注意，编译器并不一定选择你指定的确切指令。类似于我们之前讨论的标量`c = a + b`，也存在一个融合的向量加法指令，因此，而不是每个循环周期使用2+1+1=4条指令，编译器[重写了上面的代码](https://godbolt.org/z/dMz8E5Ye8)，使用3条指令的块，如下所示：'
 - en: '[PRE3]'
+  id: totrans-47
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Sometimes, although quite rarely, this compiler interference makes things worse,
     so it is always a good idea to [check the assembly](/hpc/compilation/stages) and
     take a closer look at the emitted vector instructions (they usually start with
     a “v”).
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时，尽管这种情况很少见，这种编译器干扰会使事情变得更糟，因此始终检查汇编代码（它们通常以“v”开头）并仔细查看生成的向量指令是一个好主意。
 - en: 'Also, some of the intrinsics don’t map to a single instruction but a short
     sequence of them, as a convenient shortcut: [broadcasts and extracts](../moving#register-aliasing)
     are a notable example.'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 此外，一些内联函数并不映射到单个指令，而是映射到一系列指令，作为方便的快捷方式：[广播和提取](../moving#register-aliasing)是一个显著的例子。
 - en: '### [#](https://en.algorithmica.org/hpc/simd/intrinsics/#gcc-vector-extensions)GCC
     Vector Extensions'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/simd/intrinsics/#gcc-vector-extensions)GCC向量扩展'
 - en: If you feel like the design of C intrinsics is terrible, you are not alone.
     I’ve spent hundreds of hours writing SIMD code and reading the Intel Intrinsics
     Guide, and I still can’t remember whether I need to type `_mm256` or `__m256`.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你觉得C内联函数的设计很糟糕，你并不孤单。我花费了数百小时编写SIMD代码并阅读英特尔内联函数指南，我仍然不能记得是否需要输入`_mm256`或`__m256`。
 - en: 'Intrinsics are not only hard to use but also neither portable nor maintainable.
     In good software, you don’t want to maintain different procedures for each CPU:
     you want to implement it just once, in an architecture-agnostic way.'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 内联函数不仅难以使用，而且既不便携也不易于维护。在优秀的软件中，你不想为每个CPU维护不同的程序：你希望一次实现，以架构无关的方式进行。
 - en: One day, compiler engineers from the GNU Project thought the same way and developed
     a way to define your own vector types that feel more like arrays with some operators
     overloaded to match the relevant instructions.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 有一天，GNU项目的编译器工程师们也有同样的想法，并开发了一种定义你自己的向量类型的方法，这些类型感觉更像数组，并且对一些操作符进行了重载，以匹配相关的指令。
 - en: 'In GCC, here is how you can define a vector of 8 integers packed into a 256-bit
     (32-byte) register:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 在GCC中，你可以这样定义一个将8个整数打包到256位（32字节）寄存器的向量：
 - en: '[PRE4]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: Unfortunately, this is not a part of the C or C++ standard, so different compilers
     use different syntax for that.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，这并不是C或C++标准的一部分，因此不同的编译器使用不同的语法来实现这一点。
 - en: 'There is somewhat of a naming convention, which is to include size and type
     of elements into the name of the type: in the example above, we defined a “vector
     of 8 signed integers.” But you may choose any name you want, like `vec`, `reg`
     or whatever. The only thing you don’t want to do is to name it `vector` because
     of how much confusion there would be because of `std::vector`.'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 在命名约定方面，通常会将元素的大小和类型包含在类型名称中：在上面的例子中，我们定义了一个“8个有符号整数的向量”。但你可以选择任何你想要的名称，比如`vec`、`reg`或者任何其他名称。唯一你不希望做的是将其命名为`vector`，因为这会由于`std::vector`的存在而造成很多混淆。
 - en: The main advantage of using these types is that for many operations you can
     use normal C++ operators instead of looking up the relevant intrinsic.
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用这些类型的主要优势是，对于许多操作，你可以使用正常的C++运算符，而不是查找相关的内联函数。
 - en: '[PRE5]'
+  id: totrans-59
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'With vector types we can greatly simplify the “a + b” loop we implemented with
     intrinsics before:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用向量类型，我们可以极大地简化之前使用内联函数实现的“a + b”循环：
 - en: '[PRE6]'
+  id: totrans-61
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'As you can see, vector extensions are much cleaner compared to the nightmare
     we have with intrinsic functions. Their downside is that there are some things
     that we may want to do are just not expressible with native C++ constructs, so
     we will still need intrinsics for them. Luckily, this is not an exclusive choice,
     because vector types support zero-cost conversion to the `_mm` types and back:'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 如你所见，向量扩展与内联函数的噩梦相比要干净得多。它们的缺点是，有些我们可能想要做的事情无法用原生C++结构表达，所以我们仍然需要内联函数来处理它们。幸运的是，这不是一个排他性的选择，因为向量类型支持零成本转换为`_mm`类型，并返回：
 - en: '[PRE7]'
+  id: totrans-63
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: There are also many third-party libraries for different languages that provide
     a similar capability to write portable SIMD code and also implement some, and
     just in general are nicer to use than both intrinsics and built-in vector types.
     Notable examples for C++ are [Highway](https://github.com/google/highway), [Expressive
     Vector Engine](https://github.com/jfalcou/eve), [Vector Class Library](https://github.com/vectorclass/version2),
     and [xsimd](https://github.com/xtensor-stack/xsimd).
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于不同的语言，也存在许多第三方库，它们提供了类似的特性来编写可移植的SIMD代码，并实现了一些功能，总体上比内联函数和内置向量类型更容易使用。C++中的显著例子包括[Highway](https://github.com/google/highway)、[Expressive
+    Vector Engine](https://github.com/jfalcou/eve)、[Vector Class Library](https://github.com/vectorclass/version2)和[xsimd](https://github.com/xtensor-stack/xsimd)。
 - en: Using a well-established SIMD library is recommended as it greatly improves
     the developer experience. In this book, however, we will try to keep close to
     the hardware and mostly use intrinsics directly, occasionally switching to the
     vector extensions for simplicity when we can.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 建议使用一个成熟的SIMD库，因为它可以极大地提高开发者的体验。然而，在这本书中，我们将尽量接近硬件，主要直接使用内联函数，偶尔在可以简化的情况下切换到向量扩展。
 - en: '* * *'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: AVX512 also added 8 so-called *mask registers* named `k0` through `k7`, which
     are used for masking and blending data. We are not going to cover them and will
     mostly use AVX2 and previous standards. [↩︎](#fnref:1) [← ../SIMD Parallelism](https://en.algorithmica.org/hpc/simd/)[Moving
     Data →](https://en.algorithmica.org/hpc/simd/moving/)
+  id: totrans-67
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: AVX512还增加了8个所谓的*掩码寄存器*，分别命名为`k0`到`k7`，用于掩码和混合数据。我们不会涉及这些内容，而主要使用AVX2和之前的标准。[↩︎](#fnref:1)
+    [← ../SIMD Parallelism](https://en.algorithmica.org/hpc/simd/)[移动数据 →](https://en.algorithmica.org/hpc/simd/moving/)

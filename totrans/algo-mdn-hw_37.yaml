@@ -1,142 +1,208 @@
 - en: Integer Division
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 整数除法
 - en: 原文：[https://en.algorithmica.org/hpc/arithmetic/division/](https://en.algorithmica.org/hpc/arithmetic/division/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/arithmetic/division/](https://en.algorithmica.org/hpc/arithmetic/division/)
 - en: Compared to other arithmetic operations, division works very poorly on x86 and
     computers in general. Both floating-point and integer division is notoriously
     hard to implement in hardware. The circuitry takes a lot of space in the ALU,
     the computation has a lot of stages, and as the result, `div` and its siblings
     routinely take 10-20 cycles to complete, with latency being slightly less on smaller
     data type sizes.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 与其他算术运算相比，除法在x86和通用计算机上工作得非常糟糕。浮点数和整数除法在硬件中实现起来非常困难。电路在ALU中占用大量空间，计算有多个阶段，因此`div`及其相关指令通常需要10-20个周期才能完成，对于较小的数据类型，延迟略低。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#division-and-modulo-in-x86)Division
     and Modulo in x86'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#division-and-modulo-in-x86)
+    x86中的除法和取模'
 - en: Since nobody wants to duplicate all this mess for a separate modulo operation,
     the `div` instruction serves both purposes. To perform a 32-bit integer division,
     you need to put the dividend *specifically* in the `eax` register and call `div`
     with the divisor as its sole operand. After this, the quotient will be stored
     in `eax` and the remainder will be stored in `edx`.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于没有人愿意为单独的取模操作重复所有这些混乱，`div`指令同时服务于这两个目的。要执行32位整数除法，你需要将被除数*特别*放入`eax`寄存器，并用除数作为其唯一操作数调用`div`。之后，商将被存储在`eax`中，余数将被存储在`edx`中。
 - en: 'The only caveat is that the dividend actually needs to be stored in *two* registers,
     `eax` and `edx`: this mechanism enables 64-by-32 or even 128-by-64 division, similar
     to how [128-bit multiplication](../integer) works. When performing the usual 32-by-32
     signed division, we need to sign-extend `eax` to 64 bits and store its higher
     part in `edx`:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 唯一的注意事项是，被除数实际上需要存储在*两个*寄存器中，`eax`和`edx`：这种机制使得可以进行64位除以32位，甚至128位除以64位的除法，类似于[128位乘法](../integer)的工作方式。在执行常规的32位除以32位有符号除法时，我们需要将`eax`扩展到64位，并将其高位存储在`edx`中：
 - en: '[PRE0]'
+  id: totrans-6
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'For unsigned division, you can just set `edx` to zero so that it doesn’t interfere:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于无符号除法，你可以将`edx`设置为零，这样它就不会干扰：
 - en: '[PRE1]'
+  id: totrans-8
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'An in both cases, in addition to the quotient in `eax`, you can also access
     the remainder as `edx`:'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这两种情况下，除了`eax`中的商之外，你还可以通过`edx`访问余数：
 - en: '[PRE2]'
+  id: totrans-10
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'You can also divide 128-bit integer (stored in `rdx:rax`) by a 64-bit integer:'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 你也可以将128位整数（存储在`rdx:rax`中）除以一个64位整数：
 - en: '[PRE3]'
+  id: totrans-12
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'The high part of the dividend should be less than the divisor, otherwise an
     overflow occurs. Because of this constraint, it is [hard](https://danlark.org/2020/06/14/128-bit-division/)
     to get compilers to produce this code by themselves: if you divide a [128-bit
     integer type](../integer) by a 64-bit integer, the compiler will bubble-wrap it
     with additional checks which may actually be unnecessary.'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 被除数的高位应该小于除数，否则会发生溢出。由于这个限制，要使编译器自己生成此代码是[困难的](https://danlark.org/2020/06/14/128-bit-division/)：如果你将一个[128位整数类型](../integer)除以一个64位整数，编译器会将其包裹在额外的检查中，这些检查实际上可能是多余的。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#division-by-constants)Division
     by Constants'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#division-by-constants)
+    常数除法'
 - en: 'Integer division is painfully slow, even when fully implemented in hardware,
     but it can be avoided in certain cases if the divisor is constant. A well-known
     example is the division by a power of two, which can be replaced by a one-cycle
     binary shift: the [binary GCD algorithm](/hpc/algorithms/gcd) is a delightful
     showcase of this technique.'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 整数除法非常慢，即使在硬件中完全实现，但在某些情况下，如果除数是常数，可以避免。一个众所周知的例子是除以2的幂，这可以替换为一个周期的二进制移位：[二进制GCD算法](/hpc/algorithms/gcd)是这种技术的令人愉快的展示。
 - en: In the general case, there are several clever tricks that replace division with
     multiplication at the cost of a bit of precomputation. All these tricks are based
     on the following idea. Consider the task of dividing one floating-point number
     $x$ by another floating-point number $y$, when $y$ is known in advance. What we
     can do is to calculate a constant
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在一般情况下，有一些巧妙的小技巧可以将除法替换为乘法，但需要一些预计算。所有这些技巧都基于以下想法。考虑将一个浮点数$x$除以另一个已知的浮点数$y$的任务。我们可以计算一个常数
 - en: $$ d \approx y^{-1} $$ and then, during runtime, we will calculate $$ x / y
     = x \cdot y^{-1} \approx x \cdot d $$
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ d \approx y^{-1} $$ 然后，在运行时，我们将计算 $$ x / y = x \cdot y^{-1} \approx x \cdot
+    d $$
 - en: The result of $\frac{1}{y}$ will be at most $\epsilon$ off, and the multiplication
     $x \cdot d$ will only add another $\epsilon$ and therefore will be at most $2
     \epsilon + \epsilon^2 = O(\epsilon)$ off, which is tolerable for the floating-point
     case.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: $\frac{1}{y}$ 的结果最多偏离 $\epsilon$，乘法 $x \cdot d$ 只会增加另一个 $\epsilon$，因此最多偏离 $2
+    \epsilon + \epsilon^2 = O(\epsilon)$，这对于浮点数情况是可以容忍的。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#barrett-reduction)Barrett
     Reduction'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#barrett-reduction)巴雷特除法'
 - en: How to generalize this trick for integers? Calculating `int d = 1 / y` doesn’t
     seem to work, because it will just be zero. The best thing we can do is to express
     it as
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 如何将这个技巧推广到整数？计算 `int d = 1 / y` 似乎不起作用，因为它将只是零。我们能做的最好的事情是将它表示为
 - en: $$ d = \frac{m}{2^s} $$ and then find a “magic” number $m$ and a binary shift
     $s$ such that `x / y == (x * m) >> s` for all `x` within range. $$ \lfloor x /
     y \rfloor = \lfloor x \cdot y^{-1} \rfloor = \lfloor x \cdot d \rfloor = \lfloor
     x \cdot \frac{m}{2^s} \rfloor $$
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ d = \frac{m}{2^s} $$ 然后找到一个“神奇”的数字 $m$ 和一个二进制移位 $s$，使得对于所有 `x` 在范围内，`x /
+    y == (x * m) >> s`。$$ \lfloor x / y \rfloor = \lfloor x \cdot y^{-1} \rfloor =
+    \lfloor x \cdot d \rfloor = \lfloor x \cdot \frac{m}{2^s} \rfloor $$
 - en: 'It can be shown that such a pair always exists, and compilers actually perform
     an optimization like that by themselves. Every time they encounter a division
     by a constant, they replace it with a multiplication and a binary shift. Here
     is the generated assembly for dividing an `unsigned long long` by $(10^9 + 7)$:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以证明这样的配对总是存在的，并且编译器实际上会通过自己执行类似的优化。每次它们遇到对常数的除法时，它们都会用乘法和二进制移位来替换它。以下是除以 `(10^9
+    + 7)` 的 `unsigned long long` 生成的汇编代码：
 - en: '[PRE4]'
+  id: totrans-23
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'This technique is called *Barrett reduction*, and it’s called “reduction” because
     it is mostly used for modulo operations, which can be replaced with a single division,
     multiplication and subtraction by the virtue of this formula:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种技术被称为**巴雷特除法**，它被称为“除法”是因为它主要用于模运算，可以通过这个公式用一次除法、一次乘法和一次减法来替换：
 - en: $$ r = x - \lfloor x / y \rfloor \cdot y $$
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ r = x - \lfloor x / y \rfloor \cdot y $$
 - en: This method requires some precomputation, including performing one actual division.
     Therefore, this is only beneficial when you perform not just one but a few divisions,
     all with the same constant divisor.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 此方法需要一些预计算，包括执行一次实际除法。因此，这只有在您执行的不是一次而是几次除法，并且所有这些除法都有相同的常数除数时才有益。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#why-it-works)Why
     It Works'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#why-it-works)为什么它有效'
 - en: 'It is not very clear why such $m$ and $s$ always exist, let alone how to find
     them. But given a fixed $s$, intuition tells us that $m$ should be as close to
     $2^s/y$ as possible for $2^s$ to cancel out. So there are two natural choices:
     $\lfloor 2^s/y \rfloor$ and $\lceil 2^s/y \rceil$. The first one doesn’t work,
     because if you substitute'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 为什么总是存在这样的 $m$ 和 $s$，更不用说如何找到它们了。但给定一个固定的 $s$，直觉告诉我们，为了使 $2^s$ 能够抵消，$m$ 应该尽可能接近
+    $2^s/y$。因此有两个自然的选择：$\lfloor 2^s/y \rfloor$ 和 $\lceil 2^s/y \rceil$。第一个不适用，因为如果你用
 - en: '$$ \Bigl \lfloor \frac{x \cdot \lfloor 2^s/y \rfloor}{2^s} \Bigr \rfloor $$
     then for any integer $\frac{x}{y}$ where $y$ is not even, the result will be strictly
     less than the truth. This only leaves the other case, $m = \lceil 2^s/y \rceil$.
@@ -146,124 +212,195 @@
     start with the bounds for $m$: $$ 2^s / y \le \lceil 2^s / y \rceil < 2^s / y
     + 1 $$ And now for the whole expression: $$ x / y - 1 < \Bigl \lfloor \frac{x
     \cdot \lceil 2^s /y \rceil}{2^s} \Bigr \rfloor < x / y + x / 2^s $$'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \Bigl \lfloor \frac{x \cdot \lfloor 2^s/y \rfloor}{2^s} \Bigr \rfloor $$
+    然后对于任何整数 $\frac{x}{y}$，其中 $y$ 不是偶数，结果将严格小于真实值。这仅留下另一种情况，$m = \lceil 2^s/y \rceil$。现在，让我们尝试推导出计算结果的上下限：$$
+    \lfloor x / y \rfloor = \Bigl \lfloor \frac{x \cdot m}{2^s} \Bigr \rfloor = \Bigl
+    \lfloor \frac{x \cdot \lceil 2^s /y \rceil}{2^s} \Bigr \rfloor $$ 让我们从 $m$ 的界限开始：$$
+    2^s / y \le \lceil 2^s / y \rceil < 2^s / y + 1 $$ 现在对于整个表达式：$$ x / y - 1 < \Bigl
+    \lfloor \frac{x \cdot \lceil 2^s /y \rceil}{2^s} \Bigr \rfloor < x / y + x / 2^s
+    $$
 - en: We can see that the result falls somewhere in a range of size $(1 + \frac{x}{2^s})$,
     and if this range always has exactly one integer for all possible $x / y$, then
     the algorithm is guaranteed to give the right answer. Turns out, we can always
     set $s$ to be high enough to achieve it.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以看到结果落在大小为 $(1 + \frac{x}{2^s})$ 的范围内，并且如果这个范围对于所有可能的 $x / y$ 总是恰好有一个整数，那么算法将保证给出正确答案。结果证明，我们可以总是将
+    $s$ 设置得足够高以实现这一点。
 - en: 'What will be the worst case here? How to pick $x$ and $y$ so that the $(x/y
     - 1, x/y + x / 2^s)$ range contains two integers? We can see that integer ratios
     don’t work because the left border is not included, and assuming $x/2^s < 1$,
     only $x/y$ itself will be in the range. The worst case is actually the $x/y$ that
     comes closest to $1$ without exceeding it. For $n$-bit integers, that is the second-largest
     possible integer divided by the first-largest:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里最坏的情况是什么？如何选择 $x$ 和 $y$ 使得 $(x/y - 1, x/y + x / 2^s)$ 范围内包含两个整数？我们可以看到整数比不适用，因为左边界不包括在内，并且假设
+    $x/2^s < 1$，只有 $x/y$ 本身会在范围内。最坏的情况实际上是 $x/y$ 接近 $1$ 但不超过它的值。对于 $n$ 位整数，这是可能的最大整数除以第一个最大整数：
 - en: $$ \begin{aligned} x = 2^n - 2 \\ y = 2^n - 1 \end{aligned} $$
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \begin{aligned} x = 2^n - 2 \\ y = 2^n - 1 \end{aligned} $$
 - en: 'In this case, the lower bound will be $(\frac{2^n-2}{2^n-1} - 1)$ and the upper
     bound will be $(\frac{2^n-2}{2^n-1} + \frac{2^n-2}{2^s})$. The left border is
     as close to a whole number as possible, and the size of the whole range is the
     second largest possible. And here is the punchline: if $s \ge n$, then the only
     integer contained in this range is $1$, and so the algorithm will always return
     it.'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这种情况下，下限将是 $(\frac{2^n-2}{2^n-1} - 1)$，上限将是 $(\frac{2^n-2}{2^n-1} + \frac{2^n-2}{2^s})$。左边界尽可能接近一个整数，整个范围的大小是可能的最大整数的第二大小。而且这里是关键点：如果
+    $s \ge n$，那么这个范围内只包含一个整数，即 $1$，因此算法将始终返回它。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#lemire-reduction)Lemire
     Reduction'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#lemire-reduction)Lemire
+    降阶法'
 - en: Barrett reduction is a bit complicated, and also generates a length instruction
     sequence for modulo because it is computed indirectly. There is a new ([2019](https://arxiv.org/pdf/1902.01961.pdf))
     method, which is simpler and actually faster for modulo in some cases. It doesn’t
     have a conventional name yet, but I am going to refer to it as [Lemire](https://lemire.me/blog/)
     reduction.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: Barrett 降阶法稍微复杂一些，并且由于它是间接计算的，因此为模运算生成了一个长度指令序列。有一种新的 ([2019](https://arxiv.org/pdf/1902.01961.pdf))
+    方法，在某些情况下对于模运算来说更简单且实际上更快。它还没有一个传统的名字，但我打算称它为 [Lemire](https://lemire.me/blog/)
+    降阶法。
 - en: 'Here is the main idea. Consider the floating-point representation of some integer
     fraction:'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里是主要思想。考虑一些整数分数的浮点表示：
 - en: $$ \frac{179}{6} = 11101.1101010101\ldots = 29\tfrac{5}{6} \approx 29.83 $$
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \frac{179}{6} = 11101.1101010101\ldots = 29\tfrac{5}{6} \approx 29.83 $$
 - en: How can we “dissect” it to get the parts we need?
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们如何“解剖”它以获取所需的各个部分？
 - en: To get the integer part (29), we can just floor or truncate it before the dot.
+  id: totrans-39
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 要得到整数部分（29），我们只需在点之前截断或舍入它。
 - en: To get the fractional part (⅚), we can just take what is after the dots.
+  id: totrans-40
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 要得到小数部分（⅚），我们只需取点后面的部分。
 - en: To get the remainder (5), we can multiply the fractional part by the divisor.
+  id: totrans-41
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 要得到余数（5），我们可以将小数部分乘以除数。
 - en: 'Now, for 32-bit integers, we can set $s = 64$ and look at the computation that
     we do in the multiply-and-shift scheme:'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，对于 32 位整数，我们可以将 $s = 64$ 并查看我们在乘法和移位方案中进行的计算：
 - en: $$ \lfloor x / y \rfloor = \Bigl \lfloor \frac{x \cdot m}{2^s} \Bigr \rfloor
     = \Bigl \lfloor \frac{x \cdot \lceil 2^s /y \rceil}{2^s} \Bigr \rfloor $$
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \lfloor x / y \rfloor = \Bigl \lfloor \frac{x \cdot m}{2^s} \Bigr \rfloor
+    = \Bigl \lfloor \frac{x \cdot \lceil 2^s /y \rceil}{2^s} \Bigr \rfloor $$
 - en: What we really do here is we multiply $x$ by a floating-point constant ($x \cdot
     m$) and then truncate the result $(\lfloor \frac{\cdot}{2^s} \rfloor)$.
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在这里真正做的是将 $x$ 乘以一个浮点常数（$x \cdot m$），然后截断结果（$\lfloor \frac{\cdot}{2^s} \rfloor$）。
 - en: 'What if we took not the highest bits but the lowest? This would correspond
     to the fractional part — and if we multiply it back by $y$ and truncate the result,
     this will be exactly the remainder:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们取的不是最高位而是最低位呢？这会对应于小数部分——如果我们将其乘以 $y$ 并截断结果，这将正好是余数：
 - en: $$ r = \Bigl \lfloor \frac{ (x \cdot \lceil 2^s /y \rceil \bmod 2^s) \cdot y
     }{2^s} \Bigr \rfloor $$
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ r = \Bigl \lfloor \frac{ (x \cdot \lceil 2^s /y \rceil \bmod 2^s) \cdot y
+    }{2^s} \Bigr \rfloor $$
 - en: This works perfectly because what we do here can be interpreted as just three
     chained floating-point multiplications with the total relative error of $O(\epsilon)$.
     Since $\epsilon = O(\frac{1}{2^s})$ and $s = 2n$, the error will always be less
     than one, and hence the result will be exact.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 这方法完美无缺，因为我们在这里所做的工作可以解释为仅仅是三次链式浮点数乘法，其总相对误差为 $O(\epsilon)$。由于 $\epsilon = O(\frac{1}{2^s})$
+    且 $s = 2n$，误差将始终小于一，因此结果将是精确的。
 - en: '[PRE5]'
+  id: totrans-48
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: We can also check divisibility of $x$ by $y$ with just one multiplication using
     the fact that the remainder of division is zero if and only if the fractional
     part (the lower 64 bits of $m \cdot x$) does not exceed $m$ (otherwise, it would
     become a nonzero number when multiplied back by $y$ and right-shifted by 64).
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还可以通过使用以下事实来检查 $x$ 是否能被 $y$ 整除：如果除法的余数为零，当且仅当分数部分（$m \cdot x$ 的低64位）不超过 $m$（否则，当乘以
+    $y$ 并右移64位时，它将变成一个非零数）。
 - en: '[PRE6]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: The only downside of this method is that it needs integer types four times the
     original size to perform the multiplication, while other reduction methods can
     work with just the double.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法的唯一缺点是它需要比原始大小大四倍的整型来执行乘法，而其他简化方法只需双精度即可。
 - en: There is also a way to compute 64x64 modulo by carefully manipulating the halves
     of intermediate results; the implementation is left as an exercise to the reader.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 还有一种通过仔细操作中间结果的一半来计算64x64模的方法；实现细节留给读者作为练习。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#further-reading)Further
     Reading'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/division/#further-reading)进一步阅读'
 - en: Check out [libdivide](https://github.com/ridiculousfish/libdivide) and [GMP](https://gmplib.org/)
     for more general implementations of optimized integer division.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 查看关于更通用优化整数除法实现的[libdivide](https://github.com/ridiculousfish/libdivide)和[GMP](https://gmplib.org/)。
 - en: It is also worth reading [Hacker’s Delight](https://www.amazon.com/Hackers-Delight-2nd-Henry-Warren/dp/0321842685),
     which has a whole chapter dedicated to integer division. [← Integer Numbers](https://en.algorithmica.org/hpc/arithmetic/integer/)[../Number
     Theory →](https://en.algorithmica.org/hpc/number-theory/)
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 值得阅读的是[Hacker’s Delight](https://www.amazon.com/Hackers-Delight-2nd-Henry-Warren/dp/0321842685)，其中有一整章专门介绍整数除法。[←
+    整数](https://en.algorithmica.org/hpc/arithmetic/integer/)[→ 数论](https://en.algorithmica.org/hpc/number-theory/)

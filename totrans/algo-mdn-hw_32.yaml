@@ -1,160 +1,236 @@
 - en: IEEE 754 Floats
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: IEEE 754 浮点数
 - en: 原文：[https://en.algorithmica.org/hpc/arithmetic/ieee-754/](https://en.algorithmica.org/hpc/arithmetic/ieee-754/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/arithmetic/ieee-754/](https://en.algorithmica.org/hpc/arithmetic/ieee-754/)
 - en: 'When we designed our [DIY floating-point type](../float), we omitted quite
     a lot of important little details:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们设计我们的 [DIY 浮点类型](../float) 时，我们省略了很多重要的细节：
 - en: How many bits do we dedicate for the mantissa and the exponent?
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们为尾数和指数分配了多少位？
 - en: Does a `0` sign bit mean `+`, or is it the other way around?
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 一个 `0` 符号位意味着 `+`，还是相反？
 - en: How are these bits stored in memory?
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 这些位是如何存储在内存中的？
 - en: How do we represent 0?
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们如何表示 `0`？
 - en: How exactly does rounding happen?
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 四舍五入是如何发生的？
 - en: What happens if we divide by zero?
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果我们除以零会发生什么？
 - en: What happens if we take the square root of a negative number?
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果我们对一个负数开平方会发生什么？
 - en: What happens if we increment the largest representable number?
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果我们增加最大的可表示数会发生什么？
 - en: Can we somehow detect if one of the above three happened?
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们能否以某种方式检测到上述三种情况中的任何一种发生了？
 - en: Most of the early computers didn’t support floating-point arithmetic, and when
     vendors started adding floating-point coprocessors, they had slightly different
     visions for what the answers to these questions should be. Diverse implementations
     made it difficult to use floating-point arithmetic reliably and portably — especially
     for the people who develop compilers.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数早期的计算机不支持浮点运算，当供应商开始添加浮点协处理器时，他们对这些问题的答案有着略微不同的看法。不同的实现使得浮点运算难以可靠和可移植地使用——尤其是对于开发编译器的人来说。
 - en: In 1985, the Institute of Electrical and Electronics Engineers published a standard
     (called [IEEE 754](https://en.wikipedia.org/wiki/IEEE_754)) that provided a formal
     specification of how floating-point numbers should work, which was quickly adopted
     by the vendors and is now used in virtually all general-purpose computers.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 1985 年，电气和电子工程师协会（Institute of Electrical and Electronics Engineers）发布了一个标准（称为
+    [IEEE 754](https://en.wikipedia.org/wiki/IEEE_754)），该标准提供了关于浮点数应该如何工作的正式规范，该规范很快被供应商采用，现在几乎所有的通用计算机都在使用。
 - en: '## [#](https://en.algorithmica.org/hpc/arithmetic/ieee-754/#float-formats)Float
     Formats'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/arithmetic/ieee-754/#float-formats)浮点数格式'
 - en: Similar to our handmade float implementation, hardware floats use one bit for
     sign and a variable number of bits for the exponent and the mantissa parts. For
     example, the standard 32-bit `float` encoding uses the first (highest) bit for
     sign, the next 8 bits for the exponent, and the 23 remaining bits for the mantissa.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 与我们手工实现的浮点数类似，硬件浮点数使用一个位表示符号，并使用可变数量的位表示指数和尾数部分。例如，标准的 32 位 `float` 编码使用第一个（最高位）位表示符号，接下来的
+    8 位表示指数，剩余的 23 位表示尾数。
 - en: '![](../Images/4a38d9eb0e5ede2e39b6ada470654594.png)'
+  id: totrans-16
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/4a38d9eb0e5ede2e39b6ada470654594.png)'
 - en: 'One of the reasons why they are stored in this exact order is that it is easier
     to compare and sort them: you can use mostly the same comparator circuit as for
     [unsigned integers](../integer), except for maybe flipping some bits in case one
     of the numbers is negative.'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 它们以这种确切顺序存储的一个原因是因为比较和排序它们更容易：你可以使用与 [无符号整数](../integer) 相似的大部分比较器电路，除非在其中一个数是负数的情况下可能需要翻转一些位。
 - en: 'For the same reason, the exponent is *biased:* the actual value is 127 less
     than the stored unsigned integer, which lets us also cover the values less than
     one (with negative exponents). In the example above:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于同样的原因，指数是**偏置的**：实际值比存储的无符号整数小 127，这使得我们也能覆盖小于一（带有负指数）的值。在上面的例子中：
 - en: $$ (-1)^0 \times 2^{01111100_2 - 127} \times (1 + 2^{-2}) = 2^{124 - 127} \times
     1.25 = \frac{1.25}{8} = 0.15625 $$
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ (-1)^0 \times 2^{01111100_2 - 127} \times (1 + 2^{-2}) = 2^{124 - 127} \times
+    1.25 = \frac{1.25}{8} = 0.15625 $$
 - en: 'IEEE 754 and a few consequent standards define not one but *several* representations
     that differ in sizes, most notably:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: IEEE 754 和一些后续标准定义了不止一种表示方式，这些表示方式在大小上有所不同，最值得注意的是：
 - en: '| Type | Sign | Exponent | Mantissa | Total bits | Approx. decimal digits |'
+  id: totrans-21
   prefs: []
   type: TYPE_TB
+  zh: '| 类型 | 符号 | 指数 | 尾数 | 总位数 | 近似十进制位数 |'
 - en: '| --- | --- | --- | --- | --- | --- |'
+  id: totrans-22
   prefs: []
   type: TYPE_TB
+  zh: '| --- | --- | --- | --- | --- | --- |'
 - en: '| single | 1 | 8 | 23 | 32 | ~7.2 |'
+  id: totrans-23
   prefs: []
   type: TYPE_TB
+  zh: '| single | 1 | 8 | 23 | 32 | ~7.2 |'
 - en: '| double | 1 | 11 | 52 | 64 | ~15.9 |'
+  id: totrans-24
   prefs: []
   type: TYPE_TB
+  zh: '| double | 1 | 11 | 52 | 64 | ~15.9 |'
 - en: '| half | 1 | 5 | 10 | 16 | ~3.3 |'
+  id: totrans-25
   prefs: []
   type: TYPE_TB
+  zh: '| half | 1 | 5 | 10 | 16 | ~3.3 |'
 - en: '| extended | 1 | 15 | 64 | 80 | ~19.2 |'
+  id: totrans-26
   prefs: []
   type: TYPE_TB
+  zh: '| extended | 1 | 15 | 64 | 80 | ~19.2 |'
 - en: '| quadruple | 1 | 15 | 112 | 128 | ~34.0 |'
+  id: totrans-27
   prefs: []
   type: TYPE_TB
+  zh: '| quadruple | 1 | 15 | 112 | 128 | ~34.0 |'
 - en: '| bfloat16 | 1 | 8 | 7 | 16 | ~2.3 |'
+  id: totrans-28
   prefs: []
   type: TYPE_TB
+  zh: '| bfloat16 | 1 | 8 | 7 | 16 | ~2.3 |'
 - en: 'Their availability ranges from chip to chip:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 它们的可用性从芯片到芯片各不相同：
 - en: Most CPUs support single- and double-precision — which is what `float` and `double`
     types refer to in C.
+  id: totrans-30
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 大多数CPU支持单精度和双精度——在C语言中，`float`和`double`类型就是指这些。
 - en: Extended formats are exclusive to x86, and are available in C as the `long double`
     type, which falls back to double precision on Arm CPUs. The choice of 64 bits
     for mantissa is so that every `long long` integer can be represented exactly.
     There is also a 40-bit format that similarly allocates 32 mantissa bits.
+  id: totrans-31
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 扩展格式仅适用于x86架构，在C语言中以`long double`类型提供，在Arm CPU上会回退到双精度。选择64位作为尾数位是为了确保每个`long
+    long`整数都可以精确表示。还有一个40位格式，它同样分配了32位尾数位。
 - en: Quadruple as well as the 256-bit “octuple” formats are only used for specific
     scientific computations and are not supported by general-purpose hardware.
+  id: totrans-32
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 四倍精度以及256位的“八倍精度”格式仅用于特定的科学计算，并且不被通用硬件支持。
 - en: Half-precision arithmetic only supports a small subset of operations and is
     generally used for applications such as machine learning, especially neural networks,
     because they tend to perform large amounts of calculations but don’t require high
     levels of precision.
+  id: totrans-33
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 半精度算术只支持一小部分操作，通常用于机器学习等应用，尤其是神经网络，因为它们倾向于执行大量的计算，但不需要高精度。
 - en: 'Half-precision is being gradually replaced by bfloat, which trades off 3 mantissa
     bits to have the same range as single-precision, enabling interoperability with
     it. It is mostly being adopted by specialized hardware: TPUs, FGPAs, and GPUs.
     The name stands for “[Brain](https://en.wikipedia.org/wiki/Google_Brain) float.”'
+  id: totrans-34
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 半精度正在逐渐被bfloat取代，它通过牺牲3位尾数位来获得与单精度相同的范围，从而实现与它的互操作性。它主要被专用硬件采用：TPU、FGPA和GPU。这个名字代表“[大脑](https://en.wikipedia.org/wiki/Google_Brain)浮点数”。
 - en: Lower-precision types need less memory bandwidth to move them around and usually
     take fewer cycles to operate on (e.g., the division instruction may take $x$,
     $y$, or $z$ cycles depending on the type), which is why they are preferred when
     error tolerance allows it.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 低精度类型在移动时需要的内存带宽更少，通常在操作上需要的周期也更少（例如，除法指令可能需要$x$、$y$或$z$个周期，具体取决于类型），这就是为什么在容错允许的情况下，它们更受欢迎。
 - en: Deep learning, emerging as a very popular and computationally-intensive field,
     created a huge demand for low-precision matrix multiplication, which led to manufacturers
     developing separate hardware or at least adding specialized instructions that
@@ -162,20 +238,28 @@
     chip called TPU (*tensor processing unit*) that specializes on multiplying 128-by-128
     bfloat matrices, and NVIDIA adding “tensor cores,” capable of performing 4-by-4
     matrix multiplication in one go, to all their newer GPUs.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 深度学习作为一个非常流行且计算密集型的领域，对低精度矩阵乘法产生了巨大的需求，这促使制造商开发专门的硬件，或者至少添加支持这些类型计算的特殊指令——最值得注意的是，谷歌开发了一种名为TPU（张量处理单元）的定制芯片，专门用于乘以128-by-128的bfloat矩阵，以及英伟达在其所有较新的GPU中添加了“张量核心”，能够一次性执行4-by-4矩阵乘法。
 - en: Apart from their sizes, most of the behavior is the same between all floating-point
     types, which we will now clarify.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了大小之外，所有浮点类型之间的行为大多相同，我们现在将对此进行澄清。
 - en: '## [#](https://en.algorithmica.org/hpc/arithmetic/ieee-754/#handling-corner-cases)Handling
     Corner Cases'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/arithmetic/ieee-754/#handling-corner-cases)处理边缘情况'
 - en: The default way integer arithmetic deals with corner cases such as division
     by zero is to crash.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 整数算术处理边缘情况（如除以零）的默认方式是崩溃。
 - en: Sometimes a software crash, in turn, causes a real, physical one. In 1996, the
     maiden flight of the [Ariane 5](https://en.wikipedia.org/wiki/Ariane_5) (the space
     launch vehicle that ESA uses to lift stuff into low Earth orbit) ended in [a catastrophic
@@ -184,53 +268,75 @@
     conversion overflow, that led to the navigation system thinking that it was off
     course and making a large correction, eventually causing the disintegration of
     a $200M rocket.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时，软件崩溃反过来又会导致真正的物理损坏。1996年，[阿丽亚娜5号](https://en.wikipedia.org/wiki/Ariane_5)（欧洲航天局用来将物体送入近地轨道的运载火箭）的首飞以[一次灾难性的爆炸](https://www.youtube.com/watch?v=gp_D8r-2hwk)告终，原因是由于在算术错误时中止计算的策略，在这种情况下是一个浮点数到整数的转换溢出，导致导航系统认为它偏离了航线，并进行了大的修正，最终导致价值2亿美元的火箭解体。
 - en: 'There is a way to gracefully handle corner cases like these: hardware interrupts.
     When an exception occurs, the CPU'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 处理这类边缘情况，例如硬件中断，有优雅的方法：当发生异常时，CPU会将异常传递给操作系统，操作系统随后会调用处理代码（如果存在“try-except”块）或者终止程序。
 - en: interrupts the execution of a program;
+  id: totrans-42
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 中断程序的执行；
 - en: packs all relevant information into a data structure called “interrupt vector”;
+  id: totrans-43
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将所有相关信息打包到一个称为“中断向量”的数据结构中；
 - en: passes it to the operating system, which in turn either calls the handling code
     if it exists (the “try-except” block) or terminates the program otherwise.
+  id: totrans-44
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 程序将异常传递给操作系统，操作系统随后会调用处理代码（如果存在）或者终止程序。
 - en: This is a complex mechanism that deserves an article of its own, but since this
     is a book about performance, the only thing you need to know is that they are
     quite slow and not desirable in real-time systems such as navigating rockets.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个复杂的机制，值得单独一篇文章来探讨，但既然这本书是关于性能的，你只需要知道的是，它们相当慢，在实时系统（如火箭导航）中并不理想。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/ieee-754/#nans-zeros-and-infinities)NaNs,
     Zeros and Infinities'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/ieee-754/#nans-zeros-and-infinities)NaNs，零和无穷大'
 - en: Floating-point arithmetic often deals with noisy, real-world data. Exceptions
     there are much more common than in the integer case, and for this reason, the
     default behavior when handling them is different. Instead of crashing, the result
     is substituted with a special value without interrupting the program execution
     (unless the programmer explicitly wants it to).
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 浮点运算经常处理嘈杂的、现实世界的数据。在这些数据中，异常比整数情况中更常见，因此处理它们时的默认行为也不同。它们不会崩溃，而是用一个特殊值替换结果，而不会中断程序执行（除非程序员明确想要这样做）。
 - en: 'The first type of such value is the two infinities: a positive and a negative
     one. They are generated if the result of an operation can’t fit within the representable
     range, and they are treated as such in arithmetic.'
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种值的第一种类型是两种无穷大：一个正无穷和一个负无穷。当操作的结果无法在可表示的范围内表示时，它们会被生成，并且在算术中被这样处理。
 - en: '$$ \begin{aligned} -∞ < x &< ∞ \\ ∞ + x &= ∞ \\ x ÷ ∞ &= 0 \end{aligned} $$
     What happens if we, say, divide a value by zero? Should it be a negative or a
     positive infinity? This case is actually unambiguous because, somewhat less intuitively,
     there are also two zeros: a positive and a negative one. $$ \frac{1}{+0} = +∞
     \;\;\;\; \frac{1}{-0} = -∞ $$'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \begin{aligned} -∞ < x &< ∞ \\ ∞ + x &= ∞ \\ x ÷ ∞ &= 0 \end{aligned} $$
+    如果我们除以零会发生什么？应该是正无穷还是负无穷？这个情况实际上是明确的，因为，不那么直观的是，也存在两个零：一个正零和一个负零。$$ \frac{1}{+0}
+    = +∞ \;\;\;\; \frac{1}{-0} = -∞ $$
 - en: 'Fun fact: `x + 0.0` can’t be folded to `x`, but `x + (-0.0)` can, so the negative
     zero is a better initializer value than the positive zero as it is more likely
     to be optimized away by the compiler. The reason why `+0.0` doesn’t work is that
@@ -238,40 +344,60 @@
     -0.0`. The presence of two zeros frequently causes headaches like this — good
     news that you can pass `-fno-signed-zeros` to the compiler if you want to disable
     this behavior.'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 有趣的事实：`x + 0.0`不能折叠为`x`，但`x + (-0.0)`可以，因此负零比正零是一个更好的初始化值，因为它更有可能被编译器优化掉。`+0.0`不工作是因为IEEE规定`+0.0
+    + -0.0 == +0.0`，所以对于`x = -0.0`会给出错误的结果。两个零的存在经常导致这样的头疼问题——好消息是，如果你想禁用这种行为，可以向编译器传递`-fno-signed-zeros`。
 - en: Zeros are encoded by setting all bits to zero, except for the sign bit in the
     negative case. Infinities are encoded by setting all their exponent bits to one
     and all mantissa bits to zero, with the sign bit distinguishing between positive
     and negative infinity.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 零是通过将所有位设置为0来编码的，除了负数情况下的符号位。无穷大是通过将所有指数位设置为1并将所有尾数位设置为0来编码的，符号位区分正无穷和负无穷。
 - en: 'The other type is the “not-a-number” (NaN), which is generated as the result
     of mathematically incorrect operations:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一种类型是“非数字”（NaN），它是由于数学运算错误产生的：
 - en: $$ \log(-1),\; \arccos(1.01),\; ∞ − ∞,\; −∞ + ∞,\; 0 × ∞,\; 0 ÷ 0,\; ∞ ÷ ∞ $$
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \log(-1),\; \arccos(1.01),\; ∞ − ∞,\; −∞ + ∞,\; 0 × ∞,\; 0 ÷ 0,\; ∞ ÷ ∞ $$
 - en: 'There are two types of NaNs: a *signaling NaN* and a *quiet NaN*. A signaling
     NaN raises an exception flag, which may or may not cause immediate hardware interrupt
     depending on the FPU configuration, while a quiet NaN just propagates through
     almost every arithmetic operation, resulting in more NaNs.'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 存在两种NaN类型：*信号NaN*和*静默NaN*。信号NaN会引发一个异常标志，这可能会或可能不会根据FPU配置立即引起硬件中断，而静默NaN则几乎在所有算术操作中传播，导致更多的NaN产生。
 - en: In binary, both NaNs have their exponent bits all set and the mantissa part
     being anything other than all zeros (to distinguish them from infinities). Note
     that there are *very* many valid encodings for a NaN.
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 在二进制中，两个 NaN 都有全部的指数位被设置，而尾数部分不是全零（以区别无穷大）。请注意，对于 NaN 有非常多的有效编码。
 - en: '## [#](https://en.algorithmica.org/hpc/arithmetic/ieee-754/#further-reading)Further
     Reading'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/arithmetic/ieee-754/#further-reading)
+    进一步阅读'
 - en: If you are so inclined, you can read the classic “[What Every Computer Scientist
     Should Know About Floating-Point Arithmetic](https://www.itu.dk/~sestoft/bachelor/IEEE754_article.pdf)”
     (1991) and [the paper introducing Grisu3](https://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf),
     the current state-of-the-art for printing floating-point numbers. [← Floating-Point
     Numbers](https://en.algorithmica.org/hpc/arithmetic/float/)[Rounding Errors →](https://en.algorithmica.org/hpc/arithmetic/errors/)
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你感兴趣，可以阅读经典文献 “[每位计算机科学家都应该了解的浮点运算](https://www.itu.dk/~sestoft/bachelor/IEEE754_article.pdf)”
+    (1991) 以及介绍 Grisu3 的论文 [the paper introducing Grisu3](https://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf)，这是目前打印浮点数的最新技术。
+    [← 浮点数](https://en.algorithmica.org/hpc/arithmetic/float/)[舍入误差 →](https://en.algorithmica.org/hpc/arithmetic/errors/)

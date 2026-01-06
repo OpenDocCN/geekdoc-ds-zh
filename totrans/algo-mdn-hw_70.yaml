@@ -1,90 +1,126 @@
 - en: Auto-Vectorization and SPMD
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 自动向量化和SPMD
 - en: 原文：[https://en.algorithmica.org/hpc/simd/auto-vectorization/](https://en.algorithmica.org/hpc/simd/auto-vectorization/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/simd/auto-vectorization/](https://en.algorithmica.org/hpc/simd/auto-vectorization/)
 - en: 'SIMD parallelism is most often used for *embarrassingly parallel* computations:
     the kinds where all you do is apply some elementwise function to all elements
     of an array and write it back somewhere else. In this setting, you don’t even
     need to know how SIMD works: the compiler is perfectly capable of optimizing such
     loops by itself — you just need to be aware that such optimization exists and
     that it usually yields a 5-10x speedup.'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: SIMD 并行性最常用于*令人尴尬的并行*计算：这种情况下，你只需对数组的所有元素应用一些逐元素函数，并将其写回其他地方。在这种设置中，你甚至不需要知道SIMD是如何工作的：编译器完全能够自行优化这样的循环——你只需要意识到这种优化存在，并且它通常会产生5-10倍的速度提升。
 - en: Doing nothing and relying on auto-vectorization is actually the most popular
     way of using SIMD. In fact, in many cases, it even advised to stick with the plain
     scalar code for its simplicity and maintainability.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 不采取任何行动，依赖自动向量化实际上是使用SIMD最流行的方式。事实上，在许多情况下，甚至建议坚持使用普通的标量代码，因为它简单且易于维护。
 - en: But often even the loops that seem straightforward to vectorize are not optimized
     because of some technical nuances. [As in many other cases](/hpc/compilation/contracts),
     the compiler may need some additional input from the programmer as he may know
     a bit more about the problem than what can be inferred from static analysis.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 但通常，即使是看起来可以直接向量化的循环也可能因为一些技术细节而没有被优化。[就像许多其他情况一样](/hpc/compilation/contracts)，编译器可能需要程序员提供一些额外的输入，因为程序员可能比从静态分析中推断出的更多了解问题。
 - en: '### [#](https://en.algorithmica.org/hpc/simd/auto-vectorization/#potential-problems)Potential
     Problems'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/simd/auto-vectorization/#potential-problems)潜在问题'
 - en: 'Consider the “a + b” example we [started with](../intrinsics/#simd-intrinsics):'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑我们[开始时](../intrinsics/#simd-intrinsics)的“a + b”示例：
 - en: '[PRE0]'
+  id: totrans-7
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Let’s step into a compiler’s shoes and think about what can go wrong when this
     loop is vectorized.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们换位思考，想象一下当这个循环被向量化时可能会出什么问题。
 - en: '**Array size.** If the array size is unknown beforehand, it may be that it
     is too small for vectorization to be beneficial in the first place. Even if it
     is sufficiently large, we need to insert an additional check for the remainder
     of the loop to process it scalar, which would cost us a branch.'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: '**数组大小。**如果数组大小在事先未知，那么它可能太小，以至于向量化一开始就无益。即使它足够大，我们也需要在循环的剩余部分插入一个额外的检查来处理它标量，这将花费我们一个分支。'
 - en: To eliminate these runtime checks, use array sizes that are compile-time constants,
     and preferably pad arrays to the nearest multiple of the SIMD block size.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了消除这些运行时检查，使用编译时常数的数组大小，并且最好将数组填充到最近的SIMD块大小的倍数。
 - en: '**Memory aliasing.** Even when array size issues are out of the question, vectorizing
     this loop is not always technically correct. For example, the arrays `a` and `c`
     can intersect in a way that their beginnings differ by a single position — because
     who knows, maybe the programmer wanted to calculate the Fibonacci sequence through
     a convolution this way. In this case, the data in the SIMD blocks will intersect
     and the observed behavior will differ from the one in the scalar case.'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: '**内存别名。**即使数组大小问题不存在，向量化这个循环也不总是技术上是正确的。例如，数组`a`和`c`可以以它们的开头相差一个位置的方式相交——因为谁知道，也许程序员想通过这种方式通过卷积计算斐波那契序列。在这种情况下，SIMD块中的数据将相交，观察到的行为将与标量情况不同。'
 - en: 'When the compiler can’t prove that the function may be used for intersecting
     arrays, it has to generate two implementation variants — a vectorized and a “safe”
     one — and insert runtime checks to choose between the two. To avoid them, we can
     tell the compiler that we are that no memory is aliased by adding the `__restrict__`
     keyword:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 当编译器无法证明函数可能用于交集数组时，它必须生成两种实现变体——一个是向量化的，另一个是“安全的”——并插入运行时检查以在这两者之间进行选择。为了避免这些检查，我们可以通过添加`__restrict__`关键字来告诉编译器没有任何内存被别名化：
 - en: '[PRE1]'
+  id: totrans-13
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'The other way, specific to SIMD, is the “ignore vector dependencies” pragma.
     It is a general way to inform the compiler that there are no dependencies between
     the loop iterations:'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一种特定于SIMD的方法是“忽略向量依赖”指令。这是一种通用方式，用来通知编译器循环迭代之间没有依赖关系：
 - en: '[PRE2]'
+  id: totrans-15
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: '**Alignment.** The compiler also doesn’t know anything about the alignment
     of these arrays and has to either process some elements at the beginning of these
     arrays before starting the vectorized section or potentially lose some performance
     by using [unaligned memory accesses](../moving).'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: '**对齐。**编译器对这些数组的对齐情况一无所知，必须在开始向量化部分之前处理这些数组开头的一些元素，或者通过使用[非对齐内存访问](../moving)来潜在地损失一些性能。'
 - en: To help the compiler eliminate this corner case, we can use the `alignas` specifier
     on static arrays and the `std::assume_aligned` function to mark pointers aligned.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了帮助编译器消除这个特殊情况，我们可以在静态数组上使用`alignas`指定符，并使用`std::assume_aligned`函数来标记指针对齐。
 - en: '**Checking if vectorization happened.** In either case, it is useful to check
     if the compiler vectorized the loop the way you intended. You can either [compiling
     it to assembly](/hpc/compilation/stages) and look for blocks for instructions
@@ -92,39 +128,55 @@
     the compiler indicates where auto-vectorization is happening and what SIMD width
     is being used. If you swap `optimized` for `missed` or `all`, you may also get
     some reasoning behind why it is not happening in other places.'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: '**检查向量化是否发生。**在任何情况下，检查编译器是否按照你的意图向量化了循环都是有用的。你可以将其编译成汇编代码并查找以“v”开头的指令块，或者添加`-fopt-info-vec-optimized`编译器标志，以便编译器指示自动向量化发生的位置以及正在使用的SIMD宽度。如果你将`optimized`交换为`missed`或`all`，你也可能得到一些解释，说明为什么在其他地方没有发生。'
 - en: There are [many other ways](https://software.intel.com/sites/default/files/m/4/8/8/2/a/31848-CompilerAutovectorizationGuide.pdf)
     of telling the compiler exactly what we mean, but in especially complex cases
     — e.g., when there are a lot of branches or function calls inside the loop — it
     is easier to go one level of abstraction down and vectorize manually.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 有许多其他方法可以告诉编译器我们确切的意思，但在特别复杂的情况下——例如，当循环内部有很多分支或函数调用时——向下降低一个抽象级别并手动向量化会更简单。
 - en: '### [#](https://en.algorithmica.org/hpc/simd/auto-vectorization/#spmd)SPMD'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/simd/auto-vectorization/#spmd)SPMD'
 - en: 'There is a neat compromise between auto-vectorization and the manual use of
     SIMD intrinsics: “single program, multiple data” (SPMD). This is a model of computation
     in which the programmer writes what appears to be a regular serial program, but
     that is actually executed in parallel on the hardware.'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 在自动向量化和手动使用SIMD内建函数之间有一个巧妙的折衷方案：“单程序，多数据”（SPMD）。这是一个计算模型，其中程序员编写看起来像是常规串行程序的内容，但实际上在硬件上并行执行。
 - en: The programming experience is largely the same, and there is still the fundamental
     limitation in that the computation must be data-parallel, but SPMD ensures that
     the vectorization will happen regardless of the compiler and the target CPU architecture.
     It also allows for the computation to be automatically parallelized across multiple
     cores and, in some cases, even offloaded to other types of parallel hardware.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 编程体验在很大程度上是相同的，并且仍然存在一个基本限制，即计算必须是数据并行的，但SPMD确保无论编译器还是目标CPU架构如何，向量化都会发生。它还允许计算自动并行化到多个核心，在某些情况下，甚至可以卸载到其他类型的并行硬件。
 - en: There is support for SPMD is some modern languages ([Julia](https://docs.julialang.org/en/v1/base/base/#Base.SimdLoop.@simd)),
     multiprocessing APIs ([OpenMP](https://www.openmp.org/spec-html/5.0/openmpsu42.html)),
     and specialized compilers (Intel [ISPC](https://ispc.github.io/)), but it has
     seen the most success in the context of GPU programming where both problems and
     hardware are massively parallel.
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 一些现代语言（如[Julia](https://docs.julialang.org/en/v1/base/base/#Base.SimdLoop.@simd)）、多进程API（如[OpenMP](https://www.openmp.org/spec-html/5.0/openmpsu42.html)）和专用编译器（如Intel
+    [ISPC](https://ispc.github.io/)）支持SPMD，但在GPU编程的背景下，它取得了最大的成功，因为在这个环境中，问题和硬件都是高度并行的。
 - en: We will cover this model of computation in much more depth in Part 2 [← In-Register
     Shuffles](https://en.algorithmica.org/hpc/simd/shuffling/)[../Algorithms Case
     Studies →](https://en.algorithmica.org/hpc/algorithms/)
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将在第2部分中更深入地介绍这个计算模型[← 寄存器级洗牌](https://en.algorithmica.org/hpc/simd/shuffling/)[→
+    算法案例研究](https://en.algorithmica.org/hpc/algorithms/)

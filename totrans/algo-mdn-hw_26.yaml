@@ -1,44 +1,65 @@
 - en: Program Simulation
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 程序模拟
 - en: 原文：[https://en.algorithmica.org/hpc/profiling/simulation/](https://en.algorithmica.org/hpc/profiling/simulation/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/profiling/simulation/](https://en.algorithmica.org/hpc/profiling/simulation/)
 - en: The last approach to profiling (or rather a group of them) is not to gather
     the data by actually running the program but to analyze what should happen by
     *simulating* it with specialized tools.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 分析的最后一个方法（或者更确切地说，是一组方法）不是通过实际运行程序来收集数据，而是通过使用专用工具来模拟应该发生的情况。
 - en: There are many subcategories of such profilers, differing in which aspect of
     computation is simulated. In this article, we are going to focus on [caching](/hpc/cpu-cache)
     and [branch prediction](/hpc/pipelining/branching), and use [Cachegrind](https://valgrind.org/docs/manual/cg-manual.html)
     for that, which is a profiling-oriented part of [Valgrind](https://valgrind.org/),
     a well-established tool for memory leak detection and memory debugging in general.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样的分析器有很多子类别，它们在模拟计算哪个方面有所不同。在这篇文章中，我们将重点关注 [缓存](/hpc/cpu-cache) 和 [分支预测](/hpc/pipelining/branching)，并使用
+    [Cachegrind](https://valgrind.org/docs/manual/cg-manual.html) 来实现这一点，它是 [Valgrind](https://valgrind.org/)
+    的一部分，Valgrind 是一个用于内存泄漏检测和一般内存调试的成熟工具。
 - en: '### [#](https://en.algorithmica.org/hpc/profiling/simulation/#profiling-with-cachegrind)Profiling
     with Cachegrind'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/profiling/simulation/#profiling-with-cachegrind)
+    使用 Cachegrind 进行分析'
 - en: 'Cachegrind essentially inspects the binary for “interesting” instructions —
     that perform memory reads / writes and conditional / indirect jumps — and replaces
     them with code that simulates corresponding hardware operations using software
     data structures. It therefore doesn’t need access to the source code and can work
     with already compiled programs, and can be run on any program like this:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: Cachegrind 实质上检查二进制文件中的“有趣”指令——执行内存读取/写入和条件/间接跳转的指令——并用代码替换它们，这些代码使用软件数据结构模拟相应的硬件操作。因此，它不需要访问源代码，可以与已编译的程序一起工作，并且可以在任何这样的程序上运行：
 - en: '[PRE0]'
+  id: totrans-6
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'It instruments all involved binaries, runs them, and outputs a summary similar
     to [perf stat](../events):'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 它对所有的二进制文件进行测量，运行它们，并输出一个类似于 [perf stat](../events) 的摘要：
 - en: '[PRE1]'
+  id: totrans-8
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'We’ve fed Cachegrind exactly the same example code as in [the previous section](../events):
     we create an array of a million random integers, sort it, and then perform a million
     binary searches on it. Cachegrind shows roughly the same numbers as perf does,
@@ -46,73 +67,108 @@
     inflated due to [speculative execution](/hpc/pipelining): they really happen in
     hardware and thus increment hardware counters, but are discarded and don’t affect
     actual performance, and thus ignored in the simulation.'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们向 Cachegrind 提供了与 [上一节](../events) 中完全相同的示例代码：我们创建了一个包含一百万个随机整数的数组，对其进行排序，然后在上面执行一百万次二分搜索。Cachegrind
+    显示的数字与 perf 显示的数字大致相同，但 perf 测量的内存读取和分支的数量略有增加，这是由于 [推测执行](/hpc/pipelining) 的原因：它们实际上在硬件中发生，并因此增加硬件计数器，但被丢弃并不影响实际性能，因此在模拟中被忽略。
 - en: 'Cachegrind only models the first (`D1` for data, `I1` for instructions) and
     the last (`LL`, unified) levels of cache, the characteristics of which are inferred
     from the system. It doesn’t limit you in any way as you can also set them from
     the command line, e g., to model the L2 cache: `--LL=<size>,<associativity>,<line
     size>`.'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: Cachegrind 只模拟缓存的第一级（`D1` 表示数据，`I1` 表示指令）和最后一级（`LL`，统一），其特性是从系统中推断出来的。它不会以任何方式限制你，因为你也可以从命令行设置它们，例如，模拟
+    L2 缓存：`--LL=<size>,<associativity>,<line size>`。
 - en: 'It seems like it only slowed down our program so far and hasn’t provided us
     any information that `perf stat` couldn’t. To get more out of it than just the
     summary info, we can inspect a special file with profiling info, which it dumps
     by default in the same directory named as `cachegrind.out.<pid>`. It is human-readable,
     but is expected to be read via the `cg_annotate` command:'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 它似乎只是让我们的程序变慢了，并没有提供任何 `perf stat` 无法提供的信息。为了从它那里获得比仅仅摘要信息更多的信息，我们可以检查一个包含分析信息的特殊文件，它默认以
+    `cachegrind.out.<pid>` 的名称在相同的目录下导出。它是可读的，但通常通过 `cg_annotate` 命令来读取：
 - en: '[PRE2]'
+  id: totrans-12
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'First it shows the parameters that were used during the run, including the
     characteristics of the cache system:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先它显示了运行过程中使用的参数，包括缓存系统的特性：
 - en: '[PRE3]'
+  id: totrans-14
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'It didn’t get the L3 cache quite right: it is not unified (8M in total, but
     a single core only sees 4M) and also 16-way associative, but we will ignore that
     for now.'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 它对 L3 缓存的模拟并不完全准确：它不是统一的（总共 8M，但单个核心只能看到 4M）并且也是 16 路关联的，但我们将暂时忽略这一点。
 - en: 'Next, it outputs a per-function summary similar to `perf report`:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，它输出一个类似于`perf report`的每个函数摘要：
 - en: '[PRE4]'
+  id: totrans-17
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: You can see there are a lot of branch mispredicts in the sorting stage, and
     also a lot of both L1 cache misses and branch mispredicts during binary searching.
     We couldn’t get this information with perf — it would only tell use these counts
     for the whole program.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以看到在排序阶段有很多分支预测错误，而且在二分搜索期间也有很多L1缓存未命中和分支预测错误。我们无法通过perf获取这些信息——它只会告诉我们整个程序的这些计数。
 - en: Another great feature that Cachegrind has is the line-by-line annotation of
     source code. For that, you need to compile the program with debug information
     (`-g`) and either explicitly tell `cg_annotate` which source files to annotate
     or just pass the `--auto=yes` option so that it annotates everything it can reach
     (including the standard library source code).
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: Cachegrind另一个很棒的功能是对源代码的逐行注释。为此，你需要用调试信息（`-g`）编译程序，并明确告诉`cg_annotate`要注释哪些源文件，或者只需传递`--auto=yes`选项，这样它就会注释它能到达的所有内容（包括标准库源代码）。
 - en: 'The whole source-to-analysis process would therefore go like this:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 整个源代码到分析的过程因此会是这样的：
 - en: '[PRE5]'
+  id: totrans-21
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Since the glibc implementations are not the most readable, for exposition purposes,
     we replace `lower_bound` with our own binary search, which will be annotated like
     this:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于glibc的实现不是最易读的，为了说明目的，我们用我们自己的二分搜索替换`lower_bound`，它将被这样注释：
 - en: '[PRE6]'
+  id: totrans-23
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: Unfortunately, Cachegrind only tracks memory accesses and branches. When the
     bottleneck is caused by something else, we need [other simulation tools](../mca).
     [← Statistical Profiling](https://en.algorithmica.org/hpc/profiling/events/)[Machine
     Code Analyzers →](https://en.algorithmica.org/hpc/profiling/mca/)
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，Cachegrind只跟踪内存访问和分支。当瓶颈是由其他因素引起时，我们需要[其他模拟工具](../mca)。[← 统计分析](https://en.algorithmica.org/hpc/profiling/events/)[机器代码分析器](https://en.algorithmica.org/hpc/profiling/mca/)

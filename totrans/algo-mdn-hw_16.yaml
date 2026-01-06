@@ -1,107 +1,154 @@
 - en: Throughput Computing
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 吞吐量计算
 - en: 原文：[https://en.algorithmica.org/hpc/pipelining/throughput/](https://en.algorithmica.org/hpc/pipelining/throughput/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/pipelining/throughput/](https://en.algorithmica.org/hpc/pipelining/throughput/)
 - en: 'Optimizing for *latency* is usually quite different from optimizing for *throughput*:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 优化**延迟**通常与优化**吞吐量**有很大不同：
 - en: When optimizing data structure queries or small one-time or branchy algorithms,
     you need to [look up the latencies](../tables) of its instructions, mentally construct
     the execution graph of the computation, and then try to reorganize it so that
     the critical path is shorter.
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 当优化数据结构查询或小型一次性或分支算法时，你需要[查找](../tables)其指令的延迟，心理构建计算的执行图，然后尝试重新组织它，使关键路径更短。
 - en: When optimizing hot loops and large-dataset algorithms, you need to look up
     the throughputs of their instructions, count how many times each one is used per
     iteration, determine which of them is the bottleneck, and then try to restructure
     the loop so that it is used less often.
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在优化热点循环和大数据集算法时，你需要查找它们的指令的吞吐量，计算每个指令在每个迭代中被使用的次数，确定哪个是瓶颈，然后尝试重构循环，使其使用频率更低。
 - en: The last advice only works for *data-parallel* loops, where each iteration is
     fully independent of the previous one. When there is some interdependency between
     consecutive iterations, there may potentially be a pipeline stall caused by a
     [data hazard](../hazards) as the next iteration is waiting for the previous one
     to complete.
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后一条建议仅适用于**数据并行**循环，其中每次迭代完全独立于前一次迭代。当连续迭代之间存在某些依赖关系时，可能会由于下一个迭代正在等待前一个迭代完成而出现由[数据冒险](../hazards)引起的潜在流水线停滞。
 - en: '### [#](https://en.algorithmica.org/hpc/pipelining/throughput/#example)Example'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/pipelining/throughput/#example)示例'
 - en: 'As a simple example, consider how the sum of an array is computed:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 以一个简单的例子，考虑如何计算一个数组的和：
 - en: '[PRE0]'
+  id: totrans-8
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'Let’s assume for a moment that the compiler doesn’t [vectorize](/hpc/simd)
     this loop, [the memory bandwidth](/hpc/cpu-cache/bandwidth) isn’t a concern, and
     that the loop is [unrolled](/hpc/architecture/loops) so that we don’t pay any
     additional cost associated with maintaining the loop variables. In this case,
     the computation becomes very simple:'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们暂时假设编译器没有对这个循环进行[向量化](/hpc/simd)，[内存带宽](/hpc/cpu-cache/bandwidth)不是问题，并且循环被[展开](/hpc/architecture/loops)，这样我们就不必为维护循环变量支付任何额外的成本。在这种情况下，计算变得非常简单：
 - en: '[PRE1]'
+  id: totrans-10
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: How fast can we compute this? At exactly one cycle per element — because we
     need one cycle each iteration to `add` another value to `s`. The latency of the
     memory read doesn’t matter because the CPU can start it ahead of time.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们能有多快地计算这个？正好是每个元素一个周期——因为我们需要每个周期一个周期来将另一个值加到`s`上。内存读取的延迟并不重要，因为CPU可以在之前启动它。
 - en: 'But we can go higher than that. The *throughput* of `add`^([1](#fn:1)) is 2
     on my CPU (Zen 2), meaning we could theoretically execute two of them every cycle.
     But right now this isn’t possible: while `s` is being used to accumulate $i$-th
     element, it can’t be used for $(i+1)$-th for at least one cycle.'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 但我们可以做得更好。`add`^([1](#fn:1))的吞吐量在我的CPU（Zen 2）上是2，这意味着理论上我们可以在每个周期执行两个。但现在这还不可能：当`s`被用来累加第i个元素时，它至少在一个周期内不能用于第(i+1)个。
 - en: 'The solution is to use *two* accumulators and just sum up odd and and even
     elements separately:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决方案是使用**两个**累加器，并分别单独求和奇数和偶数元素：
 - en: '[PRE2]'
+  id: totrans-14
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Now our superscalar CPU can execute these two “threads” simultaneously, and
     our computation no longer has any critical paths that limit the throughput.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们的超标量CPU可以同时执行这两个“线程”，我们的计算不再有任何限制吞吐量的关键路径。
 - en: '### [#](https://en.algorithmica.org/hpc/pipelining/throughput/#the-general-case)The
     General Case'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/pipelining/throughput/#the-general-case)一般情况'
 - en: If an instruction has a latency of $x$ and a throughput of $y$, then you would
     need to use $x \cdot y$ accumulators to saturate it. This also implies that you
     need $x \cdot y$ logical registers to hold their values, which is an important
     consideration for CPU designs, limiting the maximum number of usable execution
     units for high-latency instructions.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果一个指令的延迟是$x$，吞吐量是$y$，那么你需要使用$x \cdot y$个累加器来饱和它。这也意味着你需要$x \cdot y$个逻辑寄存器来保存它们的值，这对于CPU设计来说是一个重要的考虑因素，限制了高延迟指令可用的最大执行单元数量。
 - en: This technique is mostly used with [SIMD](/hpc/simd) and not in scalar code.
     You can [generalize](/hpc/simd/reduction) the code above and compute sums and
     other reductions faster than the compiler.
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种技术主要与 [SIMD](/hpc/simd) 一起使用，而不是在标量代码中使用。你可以 [泛化](/hpc/simd/reduction) 上述代码，并比编译器更快地计算总和和其他缩减操作。
 - en: In general, when optimizing loops, you usually have just one or a few *execution
     ports* that you want to utilize to their fullest, and you engineer the rest of
     the loop around them. As different instructions may use different sets of ports,
     it is not always clear which one is going to be overused. In situations like this,
     [machine code analyzers](/hpc/profiling/mca) can be very helpful for finding the
     bottlenecks of small assembly loops.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常在优化循环时，你通常只有一个或几个你想要充分利用的 *执行端口*，然后你围绕它们设计循环的其余部分。由于不同的指令可能使用不同的端口集，因此并不总是清楚哪个会被过度使用。在这种情况下，[机器代码分析器](/hpc/profiling/mca)
+    可以非常有助于找到小型汇编循环的瓶颈。
 - en: '* * *'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: The throughput of register-register `add` is 4, but since we are reading its
     second operand from memory, it is bottlenecked by the throughput of memory `mov`,
     which is 2 on Zen 2. [↩︎](#fnref:1) [← Instruction Tables](https://en.algorithmica.org/hpc/pipelining/tables/)[../Compilation
     →](https://en.algorithmica.org/hpc/compilation/)
+  id: totrans-21
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 寄存器到寄存器的 `add` 操作的吞吐量是 4，但由于我们从内存中读取其第二个操作数，它被内存 `mov` 的吞吐量所瓶颈，Zen 2 上的吞吐量是
+    2。[↩︎](#fnref:1) [← 指令表](https://en.algorithmica.org/hpc/pipelining/tables/)[../编译
+    →](https://en.algorithmica.org/hpc/compilation/)

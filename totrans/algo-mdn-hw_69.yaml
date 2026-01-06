@@ -1,206 +1,302 @@
 - en: In-Register Shuffles
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 寄存器内洗牌
 - en: 原文：[https://en.algorithmica.org/hpc/simd/shuffling/](https://en.algorithmica.org/hpc/simd/shuffling/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/simd/shuffling/](https://en.algorithmica.org/hpc/simd/shuffling/)
 - en: '[Masking](../masking) lets you apply operations to only a subset of vector
     elements. It is a very effective and frequently used data manipulation technique,
     but in many cases, you need to perform more advanced operations that involve permuting
     values inside a vector register instead of just blending them with other vectors.'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: '[掩码](../masking)允许您仅对向量元素的一部分应用操作。这是一种非常有效且常用的数据操作技术，但在许多情况下，您需要执行更高级的操作，这些操作涉及在向量寄存器内部排列值，而不是仅仅将它们与其他向量混合。'
 - en: The problem is that adding a separate element-shuffling instruction for each
     possible use case in hardware is unfeasible. What we can do though is to add just
     one general permutation instruction that takes the indices of a permutation and
     produces these indices using precomputed lookup tables.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 问题在于，在硬件中为每个可能的使用案例添加一个单独的元素洗牌指令是不切实际的。尽管如此，我们可以添加一个通用的排列指令，该指令接受排列的索引并使用预计算的查找表来生成这些索引。
 - en: This general idea is perhaps too abstract, so let’s jump straight to the examples.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种通用想法可能过于抽象，所以让我们直接跳到例子。
 - en: '### [#](https://en.algorithmica.org/hpc/simd/shuffling/#shuffles-and-popcount)Shuffles
     and Popcount'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/simd/shuffling/#shuffles-and-popcount)洗牌和计数人口'
 - en: '*Population count*, also known as the *Hamming weight*, is the count of `1`
     bits in a binary string.'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: '*计数人口*，也称为*汉明重量*，是二进制字符串中`1`位的数量。'
 - en: 'It is a frequently used operation, so there is a separate instruction on x86
     that computes the population count of a word:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个常用的操作，因此x86上有一个单独的指令用于计算单词的计数人口：
 - en: '[PRE0]'
+  id: totrans-8
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'It also supports 64-bit integers, improving the total throughput twofold:'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 它还支持64位整数，将总吞吐量提高了一倍：
 - en: '[PRE1]'
+  id: totrans-10
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: The only two instructions required are load-fused popcount and addition. They
     both have a high throughput, so the code processes about $8+8=16$ bytes per cycle
     as it is limited by the decode width of 4 on this CPU.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 只需要两个指令：负载融合的计数人口和加法。它们都具有高吞吐量，因此代码在每周期处理大约$8+8=16$字节，因为它受限于这个CPU上的4位解码宽度。
 - en: These instructions were added to x86 CPUs around 2008 with SSE4\. Let’s temporarily
     go back in time before vectorization even became a thing and try to implement
     popcount by other means.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些指令大约在2008年添加到x86 CPU中，与SSE4一起。让我们暂时回到向量化成为事实之前，尝试通过其他方式实现计数人口。
 - en: 'The naive way is to go through the binary string bit by bit:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 常规的方法是逐位遍历二进制字符串：
 - en: '[PRE2]'
+  id: totrans-14
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: As anticipated, it works just slightly faster than ⅛-th of a byte per cycle
     — at around 0.2.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 如预期的那样，它每周期略快于1/8字节——大约是0.2。
 - en: 'We can try to process in bytes instead of individual bits by [precomputing](/hpc/compilation/precalc)
     a small 256-element *lookup table* that contains the population counts of individual
     bytes and then query it while iterating over raw bytes of the array:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以尝试以字节为单位进行处理，而不是逐个位，通过[预计算](/hpc/compilation/precalc)一个包含单个字节计数人口的256元素*查找表*，然后在迭代数组的原始字节时查询它：
 - en: '[PRE3]'
+  id: totrans-17
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: It now processes around 2 bytes per cycle, rising to ~2.7 if we switch to 16-bit
     words (`unsigned short`).
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在它每周期处理大约2个字节，如果我们切换到16位单词（`unsigned short`），则上升到约2.7。
 - en: 'This solution is still very slow compared to the `popcnt` instruction, but
     now it can be vectorized. Instead of trying to speed it up through [gather](../moving#non-contiguous-load)
     instructions, we will go for another approach: make the lookup table small enough
     to fit inside a register and then use a special [pshufb](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=pshuf&techs=AVX,AVX2&expand=6331)
     instruction to look up its values in parallel.'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 与`popcnt`指令相比，这种解决方案仍然非常慢，但现在它可以进行向量化。我们不会尝试通过[gather](../moving#non-contiguous-load)指令来加速它，而是采取另一种方法：将查找表的大小缩小到足以放入寄存器中，然后使用特殊的[pshufb](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=pshuf&techs=AVX,AVX2&expand=6331)指令并行查找其值。
 - en: 'The original `pshufb` introduced in 128-bit SSE3 takes two registers: the lookup
     table containing 16 byte values and a vector of 16 4-bit indices (0 to 15), specifying
     which bytes to pick for each position. In 256-bit AVX2, instead of a 32-byte lookup
     table with awkward 5-bit indices, we have an instruction that independently the
     same shuffling operation over two 128-bit lanes.'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 在128位SSE3中引入的原始`pshufb`需要两个寄存器：包含16个字节值的查找表和一个包含16个4位索引（0到15）的向量，指定每个位置要选择的字节。在256位AVX2中，而不是32字节的查找表和尴尬的5位索引，我们有一个指令可以独立地对两个128位通道执行相同的洗牌操作。
 - en: 'So, for our use case, we create a 16-byte lookup table with population counts
     for each nibble (half-byte), repeated twice:'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，对于我们的用例，我们创建了一个16字节的查找表，其中包含每个半字节的计数，重复两次：
 - en: '[PRE4]'
+  id: totrans-22
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Now, to compute the population count of a vector, we split each of its bytes
     into the lower and higher nibbles and then use this lookup table to retrieve their
     counts. The only thing left is to carefully sum them up:'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，为了计算向量的计数，我们将每个字节拆分为低半字节和高半字节，然后使用此查找表检索它们的计数。唯一剩下的事情是仔细地将它们相加：
 - en: '[PRE5]'
+  id: totrans-24
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: This code processes around 30 bytes per cycle. Theoretically, the inner loop
     could do 32, but we have to stop it every 15 iterations because the 8-bit counters
     can overflow.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 此代码每个周期处理大约30字节。理论上，内循环可以执行32次，但我们必须每15次迭代停止一次，因为8位计数器可能会溢出。
 - en: 'The `pshufb` instruction is so instrumental in some SIMD algorithms that [Wojciech
     Muła](http://0x80.pl/) — the guy who came up with this algorithm — took it as
     his [Twitter handle](https://twitter.com/pshufb). You can calculate population
     counts even faster: check out his [GitHub repository](https://github.com/WojciechMula/sse-popcount)
     with different vectorized popcount implementations and his [recent paper](https://arxiv.org/pdf/1611.07612.pdf)
     for a detailed explanation of the state-of-the-art.'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: '`pshufb`指令在某些SIMD算法中非常关键，以至于Wojciech Muła——提出这个算法的人——将其作为他的[Twitter昵称](https://twitter.com/pshufb)。你可以更快地计算计数：查看他的[GitHub仓库](https://github.com/WojciechMula/sse-popcount)中不同的向量化计数实现，以及他的[最新论文](https://arxiv.org/pdf/1611.07612.pdf)，其中详细解释了当前的最佳实践。'
 - en: '### [#](https://en.algorithmica.org/hpc/simd/shuffling/#permutations-and-lookup-tables)Permutations
     and Lookup Tables'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/simd/shuffling/#permutations-and-lookup-tables)排列和查找表'
 - en: Our last major example in this chapter is the `filter`. It is a very important
     data processing primitive that takes an array as input and writes out only the
     elements that satisfy a given predicate (in their original order).
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的最后一个重要示例是`filter`。它是一个非常重要的数据处理原语，它接受一个数组作为输入，并只输出满足给定谓词的元素（保持其原始顺序）。
 - en: 'In a single-threaded scalar case, it is trivially implemented by maintaining
     a counter that is incremented on each write:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 在单线程标量情况下，通过维护一个每次写入时递增的计数器可以简单地实现：
 - en: '[PRE6]'
+  id: totrans-30
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'To vectorize it, we will use the `_mm256_permutevar8x32_epi32` intrinsic. It
     takes a vector of values and individually selects them with a vector of indices.
     Despite the name, it doesn’t *permute* values but just *copies* them to form a
     new vector: duplicates in the result are allowed.'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了进行向量化，我们将使用 `_mm256_permutevar8x32_epi32` 内置函数。它接受一个值向量并使用索引向量单独选择它们。尽管名称如此，它并不*排列*值，而是*复制*它们以形成一个新的向量：结果中允许有重复。
 - en: 'The general idea of our algorithm is as follows:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们算法的一般思想如下：
 - en: calculate the predicate on a vector of data — in this case, this means performing
     the comparisons to get the mask;
+  id: totrans-33
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在数据向量上计算谓词——在这种情况下，这意味着执行比较以获取掩码；
 - en: use the `movemask` instruction to get a scalar 8-bit mask;
+  id: totrans-34
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用`movemask`指令获取一个标量8位掩码；
 - en: use this mask to index a lookup table that returns a permutation moving the
     elements that satisfy the predicate to the beginning of the vector (in their original
     order);
+  id: totrans-35
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用此掩码索引查找表，该查找表返回一个排列，将满足谓词的元素移动到向量的开头（保持其原始顺序）；
 - en: use the `_mm256_permutevar8x32_epi32` intrinsic to permute the values;
+  id: totrans-36
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用`_mm256_permutevar8x32_epi32`内置函数排列值。
 - en: write the whole permuted vector to the buffer — it may have some trailing garbage,
     but its prefix is correct;
+  id: totrans-37
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将整个排列向量写入缓冲区——它可能有一些尾随垃圾，但它的前缀是正确的；
 - en: calculate the population count of the scalar mask and move the buffer pointer
     by that number.
+  id: totrans-38
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 计算标量掩码的计数并移动缓冲区指针；
 - en: 'First, we need to precompute the permutations:'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们需要预先计算排列：
 - en: '[PRE7]'
+  id: totrans-40
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'Then we can implement the algorithm itself:'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们可以实现算法本身：
 - en: '[PRE8]'
+  id: totrans-42
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: The vectorized version takes some work to implement, but it is 6-7x faster than
     the scalar one (the speedup is slightly less for either low or high values of
     `P` as the [branch becomes predictable](/hpc/pipelining/branching)).
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 向量化版本需要一些工作来实现，但它比标量版本快6-7倍（对于`P`的值无论是低还是高，速度提升略低，因为[分支变得可预测](/hpc/pipelining/branching)）。
 - en: '![](../Images/057627d1402dd58e05fbb7be94527260.png)'
+  id: totrans-44
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/057627d1402dd58e05fbb7be94527260.png)'
 - en: The loop performance is still relatively low — taking 4 CPU cycles per iteration
     — because, on this particular CPU (Zen 2), `movemask`, `permute`, and `store`
     have low throughput and all have to go through the same execution port (P2). On
     most other x86 CPUs, you can expect it to be ~2x faster.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 循环性能仍然相对较低——每次迭代需要4个CPU周期——因为在特定的CPU（Zen 2）上，`movemask`、`permute`和`store`的吞吐量较低，并且都必须通过相同的执行端口（P2）。在大多数其他x86
+    CPU上，你可以期望它大约快2倍。
 - en: 'Filtering can also be implemented considerably faster on AVX-512: it has a
     special “[compress](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=7395,7392,7269,4868,7269,7269,1820,1835,6385,5051,4909,4918,5051,7269,6423,7410,150,2138,1829,1944,3009,1029,7077,519,5183,4462,4490,1944,1395&text=_mm512_mask_compress_epi32)”
     instruction that takes a vector of data and a mask and writes its unmasked elements
     contiguously. It makes a huge difference in algorithms that rely on various filtering
     subroutines, such as quicksort. [← Masking and Blending](https://en.algorithmica.org/hpc/simd/masking/)[Auto-Vectorization
     and SPMD →](https://en.algorithmica.org/hpc/simd/auto-vectorization/)'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 在AVX-512上，过滤操作也可以实现得相当快：它有一个特殊的“[压缩](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=7395,7392,7269,4868,7269,7269,1820,1835,6385,5051,4909,4918,5051,7269,6423,7410,150,2138,1829,1944,3009,1029,7077,519,5183,4462,4490,1944,1395&text=_mm512_mask_compress_epi32)”指令，该指令接受一个数据向量和掩码，并将未掩码的元素连续写入。这在依赖于各种过滤子例程的算法中，如快速排序，有着巨大的影响。[←
+    掩码和混合](https://en.algorithmica.org/hpc/simd/masking/)[自动向量化和多指令单数据（SPMD）→](https://en.algorithmica.org/hpc/simd/auto-vectorization/)

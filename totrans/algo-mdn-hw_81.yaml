@@ -1,761 +1,1120 @@
 - en: Segment Trees
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 段树
 - en: 原文：[https://en.algorithmica.org/hpc/data-structures/segment-trees/](https://en.algorithmica.org/hpc/data-structures/segment-trees/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/data-structures/segment-trees/](https://en.algorithmica.org/hpc/data-structures/segment-trees/)
 - en: The lessons learned from [optimizing](../s-tree) [binary search](../binary-search)
     can be applied to a broad range of data structures.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 从优化[二分搜索](../binary-search)中获得的教训可以应用于广泛的数据结构。
 - en: In this article, instead of trying to optimize something from the STL again,
     we focus on *segment trees*, the structures that may be unfamiliar to most *normal*
     programmers and perhaps even most computer science researchers^([1](#fn:1)), but
     that are used [very extensively](https://www.google.com/search?q=segment+tree+site%3Acodeforces.com&newwindow=1&sxsrf=APq-WBuTupSOnSn9JNEHhaqtmv0Uq0eogQ%3A1645969931499&ei=C4IbYrb2HYibrgS9t6qgDQ&ved=0ahUKEwj2p8_og6D2AhWIjYsKHb2bCtQQ4dUDCA4&uact=5&oq=segment+tree+site%3Acodeforces.com&gs_lcp=Cgdnd3Mtd2l6EAM6BwgAEEcQsAM6BwgAELADEEM6BAgjECc6BAgAEEM6BQgAEIAEOgYIABAWEB46BQghEKABSgQIQRgASgQIRhgAUMkFWLUjYOgkaANwAXgAgAHzAYgB9A-SAQYxNS41LjGYAQCgAQHIAQrAAQE&sclient=gws-wiz)
     in programming competitions for their speed and simplicity of implementation.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这篇文章中，我们不再尝试优化 STL 中的某些内容，而是专注于 *段树*，这些结构对于大多数 *普通* 程序员甚至大多数计算机科学研究者可能都不太熟悉^([1](#fn:1))，但它们在编程竞赛中因其速度和实现的简单性而被广泛使用[非常广泛](https://www.google.com/search?q=segment+tree+site%3Acodeforces.com&newwindow=1&sxsrf=APq-WBuTupSOnSn9JNEHhaqtmv0Uq0eogQ%3A1645969931499&ei=C4IbYrb2HYibrgS9t6qgDQ&ved=0ahUKEwj2p8_og6D2AhWIjYsKHb2bCtQQ4dUDCA4&uact=5&oq=segment+tree+site%3Acodeforces.com&gs_lcp=Cgdnd3Mtd2l6EAM6BwgAEEcQsAM6BwgAELADEEM6BAgjECc6BAgAEEM6BQgAEIAEOgYIABAWEB46BQghEKABSgQIQRgASgQIRhgAUMkFWLUjYOgkaANwAXgAgAHzAYgB9A-SAQYxNS41LjGYAQCgAQHIAQrAAQE&sclient=gws-wiz)。
 - en: '(If you already know the context, jump straight to the [last section](#wide-segment-trees)
     for the novelty: the *wide segment tree* that works 4 to 12 times faster than
     the Fenwick tree.)'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: （如果您已经了解背景，可以直接跳转到 [最后一节](#wide-segment-trees) 了解新内容：比 Fenwick 树快 4 到 12 倍的
+    *宽段树*。）
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#dynamic-prefix-sum)Dynamic
     Prefix Sum'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#dynamic-prefix-sum)动态前缀和'
 - en: 'Segment trees are cool and can do lots of different things, but in this article,
     we will focus on their simplest non-trivial application — *the dynamic prefix
     sum problem*:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 段树很酷，可以做很多事情，但在这篇文章中，我们将专注于它们最简单的非平凡应用——*动态前缀和问题*：
 - en: '[PRE0]'
+  id: totrans-7
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'As we have to support two types of queries, our optimization problem becomes
     multi-dimensional, and the optimal solution depends on the distribution of queries.
     For example, if one type of the queries were extremely rare, we would only optimize
     for the other, which is relatively easy to do:'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们必须支持两种类型的查询，我们的优化问题变成了多维的，最优解取决于查询的分布。例如，如果一种类型的查询非常罕见，我们只会优化另一种，这相对容易做到：
 - en: If we only cared about the cost of *updating the array*, we would store it as
     it is and [calculate the sum](/hpc/simd/reduction) directly on each `sum` query.
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果我们只关心 *更新数组* 的成本，我们会直接存储它，并在每个 `sum` 查询上直接计算总和。
 - en: If we only cared about the cost of *prefix sum queries*, we would keep it ready
     and [re-calculate them entirely from scratch](/hpc/algorithms/prefix) on each
     update.
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果我们只关心 *前缀和查询* 的成本，我们就会保持它们就绪，并在每次更新时从头开始重新计算。
 - en: Both of these options perform $O(1)$ work on one query type but $O(n)$ work
     on the other. When the query frequencies are relatively close, we can trade off
     some performance on one type of query for increased performance on the other.
     Segment trees let you do exactly that, achieving the equilibrium of $O(\log n)$
     work for both queries.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 这两种选项对一个查询类型执行 $O(1)$ 的工作量，但对另一个查询类型执行 $O(n)$ 的工作量。当查询频率相对接近时，我们可以通过牺牲一种查询类型的一些性能来换取另一种查询类型的性能提升。段树可以让你做到这一点，实现两种查询都达到
+    $O(\log n)$ 工作量的平衡。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#segment-tree-structure)Segment
     Tree Structure'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#segment-tree-structure)段树结构'
 - en: 'The main idea behind segment trees is this:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 段树背后的主要思想是这样的：
 - en: calculate the sum of the entire array and write it down somewhere;
+  id: totrans-14
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 计算整个数组的总和，并将它记录下来；
 - en: split the array into two halves, calculate the sum on both halves, and also
     write them down somewhere;
+  id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将数组分成两半，计算两半的和，并将它们记录下来；
 - en: split these halves into halves, calculate the total of four sums on them, and
     also write them down;
+  id: totrans-16
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将这些半数再分成半数，计算四个总和的总和，并将它们记录下来；
 - en: …and so on, until we recursively reach segments of length one.
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: …等等，直到我们递归地达到长度为 1 的段。
 - en: 'These computed subsegment sums can be logically represented as a binary tree
     — which is what we call a *segment tree*:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些计算出的子段和可以逻辑上表示为一个二叉树——这就是我们所说的线段树：
 - en: '![](../Images/3b75db17700e5675589ff9b124e5037b.png)'
+  id: totrans-19
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/3b75db17700e5675589ff9b124e5037b.png)'
 - en: A segment tree with with the nodes relevant for the sum(11) and add(10) queries
     highlighted
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 突出显示与求和(11)和添加(10)查询相关的节点线段树
 - en: 'Segment trees have some nice properties:'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 线段树有一些很好的属性：
 - en: If the underlying array has $n$ elements, the segment tree has exactly $(2n
     - 1)$ nodes — $n$ leaves and $(n - 1)$ internal nodes — because each internal
     node splits a segment in two, and you only need $(n - 1)$ of them to completely
     split the original $[0, n-1]$ range.
+  id: totrans-22
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果底层数组有 $n$ 个元素，线段树恰好有 $(2n - 1)$ 个节点——$n$ 个叶节点和 $(n - 1)$ 个内部节点——因为每个内部节点将一个段分成两部分，并且你只需要
+    $(n - 1)$ 个它们来完全分割原始的 $[0, n-1]$ 范围。
 - en: 'The height of the tree is $\Theta(\log n)$: on each next level starting from
     the root, the number of nodes roughly doubles and the size of their segments roughly
     halves.'
+  id: totrans-23
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 树的高度是 $\Theta(\log n)$：从根节点开始，每一层的节点数量大约翻倍，而它们段的大小大约减半。
 - en: 'Each segment can be split into $O(\log n)$ non-intersecting segments that correspond
     to the nodes of the segment tree: you need at most two from each layer.'
+  id: totrans-24
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 每个段可以被分割成 $O(\log n)$ 个不重叠的段，这些段对应于线段树的节点：每个层最多需要两个。
 - en: 'When $n$ is not a perfect power of two, not all levels are filled entirely
     — the last layer may be incomplete — but the truthfulness of these properties
     remains unaffected. The first property allows us to use only $O(n)$ memory to
     store the tree, and the last two let us solve the problem in $O(\log n)$ time:'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 当 $n$ 不是2的幂时，并非所有层都被完全填满——最后一层可能是不完整的，但这些属性的准确性不受影响。第一个属性允许我们仅使用 $O(n)$ 的内存来存储树，最后两个属性让我们能在
+    $O(\log n)$ 的时间内解决问题：
 - en: The `add(k, x)` query can be handled by adding the value `x` to all nodes whose
     segments contain the element `k`, and we’ve already established that there are
     only $O(\log n)$ of them.
+  id: totrans-26
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`add(k, x)` 查询可以通过将值 `x` 添加到所有包含元素 `k` 的段的节点上来处理，并且我们已经确定这些节点只有 $O(\log n)$
+    个。'
 - en: The `sum(k)` query can be answered by finding all nodes that collectively compose
     the `[0, k)` prefix and summing the values stored in them — and we’ve also established
     that there would be at most $O(\log n)$ of them.
+  id: totrans-27
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`sum(k)` 查询可以通过找到所有共同组成 `[0, k)` 前缀的节点并将它们中存储的值相加来回答——并且我们已经确定这些节点最多有 $O(\log
+    n)$ 个。'
 - en: But this is still theory. As we’ll see later, there are remarkably many ways
     one can implement this data structure.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 但这仍然是理论。正如我们稍后将会看到的，有非常多的方法可以实现这种数据结构。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#pointer-based-implementation)Pointer-Based
     Implementation'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#pointer-based-implementation)基于指针的实现'
 - en: 'The most straightforward way to implement a segment tree is to store everything
     we need in a node explicitly: including the array segment boundaries, the sum,
     and the pointers to its children.'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 实现线段树最直接的方法是将我们需要的所有内容都显式地存储在一个节点中：包括数组段的边界、总和以及指向其子节点的指针。
 - en: 'If we were at the “Introduction to OOP” class, we would implement a segment
     tree recursively like this:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们正在“面向对象编程简介”课程中，我们会像这样递归地实现线段树：
 - en: '[PRE1]'
+  id: totrans-32
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'If we needed to build it over an existing array, we would rewrite the body
     of the constructor like this:'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们需要在一个现有的数组上构建它，我们会像这样重写构造函数的主体：
 - en: '[PRE2]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: The construction time is of no significant interest to us, so to reduce the
     mental burden, we will just assume that the array is zero-initialized in all future
     implementations.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 构造时间对我们来说没有太大的意义，所以为了减少心理负担，我们将假设在所有未来的实现中数组都是零初始化的。
 - en: 'Now, to implement `add`, we need to descend down the tree until we reach a
     leaf node, adding the delta to the `s` fields:'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，要实现 `add`，我们需要沿着树向下遍历直到达到一个叶节点，并将增量添加到 `s` 字段中：
 - en: '[PRE3]'
+  id: totrans-37
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'To calculate the sum on a segment, we can check if the query covers the current
     segment fully or doesn’t intersect with it at all — and return the result for
     this node right away. If neither is the case, we recursively pass the query to
     the children so that they figure it out themselves:'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 要计算一个段的和，我们可以检查查询是否完全覆盖当前段或者完全不与它相交——然后立即返回这个节点的结果。如果都不是这种情况，我们将递归地将查询传递给子节点，以便它们自己解决问题：
 - en: '[PRE4]'
+  id: totrans-39
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: This function visits a total of $O(\log n)$ nodes because it only spawns children
     when a segment only partially intersects with the query, and there are at most
     $O(\log n)$ of such segments.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 此函数访问总共 $O(\log n)$ 个节点，因为它仅在段仅部分与查询相交时才产生子节点，并且最多有 $O(\log n)$ 个这样的段。
 - en: 'For *prefix sums*, these checks can be simplified as the left border of the
     query is always zero:'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于 *前缀和*，这些检查可以简化为查询的左边界始终为零：
 - en: '[PRE5]'
+  id: totrans-42
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'Since we have two types of queries, we also got two graphs to look at:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们有两种类型的查询，我们也得到了两个图来查看：
 - en: '![](../Images/bd65d2d6cb5c05e9f44d7d2257339d9c.png)'
+  id: totrans-44
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/bd65d2d6cb5c05e9f44d7d2257339d9c.png)'
 - en: 'While this object-oriented implementation is quite good in terms of software
     engineering practices, there are several aspects that make it terrible in terms
     of performance:'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然这种面向对象的实现从软件工程实践的角度来看相当不错，但有几个方面使其在性能方面非常糟糕：
 - en: Both query implementations use [recursion](/hpc/architecture/functions) — although
     the `add` query can be tail-call optimized.
+  id: totrans-46
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 两种查询实现都使用了 [递归](/hpc/architecture/functions) — 尽管添加查询可以被尾调用优化。
 - en: Both query implementations use unpredictable [branching](/hpc/pipelining/branching),
     which stalls the CPU pipeline.
+  id: totrans-47
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 两种查询实现都使用了不可预测的 [分支](/hpc/pipelining/branching)，这会导致 CPU 缓冲区停滞。
 - en: The nodes store extra metadata. The structure takes $4+4+4+8+8=28$ bytes and
     gets padded to 32 bytes for [memory alignment](/hpc/cpu-cache/alignment) reasons,
     while only 4 bytes are really necessary to hold the integer sum.
+  id: totrans-48
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 节点存储额外的元数据。该结构占用 $4+4+4+8+8=28$ 字节，并填充到 32 字节以进行 [内存对齐](/hpc/cpu-cache/alignment)，而实际上只需要
+    4 字节来存储整数和。
 - en: 'Most importantly, we are doing a lot of [pointer chasing](/hpc/cpu-cache/latency):
     we have to fetch the pointers to the children to descend into them, even though
     we can infer, ahead of time, which segments we’ll need just from the query.'
+  id: totrans-49
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 最重要的是，我们正在进行大量的 [指针追踪](/hpc/cpu-cache/latency)：我们必须获取指向子节点的指针才能进入它们，尽管我们可以在查询之前推断出我们需要哪些段。
 - en: Pointer chasing outweighs all other issues by orders of magnitude — and to negate
     it, we need to get rid of pointers, making the structure *implicit*.
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 指针追踪在数量级上超过了所有其他问题——要否定它，我们需要消除指针，使结构 *隐式*。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#implicit-segment-trees)Implicit
     Segment Trees'
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#implicit-segment-trees)隐式段树'
 - en: As a segment tree is a type of binary tree, we can use the [Eytzinger layout](../binary-search#eytzinger-layout)
     to store its nodes in one large array and use index arithmetic instead of explicit
     pointers to navigate it.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于段树是一种二叉树，我们可以使用 [Eytzinger 布局](../binary-search#eytzinger-layout)将节点存储在一个大数组中，并使用索引运算代替显式指针来导航。
 - en: 'More formally, we define node $1$ to be the root, holding the sum of the entire
     array $[0, n)$. Then, for every node $v$ corresponding to the range $[l, r]$,
     we define:'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 更正式地说，我们定义节点 $1$ 为根节点，包含整个数组 $[0, n)$ 的和。然后，对于每个对应于范围 $[l, r]$ 的节点 $v$，我们定义：
 - en: the node $2v$ to be its left child corresponding to the range $[l, \lfloor \frac{l+r}{2}
     \rfloor)$;
+  id: totrans-54
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 节点 $2v$ 应为其左子节点，对应范围 $[l, \lfloor \frac{l+r}{2} \rfloor)$;
 - en: the node $(2v+1)$ to be its right child corresponding to the range $[\lfloor
     \frac{l+r}{2} \rfloor, r)$.
+  id: totrans-55
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 节点 $(2v+1)$ 应为其右子节点，对应范围 $[\lfloor \frac{l+r}{2} \rfloor, r)$。
 - en: 'When $n$ is a perfect power of two, this layout packs the entire tree very
     nicely:'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 当 $n$ 是完全的 2 的幂时，这种布局可以非常整齐地打包整个树：
 - en: '![](../Images/17cbff49ccad04b2173979354989205d.png)'
+  id: totrans-57
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/17cbff49ccad04b2173979354989205d.png)'
 - en: The memory layout of the implicit segment tree with the same query path highlighted
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 隐式段树的内存布局，其中相同的查询路径被突出显示
 - en: 'However, when $n$ is not a power of two, the layout stops being compact: although
     we still have exactly $(2n - 1)$ nodes regardless of how we split segments, they
     are no longer mapped perfectly to the $[1, 2n)$ range.'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，当 $n$ 不是 2 的幂时，布局就不再紧凑：尽管无论我们如何分割段，我们仍然有恰好 $(2n - 1)$ 个节点，但它们不再完美地映射到 $[1,
+    2n)$ 范围。
 - en: 'For example, consider what happens when we descend to the rightmost leaf in
     a segment tree of size $17 = 2^4 + 1$:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，考虑当我们下降到大小为 $17 = 2^4 + 1$ 的段树的最右叶节点时会发生什么：
 - en: we start with the root numbered $1$ representing the range $[0, 16]$,
+  id: totrans-61
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们从编号为 $1$ 的根节点开始，代表范围 $[0, 16]$,
 - en: we go to node $3 = 2 \times 1 + 1$ representing the range $[8, 16]$,
+  id: totrans-62
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们前往节点 $3 = 2 \times 1 + 1$，代表范围 $[8, 16]$,
 - en: we go to node $7 = 2 \times 2 + 1$ representing the range $[12, 16]$,
+  id: totrans-63
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们前往节点 $7 = 2 \times 2 + 1$，代表范围 $[12, 16]$,
 - en: we go to node $15 = 2 \times 7 + 1$ representing the range $[14, 16]$,
+  id: totrans-64
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们前往节点 $15 = 2 \times 7 + 1$，代表范围 $[14, 16]$,
 - en: we go to node $31 = 2 \times 15 + 1$ representing the range $[15, 16]$,
+  id: totrans-65
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们前往代表范围 $[15, 16]$ 的节点 $31 = 2 \times 15 + 1$，
 - en: and we finally reach node $63 = 2 \times 31 + 1$ representing the range $[16,
     16]$.
+  id: totrans-66
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们最终到达代表范围 $[16, 16]$ 的节点 $63 = 2 \times 31 + 1$。
 - en: 'So, as $63 > 2 \times 17 - 1 = 33$, there are some empty spaces in the layout,
     but the structure of the tree is still the same, and its height is still $O(\log
     n)$. For now, we can ignore this problem and just allocate a larger array for
     storing the nodes — it can be shown that the index of the rightmost leaf never
     exceeds $4n$, so allocating that many cells will always suffice:'
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，由于 $63 > 2 \times 17 - 1 = 33$，布局中存在一些空隙，但树的结构仍然是相同的，其高度仍然是 $O(\log n)$。目前，我们可以忽略这个问题，只需为存储节点分配一个更大的数组——可以证明最右侧叶子的索引永远不会超过
+    $4n$，因此分配这么多单元格总是足够的：
 - en: '[PRE6]'
+  id: totrans-68
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'Now, to implement `add`, we create a similar recursive function but using index
     arithmetic instead of pointers. Since we’ve also stopped storing the borders of
     the segment in the nodes, we need to re-calculate them and pass them as parameters
     for each recursive call:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，为了实现 `add`，我们创建一个类似的递归函数，但使用索引算术而不是指针。由于我们也不再在节点中存储段边界，我们需要重新计算它们并将它们作为参数传递给每个递归调用：
 - en: '[PRE7]'
+  id: totrans-70
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'The implementation of the prefix sum query is largely the same:'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 前缀和查询的实现基本上是相同的：
 - en: '[PRE8]'
+  id: totrans-72
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'Passing around five variables in a recursive function seems clumsy, but the
     performance gains are clearly worth it:'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 在递归函数中传递五个变量看起来有些笨拙，但性能的提升显然是值得的：
 - en: '![](../Images/5a3d3956daa46f5bcfedffc35929bc94.png)'
+  id: totrans-74
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/5a3d3956daa46f5bcfedffc35929bc94.png)'
 - en: Apart from requiring much less memory, which is good for fitting into the CPU
     caches, the main advantage of this implementation is that we can now make use
     of the [memory parallelism](/hpc/cpu-cache/mlp) and fetch the nodes we need in
     parallel, considerably improving the running time for both queries.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了需要更少的内存，这对适应CPU缓存是有好处的，这种实现的主要优点是，我们现在可以利用[内存并行性](/hpc/cpu-cache/mlp)并并行获取所需的节点，从而显著提高查询的运行时间。
 - en: 'To improve the performance further, we can:'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了进一步提高性能，我们可以：
 - en: manually optimize the index arithmetic (e.g., noticing that we need to multiply
     `v` by `2` either way),
+  id: totrans-77
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 手动优化索引算术（例如，注意到我们无论如何都需要将 `v` 乘以 `2`），
 - en: replace division by two with an explicit binary shift (because [compilers aren’t
     always able to do it themselves](/hpc/compilation/contracts/#arithmetic)),
+  id: totrans-78
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将除以二替换为显式的二进制移位（因为[编译器并不总是能够自己完成这个操作](/hpc/compilation/contracts/#arithmetic))，
 - en: and, most importantly, get rid of [recursion](/hpc/architecture/functions) and
     make the implementation fully iterative.
+  id: totrans-79
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 并且，最重要的是，消除[递归](/hpc/architecture/functions)并使实现完全迭代。
 - en: 'As `add` is tail-recursive and has no return value, it is easy turn it into
     a single `while` loop:'
+  id: totrans-80
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于 `add` 是尾递归且没有返回值，因此很容易将其转换为单个 `while` 循环：
 - en: '[PRE9]'
+  id: totrans-81
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Doing the same for the `sum` query is slightly harder as it has two recursive
     calls. The key trick is to notice that when we make these calls, one of them is
     guaranteed to terminate immediately as `k` can only be in one of the halves, so
     we can simply check this condition before descending the tree:'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于 `sum` 查询进行相同的操作稍微困难一些，因为它有两个递归调用。关键技巧是注意到当我们进行这些调用时，其中一个是保证立即终止的，因为 `k` 只能位于一半中，因此我们可以在向下遍历树之前简单地检查这个条件：
 - en: '[PRE10]'
+  id: totrans-83
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: 'This doesn’t improve the performance for the update query by a lot (because
     it was tail-recursive, and the compiler already performed a similar optimization),
     but the running time on the prefix sum query has roughly halved for all problem
     sizes:'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 这并没有在很大程度上提高更新查询的性能（因为它已经是尾递归的，编译器已经执行了类似的优化），但对于所有问题大小的前缀和查询，运行时间大约减半：
 - en: '![](../Images/0865d2131b5a71bc7c63a2431fa41702.png)'
+  id: totrans-85
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/0865d2131b5a71bc7c63a2431fa41702.png)'
 - en: 'This implementation still has some problems: we are using up to twice as much
     memory as necessary, we have costly [branching](/hpc/pipelining/branching), and
     we have to maintain and re-compute array bounds on each iteration. To get rid
     of these problems, we need to change our approach a little bit.'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种实现仍然存在一些问题：我们使用的内存是必要的两倍，我们付出了昂贵的[分支](/hpc/pipelining/branching)成本，并且我们必须在每次迭代中维护和重新计算数组界限。为了消除这些问题，我们需要稍微改变我们的方法。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#bottom-up-implementation)Bottom-Up
     Implementation'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#bottom-up-implementation)自底向上实现'
 - en: Let’s change the definition of the implicit segment tree layout. Instead of
     relying on the parent-to-child relationship, we first forcefully assign all the
     leaf nodes numbers in the $[n, 2n)$ range, and then recursively define the parent
     of node $k$ to be equal to node $\lfloor \frac{k}{2} \rfloor$.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们改变隐式段树布局的定义。我们不再依赖于父子关系，而是首先强制将所有叶子节点分配在 $[n, 2n)$ 范围内，然后递归地定义节点 $k$ 的父节点等于节点
+    $\lfloor \frac{k}{2} \rfloor$。
 - en: 'This structure is largely the same as before: you can still reach the root
     (node $1$) by dividing any node number by two, and each node still has at most
     two children: $2k$ and $(2k + 1)$, as anything else yields a different parent
     number when floor-divided by two. The advantage we get is that we’ve forced the
     last layer to be contiguous and start from $n$, so we can use the array of half
     the size:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种结构在很大程度上与之前相同：你仍然可以通过将任何节点号除以2来到达根（节点 $1$），每个节点仍然最多有两个子节点：$2k$ 和 $(2k + 1)$，因为其他任何东西在除以2时都会得到不同的父节点号。我们得到的好处是，我们已经强制最后一层是连续的，并从
+    $n$ 开始，因此我们可以使用大小减半的数组：
 - en: '[PRE11]'
+  id: totrans-90
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'When $n$ is a power of two, the structure of the tree is exactly the same as
     before and when implementing the queries, we can take advantage of this bottom-up
     approach and start from the $k$-th leaf node (simply indexed $N + k$) and ascend
     the tree until we reach the root:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 当 $n$ 是2的幂时，树的结构与之前完全相同，在实现查询时，我们可以利用这种自底向上的方法，从第 $k$ 个叶子节点（简单地索引为 $N + k$）开始，直到达到根节点：
 - en: '[PRE12]'
+  id: totrans-92
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'To calculate the sum on the $[l, r)$ subsegment, we can maintain pointers to
     the first and the last element that needs to be added, increase/decrease them
     respectively when we add a node and stop after they converge to the same node
     (which would be their least common ancestor):'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 要计算 $[l, r)$ 子段上的和，我们可以维护需要添加的第一个和最后一个元素的指针，在添加节点时分别增加/减少它们，并在它们收敛到相同的节点（这将是最小公共祖先）后停止：
 - en: '[PRE13]'
+  id: totrans-94
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'Surprisingly, both queries work correctly even when $n$ is not a power of two.
     To understand why, consider a 13-element segment tree:'
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 惊讶的是，即使 $n$ 不是2的幂，这两个查询也能正确工作。为了理解原因，考虑一个13个元素的段树：
 - en: '![](../Images/ed594688e4ea1ccfd8380097b645a8c3.png)'
+  id: totrans-96
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/ed594688e4ea1ccfd8380097b645a8c3.png)'
 - en: 'The first index of the last layer is always a power of two, but when the array
     size is not a perfect power of two, some prefix of the leaf elements gets wrapped
     around to the right side of the tree. Magically, this fact does not pose a problem
     for our implementation:'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后一层的第一个索引始终是2的幂，但当数组大小不是2的完美幂时，一些前缀的叶子元素会被环绕到树的右侧。神奇的是，这个事实对我们的实现没有问题：
 - en: The `add` query still updates its parent nodes, even though some of them correspond
     to some prefix and some suffix of the array instead of a contiguous subsegment.
+  id: totrans-98
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 即使一些节点对应于数组的某些前缀和后缀而不是连续子段，`add` 查询仍然会更新其父节点。
 - en: The `sum` query still computes the sum on the correct subsegment, even when
     `l` is on that wrapped prefix and logically “to the right” of `r` because eventually
     `l` becomes the last node on a layer and gets incremented, suddenly jumping to
     the first element of the next layer and proceeding normally after adding just
     the right nodes on the wrapped-around part of the tree (look at the dimmed nodes
     in the illustration).
+  id: totrans-99
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 即使 `l` 在那个环绕前缀上并且逻辑上“在 r 的右边”，`sum` 查询仍然会在正确的子段上计算和，因为最终 `l` 会成为某一层的最后一个节点并增加，突然跳到下一层的第一个元素，并在添加树环绕部分的正确节点后继续正常进行（看图中的暗色节点）。
 - en: 'Compared to the top-down approach, we use half the memory and don’t have to
     maintain query ranges, which results in simpler and consequently faster code:'
+  id: totrans-100
   prefs: []
   type: TYPE_NORMAL
+  zh: 与自顶向下的方法相比，我们使用一半的内存，并且不需要维护查询范围，这导致代码更简单，从而更快：
 - en: '![](../Images/525003eb1fa4d43759f695eda5c31e2c.png)'
+  id: totrans-101
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/525003eb1fa4d43759f695eda5c31e2c.png)'
 - en: 'When running the benchmarks, we use the `sum(l, r)` procedure for computing
     a general subsegment sum and just fix `l` equal to `0`. To achieve higher performance
     on the prefix sum query, we want to avoid maintaining `l` and only move the right
     border like this:'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: 在运行基准测试时，我们使用 `sum(l, r)` 过程来计算一般子段和，并且将 `l` 固定为 `0`。为了在前缀和查询上获得更高的性能，我们想要避免维护
+    `l`，而只移动右边界，如下所示：
 - en: '[PRE14]'
+  id: totrans-103
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: In contrast, this prefix sum implementation doesn’t work unless $n$ is not a
     power of two — because `k` could be on that wrapped-around part, and we’d sum
     almost the entire array instead of a small prefix.
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
+  zh: 与之相反，这个前缀和实现只有在 $n$ 不是2的幂时才有效——因为 `k` 可能位于那个环绕部分，我们几乎会计算整个数组而不是一个小前缀。
 - en: To make it work for arbitrary array sizes, we can permute the leaves so that
     they are in the left-to-right logical order in the last two layers of the tree.
     In the example above, this would mean adding $3$ to all leaf indexes and then
     moving the last three leaves one level higher by subtracting $13$.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了使其适用于任意数组大小，我们可以对叶子进行排列，使它们在树的最后两层中按从左到右的逻辑顺序排列。在上述示例中，这意味着将 $3$ 加到所有叶子索引上，然后通过减去
+    $13$ 将最后三个叶子提升一个级别。
 - en: 'In the general case, this can be done using predication in a few cycles like
     this:'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
+  zh: 在一般情况下，这可以通过几个周期内的预测来完成：
 - en: '[PRE15]'
+  id: totrans-107
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'When implementing the queries, all we need to do is to call the `leaf` function
     to get the correct leaf index:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 当实现查询时，我们只需要调用 `leaf` 函数来获取正确的叶子索引：
 - en: '[PRE16]'
+  id: totrans-109
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'The last touch: by replacing the `s += t[k--]` line with [predication](/hpc/pipelining/branchless),
     we can make the implementation branchless (except for the last branch — we still
     need to check the loop condition):'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后一点：通过将 `s += t[k--]` 行替换为 [预测](/hpc/pipelining/branchless)，我们可以使实现无分支（除了最后一个分支——我们仍然需要检查循环条件）：
 - en: '[PRE17]'
+  id: totrans-111
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: 'When combined, these optimizations make the prefix sum queries run much faster:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 当结合这些优化时，前缀和查询的运行速度会大大提高：
 - en: '![](../Images/8f254ba068c1ccc1999a3a0111843d86.png)'
+  id: totrans-113
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/8f254ba068c1ccc1999a3a0111843d86.png)'
 - en: Notice that the bump in the latency for the prefix sum query starts at $2^{19}$
     and not at $2^{20}$, the L3 cache boundary. This is because we are still storing
     $2n$ integers and also fetching the `t[k]` element regardless of whether we will
     add it to `s` or not. We can actually solve both of these problems.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意到前缀和查询延迟的增加是从 $2^{19}$ 开始的，而不是从 $2^{20}$ 开始的，即 L3 缓存边界。这是因为我们仍然存储 $2n$ 个整数，并且无论是否会将其添加到
+    `s` 中，都会获取 `t[k]` 元素。实际上我们可以解决这两个问题。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#fenwick-trees)Fenwick
     trees'
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#fenwick-trees)斐波那契树'
 - en: 'Implicit structures are great: they avoid pointer chasing, allow visiting all
     the relevant nodes in parallel, and take less space as they don’t store metadata
     in nodes. Even better than implicit structures are *succinct* structures: they
     only require the information-theoretical minimum space to store the structure,
     using only $O(1)$ additional memory.'
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 隐式结构很棒：它们避免了指针追踪，允许并行访问所有相关节点，并且由于不存储节点中的元数据，因此占用的空间更少。比隐式结构更好的是 *简洁结构*：它们只需要信息论最小空间来存储结构，仅使用
+    $O(1)$ 的额外内存。
 - en: 'To make a segment tree succinct, we need to look at the values stored in the
     nodes and search for redundancies — the values that can be inferred from others
     — and remove them. One way to do this is to notice that in every implementation
     of prefix sum, we’ve never used the sums stored in right children — therefore,
     for computing prefix sums, such nodes are redundant:'
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了使段树简洁，我们需要查看节点中存储的值，寻找冗余——可以从其他值推断出的值——并移除它们。一种方法是注意到，在每次前缀和的实现中，我们从未使用过右子节点中存储的和——因此，对于计算前缀和，这样的节点是冗余的：
 - en: '![](../Images/a7c4caeb160c4d3b89bfe711a75d326e.png)'
+  id: totrans-118
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/a7c4caeb160c4d3b89bfe711a75d326e.png)'
 - en: '*The Fenwick tree* (also called *binary indexed tree* — soon you’ll understand
     why) is a type of segment tree that uses this consideration and gets rid of all
     *right* children, essentially removing every second node in each layer and making
     the total node count the same as the underlying array.'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: '*斐波那契树*（也称为 *二叉索引树* —— 很快你就会明白为什么）是一种使用这种考虑的段树，它去掉了所有的 *右子节点*，本质上移除了每一层的每个节点中的第二个节点，使得总节点数与底层数组相同。'
 - en: '[PRE18]'
+  id: totrans-120
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'To store these segment sums compactly, the Fenwick tree ditches the Eytzinger
     layout: instead, in place of every element $k$ that would be a leaf in the last
     layer of a segment tree, it stores the sum of its first non-removed ancestor.
     For example:'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了紧凑地存储这些段和，斐波那契树放弃了 Eytzinger 布局：相反，对于每个在段树最后一层中将是叶子的元素 $k$，它存储其第一个未被移除的祖先的和。例如：
 - en: the element $7$ would hold the sum on the $[0, 7]$ range ($282$),
+  id: totrans-122
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 元素 $7$ 会持有 $[0, 7]$ 范围的求和（$282$），
 - en: the element $9$ would hold the sum on the $[8, 9]$ range ($-86$),
+  id: totrans-123
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 元素 $9$ 会持有 $[8, 9]$ 范围的求和（$-86$），
 - en: the element $10$ would hold the sum on the $[10, 10]$ range ($-52$, the element
     itself).
+  id: totrans-124
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 元素 $10$ 会持有 $[10, 10]$ 范围的求和（$-52$，即元素本身）。
 - en: 'How to compute this range for a given element $k$ (the left boundary, to be
     more specific: the right boundary is always the element $k$ itself) quicker than
     simulating the descend down the tree? Turns out, there is a smart bit trick that
     works when the tree size is a power of two and we use one-based indexing — just
     remove the least significant bit of the index:'
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 如何比模拟树下降更快地计算给定元素$k$（更具体地说：右边界总是元素$k$本身）的这个范围？结果是，当树的大小是2的幂时，并且我们使用基于1的索引时，有一个聪明的位技巧可以工作——只需移除索引的最低位：
 - en: the left bound for element $7 + 1 = 8 = 1000_2$ is $0000_2 = 0$,
+  id: totrans-126
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 元素`7 + 1 = 8 = 1000_2`的左边界是`0000_2 = 0`，
 - en: the left bound for element $9 + 1 = 10 = 1010_2$ is $1000_2 = 8$,
+  id: totrans-127
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 元素`9 + 1 = 10 = 1010_2`的左边界是`1000_2 = 8`，
 - en: the left bound for element $10 + 1 = 11 = 1011_2$ is $1010_2 = 10$.
+  id: totrans-128
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 元素`10 + 1 = 11 = 1011_2`的左边界是`1010_2 = 10`。
 - en: 'And to get the last set bit of an integer, we can use this procedure:'
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: 要获取一个整数的最后一个设置的位，我们可以使用这个程序：
 - en: '[PRE19]'
+  id: totrans-130
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'This trick works by the virtue of how signed numbers are stored in binary using
     [two’s complement](/hpc/arithmetic/integer). When we compute `-x`, we implicitly
     subtract it from a large power of two: some prefix of the number flips, some suffix
     of zeros at the end remains, and the only one-bit that stays unchanged is the
     last set bit — which will be the only one surviving `x & -x`. For example:'
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个技巧是通过二进制中如何使用[二进制补码](/hpc/arithmetic/integer)来存储有符号数来实现的。当我们计算`-x`时，我们隐式地从2的某个大幂次中减去它：数字的一些前缀翻转，一些末尾的零保持不变，唯一一个保持不变的位是最后一个设置的位——这将是唯一一个幸存的`x
+    & -x`。例如：
 - en: '[PRE20]'
+  id: totrans-132
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: We’ve established what a Fenwick tree is just an array of size `n` where each
     element `k` is defined to be the sum of elements from `k - lowbit(k) + 1` and
     `k` inclusive in the original array, and now it’s time to implement some queries.
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经建立了斐波那契树是一个大小为`n`的数组，其中每个元素`k`被定义为从原始数组中`k - lowbit(k) + 1`到`k`（包括`k`）的元素之和，现在是我们实现一些查询的时候了。
 - en: 'Implementing the prefix sum query is easy. The `t[k]` holds the sum we need
     except for the first `k - lowbit(k)` elements, so we can just add it to the result
     and then jump to `k - lowbit(k)` and continue doing this until we reach the beginning
     of the array:'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 实现前缀和查询很简单。`t[k]`保存了我们需要的和，除了第一个`k - lowbit(k)`个元素，所以我们只需将其添加到结果中，然后跳转到`k -
+    lowbit(k)`并继续这样做，直到我们达到数组的开始：
 - en: '[PRE21]'
+  id: totrans-135
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE21]'
 - en: 'Since we are repeatedly removing the lowest set bit from `k`, and also since
     this procedure is equivalent to visiting the same left-child nodes in a segment
     tree, each `sum` query can touch at most $O(\log n)$ nodes:'
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们反复从`k`中移除最低设置的位，并且由于这个程序与在段树中访问相同的左子节点等效，每个`sum`查询最多可以触及$O(\log n)$个节点：
 - en: '![](../Images/9c0e5b1afea66d823bf75d689cde159a.png)'
+  id: totrans-137
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/9c0e5b1afea66d823bf75d689cde159a.png)'
 - en: A path for a prefix sum query in a Fenwick tree
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 斐波那契树中前缀和查询的路径
 - en: 'To slightly improve the performance of the `sum` query, we use `k &= k - 1`
     to remove the lowest bit in one go, which is one instruction faster than `k -=
     k & -k`:'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了稍微提高`sum`查询的性能，我们使用`k &= k - 1`一次性移除最低位，这比`k -= k & -k`快一个指令：
 - en: '[PRE22]'
+  id: totrans-140
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE22]'
 - en: 'Unlike all previous segment tree implementations, a Fenwick tree is a structure
     where it is easier and more efficient to calculate the sum on a subsegment as
     the difference of two prefix sums:'
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 与所有之前的线段树实现不同，斐波那契树是一个结构，在其中计算子区间的和作为两个前缀和的差更容易、更高效：
 - en: '[PRE23]'
+  id: totrans-142
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE23]'
 - en: The update query is easier to code but less intuitive. We need to add a value
     `x` to all nodes that are left-child ancestors of leaf `k`. Such nodes have indices
     `m` larger than `k` but `m - lowbit(m) < k` so that `k` is included in their ranges.
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: 更新查询的编码更容易，但不太直观。我们需要将值`x`添加到所有是叶子`k`的左子节点祖先的节点。这些节点的索引`m`大于`k`，但`m - lowbit(m)
+    < k`，这样`k`就包含在它们的范围内。
 - en: 'All such indices need to have a common prefix with `k`, then a `1` where it
     was `0` in `k`, and then a suffix of zeros so that that `1` canceled and the result
     of `m - lowbit(m)` is less than `k`. All such indices can be generated iteratively
     like this:'
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这样的索引都需要与`k`有一个共同的前缀，然后是`k`中为`0`的位置的`1`，然后是一个零的尾缀，这样`1`就可以抵消，并且`m - lowbit(m)`的结果小于`k`。所有这样的索引都可以像这样迭代生成：
 - en: '[PRE24]'
+  id: totrans-145
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE24]'
 - en: 'Repeatedly adding the lowest set bit to `k` makes it “more even” and lifts
     it to its next left-child segment tree ancestor:'
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 重复向`k`添加最低设置的位使其“更均匀”，并将其提升到其下一个左子节点段树祖先：
 - en: '![](../Images/8a44578f53be26dfdafa1680c92b6331.png)'
+  id: totrans-147
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/8a44578f53be26dfdafa1680c92b6331.png)'
 - en: A path for an update query in a Fenwick tree
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 斐波那契树中更新查询的路径
 - en: Now, if we leave all the code as it is, it works correctly even when $n$ is
     not a power of two. In this case, the Fenwick tree is not equivalent to a segment
     tree of size $n$ but to a *forest* of up to $O(\log n)$ segment trees of power-of-two
     sizes — or to a single segment tree padded with zeros to a large power of two,
     if you like to think this way. In either case, all procedures still work correctly
     as they never touch anything outside the $[1, n]$ range.
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，如果我们保持所有代码不变，即使当 $n$ 不是2的幂时，它也能正确工作。在这种情况下，Fenwick 树并不等同于大小为 $n$ 的段树，而是等同于最多
+    $O(\log n)$ 个大小为2的幂的段树的*森林*——或者如果你喜欢这样想，就是一个填充到大的2的幂的单一段树。在两种情况下，所有过程仍然可以正确工作，因为它们从未触及
+    $[1, n]$ 范围之外的任何东西。
 - en: 'The performance of the Fenwick tree is similar to the optimized bottom-up segment
     tree for the update queries and slightly faster for the prefix sum queries:'
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: Fenwick 树的性能与优化自底向上的段树在更新查询方面相似，而在前缀和查询方面略快：
 - en: '![](../Images/de2a74c1e442792de984982934946bae.png)'
+  id: totrans-151
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/de2a74c1e442792de984982934946bae.png)'
 - en: 'There is one weird thing on the graph. After we cross the L3 cache boundary,
     the performance takes off very rapidly. This is a [cache associativity](/hpc/cpu-cache/associativity)
     effect: the most frequently used cells all have their indices divisible by large
     powers of two, so they get aliased to the same cache set, kicking each other out
     and effectively reducing the cache size.'
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
+  zh: 图表上有一个奇怪的现象。当我们越过L3缓存边界后，性能会非常迅速地提升。这是[缓存关联性](/hpc/cpu-cache/associativity)效应：最频繁使用的单元的所有索引都能被大的2的幂整除，因此它们被映射到相同的缓存集，互相踢出，从而有效地减少了缓存大小。
 - en: 'One way to negate this effect is to insert “holes” in the layout like this:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 一种消除这种效果的方法是在布局中插入“空洞”，如下所示：
 - en: '[PRE25]'
+  id: totrans-154
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE25]'
 - en: 'Computing the `hole` function is not on the critical path between iterations,
     so it does not introduce any significant overhead but completely removes the cache
     associativity problem and shrinks the latency by up to 3x on large arrays:'
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 计算空缺函数不是迭代之间的关键路径，因此它不会引入任何显著的开销，但完全消除了缓存关联性问题，并将大数组的延迟减少了高达3倍：
 - en: '![](../Images/b0391e1b1e4a76f7450c4a15bcf930e4.png)'
+  id: totrans-156
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/b0391e1b1e4a76f7450c4a15bcf930e4.png)'
 - en: Fenwick trees are fast, but there are still other minor issues with them. Similar
     to [binary search](../binary-search), the temporal locality of their memory accesses
     is not the greatest, as rarely accessed elements are grouped with the most frequently
     accessed ones. Fenwick trees also execute a non-constant number of iterations
     and have to perform end-of-loop checks, very likely causing a branch misprediction
     — although just a single one.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: Fenwick 树速度快，但它们还存在一些其他小问题。类似于[二分查找](../binary-search)，它们内存访问的时间局部性并不最佳，因为很少访问的元素被分组与最频繁访问的元素一起。Fenwick
+    树还执行非固定次数的迭代，并需要进行循环结束检查，这很可能导致分支预测错误——尽管只是单个错误。
 - en: There are probably still some things to optimize, but we are going to leave
     it there and focus on an entirely different approach, and if you know [S-trees](../s-tree),
     you probably already know where this is headed.
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 可能还有一些东西可以优化，但我们打算在这里停下来，专注于一个完全不同的方法，如果你知道[S-树](../s-tree)，你可能已经知道这个方法的方向了。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#wide-segment-trees)Wide
     Segment Trees'
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#wide-segment-trees)宽段树'
 - en: 'Here is the main idea: if the memory system is fetching a full [cache line](/hpc/cpu-cache/cache-lines)
     for us anyway, let’s fill it to the maximum with information that lets us process
     the query quicker. For segment trees, this means storing more than one data point
     in a node. This lets us reduce the tree height and perform fewer iterations when
     descending or ascending it:'
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里是主要思想：如果内存系统无论如何都在为我们获取完整的[缓存行](/hpc/cpu-cache/cache-lines)，那么让我们用可以让查询处理更快的信息将其填满到最大。对于段树来说，这意味着在节点中存储超过一个数据点。这让我们可以减少树的高度，并在上下文时进行更少的迭代：
 - en: '![](../Images/147d5281732c27a88043de422e576d54.png)'
+  id: totrans-161
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/147d5281732c27a88043de422e576d54.png)'
 - en: We will use the term *wide (B-ary) segment tree* to refer to this modification.
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将使用术语*宽（B-ary）段树*来指代这种修改。
 - en: 'To implement this layout, we can use a similar [constexpr](/hpc/compilation/precalc)-based
     approach we used in [S+ trees](../s-tree#implicit-b-tree-1):'
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了实现这种布局，我们可以使用与[S+树](../s-tree#implicit-b-tree-1)中使用的类似的[constexpr](/hpc/compilation/precalc)-基于的方法：
 - en: '[PRE26]'
+  id: totrans-164
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE26]'
 - en: 'This way, we effectively reduce the height of the tree by approximately $\frac{\log_B
     n}{\log_2 n} = \log_2 B$ times ($\sim4$ times if $B = 16$), but it becomes non-trivial
     to implement in-node operations efficiently. For our problem, we have two main
     options:'
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样，我们实际上将树的高度减少了大约$\frac{\log_B n}{\log_2 n} = \log_2 B$倍（如果$B = 16$，则约为4倍），但将节点内操作有效地实现变得非同小可。对于我们的问题，我们有两种主要选项：
 - en: We could store $B$ *sums* in each node (for each of its $B$ children).
+  id: totrans-166
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们可以在每个节点中存储$B$个*和*（对于它的每个$B$个子节点）。
 - en: We could store $B$ *prefix sums* in each node (the $i$-th being the sum of the
     first $(i + 1)$ children).
+  id: totrans-167
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们可以在每个节点中存储$B$个*前缀和*（第$i$个是前$(i + 1)$个子节点的和）。
 - en: If we go with the first option, the `add` query would be largely the same as
     in the bottom-up segment tree, but the `sum` query would need to add up to $B$
     scalars in each node it visits. And if we go with the second option, the `sum`
     query would be trivial, but the `add` query would need to add `x` to some suffix
     on each node it visits.
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们选择第一种选项，`add`查询将与自底向上的段树中的查询大致相同，但`sum`查询需要将每个访问的节点中的$B$个标量相加。如果我们选择第二种选项，`sum`查询将是微不足道的，但`add`查询需要将`x`添加到每个访问的节点上的某个后缀。
 - en: In either case, one operation would perform $O(\log_B n)$ operations, touching
     just one scalar in each node, while the other would perform $O(B \cdot \log_B
     n)$ operations, touching up to $B$ scalars in each node. We can, however, use
@@ -763,99 +1122,145 @@
     [horizontal reductions](/hpc/simd/reduction) in SIMD instruction sets, but it
     is easy to add a vector to a vector, we will choose the second approach and store
     prefix sums in each node.
+  id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 在任何一种情况下，一个操作都会执行$O(\log_B n)$操作，仅在每个节点中触及一个标量，而另一个操作则会执行$O(B \cdot \log_B n)$操作，触及每个节点中最多$B$个标量。然而，我们可以使用[SIMD](/hpc/simd)来加速较慢的操作，由于SIMD指令集没有快速的[水平归约](/hpc/simd/reduction)，但向向量添加向量很容易，我们将选择第二种方法，并在每个节点中存储前缀和。
 - en: 'This makes the `sum` query extremely fast and easy to implement:'
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
+  zh: 这使得`sum`查询非常快且易于实现：
 - en: '[PRE27]'
+  id: totrans-171
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE27]'
 - en: The `add` query is more complicated and slower. We need to add a number only
     to a suffix of a node, and we can do this by [masking out](/hpc/simd/masking)
     the positions that should not be modified.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: '`add`查询更复杂且较慢。我们需要只将一个数字添加到节点的后缀中，我们可以通过[掩码](/hpc/simd/masking)不应修改的位置来实现这一点。'
 - en: 'We can pre-calculate a $B \times B$ array corresponding to $B$ such masks that
     tell, for each of $B$ positions within a node, whether a certain prefix sum value
     needs to be updated or not:'
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以预先计算一个$B \times B$的数组，对应于$B$个这样的掩码，这些掩码告诉，对于节点内$B$个位置中的每一个，是否需要更新某个前缀和值：
 - en: '[PRE28]'
+  id: totrans-174
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE28]'
 - en: 'Apart from this masking trick, the rest of the computation is simple enough
     to be handled with [GCC vector types](/hpc/simd/intrinsics#gcc-vector-extensions)
     only. When processing the `add` query, we just use these masks to bitwise-and
     them with the broadcasted `x` value to mask it and then add it to the values stored
     in the node:'
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了这个掩码技巧之外，其余的计算足够简单，可以用[GCC向量类型](/hpc/simd/intrinsics#gcc-vector-extensions)处理。当处理`add`查询时，我们只需使用这些掩码将它们与广播的`x`值进行位与操作以掩码它，然后将其添加到节点中存储的值：
 - en: '[PRE29]'
+  id: totrans-176
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE29]'
 - en: 'This speeds up the `sum` query by more than 10x and the `add` query by up to
     4x compared to the Fenwick tree:'
+  id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样，`sum`查询比Fenwick树快10多倍，`add`查询快最多4倍：
 - en: '![](../Images/66a7df73f917461805e6361de68a1bbb.png)'
+  id: totrans-178
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/66a7df73f917461805e6361de68a1bbb.png)'
 - en: 'Unlike [S-trees](../s-tree), the block size can be easily changed in this implementation
     (by literally changing one character). Expectedly, when we increase it, the update
     time also increases as we need to fetch more cache lines and process them, but
     the `sum` query time decreases as the height of the tree becomes smaller:'
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 与[S-树](../s-tree)不同，在这个实现中，块大小可以很容易地更改（通过实际上更改一个字符）。预期地，当我们增加它时，更新时间也会增加，因为我们需要获取更多的缓存行并处理它们，但`sum`查询时间会减少，因为树的高度变得更小：
 - en: '![](../Images/30cbc792d16b9add1bf891aa724edf37.png)'
+  id: totrans-180
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/30cbc792d16b9add1bf891aa724edf37.png)'
 - en: Similar to the [S+ trees](../s-tree/#modifications-and-further-optimizations),
     the optimal memory layout probably has non-uniform block sizes, depending on the
     problem size and the distribution of queries, but we are not going to explore
     this idea and just leave the optimization here.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 与[S+树](../s-tree/#modifications-and-further-optimizations)类似，最优内存布局可能具有非均匀的块大小，这取决于问题大小和查询的分布，但我们不会探索这个想法，只是在这里留下优化。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#comparisons)Comparisons'
+  id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#comparisons)比较'
 - en: 'Wide segment trees are significantly faster compared to other popular segment
     tree implementations:'
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
+  zh: 与其他流行的段树实现相比，宽段树的速度显著更快：
 - en: '![](../Images/ab070d8e86f7f05dc584d0fa0467e330.png)'
+  id: totrans-184
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/ab070d8e86f7f05dc584d0fa0467e330.png)'
 - en: 'The relative speedup is in the orders of magnitude:'
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
+  zh: 相对速度提升的量级为：
 - en: '![](../Images/d03af849f3e61159a4ee68afa2218897.png)'
+  id: totrans-186
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/d03af849f3e61159a4ee68afa2218897.png)'
 - en: Compared to the original pointer-based implementation, the wide segment tree
     is up to 200 and 40 times faster for the prefix sum and update queries, respectively
     — although, for sufficiently large arrays, both implementations become purely
     memory-bound, and this speedup goes down to around 60 and 15 respectively.
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
+  zh: 与基于指针的原实现相比，宽段树在求前缀和和更新查询方面分别快了200倍和40倍——尽管，对于足够大的数组，两种实现都变成了纯粹受内存限制的，这种加速效果降低到大约60倍和15倍。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#modifications)Modifications'
+  id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#modifications)修改'
 - en: We have only focused on the prefix sum problem for 32-bit integers — to make
     this already long article slightly less long and also to make the comparison with
     the Fenwick tree fair — but wide segment trees can be used for other common range
     operations, although implementing them efficiently with SIMD requires some creativity.
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们只关注了32位整数的前缀和问题——为了使这篇文章稍微短一些，并且为了使与斐波那契树（Fenwick tree）的比较公平——但宽段树也可以用于其他常见的范围操作，尽管使用SIMD高效实现它们需要一些创造力。
 - en: '*Disclaimer:* I haven’t implemented any of these ideas, so some of them may
     be fatally flawed.'
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
+  zh: '*免责声明:* 我还没有实现这些想法中的任何一个，因此其中一些可能存在致命的缺陷。'
 - en: '**Other data types** can be trivially supported by changing the vector type
     and, if they differ in size, the node size $B$ — which also changes the tree height
     and hence the total number of iterations for both queries.'
+  id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: '**其他数据类型**可以通过更改向量类型以及，如果它们的大小不同，节点大小 $B$ 来轻松支持——这也改变了树的高度，从而影响了查询的总迭代次数。'
 - en: It may also be that the queries have different limits on the updates and the
     prefix sum queries. For example, it is not uncommon to have only “$\pm 1$” update
     queries with a guarantee that the result of the prefix sum query always fits into
@@ -863,77 +1268,108 @@
     `char` with block size of $B=64$ bytes, making the total tree height $\frac{\log_{16}
     n}{\log_{64} n} = \log_{16} 64 = 1.5$ times smaller and both queries proportionally
     faster.
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 也可能查询对更新和前缀和查询有不同的限制。例如，只有“$\pm 1$”更新查询且保证前缀和查询的结果始终适合32位整数的情况并不少见。如果结果可以适合8位，我们只需使用8位的`char`，块大小为
+    $B=64$ 字节，从而使总树高减少到 $\frac{\log_{16} n}{\log_{64} n} = \log_{16} 64 = 1.5$ 倍，并且两个查询都相应地更快。
 - en: 'Unfortunately, that doesn’t work in the general case, but we still have a way
     to speed up queries when the update deltas are small: we can *buffer* the updates
     queries. Using the same “$\pm 1$” example, we can make the branching factor $B=64$
     as we wanted, and in each node, we store $B$ 32-bit integers, $B$ 8-bit signed
     chars, and a single 8-bit counter variable that starts at $127$ and decrements
     each time we update a node. Then, when we process the queries in nodes:'
+  id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，这在一般情况下不起作用，但我们仍然有一种方法可以在更新增量较小时加速查询：我们可以*缓冲*更新查询。使用相同的“$\pm 1$”示例，我们可以将分支因子
+    $B=64$ 设置为我们想要的值，并在每个节点中存储 $B$ 个32位整数，$B$ 个8位有符号字符，以及一个从 $127$ 开始并每次更新节点时递减的单个8位计数器变量。然后，当我们处理节点中的查询时：
 - en: For the update query, we add a vector of masked 8-bit plus-or-minus ones to
     the `char` array, decrement the counter, and, if it is zero, [convert](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,3009,4870,6715,4845,3853,288,6570,90,7307,5993,2692,6946,6949,5456,6938,5456,1021,3007,514,518,7253,7183,3892,5135,5260,3915,4027,3873,7401,4376,4229,151,2324,2310,2324,591,4075,3011,3009,6130,4875,6385,5259,6385,6250,1395,7253,6452,7492,4669,4669,7253,1039,1029,4669,4707,7253,7242,848,879,848,7251,4275,879,874,849,833,6046,7250,4870,4872,4875,849,849,5144,4875,4787,4787,4787,3016,3018,5227,7359,7335,7392,4787,5259,5230,5230,5223,5214,6438,5229,488,483,6527,6527,6554,1829,1829,1829&techs=AVX,AVX2&text=cvtepi8_)
     the values in the `char` array to 32-bit integers, add them to the integer array,
     set the `char` array to zero, and reset the counter back to 127.
+  id: totrans-194
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 对于更新查询，我们在`char`数组中添加一个掩码8位加减一向量，减少计数器，如果它是零，[转换](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,3009,4870,6715,4845,3853,288,6570,90,7307,5993,2692,6946,6949,5456,6938,5456,1021,3007,514,518,7253,7183,3892,5135,5260,3915,4027,3873,7401,4376,4229,151,2324,2310,2324,591,4075,3011,3009,6130,4875,6385,5259,6385,6250,1395,7253,6452,7492,4669,4669,7253,1039,1029,4669,4707,7253,7242,848,879,848,7251,4275,879,874,849,833,6046,7250,4870,4872,4875,849,849,5144,4875,4787,4787,4787,3016,3018,5227,7359,7335,7392,4787,5259,5230,5230,5223,5214,6438,5229,488,483,6527,6527,6554,1829,1829,1829&techs=AVX,AVX2&text=cvtepi8_)
+    `char`数组中的值到32位整数，将它们添加到整数数组中，将`char`数组设置为零，并将计数器重置回127。
 - en: For the prefix sum query, we visit the same nodes but add *both* `int` and `char`
     values to the result.
+  id: totrans-195
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 对于前缀和查询，我们访问相同的节点，但将`int`和`char`值都添加到结果中。
 - en: This update accumulation trick lets us increase the performance by up to 1.5x
     at the cost of using ~25% more memory.
+  id: totrans-196
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个更新累积技巧让我们在多使用约25%内存的情况下，将性能提高最多1.5倍。
 - en: Having a conditional branch in the `add` query and adding the `char` array to
     the `int` array is rather slow, but since we only have to do it every 127 iterations,
     it doesn’t cost us anything in the amortized sense. The processing time for the
     `sum` query increases, but not significantly — because it mostly depends on the
     slowest read rather than the number of iterations.
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
+  zh: 在`add`查询中有一个条件分支并将`char`数组添加到`int`数组中相当慢，但因为我们只需要每127次迭代做一次，所以在平均摊销意义上并不花费我们任何东西。`sum`查询的处理时间会增加，但并不显著——因为它主要取决于最慢的读取操作，而不是迭代次数。
 - en: '**General range queries** can be supported the same way as in the Fenwick tree:
     just decompose the range $[l, r)$ as the difference of two prefix sums $[0, r)$
     and $[0, l)$.'
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: '**通用范围查询**可以像在Fenwick树中一样支持：只需将范围[l, r)分解为两个前缀和[0, r)和[0, l)的差。'
 - en: This also works for some operations other than addition (multiplication modulo
     prime, xor, etc.), although they have to be *reversible:* there should be a way
     to quickly “cancel” the operation on the left prefix from the final result.
+  id: totrans-199
   prefs: []
   type: TYPE_NORMAL
+  zh: 这也适用于一些除了加法以外的操作（模素数乘法、异或等），尽管它们必须是**可逆的**：应该有一种快速“取消”左前缀操作的方法，从最终结果中“取消”操作。
 - en: '**Non-reversible operations** can also be supported, although they should still
     satisfy some other properties:'
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: '**不可逆操作**也可以支持，尽管它们仍然需要满足一些其他属性：'
 - en: They must be *associative:* $(a \circ b) \circ c = a \circ (b \circ c)$.
+  id: totrans-201
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 它们必须是**结合律的**：$(a \circ b) \circ c = a \circ (b \circ c)$。
 - en: They must have an *identity element:* $a \circ e = e \circ a = a$.
+  id: totrans-202
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 它们必须有一个**单位元**：$a \circ e = e \circ a = a$。
 - en: (Such algebraic structures are called [monoids](https://en.wikipedia.org/wiki/Monoid)
     if you’re a snob.)
+  id: totrans-203
   prefs: []
   type: TYPE_NORMAL
+  zh: （如果你是挑剔的人，这些代数结构被称为[幺半群](https://en.wikipedia.org/wiki/Monoid)）
 - en: 'Unfortunately, the prefix sum trick doesn’t work when the operation is not
     reversible, so we have to switch to [option one](#wide-segment-trees) and store
     the results of these operations separately for each segment. This requires some
     significant changes to the queries:'
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，当操作不可逆时，前缀和技巧不起作用，因此我们必须切换到[选项一](#wide-segment-trees)并分别存储每个区间的操作结果。这需要对查询进行一些重大更改：
 - en: The update query should replace one scalar at the leaf, perform a [horizontal
     reduction](/hpc/simd/reduction/#horizontal-summation) at the leaf node, and then
     continue upwards, replacing one scalar of its parent and so on.
+  id: totrans-205
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 更新查询应在叶节点替换一个标量，在叶节点执行一个[水平归约](/hpc/simd/reduction/#horizontal-summation)，然后继续向上，替换其父节点的一个标量，依此类推。
 - en: The range reduction query should, separately for left and right borders, calculate
     a vector with vertically reduced values on their paths, combine these two vectors
     into one, and then reduce it horizontally to return the final answer. Note that
@@ -941,63 +1377,91 @@
     and this time, it probably requires some conditional moves/blending and either
     $B \times B$ precomputed masks or using two masks to account for both left and
     right borders of the query.
+  id: totrans-206
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 范围减少查询应该分别对左右边界进行计算，在每个路径上具有垂直减少值的向量，将这两个向量合并成一个，然后水平减少以返回最终答案。请注意，我们仍然需要使用掩码来用中性元素替换查询之外的价值，这次，可能需要一些条件移动/混合，以及
+    $B \times B$ 预计算的掩码或使用两个掩码来考虑查询的左右边界。
 - en: This makes both queries much slower — especially the reduction — but this should
     still be faster compared to the bottom-up segment tree.
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
+  zh: 这使得查询速度大大降低——尤其是减少操作——但与自底向上的段树相比，这仍然应该更快。
 - en: '**Minimum** is a nice exception where the update query can be made slightly
     faster if the new value of the element is less than the current one: we can skip
     the horizontal reduction part and just update $\log_B n$ nodes using a scalar
     procedure.'
+  id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: '**最小值**是一个很好的例外，如果元素的新的值小于当前值，更新查询可以稍微快一些：我们可以跳过水平减少部分，只需使用标量过程更新 $\log_B n$
+    个节点。'
 - en: This works very fast when we mostly have such updates, which is the case, e.g.,
     for the sparse-graph Dijkstra algorithm when we have more edges than vertices.
     For this problem, the wide segment tree can serve as an efficient fixed-universe
     min-heap.
+  id: totrans-209
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们大多数时候都有这样的更新时，这种方法运行得非常快，例如，对于稀疏图迪杰斯特拉算法，当我们有比顶点更多的边时。对于这个问题，宽段树可以作为高效的固定宇宙最小堆。
 - en: '**Lazy propagation** can be done by storing a separate array for the delayed
     operations in a node. To propagate the updates, we need to go top to bottom (which
     can be done by simply reversing the direction of the `for` loop and using `k >>
     (h * b)` to calculate the `h`-th ancestor), [broadcast](/hpc/simd/moving/#broadcast)
     and reset the delayed operation value stored in the parent of the current node,
     and apply it to all values stored in the current node with SIMD.'
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
+  zh: '**延迟传播**可以通过在节点中存储一个用于延迟操作的单独数组来实现。为了传播更新，我们需要从上到下进行（可以通过简单地反转 `for` 循环的方向并使用
+    `k >> (h * b)` 来计算第 `h` 代祖先来完成），[广播](/hpc/simd/moving/#broadcast)并重置当前节点父节点中存储的延迟操作值，并将其应用于当前节点中存储的所有值，使用
+    SIMD。'
 - en: 'One minor problem is that for some operations, we need to know the lengths
     of the segments: for example, when we need to support a sum and a mass assignment.
     It can be solved by either padding the elements so that each segment on a layer
     is uniform in size, pre-calculating the segment lengths and storing them in the
     node, or using predication to check for the problematic nodes (there will be at
     most one on each layer).'
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个小问题是，对于某些操作，我们需要知道段的长短：例如，当我们需要支持求和和大量赋值时。可以通过以下方式解决：通过填充元素，使得每一层的每个段大小均匀，预先计算段长度并将它们存储在节点中，或者使用预测来检查有问题的节点（每个层上最多有一个）。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/segment-trees/#acknowledgements)Acknowledgements'
+  id: totrans-212
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [致谢](https://en.algorithmica.org/hpc/data-structures/segment-trees/#acknowledgements)'
 - en: Many thanks to Giulio Ermanno Pibiri for collaborating on this case study, which
     is largely based on his 2020 paper “[Practical Trade-Offs for the Prefix-Sum Problem](https://arxiv.org/pdf/2006.14552.pdf)”
     co-authored with Rossano Venturini. I highly recommend reading the original article
     if you are interested in the details we’ve skipped through here for brevity.
+  id: totrans-213
   prefs: []
   type: TYPE_NORMAL
+  zh: 感谢 Giulio Ermanno Pibiri 在这个案例研究中合作，这个案例研究主要基于他与 Rossano Venturini 合著的 2020
+    年论文“[前缀和问题的实际权衡](https://arxiv.org/pdf/2006.14552.pdf)”。如果您对这里为了简洁而跳过的细节感兴趣，我强烈推荐阅读原始文章。
 - en: The code and some ideas regarding bottom-up segment trees were adapted from
     a 2015 blog post “[Efficient and easy segment trees](https://codeforces.com/blog/entry/18051)”
     by Oleksandr Bacherikov.
+  id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 代码和有关自底向上段树的一些想法是从 Oleksandr Bacherikov 2015 年的一篇博客文章“[高效且简单的段树](https://codeforces.com/blog/entry/18051)”中改编的。
 - en: '* * *'
+  id: totrans-215
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: Segment trees are rarely mentioned in the theoretical computer science literature
     because they are relatively novel (invented ~2000), mostly don’t do anything that
     [any other binary tree](https://en.wikipedia.org/wiki/Tree_(data_structure)) can’t
     do, and *asymptotically* aren’t faster — although, in practice, they often win
     by a lot in terms of speed. [↩︎](#fnref:1) [← Search Trees](https://en.algorithmica.org/hpc/data-structures/b-tree/)
+  id: totrans-216
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 线段树在理论计算机科学文献中很少被提及，因为它们相对较新（发明于约2000年），大多数情况下并不做任何其他二叉树（[任何其他二叉树](https://en.wikipedia.org/wiki/Tree_(data_structure)））做不到的事情，并且在**渐近性**上并不更快——尽管在实践中，它们在速度上通常能以很大的优势胜出。[↩︎](#fnref:1)
+    [← 搜索树](https://en.algorithmica.org/hpc/data-structures/b-tree/)

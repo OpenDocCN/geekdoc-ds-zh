@@ -1,56 +1,80 @@
 - en: Rounding Errors
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 舍入误差
 - en: 原文：[https://en.algorithmica.org/hpc/arithmetic/errors/](https://en.algorithmica.org/hpc/arithmetic/errors/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: '[原文链接](https://en.algorithmica.org/hpc/arithmetic/errors/)'
 - en: 'The way rounding works in hardware floats is remarkably simple: it occurs if
     and only if the result of the operation is not representable exactly, and by default
     gets rounded to the nearest representable number (in case of a tie preferring
     the number that ends with a zero).'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 硬件浮点数中舍入的方式非常简单：只有在操作结果无法精确表示时才会发生舍入，默认情况下舍入到最接近的可表示数字（在出现平局时优先选择以零结尾的数字）。
 - en: 'Consider the following code snippet:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑以下代码片段：
 - en: '[PRE0]'
+  id: totrans-4
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Instead of printing $2^{25} = 33554432$ (what the result mathematically should
     be), it outputs $16777216 = 2^{24}$. Why?
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 而不是打印 $2^{25} = 33554432$（数学上应该是这个结果），它输出 $16777216 = 2^{24}$。为什么？
 - en: When we repeatedly increment a floating-point number $x$, we eventually hit
     a point where it becomes so big that $(x + 1)$ gets rounded back to $x$. The first
     such number is $2^{24}$ (the number of mantissa bits plus one) because
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们反复增加一个浮点数 $x$ 时，最终会达到一个点，此时 $(x + 1)$ 被舍入回 $x$。第一个这样的数字是 $2^{24}$（尾数位加一），因为
 - en: $$ 2^{24} + 1 = 2^{24} \cdot 1.\underbrace{0\ldots0}_{\times 23} 1 $$
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ 2^{24} + 1 = 2^{24} \cdot 1.\underbrace{0\ldots0}_{\times 23} 1 $$
 - en: has the exact same distance from $2^{24}$ and $(2^{24} + 1)$ but gets rounded
     down to $2^{24}$ by the above-stated tie-breaker rule. At the same time, the increment
     of everything lower than that can be represented exactly, so no rounding happens
     in the first place.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 与 $2^{24}$ 和 $(2^{24} + 1)$ 的距离完全相同，但根据上述平局解决规则被舍入到 $2^{24}$。同时，低于该值的增加可以精确表示，因此最初不会发生舍入。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#rounding-errors-and-operation-order)Rounding
     Errors and Operation Order'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#rounding-errors-and-operation-order)舍入误差和操作顺序'
 - en: The result of a floating-point computation may depend on the order of operations
     despite being algebraically correct.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管在代数上是正确的，但浮点计算的最终结果可能取决于操作顺序。
 - en: 'For example, while the operations of addition and multiplication are commutative
     and associative in the pure mathematical sense, their rounding errors are not:
     when we have three floating-point variables $x$, $y$, and $z$, the result of $(x+y+z)$
     depends on the order of summation. The same non-commutativity principle applies
     to most if not all other floating-point operations.'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，尽管加法和乘法在纯数学意义上是交换的和结合的，但它们的舍入误差却不是：当我们有三个浮点变量 $x$、$y$ 和 $z$ 时，$(x+y+z)$ 的结果取决于求和的顺序。同样的非交换性原则适用于大多数如果不是所有其他浮点操作。
 - en: Compilers are not allowed to produce [non-spec-compliant](/hpc/compilation/contracts/)
     results, so this annoying nuance disables some potential optimizations that involve
     rearranging operands in arithmetic. You can disable this strict compliance with
@@ -58,220 +82,324 @@
     snippet above, it runs [considerably faster](/hpc/simd/reduction) and also happens
     to output the correct result, 33554432 (although you need to be aware that the
     compiler also could have chosen a less precise computation path).
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器不允许产生[不符合规范](/hpc/compilation/contracts/)的结果，因此这个令人烦恼的细微差别禁用了涉及重新排列算术操作数的某些潜在优化。您可以通过在
+    GCC 和 Clang 中使用 `-ffast-math` 标志来禁用这种严格的合规性。如果我们添加它并重新编译上述代码片段，它将[显著更快](/hpc/simd/reduction)运行，并且意外地输出正确的结果，33554432（尽管您需要意识到编译器也可能选择一个不太精确的计算路径）。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#rounding-modes)Rounding
     Modes'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#rounding-modes)舍入模式'
 - en: 'Apart from the default mode (also known as Banker’s rounding), you can [set](https://www.cplusplus.com/reference/cfenv/fesetround/)
     other rounding logic with 4 more modes:'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了默认模式（也称为银行家舍入）之外，您还可以使用4种更多模式中的任意一种来设置其他舍入逻辑：
 - en: round to nearest, with perfect ties always rounding “away” from zero;
+  id: totrans-15
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 向最近舍入，在完美的平局情况下总是舍入“远离”零；
 - en: round up (toward $+∞$; negative results thus round toward zero);
+  id: totrans-16
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 向上舍入（向 $+∞$；因此负数结果舍入到零）；
 - en: round down (toward $-∞$; negative results thus round away from zero);
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 向下舍入（向 $-∞$；因此负数结果舍入远离零）；
 - en: round toward zero (a truncation of the binary result).
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 向零舍入（二进制结果的截断）。
 - en: For example, if you call `fesetround(FE_UPWARD)` before running the loop above,
     it outputs not $2^{24}$, and not even $2^{25}$, but $67108864 = 2^{26}$. This
     happens because when we get to $2^{24}$, $(x + 1)$ starts rounding to the next
     nearest representable number $(x + 2)$, and we reach $2^{25}$ in half the time,
     and after that, $(x + 1)$ rounds up to $(x+4)$, and we start going four times
     as fast.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，如果你在运行上述循环之前调用`fesetround(FE_UPWARD)`，它输出的不是$2^{24}$，甚至不是$2^{25}$，而是$67108864
+    = 2^{26}$。这是因为当我们达到$2^{24}$时，$(x + 1)$开始四舍五入到下一个可表示的数字$(x + 2)$，并且我们用一半的时间达到$2^{25}$，之后，$(x
+    + 1)$四舍五入到$(x+4)$，我们开始以四倍的速度前进。
 - en: One of the uses for the alternative rounding modes is for diagnosing numerical
     instability. If the results of an algorithm substantially vary when switching
     between rounding to the positive and negative infinities, it indicates susceptibility
     to round-off errors.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用替代舍入模式的用途之一是诊断数值不稳定性。如果一个算法在正无穷和负无穷之间切换舍入时结果有显著变化，这表明它容易受到舍入误差的影响。
 - en: 'This test is often better than switching all computations to lower precision
     and checking whether the result changed by too much because the default round-to-nearest
     policy converges to the correct “expected” value given enough averaging: half
     of the time the errors are rounding up, and the other they are rounding down —
     so, statistically, they cancel each other.'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种测试通常比将所有计算切换到较低精度并检查结果变化是否过大要好，因为默认的舍入到最接近的政策在足够平均的情况下收敛到正确的“预期”值：一半的时间错误是向上舍入，另一半是向下舍入——因此，从统计上讲，它们相互抵消。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#measuring-errors)Measuring
     Errors'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#measuring-errors)测量误差'
 - en: 'It seems surprising to expect this guarantee from hardware that performs complex
     calculations such as natural logarithms and square roots, but this is it: you
     are guaranteed to get the highest precision possible from all operations. This
     makes it remarkably easy to analyze round-off errors, as we will see in a bit.'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于执行自然对数和平方根等复杂计算的硬件来说，期望这种保证似乎令人惊讶，但事实就是这样：你保证从所有操作中获得可能的最大精度。这使得分析舍入误差变得非常容易，我们将在下面看到。
 - en: 'There are two natural ways to measure computational errors:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 测量计算误差有两种自然的方法：
 - en: The engineers who create hardware or spec-compliant exact software are concerned
     with *units in the last place* (ulps), which is the distance between two numbers
     in terms of how many representable numbers can fit between the precise real value
     and the actual result of the computation.
+  id: totrans-25
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 创建硬件或符合规格的精确软件的工程师们关心的是*最后一位单位*（ulps），这是两个数字之间的距离，即有多少可表示的数字可以介于精确的实值和计算的实际结果之间。
 - en: 'People that are working on numerical algorithms care about *relative precision*,
     which is the absolute value of the approximation error divided by the real answer:
     $|\frac{v-v’}{v}|$.'
+  id: totrans-26
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 从事数值算法研究的人们关心的是*相对精度*，即近似误差的绝对值除以真实答案：$|\frac{v-v’}{v}|$。
 - en: In either case, the usual tactic to analyze errors is to assume the worst case
     and simply bound them.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在任何情况下，分析错误的常用策略是假设最坏的情况并简单地对其进行限制。
 - en: If you perform a single basic arithmetic operation, then the worst thing that
     can happen is the result rounding to the nearest representable number, meaning
     that the error does not exceed 0.5 ulps. To reason about relative errors the same
     way, we can define a number $\epsilon$ called *machine epsilon*, equal to the
     difference between $1$ and the next representable value (which should be equal
     to 2 to the negative power of however many bits are dedicated to mantissa).
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你执行单个基本算术运算，那么最坏的情况是结果四舍五入到最接近的可表示数字，这意味着误差不超过0.5 ulps。为了以相同的方式推理相对误差，我们可以定义一个称为*机器epsilon*的数字，等于1与下一个可表示值之间的差（这应该等于2的负幂，等于为尾数分配的位数）。
 - en: This means that if after a single arithmetic operation you get result $x$, then
     the real value is somewhere in the range
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 这意味着如果在单个算术运算后你得到结果$x$，那么真实值在以下范围内
 - en: $$ [x \cdot (1-\epsilon),\; x \cdot (1 + \epsilon)] $$
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ [x \cdot (1-\epsilon),\; x \cdot (1 + \epsilon)] $$
 - en: 'The omnipresence of errors is especially important to remember when making
     discrete “yes or no” decisions based on the results of floating-point calculations.
     For example, here is how you should check for equality:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 在基于浮点计算结果进行离散的“是或否”决策时，记住错误的普遍性尤为重要。例如，以下是检查相等性的方法：
 - en: '[PRE1]'
+  id: totrans-32
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'The value of `eps` should depend on the application: the one above — the machine
     epsilon for `float` — is only good for no more than one floating-point operation.'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: '`eps` 的值应该取决于应用：上面提到的——`float` 的机器精度——对于不超过一次浮点运算来说是好的。'
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#interval-arithmetic)Interval
     Arithmetic'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#interval-arithmetic)区间算术'
 - en: An algorithm is called *numerically stable* if its error, whatever its cause,
     does not grow much larger during the calculation. This can only happen if the
     problem itself is *well-conditioned*, meaning that the solution changes only by
     a small amount if the input data are changed by a small amount.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果一个算法被称为 *数值稳定*，那么无论其误差的原因是什么，在计算过程中误差都不会增长得很大。这只能发生在问题本身是 *良态的*，这意味着如果输入数据只发生微小变化，解只会有微小变化。
 - en: 'When analyzing numerical algorithms, it is often useful to adopt the same method
     that is used in experimental physics: instead of working with unknown real values,
     we will work with the intervals where they may be in.'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 在分析数值算法时，常常有用到实验物理学中使用的相同方法：我们不会处理未知实数值，而是处理它们可能存在的区间。
 - en: 'For example, consider a chain of operations where we consecutively multiply
     a variable by arbitrary real numbers:'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，考虑一系列连续的运算，我们将一个变量依次乘以任意实数：
 - en: '[PRE2]'
+  id: totrans-38
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: After the first multiplication, the value of $x$ relative to the value of the
     real product is bounded by $(1 + \epsilon)$, and after each additional multiplication,
     this upper bound is multiplied by another $(1 + \epsilon)$. By induction, after
     $n$ multiplications, the computed value is bound by $(1 + \epsilon)^n = 1 + n
     \epsilon + O(\epsilon^2)$ and a similar lower bound.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第一次乘法之后，$x$ 相对于实数乘积的值被 $(1 + \epsilon)$ 所限制，并且每次额外的乘法之后，这个上限会乘以另一个 $(1 + \epsilon)$。通过归纳，经过
+    $n$ 次乘法后，计算出的值被 $(1 + \epsilon)^n = 1 + n \epsilon + O(\epsilon^2)$ 和类似的下限所限制。
 - en: This implies that the relative error is $O(n \epsilon)$, which is sort of okay,
     because usually $n \ll \frac{1}{\epsilon}$.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 这意味着相对误差是 $O(n \epsilon)$，这还不错，因为通常 $n \ll \frac{1}{\epsilon}$。
 - en: For example of a numerically *unstable* computation, consider the function
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，考虑一个数值 *不稳定* 的计算，考虑以下函数
 - en: $$ f(x, y) = x^2 - y^2 $$ Assuming $x > y$, the maximum value this function
     can return is roughly $$ x^2 \cdot (1 + \epsilon) - y^2 \cdot (1 - \epsilon) $$
     corresponding to the absolute error of $$ x^2 \cdot (1 + \epsilon) - y^2 \cdot
     (1 - \epsilon) - (x^2 - y^2) = (x^2 + y^2) \cdot \epsilon $$ and hence the relative
     error of $$ \frac{x^2 + y^2}{x^2 - y^2} \cdot \epsilon $$
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ f(x, y) = x^2 - y^2 $$ 假设 $x > y$，该函数可以返回的最大值大约是 $$ x^2 \cdot (1 + \epsilon)
+    - y^2 \cdot (1 - \epsilon) $$ 对应的绝对误差为 $$ x^2 \cdot (1 + \epsilon) - y^2 \cdot
+    (1 - \epsilon) - (x^2 - y^2) = (x^2 + y^2) \cdot \epsilon $$ 因此相对误差为 $$ \frac{x^2
+    + y^2}{x^2 - y^2} \cdot \epsilon $$
 - en: If $x$ and $y$ are close in magnitude, the error will be $O(\epsilon \cdot |x|)$.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果 $x$ 和 $y$ 在大小上很接近，误差将是 $O(\epsilon \cdot |x|)$。
 - en: 'Under direct computation, the subtraction “magnifies” the errors of squaring.
     But this can be fixed by instead using the following formula:'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 在直接计算中，减法“放大”了平方的误差。但可以通过使用以下公式来修复：
 - en: $$ f(x, y) = x^2 - y^2 = (x + y) \cdot (x - y) $$
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ f(x, y) = x^2 - y^2 = (x + y) \cdot (x - y) $$
 - en: 'In this one, it is easy to show that the error is bound by $\epsilon \cdot
     |x - y|$. It is also faster because it needs 2 additions and 1 multiplication:
     one fast addition more and one slow multiplication less compared to the original.'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个例子中，很容易证明误差被 $\epsilon \cdot |x - y|$ 所限制。它也更快，因为它只需要 2 次加法和 1 次乘法：比原始方法多一次快速加法和少一次慢速乘法。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#kahan-summation)Kahan
     Summation'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/errors/#kahan-summation)Kahan
+    求和'
 - en: From the previous example, we can see that long chains of operations are not
     a problem, but adding and subtracting numbers of different magnitude is. The general
     approach to dealing with such problems is to try to keep big numbers with big
     numbers and small numbers with small numbers.
+  id: totrans-48
   prefs: []
   type: TYPE_NORMAL
+  zh: 从前面的例子中，我们可以看到长链的运算不是问题，但添加和减去不同大小的数是问题。处理此类问题的通用方法是尝试用大数与大数相加，用小数与小数相加。
 - en: 'Consider the standard summation algorithm:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑标准的求和算法：
 - en: '[PRE3]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Since we are performing summations and not multiplications, its relative error
     is no longer just bounded by $O(\epsilon \cdot n)$, but heavily depends on the
     input.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们执行的是求和而不是乘法，其相对误差不再仅仅被 $O(\epsilon \cdot n)$ 所限制，而是严重依赖于输入。
 - en: 'In the most ridiculous case, if the first value is $2^{24}$ and the other values
     are equal to $1$, the sum is going to be $2^{24}$ regardless of $n$, which can
     be verified by executing the following code and observing that it simply prints
     $16777216 = 2^{24}$ twice:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 在最荒谬的情况下，如果第一个值是 $2^{24}$，其他值都等于 $1$，那么无论 $n$ 如何，总和都将等于 $2^{24}$，这可以通过执行以下代码并观察它简单地打印出
+    $16777216 = 2^{24}$ 两次来验证：
 - en: '[PRE4]'
+  id: totrans-53
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'This happens because `float` has only 23 mantissa bits, and so $2^{24} + 1$
     is the first integer number that can’t be represented exactly and has to be rounded
     down, which happens every time we try to add $1$ to $s = 2^{24}$. The error is
     indeed $O(n \cdot \epsilon)$ but in terms of the absolute error, not the relative
     one: in the example above, it is $2$, and it would go up to infinity if the last
     number happened to be $-2^{24}$.'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是因为 `float` 只有 23 位尾数位，所以 $2^{24} + 1$ 是第一个不能精确表示的整数，并且必须向下舍入，这发生在我们尝试将 $1$
+    加到 $s = 2^{24}$ 的时候。误差确实是 $O(n \cdot \epsilon)$，但就绝对误差而言，不是相对误差：在上面的例子中，它是 $2$，如果最后一个数字恰好是
+    $-2^{24}$，它将无限增大。
 - en: 'The obvious solution is to switch to a larger type such as `double`, but this
     isn’t really a scalable method. An elegant solution is to store the parts that
     weren’t added in a separate variable, which is then added to the next variable:'
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 显然，解决方案是切换到更大的类型，例如 `double`，但这并不是一个可扩展的方法。一个优雅的解决方案是将未添加的部分存储在一个单独的变量中，然后将其添加到下一个变量中：
 - en: '[PRE5]'
+  id: totrans-56
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'This trick is known as *Kahan summation*. Its relative error is bounded by
     $2 \epsilon + O(n \epsilon^2)$: the first term comes from the very last summation,
     and the second term is due to the fact that we work with less-than-epsilon errors
     on each step.'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个技巧被称为 *Kahan 求和法*。它的相对误差被限制在 $2 \epsilon + O(n \epsilon^2)$：第一项来自最后的求和，第二项是由于我们在每一步都处理小于
+    epsilon 的误差。
 - en: 'Of course, a more general approach that works not just for array summation
     would be to switch to a more precise data type, like `double`, also effectively
     squaring the machine epsilon. Furthermore, it can (sort of) be scaled by bundling
@@ -280,5 +408,10 @@
     is known as double-double arithmetic, and it can be similarly generalized to define
     quad-double and higher precision arithmetic. [← IEEE 754 Floats](https://en.algorithmica.org/hpc/arithmetic/ieee-754/)[Newton''s
     Method →](https://en.algorithmica.org/hpc/arithmetic/newton/)'
+  id: totrans-58
   prefs: []
   type: TYPE_NORMAL
+  zh: 当然，一个更通用的方法，不仅适用于数组求和，是切换到更精确的数据类型，如 `double`，这也有效地平方了机器 epsilon。此外，它可以通过将两个
+    `double` 变量捆绑在一起来（某种程度上）进行扩展：一个用于存储值，另一个用于其不可表示的误差，以便它们代表值 $a+b$。这种方法被称为 double-double
+    运算，并且可以类似地推广来定义 quad-double 和更高精度的算术。[← IEEE 754 浮点数](https://en.algorithmica.org/hpc/arithmetic/ieee-754/)[牛顿法
+    →](https://en.algorithmica.org/hpc/arithmetic/newton/)

@@ -1,88 +1,127 @@
 - en: RAM & CPU Caches
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: RAM与CPU缓存
 - en: 原文：[https://en.algorithmica.org/hpc/cpu-cache/](https://en.algorithmica.org/hpc/cpu-cache/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/cpu-cache/](https://en.algorithmica.org/hpc/cpu-cache/)
 - en: In the [previous chapter](../external-memory), we studied computer memory from
     a theoretical standpoint, using the [external memory model](../external-memory/model)
     to estimate the performance of memory-bound algorithms.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[上一章](../external-memory)中，我们从理论角度研究了计算机内存，使用[外部内存模型](../external-memory/model)来估算内存密集型算法的性能。
 - en: While the external memory model is more or less accurate for computations involving
     HDDs and network storage, where cost of arithmetic operations on in-memory values
     is negligible compared to external I/O operations, it is too imprecise for lower
     levels in the cache hierarchy, where the costs of these operations become comparable.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然外部内存模型对于涉及硬盘和网络存储的计算来说大致准确，在这些情况下，内存值算术运算的成本与外部I/O操作的成本相比可以忽略不计，但对于缓存层次结构中的较低级别来说，这些操作的代价变得可以比较，因此它过于不精确。
 - en: To perform more fine-grained optimization of in-memory algorithms, we have to
     start taking into account the many specific details of the CPU cache system. And
     instead of studying loads of boring Intel documents with dry specs and theoretically
     achievable limits, we will estimate these parameters experimentally by running
     numerous small benchmark programs with access patterns that resemble the ones
     that often occur in practical code.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了对内存算法进行更精细的优化，我们必须开始考虑CPU缓存系统的许多具体细节。而不是研究大量枯燥的英特尔文档，其中包含干燥的规格和理论上可达到的限制，我们将通过运行许多小型的基准程序并使用类似于实际代码中经常出现的访问模式来实验性地估计这些参数。
 - en: Experimental Setup
+  id: totrans-5
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 实验设置
 - en: 'As before, I will be running all experiments on Ryzen 7 4700U, which is a “Zen
     2” CPU with the following main cache-related specs:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 如前所述，我将在Ryzen 7 4700U上运行所有实验，这是一款“Zen 2”CPU，以下是其主要缓存相关规格：
 - en: 8 physical cores (without hyper-threading) clocked at 2GHz (and 4.1GHz in boost
     mode — [which we disable](/hpc/profiling/noise));
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 8个物理核心（无超线程技术）主频为2GHz（在提升模式下可达4.1GHz — [我们已禁用此功能](/hpc/profiling/noise)）；
 - en: 256K of 8-way set associative L1 data cache or 32K per core;
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 256K的8路组相联L1数据缓存或每核心32K；
 - en: 4M of 8-way set associative L2 cache or 512K per core;
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 4M的8路组相联L2缓存或每核心512K；
 - en: 8M of 16-way set associative L3 cache, [shared](sharing) between 8 cores;
+  id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 8M的16路组相联L3缓存，[共享](sharing)于8个核心之间；
 - en: 16GB (2x8G) of DDR4 RAM @ 2667MHz.
+  id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 16GB（2x8G）的DDR4 RAM，频率为2667MHz。
 - en: You can compare it with your own hardware by running `dmidecode -t cache` or
     `lshw -class memory` on Linux or by installing [CPU-Z](https://en.wikipedia.org/wiki/CPU-Z)
     on Windows. You can also find additional details about the CPU on [WikiChip](https://en.wikichip.org/wiki/amd/ryzen_7/4700u)
     and [7-CPU](https://www.7-cpu.com/cpu/Zen2.html). Not all conclusions will generalize
     to every CPU platform in existence.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 您可以通过在Linux上运行`dmidecode -t cache`或`lshw -class memory`来比较您的硬件，或者在Windows上安装[CPU-Z](https://en.wikipedia.org/wiki/CPU-Z)。您还可以在[WikiChip](https://en.wikichip.org/wiki/amd/ryzen_7/4700u)和[7-CPU](https://www.7-cpu.com/cpu/Zen2.html)上找到有关CPU的更多详细信息。并非所有结论都适用于现有的所有CPU平台。
 - en: Due to difficulties in [preventing the compiler from optimizing away unused
     values](/hpc/profiling/noise/), the code snippets in this article are slightly
     simplified for exposition purposes. Check the [code repository](https://github.com/sslotin/amh-code/tree/main/cpu-cache)
     if you want to reproduce them yourself.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于[防止编译器优化掉未使用值](/hpc/profiling/noise/)存在困难，本文中的代码片段为了说明目的而略有简化。如果您想自己重现它们，请查看[代码仓库](https://github.com/sslotin/amh-code/tree/main/cpu-cache)。
 - en: Acknowledgements
+  id: totrans-14
   prefs:
   - PREF_H3
   type: TYPE_NORMAL
+  zh: 致谢
 - en: This chapter is inspired by “[Gallery of Processor Cache Effects](http://igoro.com/archive/gallery-of-processor-cache-effects/)”
     by Igor Ostrovsky and “[What Every Programmer Should Know About Memory](https://people.freebsd.org/~lstewart/articles/cpumemory.pdf)”
     by Ulrich Drepper, both of which can serve as good accompanying readings.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章灵感来源于Igor Ostrovsky的“[处理器缓存效果画廊](http://igoro.com/archive/gallery-of-processor-cache-effects/)”和Ulrich
+    Drepper的“[程序员应了解的内存知识](https://people.freebsd.org/~lstewart/articles/cpumemory.pdf)”，这两者都可以作为良好的辅助阅读材料。
 - en: '[← Spatial and Temporal Locality](https://en.algorithmica.org/hpc/external-memory/locality/)'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: '[← 空间和时间局部性](https://en.algorithmica.org/hpc/external-memory/locality/)'
 - en: '[← ../External Memory](https://en.algorithmica.org/hpc/external-memory/)[Memory
     Bandwidth →](https://en.algorithmica.org/hpc/cpu-cache/bandwidth/)'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: '[← 外部内存](https://en.algorithmica.org/hpc/external-memory/)[内存带宽 →](https://en.algorithmica.org/hpc/cpu-cache/bandwidth/)'
 - en: '[../SIMD Parallelism →](https://en.algorithmica.org/hpc/simd/)'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: '[../SIMD并行处理 →](https://en.algorithmica.org/hpc/simd/)'

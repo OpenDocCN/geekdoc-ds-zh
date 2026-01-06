@@ -1,214 +1,310 @@
 - en: Alignment and Packing
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 对齐和打包
 - en: 原文：[https://en.algorithmica.org/hpc/cpu-cache/alignment/](https://en.algorithmica.org/hpc/cpu-cache/alignment/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/cpu-cache/alignment/](https://en.algorithmica.org/hpc/cpu-cache/alignment/)
 - en: The fact that the memory is partitioned into 64B [cache lines](../cache-lines)
     makes it difficult to operate on data words that cross a cache line boundary.
     When you need to retrieve some primitive type, such as a 32-bit integer, you really
     want to have it located on a single cache line — both because retrieving two cache
     lines requires more memory bandwidth and stitching the results in hardware requires
     precious transistor space.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 事实是，内存被划分为64B[缓存行](../cache-lines)，这使得操作跨越缓存行边界的字数据变得困难。当您需要检索一些原始类型，例如32位整数时，您确实希望它在单个缓存行上定位——这不仅因为检索两个缓存行需要更多的内存带宽，而且在硬件中拼接结果需要宝贵的晶体管空间。
 - en: This aspect heavily influences algorithm designs and how compilers choose the
     memory layout of data structures.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个方面极大地影响了算法设计和编译器选择数据结构内存布局的方式。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#aligned-allocation)Aligned
     Allocation'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#aligned-allocation)对齐分配'
 - en: By default, when you allocate an array of some primitive type, you are guaranteed
     that the addresses of all elements are a multiple of their size, which ensures
     that they only span a single cache line. For example, you are guaranteed the address
     of the first and every other element of an `int` array is a multiple of 4 bytes
     (`sizeof int`).
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 默认情况下，当您分配某种原始类型的数组时，您保证所有元素的地址都是它们大小的整数倍，这确保了它们只跨越单个缓存行。例如，您保证`int`数组第一个和每个其他元素的地址是4字节的倍数（`sizeof
+    int`）。
 - en: 'Sometimes you need to ensure that this minimum alignment is higher. For example,
     many [SIMD](/hpc/simd) applications read and write data in blocks of 32 bytes,
     and it is [crucial for performance](/hpc/simd/moving) that these 32 bytes belong
     to the same cache line. In such cases, you can use the `alignas` specifier when
     defining a static array variable:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时您需要确保这个最小对齐更高。例如，许多[SIMD](/hpc/simd)应用程序以32字节的数据块读取和写入数据，并且这些32字节属于同一缓存行对于性能至关重要[关键性能](/hpc/simd/moving)。在这种情况下，您可以在定义静态数组变量时使用`alignas`指定符：
 - en: '[PRE0]'
+  id: totrans-7
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'To allocate a memory-aligned array dynamically, you can use `std::aligned_alloc`,
     which takes the alignment value and the size of an array in bytes and returns
     a pointer to the allocated memory — just like the `new` operator does:'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 要动态分配内存对齐数组，您可以使用`std::aligned_alloc`，它接受对齐值和数组的大小（以字节为单位），并返回分配内存的指针——就像`new`运算符一样：
 - en: '[PRE1]'
+  id: totrans-9
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: You can also align memory to sizes [larger than the cache line](../paging).
     The only restriction is that the size parameter must be an integral multiple of
     alignment.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 您还可以将内存对齐到大于缓存行的大小[大于缓存行](../paging)。唯一的限制是大小参数必须是对齐的整数倍。
 - en: 'You can also use the `alignas` specifier when defining a `struct`:'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 您也可以在定义`struct`时使用`alignas`指定符：
 - en: '[PRE2]'
+  id: totrans-12
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Whenever an instance of `Data` is allocated, it will be at the beginning of
     a cache line. The downside is that the effective size of the structure will be
     rounded up to the nearest multiple of 64 bytes. This has to be done so that, e.g.,
     when allocating an array of `Data`, not just the first element is properly aligned.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 每当分配`Data`的一个实例时，它将位于缓存行的开始处。缺点是结构的实际大小将向上舍入到最接近的64字节倍数。这样做是为了，例如，当分配`Data`数组时，不仅仅是第一个元素是正确对齐的。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#structure-alignment)Structure
     Alignment'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#structure-alignment)结构对齐'
 - en: This issue becomes more complicated when we need to allocate a group of non-uniform
     elements, which is the case for structures. Instead of playing Tetris trying to
     rearrange the members of a `struct` so that each of them is within a single cache
     line — which isn’t always possible as the structure itself doesn’t have to be
     placed on the start of a cache line — most C/C++ compilers also rely on the mechanism
     of memory alignment.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们需要分配一组非均匀元素时，这个问题变得更加复杂，这种情况适用于结构体。而不是像玩俄罗斯方块一样尝试重新排列`struct`的成员，以便每个成员都在单个缓存行内——这并不总是可能的，因为结构体本身不必放在缓存行的开始处——大多数C/C++编译器也依赖于内存对齐的机制。
 - en: 'Structure alignment similarly ensures that the address of all its member primitive
     types (`char`, `int`, `float*`, etc) are multiples of their size, which automatically
     guarantees that each of them only spans one cache line. It achieves that by:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 结构体对齐同样确保所有成员原始类型（`char`、`int`、`float*`等）的地址都是其大小的倍数，这自动保证了它们中的每一个只跨越一个缓存行。它是通过以下方式实现的：
 - en: '*padding*, if necessary, each structure member with a variable number of blank
     bytes to satisfy the alignment requirement of the next member;'
+  id: totrans-17
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果需要，通过添加一个可变数量的空白字节来填充每个结构体成员，以满足下一个成员的对齐要求；
 - en: setting the alignment requirement of the structure itself to the maximum of
     the alignment requirements of its member types, so that when an array of the structure
     type is allocated or it is used as a member type in another structure, the alignment
     requirements of all its primitive types are satisfied.
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将结构体本身的对齐要求设置为成员类型对齐要求中的最大值，这样当分配结构体类型的数组或将其用作另一个结构体的成员类型时，所有原始类型的对齐要求都得到满足。
 - en: 'For better understanding, consider the following toy example:'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了更好地理解，考虑以下玩具示例：
 - en: '[PRE3]'
+  id: totrans-20
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: When stored succinctly, this structure needs a total of $1 + 2 + 4 + 1 = 8$
     bytes per instance, but even assuming that the whole structure has the alignment
     of 4 bytes (its largest member, `int`), only `a` will be fine, while `b`, `c`
     and `d` are not size-aligned and potentially cross a cache line boundary.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 当简洁存储时，此结构体每个实例需要总共$1 + 2 + 4 + 1 = 8$字节，但即使假设整个结构体的对齐为4字节（其最大的成员，`int`），只有`a`将合适，而`b`、`c`和`d`不是大小对齐的，并且可能跨越缓存行边界。
 - en: 'To fix this, the compiler inserts some unnamed members so that each next member
     gets the right minimum alignment:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了解决这个问题，编译器插入一些未命名的成员，以确保每个后续成员获得正确的最小对齐：
 - en: '[PRE4]'
+  id: totrans-23
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: This potentially wastes space but saves a lot of CPU cycles. This trade-off
     is mostly beneficial, so structure alignment is enabled by default in most compilers.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 这可能会浪费空间，但可以节省大量的CPU周期。这种权衡在大多数情况下是有益的，因此大多数编译器默认启用结构体对齐。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#optimizing-member-order)Optimizing
     Member Order'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#optimizing-member-order)优化成员顺序'
 - en: Padding is only inserted before a not-yet-aligned member or at the end of the
     structure. By changing the ordering of members in a structure, it is possible
     to change the required number of padding bytes and the total size of the structure.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 填充仅在尚未对齐的成员之前或结构体末尾插入。通过改变结构体中成员的顺序，可以改变所需的填充字节数和结构体的总大小。
 - en: 'In the previous example, we could reorder the structure members like this:'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前面的例子中，我们可以这样重新排序结构体成员：
 - en: '[PRE5]'
+  id: totrans-28
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: Now, each of them is aligned without any padding, and the size of the structure
     is just 8 bytes. It seems stupid that the size of a structure and consequently
     its performance depends on the order of definition of its members, but this is
     required for binary compatibility.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，每个结构体成员都对齐，没有任何填充，结构体的尺寸仅为8字节。结构体的大小及其性能似乎取决于其成员定义的顺序，这看起来很愚蠢，但这是为了二进制兼容性所必需的。
 - en: As a rule of thumb, place your type definitions from largest data types to smallest
     — this greedy algorithm is guaranteed to work unless you have some weird non-power-of-two
     type sizes such as the [10-byte](/hpc/arithmetic/ieee-754#float-formats) `long
     double`^([1](#fn:1)).
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为经验法则，从最大的数据类型到最小的数据类型放置你的类型定义——这个贪婪算法在除非你有某些奇怪的、不是2的幂次方大小的类型，如[10字节](/hpc/arithmetic/ieee-754#float-formats)的`long
+    double`^([1](#fn:1)))的情况下是保证有效的。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#structure-packing)Structure
     Packing'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#structure-packing)结构体填充'
 - en: If you know what you are doing, you can disable structure padding and pack your
     data as tight as possible.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你了解自己在做什么，你可以禁用结构体填充，并将数据尽可能紧密地打包。
 - en: 'You have to ask the compiler to do it, as such functionality is not a part
     of neither C nor C++ standard yet. In GCC and Clang, this is done with the `packed`
     attribute:'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 你必须要求编译器这样做，因为这种功能目前既不是C也不是C++标准的一部分。在GCC和Clang中，这是通过`packed`属性来实现的：
 - en: '[PRE6]'
+  id: totrans-34
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: This makes the instances of `Data` take just 9 bytes instead of the 16 required
     by alignment, at the cost of possibly fetching two cache lines to reads its elements.
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 这使得`Data`实例仅占用9字节，而不是对齐所需的16字节，但代价是可能需要读取两个缓存行来获取其元素。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#bit-fields)Bit
     fields'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/alignment/#bit-fields)位字段'
 - en: 'You can also use packing along with *bit fields*, which allow you to explicitly
     fix the size of a member in bits:'
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 你还可以使用填充与*位域*结合，这允许你显式地设置成员的位数大小：
 - en: '[PRE7]'
+  id: totrans-38
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: This structure takes 4 bytes when packed and 8 bytes when padded. The number
     of bits a member has doesn’t have to be a multiple of 8, and neither does the
     total structure size. In an array of `Data`, the neighboring elements will be
     “merged” in the case of a non-whole number of bytes. It also allows you to set
     a width that exceeds the base type, which acts as padding — although it throws
     a warning in the process.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种结构在紧凑模式下占用4个字节，在填充模式下占用8个字节。成员的位数不必是8的倍数，整个结构的大小也不必是8的倍数。在`Data`数组的相邻元素中，如果字节数不是整数，它们将被“合并”。它还允许你设置一个超过基本类型的宽度，这充当填充——尽管在过程中会抛出一个警告。
 - en: 'This feature is not so widespread because CPUs don’t have 3-byte arithmetic
     or things like that and has to do some inefficient byte-by-byte conversion during
     loading:'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个特性并不那么普遍，因为CPU没有3字节算术或类似的东西，在加载时必须进行一些低效的字节到字节的转换：
 - en: '[PRE8]'
+  id: totrans-41
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: The overhead is even larger when there is a non-whole byte — it needs to be
     handled with a shift and an and-mask.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 当存在非整数字节时，开销甚至更大——它需要通过移位和与掩码来处理。
 - en: This procedure can be optimized by loading a 4-byte `int` and then using a mask
     to discard its highest bits.
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个过程可以通过先加载一个4字节的`int`，然后使用掩码丢弃其最高位来优化。
 - en: '[PRE9]'
+  id: totrans-44
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Compilers usually don’t do that because it’s technically not legal: that 4th
     byte may be on a memory page that you don’t own, so the operating system won’t
     let you load it even if you are going to discard it right away.'
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器通常不会这样做，因为这在技术上是不合法的：那个第4个字节可能位于你无权访问的内存页上，所以即使你打算立即丢弃它，操作系统也不会让你加载它。
 - en: '* * *'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: The 80-bit `long double` takes *at least* 10 bytes, but the exact format is
     up to the compiler — for example, it may pad it to 12 or 16 bytes to minimize
     alignment issues (64-bit GCC and Clang use 16 bytes by default; you can override
@@ -216,6 +312,10 @@
     [options](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html)). [↩︎](#fnref:1)
     [← Prefetching](https://en.algorithmica.org/hpc/cpu-cache/prefetching/)[Pointer
     Alternatives →](https://en.algorithmica.org/hpc/cpu-cache/pointers/)
+  id: totrans-47
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 80位的`long double`至少需要10个字节，但确切的格式取决于编译器——例如，它可能将其填充到12或16个字节以最小化对齐问题（64位的GCC和Clang默认使用16个字节；您可以通过指定`-mlong-double-64/80/128`或`-m96/128bit-long-double`
+    [选项](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html)来覆盖此设置）。[↩︎](#fnref:1)
+    [← 预取](https://en.algorithmica.org/hpc/cpu-cache/prefetching/)[指针替代方案 →](https://en.algorithmica.org/hpc/cpu-cache/pointers/)

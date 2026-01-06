@@ -1,182 +1,261 @@
 - en: Integer Factorization
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 整数分解
 - en: 原文：[https://en.algorithmica.org/hpc/algorithms/factorization/](https://en.algorithmica.org/hpc/algorithms/factorization/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/algorithms/factorization/](https://en.algorithmica.org/hpc/algorithms/factorization/)
 - en: The problem of factoring integers into primes is central to computational [number
     theory](/hpc/number-theory/). It has been [studied](https://www.cs.purdue.edu/homes/ssw/chapter3.pdf)
     since at least the 3rd century BC, and [many methods](https://en.wikipedia.org/wiki/Category:Integer_factorization_algorithms)
     have been developed that are efficient for different inputs.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 将整数分解为素数的问题是计算[数论](/hpc/number-theory/)的核心。它至少从公元前3世纪以来就被[研究](https://www.cs.purdue.edu/homes/ssw/chapter3.pdf)，并且已经开发出许多[方法](https://en.wikipedia.org/wiki/Category:Integer_factorization_algorithms)，这些方法对不同的输入都是有效的。
 - en: 'In this case study, we specifically consider the factorization of *word-sized*
     integers: those on the order of $10^9$ and $10^{18}$. Untypical for this book,
     in this one, you may actually learn an asymptotically better algorithm: we start
     with a few basic approaches and gradually build up to the $O(\sqrt[4]{n})$-time
     *Pollard’s rho algorithm* and optimize it to the point where it can factorize
     60-bit semiprimes in 0.3-0.4ms and ~3 times faster than the previous state-of-the-art.'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个案例研究中，我们特别考虑的是*字长*整数的分解：那些在$10^9$和$10^{18}$的数量级上。对于这本书来说并不典型，在这一章中，你实际上可以学习到一个渐近上更好的算法：我们从一个基本方法开始，并逐渐构建到$O(\sqrt[4]{n})$时间的*Pollard的rho算法*，并将其优化到可以以0.3-0.4ms的时间分解60位的半素数，并且比之前的最先进技术快大约3倍。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#benchmark)Benchmark'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#benchmark)基准测试'
 - en: 'For all methods, we will implement `find_factor` function that takes a positive
     integer $n$ and returns any of its non-trivial divisors (or `1` if the number
     is prime):'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于所有方法，我们将实现一个`find_factor`函数，它接受一个正整数$n$并返回它的任何非平凡除数（如果该数是素数则返回`1`）：
 - en: '[PRE0]'
+  id: totrans-6
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'To find the full factorization, you can apply it to $n$, reduce it, and continue
     until a new factor can no longer be found:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 要找到完整的分解，你可以将其应用于$n$，将其减少，并继续进行，直到无法找到新的因子：
 - en: '[PRE1]'
+  id: totrans-8
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: After each removed factor, the problem becomes considerably smaller, so the
     worst-case running time of full factorization is equal to the worst-case running
     time of a `find_factor` call.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 在每次移除因子之后，问题变得相当小，因此完整分解的最坏情况运行时间等于`find_factor`调用的最坏情况运行时间。
 - en: For many factorization algorithms, including those presented in this section,
     the running time scales with the smaller prime factor. Therefore, to provide worst-case
     input, we use *semiprimes:* products of two prime numbers $p \le q$ that are on
     the same order of magnitude. We generate a $k$-bit semiprime as the product of
     two random $\lfloor k / 2 \rfloor$-bit primes.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 对于许多分解算法，包括本节中介绍的那些，运行时间与较小的素数因子成比例。因此，为了提供最坏情况的输入，我们使用*半素数*：两个相同数量级的素数$p \le
+    q$的乘积。我们通过两个随机$\lfloor k / 2 \rfloor$-位素数的乘积来生成一个$k$位的半素数。
 - en: Since some of the algorithms are inherently randomized, we also tolerate a small
     (<1%) percentage of false-negative errors (when `find_factor` returns `1` despite
     number $n$ being composite), although this rate can be reduced to almost zero
     without significant performance penalties.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于一些算法本质上是随机的，我们也可以容忍一小部分（小于1%）的假阴性错误（当`find_factor`返回`1`而数字$n$是合数时），尽管这个比率可以通过不造成显著性能损失来降低到几乎为零。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#trial-division)Trial
     division'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#trial-division)试除法'
 - en: 'The most basic approach is to try every integer smaller than $n$ as a divisor:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 最基本的方法是尝试$n$以下的所有整数作为除数：
 - en: '[PRE2]'
+  id: totrans-14
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'We can notice that if $n$ is divided by $d < \sqrt n$, then it is also divided
     by $\frac{n}{d} > \sqrt n$, and there is no need to check for it separately. This
     lets us stop trial division early and only check for potential divisors that do
     not exceed $\sqrt n$:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以注意到，如果$n$被除以$d < \sqrt n$，那么它也会被除以$\frac{n}{d} > \sqrt n$，因此没有必要单独检查它。这让我们可以提前停止试除法，并且只需检查不超过$\sqrt
+    n$的潜在除数：
 - en: '[PRE3]'
+  id: totrans-16
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: In our benchmark, $n$ is a semiprime, and we always find the lesser divisor,
     so both $O(n)$ and $O(\sqrt n)$ implementations perform the same and are able
     to factorize ~2k 30-bit numbers per second — while taking whole 20 seconds to
     factorize a single 60-bit number.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 在我们的基准测试中，$n$是一个半素数，我们总是找到较小的除数，因此$O(n)$和$O(\sqrt n)$的实现表现相同，并且能够每秒分解大约2k个30位数的数——而分解一个单独的60位数则需要整整20秒。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#lookup-table)Lookup
     Table'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#lookup-table)查找表'
 - en: Nowadays, you can type `factor 57` in your Linux terminal or Google search bar
     to get the factorization of any number. But before computers were invented, it
     was more practical to use *factorization tables:* special books containing factorizations
     of the first $N$ numbers.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，你可以在Linux终端或Google搜索栏中输入`factor 57`来获取任何数的因数分解。但在计算机发明之前，使用*因数分解表*更为实用：包含前N个数的因数分解的特殊书籍。
 - en: 'We can also use this approach to compute these lookup tables [during compile
     time](/hpc/compilation/precalc/). To save space, we can store only the smallest
     divisor of a number. Since the smallest divisor does not exceed the $\sqrt n$,
     we need just one byte per a 16-bit integer:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们也可以使用这种方法在[编译时间](/hpc/compilation/precalc/)计算这些查找表。为了节省空间，我们只需要存储一个数的最小除数。由于最小的除数不超过$\sqrt
+    n$，我们只需要为每个16位整数分配一个字节：
 - en: '[PRE4]'
+  id: totrans-21
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: With this approach, we can process 3M 16-bit integers per second, although it
     would probably [get slower](../hpc/cpu-cache/bandwidth/) for larger numbers. While
     it requires just a few milliseconds and 64KB of memory to calculate and store
     the divisors of the first $2^{16}$ numbers, it does not scale well for larger
     inputs.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用这种方法，我们每秒可以处理300万个16位整数，尽管对于更大的数字，它可能会[变慢](../hpc/cpu-cache/bandwidth/)。虽然计算和存储前$2^{16}$个数的除数只需要几毫秒和64KB的内存，但它对于更大的输入扩展性不好。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#wheel-factorization)Wheel
     factorization'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#wheel-factorization)轮式因数分解'
 - en: To save paper space, pre-computer era factorization tables typically excluded
     numbers divisible by $2$ and $5$, making the factorization table ½ × ⅘ = 0.4 of
     its original size. In the decimal numeral system, you can quickly determine whether
     a number is divisible by $2$ or $5$ (by looking at its last digit) and keep dividing
     the number $n$ by $2$ or $5$ while it is possible, eventually arriving at some
     entry in the factorization table.
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了节省纸张空间，计算机时代之前的因数分解表通常排除了能被2和5整除的数，使得因数分解表的大小减少了0.4倍。在十进制数制中，你可以快速判断一个数是否能被2或5整除（通过查看它的最后一位数字），并在可能的情况下，将数n除以2或5，最终到达因数分解表中的某个条目。
 - en: 'We can apply a similar trick to trial division by first checking if the number
     is divisible by $2$ and then only considering odd divisors:'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以通过首先检查一个数是否能被2整除，然后只考虑奇数除数来应用类似的技巧进行试除法：
 - en: '[PRE5]'
+  id: totrans-26
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: With 50% fewer divisions to perform, this algorithm works twice as fast.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于需要执行的除法次数减少了50%，这个算法的速度快了一倍。
 - en: 'This method can be extended: if the number is not divisible by $3$, we can
     also ignore all multiples of $3$, and the same goes for all other divisors. The
     problem is, as we increase the number of primes to exclude, it becomes less straightforward
     to iterate only over the numbers not divisible by them as they follow an irregular
     pattern — unless the number of primes is small.'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法可以扩展：如果数不能被3整除，我们也可以忽略所有3的倍数，对于所有其他除数也是如此。问题是，随着要排除的质数的增加，迭代仅遍历不能被它们整除的数变得更加不直接，因为它们遵循不规则的模式——除非质数的数量很少。
 - en: 'For example, if we consider $2$, $3$, and $5$, then, among the first $90$ numbers,
     we only need to check:'
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，如果我们考虑2、3和5，那么在最初的90个数字中，我们只需要检查：
 - en: '[PRE6]'
+  id: totrans-30
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: 'You can notice a pattern: the sequence repeats itself every $30$ numbers. This
     is not surprising since the remainder modulo $2 \times 3 \times 5 = 30$ is all
     we need to determine whether a number is divisible by $2$, $3$, or $5$. This means
     that we only need to check $8$ numbers with specific remainders out of every $30$,
     proportionally improving the performance:'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以注意到一个模式：序列每30个数重复一次。这并不奇怪，因为余数模$2 \times 3 \times 5 = 30$就是我们需要用来确定一个数是否能被2、3或5整除的所有余数。这意味着我们只需要检查每30个数中具有特定余数的8个数，从而按比例提高性能：
 - en: '[PRE7]'
+  id: totrans-32
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'As expected, it works $\frac{30}{8} = 3.75$ times faster than the naive trial
     division, processing about 7.6k 30-bit numbers per second. The performance can
     be improved further by considering more primes, but the returns are diminishing:
     adding a new prime $p$ reduces the number of iterations by $\frac{1}{p}$ but increases
     the size of the skip-list by a factor of $p$, requiring proportionally more memory.'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 如预期的那样，它比简单的试除法快3.75倍，每秒处理约7.6k个30位数字。通过考虑更多的质数，性能可以进一步提高，但回报正在减少：添加一个新的质数p可以减少迭代次数的1/p，但将跳转列表的大小增加p倍，需要成比例更多的内存。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#precomputed-primes)Precomputed
     Primes'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#precomputed-primes)预计算质数'
 - en: 'If we keep increasing the number of primes in wheel factorization, we eventually
     exclude all composite numbers and only check for prime factors. In this case,
     we don’t need this array of offsets but just the array of primes:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们继续增加轮分解中的质数数量，最终可以排除所有合数，并只检查质数因子。在这种情况下，我们不需要这个偏移数组，只需要质数数组：
 - en: '[PRE8]'
+  id: totrans-36
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: This approach lets us process almost 20k 30-bit integers per second, but it
     does not work for larger (64-bit) numbers unless they have small ($< 2^{16}$)
     factors.
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法使我们能够每秒处理近20k个30位整数，但它不适用于更大的（64位）数，除非它们有小的（$< 2^{16}$）因子。
 - en: 'Note that this is actually an asymptotic optimization: there are $O(\frac{n}{\ln
     n})$ primes among the first $n$ numbers, so this algorithm performs $O(\frac{\sqrt
     n}{\ln \sqrt n})$ operations, while wheel factorization only eliminates a large
@@ -184,121 +263,183 @@
     every prime under $2^{32}$ (storing which would require several hundred megabytes
     of memory), the relative speedup would grow by a factor of $\frac{\ln \sqrt{n^2}}{\ln
     \sqrt n} = 2 \cdot \frac{1/2}{1/2} \cdot \frac{\ln n}{\ln n} = 2$.'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，这实际上是一种渐近优化：在最初的$n$个数中，有$O(\frac{n}{\ln n})$个质数，所以这个算法执行$O(\frac{\sqrt n}{\ln
+    \sqrt n})$次操作，而轮分解只消除了一部分但常数大的除数。如果我们将其扩展到64位数，并预先计算$2^{32}$以下的每个质数（存储这需要几百兆字节的内存），相对速度将增加一个因子$\frac{\ln
+    \sqrt{n^2}}{\ln \sqrt n} = 2 \cdot \frac{1/2}{1/2} \cdot \frac{\ln n}{\ln n} =
+    2$。
 - en: 'All variants of trial division, including this one, are bottlenecked by the
     speed of integer division, which can be [optimized](/hpc/arithmetic/division/)
     if we know the divisors in advance and allow for some additional precomputation.
     In our case, it is suitable to use [the Lemire division check](/hpc/arithmetic/division/#lemire-reduction):'
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有试除法的变体，包括这个，都受整数除法速度的限制，如果我们事先知道除数并允许一些额外的预计算，则可以对其进行优化。[Lemire除法检查](/hpc/arithmetic/division/#lemire-reduction)是合适的：
 - en: '[PRE9]'
+  id: totrans-40
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'This makes the algorithm ~18x faster: we can now factorize **~350k** 30-bit
     numbers per second, which is actually the most efficient algorithm we have for
     this number range. While it can probably be optimized even further by performing
     these checks in parallel with [SIMD](/hpc/simd), we will stop there and try a
     different, asymptotically better approach.'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 这使得算法的速度提高了约18倍：我们现在每秒可以分解**约350k**个30位数的数，这实际上是我们对这个数范围内最有效的算法。虽然通过并行执行这些检查与[SIMD](/hpc/simd)可能进一步优化，但我们将在那里停止，并尝试不同的、渐近上更好的方法。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#pollards-rho-algorithm)Pollard’s
     Rho Algorithm'
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#pollards-rho-algorithm)Pollard的ρ算法'
 - en: 'Pollard’s rho is a randomized $O(\sqrt[4]{n})$ integer factorization algorithm
     that makes use of the [birthday paradox](https://en.wikipedia.org/wiki/Birthday_problem):'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: Pollard的ρ算法是一种随机化的$O(\sqrt[4]{n})$整数分解算法，它利用了[生日悖论](https://en.wikipedia.org/wiki/Birthday_problem)：
 - en: One only needs to draw $d = \Theta(\sqrt{n})$ random numbers between $1$ and
     $n$ to get a collision with high probability.
+  id: totrans-44
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 只需要从1到$n$之间抽取$d = \Theta(\sqrt{n})$个随机数，以高概率得到一个冲突。
 - en: The reasoning behind it is that each of the $d$ added element has a $\frac{d}{n}$
     chance of colliding with some other element, implying that the expected number
     of collisions is $\frac{d^2}{n}$. If $d$ is asymptotically smaller than $\sqrt
     n$, then this ratio grows to zero as $n \to \infty$, and to infinity otherwise.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 其背后的推理是，每个增加的元素$d$有$\frac{d}{n}$的机会与其他元素冲突，这意味着预期的冲突数是$\frac{d^2}{n}$。如果$d$渐近小于$\sqrt
+    n$，那么这个比率随着$n \to \infty$增长到零，否则增长到无穷大。
 - en: Consider some function $f(x)$ that takes a remainder $x \in [0, n)$ and maps
     it to some other remainder of $n$ in a way that seems random from the number theory
     point of view. Specifically, we will use $f(x) = x^2 + 1 \bmod n$, which is random
     enough for our purposes.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑某个函数$f(x)$，它将余数$x \in [0, n)$映射到$n$的另一个余数，从数论的角度来看，这似乎是随机的。具体来说，我们将使用$f(x)
+    = x^2 + 1 \bmod n$，这对于我们的目的来说足够随机。
 - en: Now, consider a graph where each number-vertex $x$ has an edge pointing to $f(x)$.
     Such graphs are called *functional*. In functional graphs, the “trajectory” of
     any element — the path we walk if we start from that element and keep following
     the edges — is a path that eventually loops around (because the set of vertices
     is limited, and at some point, we have to go to a vertex we have already visited).
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，考虑一个图，其中每个数字顶点 $x$ 都有一条指向 $f(x)$ 的边。这样的图被称为*函数图*。在函数图中，任何元素的“轨迹”——如果我们从这个元素开始并继续跟随边，我们所走的路径——最终会形成一个循环（因为顶点集是有限的，在某个时刻，我们必须回到已经访问过的顶点）。
 - en: '![](../Images/a14a3b0aa1faeb544fa4ed1c27885e32.png)'
+  id: totrans-48
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/a14a3b0aa1faeb544fa4ed1c27885e32.png)'
 - en: The trajectory of an element resembles the greek letter ρ (rho), which is what
     the algorithm is named after
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个元素的轨迹类似于希腊字母 ρ（rho），这也是算法的名字由来。
 - en: 'Consider a trajectory of some particular element $x_0$:'
+  id: totrans-50
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑某个特定元素 $x_0$ 的轨迹：
 - en: $$ x_0, \; f(x_0), \; f(f(x_0)), \; \ldots $$
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ x_0, \; f(x_0), \; f(f(x_0)), \; \ldots $$
 - en: Let’s make another sequence out of this one by reducing each element modulo
     $p$, the smallest prime divisor of $n$.
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 让我们从这个序列中再构造一个序列，通过将每个元素对 $ p $ 取模，其中 $ p $ 是 $ n $ 的最小质数除数。
 - en: '**Lemma.** The expected length of the reduced sequence before it turns into
     a cycle is $O(\sqrt[4]{n})$.'
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: '**引理。** 在序列变成循环之前，其期望长度是 $ O(\sqrt[4]{n}) $。'
 - en: '**Proof:** Since $p$ is the smallest divisor, $p \leq \sqrt n$. Each time we
     follow a new edge, we essentially generate a random number between $0$ and $p$
     (we treat $f$ as a “deterministically-random” function). The birthday paradox
     states that we only need to generate $O(\sqrt p) = O(\sqrt[4]{n})$ numbers until
     we get a collision and thus enter a loop.'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: '**证明：** 由于 $ p $ 是最小的除数，$ p \leq \sqrt n $。每次我们跟随一条新边，实际上我们生成一个介于 $ 0 $ 和 $
+    p $ 之间的随机数（我们将 $ f $ 视为一个“确定性的随机”函数）。生日悖论指出，我们只需要生成 $ O(\sqrt p) = O(\sqrt[4]{n})
+    $ 个数字直到我们得到一个碰撞并因此进入循环。'
 - en: Since we don’t know $p$, this mod-$p$ sequence is only imaginary, but if find
     a cycle in it — that is, $i$ and $j$ such that
+  id: totrans-55
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们不知道 $ p $，这个模 $-p$ 序列只是想象中的，但如果在这个序列中找到一个循环——即 $ i $ 和 $ j $ 使得
 - en: '$$ f^i(x_0) \equiv f^j(x_0) \pmod p $$ then we can also find $p$ itself as
     $$ p = \gcd(|f^i(x_0) - f^j(x_0)|, n) $$ The algorithm itself just finds this
     cycle and $p$ using this GCD trick and Floyd’s “[tortoise and hare](https://en.wikipedia.org/wiki/Cycle_detection#Floyd''s_tortoise_and_hare)”
     algorithm: we maintain two pointers $i$ and $j = 2i$ and check that $$ \gcd(|f^i(x_0)
     - f^j(x_0)|, n) \neq 1 $$'
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果 $ f^i(x_0) \equiv f^j(x_0) \pmod p $，那么我们也可以找到 $ p $ 本身，即 $$ p = \gcd(|f^i(x_0)
+    - f^j(x_0)|, n) $$ 算法本身只是使用这个最大公约数（GCD）技巧和 Floyd 的“[龟兔赛跑](https://en.wikipedia.org/wiki/Cycle_detection#Floyd's_tortoise_and_hare)”算法找到这个循环和
+    $ p $：我们维护两个指针 $ i $ 和 $ j = 2i $ 并检查 $$ \gcd(|f^i(x_0) - f^j(x_0)|, n) \neq 1
+    $$
 - en: 'which is equivalent to comparing $f^i(x_0)$ and $f^j(x_0)$ modulo $p$. Since
     $j$ (hare) is increasing at twice the rate of $i$ (tortoise), their difference
     is increasing by $1$ each iteration and eventually will become equal to (or a
     multiple of) the cycle length, with $i$ and $j$ pointing to the same elements.
     And as we proved half a page ago, reaching a cycle would only require $O(\sqrt[4]{n})$
     iterations:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 这相当于比较 $f^i(x_0)$ 和 $f^j(x_0)$ 在模 $p$ 下的值。由于 $j$（兔子）的增长速度是 $i$（乌龟）的两倍，它们的差值在每次迭代中增加
+    $1$，最终将等于（或为）循环长度，此时 $i$ 和 $j$ 指向相同的元素。正如我们半个页面前所证明的，达到循环只需要 $O(\sqrt[4]{n})$
+    次迭代：
 - en: '[PRE10]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: While it processes only ~25k 30-bit integers — which is almost 15 times slower
     than by checking each prime using a fast division trick — it dramatically outperforms
     every $\tilde{O}(\sqrt n)$ algorithm for 60-bit numbers, factorizing around 90
     of them per second.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然它只处理大约 ~25k 个 30 位整数——这几乎是通过快速除法技巧检查每个质数速度的 15 倍慢——但它显著优于所有 $\tilde{O}(\sqrt
+    n)$ 的 60 位数字算法，每秒分解大约 90 个。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#pollard-brent-algorithm)Pollard-Brent
     Algorithm'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#pollard-brent-algorithm)Pollard-Brent
+    算法'
 - en: 'Floyd’s cycle-finding algorithm has a problem in that it moves iterators more
     than necessary: at least half of the vertices are visited one additional time
     by the slower iterator.'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: Floyd 的循环查找算法有一个问题，即它移动迭代器比必要的多：至少有一半的顶点被较慢的迭代器多访问了一次。
 - en: 'One way to solve it is to memorize the values $x_i$ that the faster iterator
     visits and, every two iterations, compute the GCD using the difference of $x_i$
     and $x_{\lfloor i / 2 \rfloor}$. But it can also be done without extra memory
@@ -307,65 +448,96 @@
     a power of two. This lets us save additional iterations while still using the
     same GCD trick to compare $x_i$ and $x_{2^{\lfloor \log_2 i \rfloor}}$ on each
     iteration:'
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 解决这个问题的一种方法是将快速迭代器访问的值$x_i$记住，并且每两次迭代，就使用$x_i$和$x_{\lfloor i / 2 \rfloor}$的差来计算GCD。但也可以使用不同的原理而不需要额外的内存：乌龟不是在每次迭代中都移动，而是在迭代次数成为2的幂时重置为快速迭代器的值。这样，我们可以在保持使用相同的GCD技巧来比较$x_i$和$x_{2^{\lfloor
+    \log_2 i \rfloor}}$的同时，节省额外的迭代次数：
 - en: '[PRE11]'
+  id: totrans-63
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: Note that we also set an upper limit on the number of iterations so that the
     algorithm finishes in a reasonable amount of time and returns `1` if $n$ turns
     out to be a prime.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，我们还设置了迭代的上限，以确保算法在合理的时间内完成，并且如果$n$最终被证明是素数，则返回`1`。
 - en: It actually does *not* improve performance and even makes the algorithm ~1.5x
     *slower*, which probably has something to do with the fact that $x$ is stale.
     It spends most of the time computing the GCD and not advancing the iterator —
     in fact, the time requirement of this algorithm is currently $O(\sqrt[4]{n} \log
     n)$ because of it.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 实际上，这并没有提高性能，甚至使算法慢了约1.5倍，这可能与$x$过时有关。它大部分时间都在计算GCD，而没有推进迭代器——实际上，由于这个原因，该算法当前的时间复杂度是$O(\sqrt[4]{n}
+    \log n)$。
 - en: 'Instead of [optimizing the GCD itself](../gcd), we will optimize the number
     of its invocations. We can use the fact that if one of $a$ and $b$ contains factor
     $p$, then $a \cdot b \bmod n$ will also contain it, so instead of computing $\gcd(a,
     n)$ and $\gcd(b, n)$, we can compute $\gcd(a \cdot b \bmod n, n)$. This way, we
     can group the calculations of GCP in groups of $M = O(\log n)$ we remove $\log
     n$ out of the asymptotic:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将优化GCD调用的次数，而不是直接优化GCD本身（见../gcd）。我们可以利用以下事实：如果$a$和$b$中的一个包含因子$p$，那么$a \cdot
+    b \bmod n$也将包含它，因此我们不需要计算$\gcd(a, n)$和$\gcd(b, n)$，而是可以计算$\gcd(a \cdot b \bmod
+    n, n)$。这样，我们可以将GCD的计算分组为$M = O(\log n)$，从而从渐近式中移除$\log n$：
 - en: '[PRE12]'
+  id: totrans-67
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: Now it performs 425 factorizations per second, bottlenecked by the speed of
     modulo.
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在它每秒执行425次因式分解，瓶颈在于模数的速度。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#optimizing-the-modulo)Optimizing
     the Modulo'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#optimizing-the-modulo)优化模数'
 - en: 'The final step is to apply [Montgomery multiplication](/hpc/number-theory/montgomery/).
     Since the modulo is constant, we can perform all computations — advancing the
     iterator, multiplication, and even computing the GCD — in the Montgomery space
     where reduction is cheap:'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后一步是应用[Montgomery乘法](/hpc/number-theory/montgomery/)。由于模数是常数，我们可以在Montgomery空间中执行所有计算——推进迭代器、乘法，甚至计算GCD——因为在这个空间中减少是便宜的：
 - en: '[PRE13]'
+  id: totrans-71
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: This implementation can processes around 3k 60-bit integers per second, which
     is ~3x faster than what [PARI](https://pari.math.u-bordeaux.fr/) / [SageMath’s
     `factor`](https://doc.sagemath.org/html/en/reference/structure/sage/structure/factorization.html)
     / `cat semiprimes.txt | time factor` measures.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 此实现每秒可以处理大约3k个60位整数，这比[PARI](https://pari.math.u-bordeaux.fr/) / [SageMath的`factor`](https://doc.sagemath.org/html/en/reference/structure/sage/structure/factorization.html)
+    / `cat semiprimes.txt | time factor`测量的速度要快约3倍。
 - en: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#further-improvements)Further
     Improvements'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/algorithms/factorization/#further-improvements)进一步改进'
 - en: '**Optimizations.** There is still a lot of potential for optimization in our
     implementation of the Pollard’s algorithm:'
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: '**优化。** 在我们实现的Pollard算法中，仍有大量的优化潜力：'
 - en: We could probably use a better cycle-finding algorithm, exploiting the fact
     that the graph is random. For example, there is little chance that we enter the
     loop in within the first few iterations (the length of the cycle and the path
@@ -373,16 +545,20 @@
     around, we choose the vertex of the path we’ve walked independently), so we may
     just advance the iterator for some time before starting the trials with the GCD
     trick.
+  id: totrans-75
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们可能可以使用更好的循环查找算法，利用图是随机的这一事实。例如，我们进入循环的可能性很小（循环的长度和进入循环之前走过的路径的长度在期望上应该是相等的，因为我们进入循环之前，我们独立地选择走过的路径的顶点），所以我们可能只需要在开始使用GCD技巧进行试验之前推进迭代器一段时间。
 - en: Our current approach is bottlenecked by advancing the iterator (the latency
     of Montgomery multiplication is much higher than its reciprocal throughput), and
     while we are waiting for it to complete, we could perform more than just one trial
     using the previous values.
+  id: totrans-76
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们当前的方法受限于迭代器的推进（Montgomery乘法的延迟远高于其吞吐量），在等待其完成的同时，我们可以使用之前的数据进行不止一次的试验。
 - en: 'If we run $p$ independent instances of the algorithm with different seeds in
     parallel and stop when one of them finds the answer, it would finish $\sqrt p$
     times faster (the reasoning is similar to the Birthday paradox; try to prove it
@@ -390,72 +566,103 @@
     [instruction-level parallelism](/hpc/pipelining/), so we could concurrently run
     two or three of the same operations on the same thread, or use [SIMD](/hpc/simd)
     instructions to perform 4 or 8 multiplications in parallel.'
+  id: totrans-77
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如果我们并行运行具有不同种子的 $p$ 个独立算法实例，并在其中一个找到答案时停止，它将快 $\sqrt p$ 倍（推理类似于生日悖论；试着证明它）。我们不需要使用多个核心：有很多未被挖掘的[指令级并行性](/hpc/pipelining/)，因此我们可以在同一线程上并发运行两个或三个相同的操作，或者使用[SIMD](/hpc/simd)指令并行执行4或8次乘法。
 - en: I would not be surprised to see another 3x improvement and throughput of ~10k/sec.
     If you [implement](https://github.com/sslotin/amh-code/tree/main/factor) some
     of these ideas, please [let me know](http://sereja.me/).
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 我不会对看到3倍改进和大约10k/sec的吞吐量感到惊讶。如果你[实现](https://github.com/sslotin/amh-code/tree/main/factor)了这些想法中的某些，请[告诉我](http://sereja.me/)。
 - en: '**Errors.** Another aspect that we need to handle in a practical implementation
     is possible errors. Our current implementation has a 0.7% error rate for 60-bit
     integers, and it grows higher if the numbers are lower. These errors come from
     three main sources:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: '**错误。**在实用实现中，我们还需要处理可能的错误。我们当前的实现对于60位整数有0.7%的错误率，如果数字更小，错误率会更高。这些错误主要来自三个来源：'
 - en: A cycle simply not being found (the algorithm is inherently random, and there
     is no guarantee that it will be found). In this case, we need to perform a primality
     test and optionally start again.
+  id: totrans-80
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 简单地没有找到周期（算法本质上是随机的，没有保证一定会找到）。在这种情况下，我们需要执行素性测试，并可选择重新开始。
 - en: The `p` variable becoming zero (because both $p$ and $q$ can get into the product).
     It becomes increasingly more likely as we decrease size of the inputs or increase
     the constant `M`. In this case, we need to either restart the process or (better)
     roll back the last $M$ iterations and perform the trials one by one.
+  id: totrans-81
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`p` 变量变为零（因为 $p$ 和 $q$ 都可能进入乘积）。随着我们减小输入的大小或增加常数 `M`，这种情况变得越来越可能。在这种情况下，我们需要重新启动过程，或者（更好）回滚最后
+    $M$ 次迭代并逐一进行试验。'
 - en: 'Overflows in the Montgomery multiplication. Our current implementation is pretty
     loose with them, and if $n$ is large, we need to add more `x > mod ? x - mod :
     x` kind of statements to deal with overflows.'
+  id: totrans-82
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 'Montgomery乘法中的溢出。我们当前的实现对这些比较宽松，如果 $n$ 很大，我们需要添加更多的 `x > mod ? x - mod : x`
+    类型的语句来处理溢出。'
 - en: '**Larger numbers.** These issues become less important if we exclude small
     numbers and numbers with small prime factors using the algorithms we’ve implemented
     before. In general, the optimal approach should depend on the size of the numbers:'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: '**更大的数字。**如果我们排除使用我们之前实现的算法的小数和具有小素因子的数，这些问题就变得不那么重要了。一般来说，最佳方法应该取决于数字的大小：'
 - en: 'Smaller than $2^{16}$: use a lookup table;'
+  id: totrans-84
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 小于 $2^{16}$：使用查找表；
 - en: 'Smaller than $2^{32}$: use a list of precomputed primes with a fast divisibility
     check;'
+  id: totrans-85
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 小于 $2^{32}$：使用带有快速可除性检查的预计算素数列表；
 - en: 'Smaller than $2^{64}$ or so: use Pollard’s rho algorithm with Montgomery multiplication;'
+  id: totrans-86
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 小于 $2^{64}$ 或左右：使用带有Montgomery乘法的Pollard的rho算法；
 - en: 'Smaller than $10^{50}$: switch to [Lenstra elliptic curve factorization](https://en.wikipedia.org/wiki/Lenstra_elliptic-curve_factorization);'
+  id: totrans-87
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 小于 $10^{50}$：切换到[Lenstra椭圆曲线分解](https://en.wikipedia.org/wiki/Lenstra_elliptic-curve_factorization)；
 - en: 'Smaller than $10^{100}$: switch to [Quadratic Sieve](https://en.wikipedia.org/wiki/Quadratic_sieve);'
+  id: totrans-88
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 小于 $10^{100}$：切换到[二次筛法](https://en.wikipedia.org/wiki/Quadratic_sieve)；
 - en: 'Larger than $10^{100}$: switch to [General Number Field Sieve](https://en.wikipedia.org/wiki/General_number_field_sieve).'
+  id: totrans-89
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 大于 $10^{100}$：切换到[通用数域筛法](https://en.wikipedia.org/wiki/General_number_field_sieve)。
 - en: The last three approaches are very different from what we’ve been doing and
     require much more advanced number theory, and they deserve an article (or a full-length
     university course) of their own. [← Binary GCD](https://en.algorithmica.org/hpc/algorithms/gcd/)[Argmin
     with SIMD →](https://en.algorithmica.org/hpc/algorithms/argmin/)
+  id: totrans-90
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后三种方法与我们之前所做的方法非常不同，需要更多的高级数论知识，它们值得一篇（或一整门大学课程）的专门文章。[← 二进制最大公约数](https://en.algorithmica.org/hpc/algorithms/gcd/)[使用SIMD求最小值
+    →](https://en.algorithmica.org/hpc/algorithms/argmin/)

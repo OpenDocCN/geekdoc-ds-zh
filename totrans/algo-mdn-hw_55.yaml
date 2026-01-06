@@ -1,41 +1,59 @@
 - en: Cache Lines
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 缓存行
 - en: 原文：[https://en.algorithmica.org/hpc/cpu-cache/cache-lines/](https://en.algorithmica.org/hpc/cpu-cache/cache-lines/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/cpu-cache/cache-lines/](https://en.algorithmica.org/hpc/cpu-cache/cache-lines/)
 - en: The basic units of data transfer in the CPU cache system are not individual
     bits and bytes, but *cache lines*. On most architectures, the size of a cache
     line is 64 bytes, meaning that all memory is divided in blocks of 64 bytes, and
     whenever you request (read or write) a single byte, you are also fetching all
     its 63 cache line neighbors whether your want them or not.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: CPU缓存系统中的数据传输基本单位不是单个比特和字节，而是**缓存行**。在大多数架构中，缓存行的尺寸是64字节，这意味着所有内存都被划分为64字节的块，并且无论你是否需要，每次当你请求（读取或写入）单个字节时，你也会获取其所有63个缓存行邻居。
 - en: 'To demonstrate this, we add a “step” parameter to our [incrementing loop](../bandwidth).
     Now we only touch every $D$-th element:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了证明这一点，我们在我们的[增加循环](../bandwidth)中添加了一个“步长”参数。现在我们只触摸每$D$个元素：
 - en: '[PRE0]'
+  id: totrans-4
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'If we run it with $D=1$ and $D=16$, we can observe something interesting:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们用$D=1$和$D=16$运行它，我们可以观察到一些有趣的现象：
 - en: '![](../Images/3142c6c323ee109d005888386857b077.png)'
+  id: totrans-6
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/3142c6c323ee109d005888386857b077.png)'
 - en: Performance is normalized by the total time to run benchmark, not the total
     number of elements incremented
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 性能是通过运行基准测试的总时间来归一化的，而不是通过增加的总元素数
 - en: As the problem size grows, the graphs of the two loops meet, despite one doing
     16 times less work than the other. This is because, in terms of cache lines, we
     are fetching the exact same memory in both loops, and the fact that the strided
     loop only needs one-sixteenth of it is irrelevant.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 随着问题规模的增加，两个循环的图表相遇，尽管一个循环的工作量是另一个的1/16。这是因为，从缓存行的角度来看，我们在两个循环中获取了相同的内存，而步进循环只需要其中的1/16是不相关的。
 - en: 'When the array fits into the L1 cache, the strided version completes faster
     — although not 16 but just two times as fast. This is because it only needs to
     do half the work: it only executes a single `inc DWORD PTR [rdx]` instruction
@@ -43,36 +61,55 @@
     to process the same 16 elements. Both computations are bottlenecked by writing
     the result back: Zen 2 can only write one word per cycle — regardless of whether
     it is composed of one integer or eight.'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 当数组适合L1缓存时，步进版本的执行速度更快——虽然不是16倍，但只是两倍快。这是因为它只需要做一半的工作：它每处理16个元素只需要执行一个`inc DWORD
+    PTR [rdx]`指令，而原始循环需要两个处理相同16个元素的8元素[向量指令](/hpc/simd)。这两个计算都受写入结果的瓶颈影响：Zen 2每周期只能写入一个字——无论它是由一个整数还是八个组成的。
 - en: 'When we change the step parameter to 8, the graphs equalize, as we now also
     need two increments and two write-backs per every 16 elements:'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们将步长参数改为8时，图表变得一致，因为我们现在每16个元素也需要两个增加和两个写回：
 - en: '![](../Images/254c995eba2d87ec3ed1d324103d9a0b.png)'
+  id: totrans-11
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/254c995eba2d87ec3ed1d324103d9a0b.png)'
 - en: 'We can use this effect to minimize cache sharing in our [latency benchmark](../latency)
     to measure it more precisely. We need to *pad* the indices of a permutation so
     that each of them lies in its own cache line:'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以使用这个效果来最小化我们的[延迟基准测试](../latency)中的缓存共享，以便更精确地测量它。我们需要对排列的索引进行**填充**，以便每个索引都位于自己的缓存行中：
 - en: '[PRE1]'
+  id: totrans-13
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'Now, each index is much more likely to be kicked out of the cache by the time
     we loop around and request it again:'
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，每个索引在循环回来再次请求它的时候更有可能被踢出缓存：
 - en: '![](../Images/0862c8d945214b8e8534c114937b9fa4.png)'
+  id: totrans-15
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/0862c8d945214b8e8534c114937b9fa4.png)'
 - en: The important practical lesson when designing and analyzing memory-bound algorithms
     is to count the number of cache lines accessed and not just the total count of
     memory reads and writes.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在设计和分析内存绑定算法时，重要的实际经验教训是要计算访问的缓存行数量，而不仅仅是内存读取和写入的总数。
 - en: '[← Memory Latency](https://en.algorithmica.org/hpc/cpu-cache/latency/)[Memory
     Sharing →](https://en.algorithmica.org/hpc/cpu-cache/sharing/)'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: '[←内存延迟](https://en.algorithmica.org/hpc/cpu-cache/latency/)[内存共享→](https://en.algorithmica.org/hpc/cpu-cache/sharing/)'

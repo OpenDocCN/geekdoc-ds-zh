@@ -1,193 +1,280 @@
 - en: Static B-Trees
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 静态B树
 - en: 原文：[https://en.algorithmica.org/hpc/data-structures/s-tree/](https://en.algorithmica.org/hpc/data-structures/s-tree/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/data-structures/s-tree/](https://en.algorithmica.org/hpc/data-structures/s-tree/)
 - en: This section is a follow-up to the [previous one](../binary-search), where we
     optimized binary search by the means of removing branching and improving the memory
     layout. Here, we will also be searching in sorted arrays, but this time we are
     not limited to fetching and comparing only one element at a time.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节是上一节的后续，其中我们通过移除分支和改进内存布局来优化二分搜索。在这里，我们也将搜索排序数组，但这次我们不仅限于一次只获取和比较一个元素。
 - en: 'In this section, we generalize the techniques we developed for binary search
     to *static B-trees* and accelerate them further using [SIMD instructions](/hpc/simd).
     In particular, we develop two new implicit data structures:'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将我们为二分搜索开发的技巧推广到*静态B树*，并使用[SIMD指令](/hpc/simd)进一步加速它们。特别是，我们开发了两种新的隐式数据结构：
 - en: The [first](#b-tree-layout) is based on the memory layout of a B-tree, and,
     depending on the array size, it is up to 8x faster than `std::lower_bound` while
     using the same space as the array and only requiring a permutation of its elements.
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 第一种是基于B树的内存布局，并且，根据数组大小，它比`std::lower_bound`快8倍，同时使用与数组相同的空间，并且只需要对其元素进行排列。
 - en: The [second](#b-tree-layout-1) is based on the memory layout of a B+ tree, and
     it is up to 15x faster than `std::lower_bound` while using just 6-7% more memory
     — or 6-7% **of** the memory if we can keep the original sorted array.
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 第二种是基于B+树的内存布局，并且比`std::lower_bound`快15倍，同时只使用6-7%更多的内存——或者如果我们能保持原始排序数组，则是6-7%的内存。
 - en: To distinguish them from B-trees — the structures with pointers, hundreds to
     thousands of keys per node, and empty spaces in them — we will use the names *S-tree*
     and *S+ tree* respectively to refer to these particular memory layouts^([1](#fn:1)).
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了将它们与B树区分开来——具有指针、每个节点数百到数千个键和其中空位的结构——我们将分别使用*S-tree*和*S+ tree*来指代这些特定的内存布局^([1](#fn:1))。
 - en: To the best of my knowledge, this is a significant improvement over the existing
     [approaches](http://kaldewey.com/pubs/FAST__SIGMOD10.pdf). As before, we are using
     Clang 10 targeting a Zen 2 CPU, but the performance improvements should approximately
     transfer to most other platforms, including Arm-based chips. Use [this single-source
     benchmark](https://github.com/sslotin/amh-code/blob/main/binsearch/standalone.cc)
     of the final implementation if you want to test it on your machine.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据我所知，这比现有的[方法](http://kaldewey.com/pubs/FAST__SIGMOD10.pdf)有显著的改进。和之前一样，我们使用Clang
+    10针对Zen 2 CPU，但性能提升应该大约可以转移到大多数其他平台，包括基于Arm的芯片。如果你想在自己的机器上测试它，请使用[这个单源基准](https://github.com/sslotin/amh-code/blob/main/binsearch/standalone.cc)。
 - en: This is a long article, and since it also serves as a [textbook](/hpc/) case
     study, we will improve the algorithm incrementally for pedagogical goals. If you
     are already an expert and feel comfortable reading [intrinsic](/hpc/simd/intrinsics)-heavy
     code with little to no context, you can jump straight to the [final implementation](#implicit-b-tree-1).
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一篇长文章，因为它还作为[教科书](/hpc/)案例研究，我们将为了教学目的逐步改进算法。如果你已经是专家，并且能够舒适地阅读带有很少或没有上下文的[内联](/hpc/simd/intrinsics)代码，你可以直接跳到[最终实现](#implicit-b-tree-1)。
 - en: '## [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#b-tree-layout)B-Tree
     Layout'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#b-tree-layout)B-树布局'
 - en: B-trees generalize the concept of binary search trees by allowing nodes to have
     more than two children. Instead of a single key, a node of a B-tree of order $k$
     can contain up to $B = (k - 1)$ keys stored in sorted order and up to $k$ pointers
     to child nodes. Each child $i$ satisfies the property that all keys in its subtree
     are between keys $(i - 1)$ and $i$ of the parent node (if they exist).
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: B树通过允许节点有超过两个子节点来推广二叉搜索树的概念。一个阶数为$k$的B树的节点可以包含最多$B = (k - 1)$个按键，这些键按顺序存储，并且最多有$k$个指向子节点的指针。每个子节点$i$满足以下性质：其子树中的所有键都在父节点的键$(i
+    - 1)$和$i$之间（如果存在）。
 - en: '![](../Images/4f60bffaa67095dbf30912dfd8934530.png)'
+  id: totrans-11
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/4f60bffaa67095dbf30912dfd8934530.png)'
 - en: A B-tree of order 4
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 四阶B树
 - en: The main advantage of this approach is that it reduces the tree height by $\frac{\log_2
     n}{\log_k n} = \frac{\log k}{\log 2} = \log_2 k$ times, while fetching each node
     still takes roughly the same time — as long it fits into a single [memory block](/hpc/external-memory/hierarchy/).
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法的主要优势是它将树的高度减少了 $\frac{\log_2 n}{\log_k n} = \frac{\log k}{\log 2} = \log_2
+    k$ 倍，同时检索每个节点所需的时间大致相同——只要它适合单个[内存块](/hpc/external-memory/hierarchy/)。
 - en: B-trees were primarily developed for the purpose of managing on-disk databases,
     where the latency of randomly fetching a single byte is comparable with the time
     it takes to read the next 1MB of data sequentially. For our use case, we will
     be using the block size of $B = 16$ elements — or $64$ bytes, the size of the
     cache line — which makes the tree height and the total number of cache line fetches
     per query $\log_2 17 \approx 4$ times smaller compared to the binary search.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: B树主要是为了管理磁盘上的数据库而开发的，在那里随机获取一个字节的延迟与读取下一个1MB数据的顺序时间相当。对于我们的用例，我们将使用 $B = 16$
+    个元素的块大小——或者 $64$ 字节，即缓存行的大小——这使得与二分搜索相比，树的高度和每次查询的缓存行检索总数减少了 $\log_2 17 \approx
+    4$ 倍。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#implicit-b-tree)Implicit
     B-Tree'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#implicit-b-tree)隐式B树'
 - en: Storing and fetching pointers in a B-tree node wastes precious cache space and
     decreases performance, but they are essential for changing the tree structure
     on inserts and deletions. But when there are no updates and the structure of a
     tree is *static*, we can get rid of the pointers, which makes the structure *implicit*.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在B树节点中存储和检索指针会浪费宝贵的缓存空间并降低性能，但它们对于在插入和删除时更改树结构是必不可少的。但是，当没有更新并且树的结构是*静态的*时，我们可以去掉指针，这使得结构*隐式*。
 - en: 'One of the ways to achieve this is by generalizing the [Eytzinger numeration](../binary-search#eytzinger-layout)
     to $(B + 1)$-ary trees:'
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 实现这一目标的一种方法是将[艾特辛格编号](../binary-search#eytzinger-layout)推广到 $(B + 1)$-叉树：
 - en: The root node is numbered $0$.
+  id: totrans-18
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 根节点编号为 $0$。
 - en: Node $k$ has $(B + 1)$ child nodes numbered $\{k \cdot (B + 1) + i + 1\}$ for
     $i \in [0, B]$.
+  id: totrans-19
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 节点 $k$ 有 $(B + 1)$ 个子节点，编号为 $\{k \cdot (B + 1) + i + 1\}$，其中 $i \in [0, B]$。
 - en: 'This way, we can only use $O(1)$ additional memory by allocating one large
     two-dimensional array of keys and relying on index arithmetic to locate children
     nodes in the tree:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样，我们只能通过分配一个大的二维数组键和依赖索引算术来定位树中的子节点，从而只使用 $O(1)$ 的额外内存：
 - en: '[PRE0]'
+  id: totrans-21
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: This numeration automatically makes the B-tree complete or almost complete with
     the height of $\Theta(\log_{B + 1} n)$. If the length of the initial array is
     not a multiple of $B$, the last block is padded with the largest value of its
     data type.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种编号自动使B树在高度为 $\Theta(\log_{B + 1} n)$ 的情况下变得完整或几乎完整。如果初始数组的长度不是 $B$ 的倍数，则最后一个块用其数据类型中的最大值填充。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#construction)Construction'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#construction)构建'
 - en: 'We can construct the B-tree similar to how we constructed the Eytzinger array
     — by traversing the search tree:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们可以像构建Eytzinger数组一样构建B树——通过遍历搜索树：
 - en: '[PRE1]'
+  id: totrans-25
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: It is correct because each value of the initial array will be copied to a unique
     position in the resulting array, and the tree height is $\Theta(\log_{B+1} n)$
     because $k$ is multiplied by $(B + 1)$ each time we descend into a child node.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是正确的，因为初始数组中的每个值都将被复制到结果数组中的唯一位置，并且由于每次进入子节点时 $k$ 都乘以 $(B + 1)$，因此树的高度是 $\Theta(\log_{B+1}
+    n)$。
 - en: 'Note that this numeration causes a slight imbalance: left-er children may have
     larger subtrees, although this is only true for $O(\log_{B+1} n)$ parent nodes.'
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，这种编号会导致轻微的不平衡：左边的子节点可能有更大的子树，尽管这只对 $O(\log_{B+1} n)$ 个父节点成立。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#searches)Searches'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#searches)搜索'
 - en: To find the lower bound, we need to fetch the $B$ keys in a node, find the first
     key $a_i$ not less than $x$, descend to the $i$-th child — and continue until
     we reach a leaf node. There is some variability in how to find that first key.
     For example, we could do a tiny internal binary search that makes $O(\log B)$
     iterations, or maybe just compare each key sequentially in $O(B)$ time until we
     find the local lower bound, hopefully exiting from the loop a bit early.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 要找到下界，我们需要在一个节点中获取 $B$ 个键，找到第一个不小于 $x$ 的键 $a_i$，下降到第 $i$ 个子节点——然后继续，直到我们达到一个叶节点。如何找到第一个键有一些变化。例如，我们可以进行一个小型的内部二分搜索，使其进行
+    $O(\log B)$ 次迭代，或者可能只是按顺序比较每个键，在 $O(B)$ 时间内找到局部下界，希望早点退出循环。
 - en: 'But we are not going to do that — because we can use [SIMD](/hpc/simd). It
     doesn’t work well with branching, so essentially what we want to do is to compare
     against all $B$ elements regardless, compute a bitmask out of these comparisons,
     and then use the `ffs` instruction to find the bit corresponding to the first
     non-lesser element:'
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 但我们不会这样做——因为我们可以使用[SIMD](/hpc/simd)。它与分支不兼容，所以本质上我们想要做的是比较所有 $B$ 个元素，无论是否，从这些比较中计算一个位掩码，然后使用`ffs`指令找到对应于第一个非较小元素的位：
 - en: '[PRE2]'
+  id: totrans-31
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Unfortunately, the compilers are not smart enough to [auto-vectorize](/hpc/simd/auto-vectorization/)
     this code yet, so we have to optimize it manually. In AVX2, we can load 8 elements,
     compare them against the search key, producing a [vector mask](/hpc/simd/masking/),
     and then extract the scalar mask from it with `movemask`. Here is a minimized
     illustrated example of what we want to do:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 不幸的是，编译器还不够智能，还不能[自动向量化](/hpc/simd/auto-vectorization/)此代码，因此我们必须手动优化。在AVX2中，我们可以加载8个元素，将它们与搜索键进行比较，生成[向量掩码](/hpc/simd/masking/)，然后使用`movemask`从中提取标量掩码。以下是一个简化的示例，说明我们想要做什么：
 - en: '[PRE3]'
+  id: totrans-33
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'Since we are limited to processing 8 elements at a time (half our block / cache
     line size), we have to split the elements into two groups and then combine the
     two 8-bit masks. To do this, it will be slightly easier to swap the condition
     for `x > y` and compute the inverted mask instead:'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于我们一次只能处理8个元素（我们块/缓存行大小的一半），我们必须将元素分成两组，然后合并两个8位掩码。为此，将条件`x > y`进行交换并计算反转掩码会稍微容易一些：
 - en: '[PRE4]'
+  id: totrans-35
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'Now, to process the entire block, we need to call it twice and combine the
     masks:'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，为了处理整个块，我们需要调用它两次并合并掩码：
 - en: '[PRE5]'
+  id: totrans-37
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'To descend down the tree, we use `ffs` on that mask to get the correct child
     number and just call the `go` function we defined earlier:'
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 要向下遍历树，我们使用`ffs`在该掩码上获取正确的子节点编号，然后只需调用我们之前定义的`go`函数：
 - en: '[PRE6]'
+  id: totrans-39
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: To actually return the result in the end, we’d want to just fetch `btree[k][i]`
     in the last node we visited, but the problem is that sometimes the local lower
     bound doesn’t exist ($i \ge B$) because $x$ happens to be greater than all the
@@ -196,404 +283,594 @@
     element *after* we calculate the last index, but we don’t have a nice bit trick
     this time and have to do a lot of [divisions by 17](/hpc/arithmetic/division)
     to compute it, which will be slow and almost certainly not worth it.
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 要最终返回结果，我们只想从最后访问的节点中获取`btree[k][i]`，但问题是局部下界有时不存在（$i \ge B$），因为 $x$ 恰好大于节点中的所有键。理论上，我们可以做与[Eytzinger二分搜索](../binary-search/#search-implementation)相同的事情，并在计算最后一个索引后恢复正确的元素，但这次我们没有一个很好的位技巧，而必须进行大量的[除以17](/hpc/arithmetic/division)来计算它，这将很慢，几乎肯定不值得。
 - en: 'Instead, we can just remember and return the last local lower bound we encountered
     when we descended the tree:'
+  id: totrans-41
   prefs: []
   type: TYPE_NORMAL
+  zh: 相反，我们只需记住并返回我们在下降树时遇到的最后一个局部下界：
 - en: '[PRE7]'
+  id: totrans-42
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: 'This implementation outperforms all previous binary search implementations,
     and by a huge margin:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 此实现优于所有之前的二分搜索实现，并且差距很大：
 - en: '![](../Images/2fa2b4761b12c79e9e1cf99a0eedee1a.png)'
+  id: totrans-44
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/2fa2b4761b12c79e9e1cf99a0eedee1a.png)'
 - en: This is very good — but we can optimize it even further.
+  id: totrans-45
   prefs: []
   type: TYPE_NORMAL
+  zh: 这很好——但我们还可以进一步优化它。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#optimization)Optimization'
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [优化](https://en.algorithmica.org/hpc/data-structures/s-tree/#optimization)'
 - en: 'Before everything else, let’s allocate the memory for the array on a [hugepage](/hpc/cpu-cache/paging):'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 在所有其他事情之前，让我们在[hugepage](/hpc/cpu-cache/paging)上为数组分配内存：
 - en: '[PRE8]'
+  id: totrans-48
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'This slightly improves the performance on larger array sizes:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 这略微提高了较大数组大小的性能：
 - en: '![](../Images/739fc2fb53756d97df07d614ec9c8632.png)'
+  id: totrans-50
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/739fc2fb53756d97df07d614ec9c8632.png)'
 - en: Ideally, we’d also need to enable hugepages for all [previous implementations](../binary-search)
     to make the comparison fair, but it doesn’t matter that much because they all
     have some form of prefetching that alleviates this problem.
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 理想情况下，我们还需要为所有[先前实现](../binary-search)启用hugepages，以使比较公平，但这并不重要，因为它们都有某种形式的预取，这可以缓解这个问题。
 - en: 'With that settled, let’s begin real optimization. First of all, we’d want to
     use compile-time constants instead of variables as much as possible because it
     lets the compiler embed them in the machine code, unroll loops, optimize arithmetic,
     and do all sorts of other nice stuff for us for free. Specifically, we want to
     know the tree height in advance:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个问题解决之后，让我们开始真正的优化。首先，我们尽可能使用编译时常量而不是变量，因为这可以让编译器将它们嵌入到机器代码中，展开循环，优化算术，并为我们免费做所有
+    sorts of 其他好事。具体来说，我们希望提前知道树的高度：
 - en: '[PRE9]'
+  id: totrans-53
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: 'Next, we can find the local lower bound in nodes faster. Instead of calculating
     it separately for two 8-element blocks and merging two 8-bit masks, we combine
     the vector masks using the [packs](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,4870,6715,4845,3853,90,7307,5993,2692,6946,6949,5456,6938,5456,1021,3007,514,518,7253,7183,3892,5135,5260,3915,4027,3873,7401,4376,4229,151,2324,2310,2324,4075,6130,4875,6385,5259,6385,6250,1395,7253,6452,7492,4669,4669,7253,1039,1029,4669,4707,7253,7242,848,879,848,7251,4275,879,874,849,833,6046,7250,4870,4872,4875,849,849,5144,4875,4787,4787,4787,5227,7359,7335,7392,4787,5259,5230,5223,6438,488,483,6165,6570,6554,289,6792,6554,5230,6385,5260,5259,289,288,3037,3009,590,604,5230,5259,6554,6554,5259,6547,6554,3841,5214,5229,5260,5259,7335,5259,519,1029,515,3009,3009,3011,515,6527,652,6527,6554,288,3841,5230,5259,5230,5259,305,5259,591,633,633,5259,5230,5259,5259,3017,3018,3037,3018,3017,3016,3013,5144&text=_mm256_packs_epi32&techs=AVX,AVX2)
     instruction and readily extract it using `movemask` just once:'
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们可以更快地找到节点中的局部下界。我们不再分别对两个8元素块进行计算并合并两个8位掩码，而是使用[packs](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,4870,6715,4845,3853,90,7307,5993,2692,6946,6949,5456,6938,5456,1021,3007,514,518,7253,7183,3892,5135,5260,3915,4027,3873,7401,4376,4229,151,2324,2310,2324,4075,6130,4875,6385,5259,6385,6250,1395,7253,6452,7492,4669,4669,7253,1039,1029,4669,4707,7253,7242,848,879,848,7251,4275,879,874,849,833,6046,7250,4870,4872,4875,849,849,5144,4875,4787,4787,4787,5227,7359,7335,7392,4787,5259,5230,5223,6438,488,483,6165,6570,6554,289,6792,6554,5230,6385,5260,5259,289,288,3037,3009,590,604,5230,5259,6554,6554,5259,6547,6554,3841,5214,5229,5260,5259,7335,5259,519,1029,515,3009,3009,3011,515,6527,652,6527,6554,288,3841,5230,5259,5230,5259,305,5259,591,633,633,5259,5230,5259,5259,3017,3018,3037,3018,3017,3016,3013,5144&text=_mm256_packs_epi32&techs=AVX,AVX2)指令将向量掩码组合起来，并使用`movemask`一次性提取它：
 - en: '[PRE10]'
+  id: totrans-55
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: This instruction converts 32-bit integers stored in two registers to 16-bit
     integers stored in one register — in our case, effectively joining the vector
     masks into one. Note that we’ve swapped the order of comparison — this lets us
     not invert the mask in the end, but we have to subtract^([2](#fn:2)) one from
     the search key once in the beginning to make it correct (otherwise, it works as
     `upper_bound`).
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个指令将存储在两个寄存器中的32位整数转换为存储在一个寄存器中的16位整数——在我们的情况下，实际上是将向量掩码合并为一个。注意，我们已经交换了比较的顺序——这让我们在最后不需要反转掩码，但我们必须在开始时从搜索键中减去^([2](#fn:2))一次，以使其正确（否则，它作为`upper_bound`工作）。
 - en: 'The problem is, it does this weird interleaving where the result is written
     in the `a1 b1 a2 b2` order instead of `a1 a2 b1 b2` that we want — many AVX2 instructions
     tend to do that. To correct this, we need to [permute](/hpc/simd/shuffling) the
     resulting vector, but instead of doing it during the query time, we can just permute
     every node during preprocessing:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 问题在于，它以这种奇怪的交错方式执行，结果以`a1 b1 a2 b2`的顺序写入，而不是我们想要的`a1 a2 b1 b2`顺序——许多AVX2指令都倾向于这样做。为了纠正这一点，我们需要对结果向量进行置换，但不是在查询时间进行，我们可以在预处理期间对每个节点进行置换：
 - en: '[PRE11]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: Now we just call `permute(&btree[k])` right after we are done building the node.
     There are probably faster ways to swap the middle elements, but we will leave
     it here as the preprocessing time is not that important for now.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们只需在我们完成节点构建后立即调用`permute(&btree[k])`。可能还有更快的方法来交换中间元素，但我们将其留在这里，因为预处理时间现在并不重要。
 - en: 'This new SIMD routine is significantly faster because the extra `movemask`
     is slow, and also blending the two masks takes quite a few instructions. Unfortunately,
     we now can’t just do the `res = btree[k][i]` update anymore because the elements
     are permuted. We can solve this problem with some bit-level trickery in terms
     of `i`, but indexing a small lookup table turns out to be faster and also doesn’t
     require a new branch:'
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个新的SIMD例程要快得多，因为额外的`movemask`很慢，而且混合两个掩码需要相当多的指令。不幸的是，我们现在不能再简单地执行`res = btree[k][i]`更新了，因为元素被重新排列。我们可以通过一些关于`i`的位级技巧来解决这个问题，但索引一个小查找表证明要快得多，而且也不需要新的分支：
 - en: '[PRE12]'
+  id: totrans-61
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: This `update` procedure takes some time, but it’s not on the critical path between
     the iterations, so it doesn’t affect the actual performance that much.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个`更新`过程需要一些时间，但它不在迭代之间的关键路径上，所以它对实际性能的影响不大。
 - en: 'Stitching it all together (and leaving out some other minor optimizations):'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 将所有这些组合在一起（并省略一些其他小的优化）：
 - en: '[PRE13]'
+  id: totrans-64
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: 'All this work saved us 15-20% or so:'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 所有这些工作为我们节省了大约15-20%：
 - en: '![](../Images/6c21a658d77311db69d58129c0fd6b1b.png)'
+  id: totrans-66
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/6c21a658d77311db69d58129c0fd6b1b.png)'
 - en: It doesn’t feel very satisfying so far, but we will reuse these optimization
     ideas later.
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，这并不令人满意，但我们将稍后重用这些优化思想。
 - en: 'There are two main problems with the current implementation:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 当前实现有两个主要问题：
 - en: 'The `update` procedure is quite costly, especially considering that it is very
     likely going to be useless: 16 out of 17 times, we can just fetch the result from
     the last block.'
+  id: totrans-69
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`更新`过程相当昂贵，尤其是考虑到它很可能毫无用处：17次中有16次，我们只需从最后一个块中获取结果。'
 - en: We do a non-constant number of iterations, causing branch prediction problems
     similar to how it did for the [Eytzinger binary search](../binary-search/#removing-the-last-branch);
     you can also see it on the graph this time, but the latency bumps have a period
     of $2^4$.
+  id: totrans-70
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们进行非恒定的迭代次数，导致分支预测问题类似于[Eytzinger二分搜索](../binary-search/#removing-the-last-branch)；这次你也可以在图表上看到，但延迟峰值周期为$2^4$。
 - en: To address these problems, we need to change the layout a little bit.
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了解决这些问题，我们需要稍微改变布局。
 - en: '## [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#b-tree-layout-1)B+
     Tree Layout'
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: '## [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#b-tree-layout-1)B+树布局'
 - en: 'Most of the time, when people talk about B-trees, they really mean *B+ trees*,
     which is a modification that distinguishes between the two types of nodes:'
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数时候，当人们谈论B树时，他们实际上是指*B+树*，这是一种区分两种节点类型的修改：
 - en: '*Internal nodes* store up to $B$ keys and $(B + 1)$ pointers to child nodes.
     The key number $i$ is always equal to the smallest key in the subtree of the $(i
     + 1)$-th child node.'
+  id: totrans-74
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*内部节点*可以存储多达$B$个键和$(B + 1)$个指向子节点的指针。键号$i$始终等于第$(i + 1)$个子树中最小的键。'
 - en: '*Data nodes* or *leaves* store up to $B$ keys, the pointer to the next leaf
     node, and, optionally, an associated value for each key — if the structure is
     used as a key-value map.'
+  id: totrans-75
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*数据节点*或*叶子*可以存储多达$B$个键，指向下一个叶节点的指针，以及可选地，每个键关联的值——如果该结构用作键值映射。'
 - en: 'The advantages of this approach include faster search time (as the internal
     nodes only store keys) and the ability to quickly iterate over a range of entries
     (by following next leaf node pointers), but this comes at the cost of some memory
     overhead: we have to store copies of keys in the internal nodes.'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种方法的优势包括更快的搜索时间（因为内部节点只存储键）和快速遍历一系列条目的能力（通过跟随下一个叶节点指针），但这是以一些内存开销为代价的：我们必须在内部节点中存储键的副本。
 - en: '![](../Images/5130488f9c80507bf3f273b0e631ed26.png)'
+  id: totrans-77
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/5130488f9c80507bf3f273b0e631ed26.png)'
 - en: A B+ tree of order 4
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个4阶的B+树
 - en: 'Back to our use case, this layout can help us solve our two problems:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 回到我们的用例，这种布局可以帮助我们解决我们的两个问题：
 - en: Either the last node we descend into has the local lower bound, or it is the
     first key of the next leaf node, so we don’t need to call `update` on each iteration.
+  id: totrans-80
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 要么我们最后进入的节点具有局部下界，要么它是下一个叶节点的第一个键，所以我们不需要在每次迭代上调用`update`。
 - en: The depth of all leaves is constant because B+ trees grow at the root and not
     at the leaves, which removes the need for branching.
+  id: totrans-81
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 所有叶子的深度都是恒定的，因为B+树在根而不是在叶子处增长，这消除了分叉的需要。
 - en: 'The disadvantage is that this layout is not *succinct*: we need some additional
     memory to store the internal nodes — about $\frac{1}{16}$-th of the original array
     size, to be exact — but the performance improvement will be more than worth it.'
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
+  zh: 这种布局的缺点是它不是*紧凑的*：我们需要额外的内存来存储内部节点——确切地说，大约是原始数组大小的$\frac{1}{16}$——但性能提升将远远超过这个成本。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#implicit-b-tree-1)Implicit
     B+ Tree'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#implicit-b-tree-1)
+    隐式B+树'
 - en: 'To be more explicit with pointer arithmetic, we will store the entire tree
     in a single one-dimensional array. To minimize index computations during run time,
     we will store each layer sequentially in this array and use compile time computed
     offsets to address them: the keys of the node number `k` on layer `h` start with
     `btree[offset(h) + k * B]`, and its `i`-th child will at `btree[offset(h - 1)
     + (k * (B + 1) + i) * B]`.'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了更明确地使用指针算术，我们将整个树存储在一个单一的一维数组中。为了在运行时最小化索引计算，我们将每个层按顺序存储在这个数组中，并使用编译时计算的偏移量来访问它们：层`h`上节点`k`的键从`btree[offset(h)
+    + k * B]`开始，其第`i`个子节点在`btree[offset(h - 1) + (k * (B + 1) + i) * B]`。
 - en: 'To implement all that, we need slightly more `constexpr` functions:'
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了实现所有这些，我们需要稍微更多的`constexpr`函数：
 - en: '[PRE14]'
+  id: totrans-86
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: 'Note that we store the layers in reverse order, but the nodes within a layer
     and data in them are still left-to-right, and also the layers are numbered bottom-up:
     the leaves form the zeroth layer, and the root is the layer `H - 1`. These are
     just arbitrary decisions — it is just slightly easier to implement in code.'
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，我们以相反的顺序存储层，但同一层内的节点和数据仍然是左到右的，并且层也是从下往上编号：叶子形成零层，根是层`H - 1`。这些只是任意决定——在代码实现上稍微容易一些。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#construction-1)Construction'
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#construction-1)
+    构建过程'
 - en: 'To construct the tree from a sorted array `a`, we first need to copy it into
     the zeroth layer and pad it with infinities:'
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
+  zh: 要从排序数组`a`构建树，我们首先需要将其复制到零层，并用无穷大填充：
 - en: '[PRE15]'
+  id: totrans-90
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Now we build the internal nodes, layer by layer. For each key, we need to descend
     to the right of it in, always go left until we reach a leaf node, and then take
     its first key — it will be the smallest on the subtree:'
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们逐层构建内部节点。对于每个键，我们需要向其右侧下降，始终向左走，直到我们到达一个叶节点，然后取其第一个键——它将是子树中最小的：
 - en: '[PRE16]'
+  id: totrans-92
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: 'And just the finishing touch — we need to permute keys in internal nodes to
     search them faster:'
+  id: totrans-93
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后的润色——我们需要对内部节点中的键进行排列以加快搜索：
 - en: '[PRE17]'
+  id: totrans-94
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: We start from `offset(1)`, and we specifically don’t permute leaf nodes and
     leave the array in the original sorted order. The motivation is that we’d need
     to do this complex index translation we do in `update` if the keys were permuted,
     and it is on the critical path when this is the last operation. So, just for this
     layer, we switch to the original mask-blending local lower bound procedure.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们从`offset(1)`开始，并且特别不排列叶节点，并保持数组在原始排序顺序。动机是，如果键被排列，我们需要执行在`update`中进行的复杂索引转换，而这将是最后一个操作的关键路径。所以，仅为此层，我们切换到原始的掩码混合局部下界过程。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#searching)Searching'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#searching)
+    搜索'
 - en: 'The search procedure becomes simpler than for the B-tree layout: we don’t need
     to do `update` and only execute a fixed number of iterations — although the last
     one with some special treatment:'
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
+  zh: 搜索过程比B树布局简单：我们不需要执行`update`操作，而只需要执行固定次数的迭代——尽管最后一次需要一些特殊处理：
 - en: '[PRE18]'
+  id: totrans-98
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE18]'
 - en: 'Switching to the B+ layout more than paid off: the S+ tree is 1.5-3x faster
     compared to the optimized S-tree:'
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
+  zh: 转换到B+布局的回报超过了预期：与优化的S树相比，S+树的速度提高了1.5-3倍：
 - en: '![](../Images/3445e6f05c2d8637433f0eeec9f6b6c0.png)'
+  id: totrans-100
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/3445e6f05c2d8637433f0eeec9f6b6c0.png)'
 - en: 'The spikes at the high end of the graph are caused by the L1 TLB not being
     large enough: it has 64 entries, so it can handle at most 64 × 2 = 128MB of data,
     which is exactly what is required for storing `2^25` integers. The S+ tree hits
     this limit slightly sooner because of the ~7% memory overhead.'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
+  zh: 图表高端的峰值是由L1 TLB不够大造成的：它有64个条目，因此最多可以处理64 × 2 = 128MB的数据，这正好是存储`2^25`个整数所需的数据。由于大约有7%的内存开销，S+树达到这个限制的时间稍早一些。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#comparison-with-stdlower_bound)Comparison
     with `std::lower_bound`'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#comparison-with-stdlower_bound)
+    与`std::lower_bound`的比较'
 - en: 'We’ve come a long way from binary search:'
+  id: totrans-103
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们已经从二分搜索走了很长的路：
 - en: '![](../Images/b5dcb44b94f85f96c019569f69f9ef85.png)'
+  id: totrans-104
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/b5dcb44b94f85f96c019569f69f9ef85.png)'
 - en: 'On these scales, it makes more sense to look at the relative speedup:'
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这些规模上，查看相对加速更有意义：
 - en: '![](../Images/9de39a37218422144830e42cec429b70.png)'
+  id: totrans-106
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/9de39a37218422144830e42cec429b70.png)'
 - en: The cliffs at the beginning of the graph are because the running time of `std::lower_bound`
     grows smoothly with the array size, while for an S+ tree, it is locally flat and
     increases in discrete steps when a new layer needs to be added.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
+  zh: 图表开始处的悬崖是因为`std::lower_bound`的运行时间随着数组大小的增加而平滑增长，而对于S+树，它是局部平坦的，并且当需要添加新层时以离散的步骤增加。
 - en: 'One important asterisk we haven’t discussed is that what we are measuring is
     not real latency, but the *reciprocal throughput* — the total time it takes to
     execute a lot of queries divided by the number of queries:'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还没有讨论的一个重要问题是，我们所测量的是不是真实延迟，而是**倒数吞吐量**——执行大量查询所需的总时间除以查询数量：
 - en: '[PRE19]'
+  id: totrans-109
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE19]'
 - en: 'To measure *actual* latency, we need to introduce a dependency between the
     loop iterations so that the next query can’t start before the previous one finishes:'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了测量**实际**延迟，我们需要在循环迭代之间引入依赖关系，以便下一个查询不能在之前的查询完成之前开始：
 - en: '[PRE20]'
+  id: totrans-111
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE20]'
 - en: 'In terms of real latency, the speedup is not that impressive:'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
+  zh: 在实际延迟方面，加速并不那么令人印象深刻：
 - en: '![](../Images/e7a566ec44f7e1d098083d3bc809e1c2.png)'
+  id: totrans-113
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/e7a566ec44f7e1d098083d3bc809e1c2.png)'
 - en: A lot of the performance boost of the S+ tree comes from removing branching
     and minimizing memory requests, which allows overlapping the execution of more
     adjacent queries — apparently, around three on average.
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: S+树性能提升的大部分来自于去除分支和最小化内存请求，这允许重叠执行更多相邻的查询——平均来看，大约是三个。
 - en: Although nobody except maybe the HFT people cares about real latency, and everybody
     actually measures throughput even when using the word “latency,” this nuance is
     still something to take into account when predicting the possible speedup in user
     applications.
+  id: totrans-115
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管除了可能的高频交易人员之外没有人关心真实延迟，而且实际上人们在使用“延迟”这个词时实际上测量的是吞吐量，但这种细微差别在预测用户应用程序中可能的加速时仍然需要考虑。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#modifications-and-further-optimizations)Modifications
     and Further Optimizations'
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#modifications-and-further-optimizations)修改和进一步优化'
 - en: To minimize the number of memory accesses during a query, we can increase the
     block size. To find the local lower bound in a 32-element node (spanning two cache
     lines and four AVX2 registers), we can use a [similar trick](https://github.com/sslotin/amh-code/blob/a74495a2c19dddc697f94221629c38fee09fa5ee/binsearch/bplus32.cc#L94)
     that uses two `packs_epi32` and one `packs_epi16` to combine masks.
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了在查询期间最小化内存访问次数，我们可以增加块大小。为了在32元素节点（跨越两个缓存行和四个AVX2寄存器）中找到局部下界，我们可以使用一个[类似的技巧](https://github.com/sslotin/amh-code/blob/a74495a2c19dddc697f94221629c38fee09fa5ee/binsearch/bplus32.cc#L94)，该技巧使用两个`packs_epi32`和一个`packs_epi16`来组合掩码。
 - en: We can also try to use the cache more efficiently by controlling where each
     tree layer is stored in the cache hierarchy. We can do that by prefetching nodes
     to a [specific level](/hpc/cpu-cache/prefetching/#software-prefetching) and using
     [non-temporal reads](/hpc/cpu-cache/bandwidth/#bypassing-the-cache) during queries.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还可以通过控制每个树层在缓存层次结构中的存储位置来更有效地使用缓存。我们可以通过将节点预取到[特定级别](/hpc/cpu-cache/prefetching/#software-prefetching)并在查询期间使用[非临时读取](/hpc/cpu-cache/bandwidth/#bypassing-the-cache)来实现这一点。
 - en: 'I implemented two versions of these optimizations: the one with a block size
     of 32 and the one where the last read is non-temporal. They don’t improve the
     throughput:'
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: 我实现了这两种优化的两个版本：一个是块大小为32的版本，另一个是最后一次读取是非临时性的。它们并没有提高吞吐量：
 - en: '![](../Images/e513b7d0dc4921d196ab5817075dec54.png)'
+  id: totrans-120
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/e513b7d0dc4921d196ab5817075dec54.png)'
 - en: '…but they do make the latency lower:'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: …但它们确实降低了延迟：
 - en: '![](../Images/962e358aff53be491a9139a7dafd9a42.png)'
+  id: totrans-122
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/962e358aff53be491a9139a7dafd9a42.png)'
 - en: 'Ideas that I have not yet managed to implement but consider highly perspective
     are:'
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 我还没有实现但认为非常有前景的想法是：
 - en: Make the block size non-uniform. The motivation is that the slowdown from having
     one 32-element layer is less than from having two separate layers. Also, the root
     is often not full, so perhaps sometimes it should have only 8 keys or even just
     one key. Picking the optimal layer configuration for a given array size should
     remove the spikes from the relative speedup graph and make it look more like its
     upper envelope.
+  id: totrans-124
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使块大小非均匀。动机是，有一个32元素层的减速小于有两个单独层的减速。此外，根节点通常不是满的，所以有时它可能只有8个键，甚至只有一个键。为给定的数组大小选择最佳层配置应该会消除相对速度提升图中的峰值，并使其看起来更像其上包络。
 - en: I know how to do it with code generation, but I went for a generic solution
     and tried to [implement](https://github.com/sslotin/amh-code/blob/main/binsearch/bplus-adaptive.cc)
     it with the facilities of modern C++, but the compiler can’t produce optimal code
     this way.
+  id: totrans-125
   prefs:
   - PREF_IND
   type: TYPE_NORMAL
+  zh: 我知道如何使用代码生成来实现它，但我选择了通用解决方案，并尝试使用现代C++的功能[实现](https://github.com/sslotin/amh-code/blob/main/binsearch/bplus-adaptive.cc)它，但编译器无法以这种方式生成最优代码。
 - en: Group nodes with one or two generations of its descendants (~300 nodes / ~5k
     keys) so that they are close in memory — in the spirit of what [FAST](http://kaldewey.com/pubs/FAST__SIGMOD10.pdf)
     calls hierarchical blocking. This reduces the severity of TLB misses and also
     may improve the latency as the memory controller may choose to keep the [RAM row
     buffer](/hpc/cpu-cache/aos-soa/#ram-specific-timings) open, anticipating local
     reads.
+  id: totrans-126
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将具有一代或两代后代的节点分组（约300个节点/约5k个键），以便它们在内存中靠近——类似于[FAST](http://kaldewey.com/pubs/FAST__SIGMOD10.pdf)所说的分层阻塞。这减少了TLB缺失的严重性，并且也可能提高延迟，因为内存控制器可能会选择保持[RAM行缓冲区](/hpc/cpu-cache/aos-soa/#ram-specific-timings)打开，以期待局部读取。
 - en: Optionally use prefetching on some specific layers. Aside from to the $\frac{1}{17}$-th
     chance of it fetching the node we need, the hardware prefetcher may also get some
     of its neighbors for us if the data bus is not busy. It also has the same TLB
     and row buffer effects as with blocking.
+  id: totrans-127
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 可选地在某些特定层使用预取。除了有$\frac{1}{17}$的机会预取到所需的节点外，如果数据总线不忙，硬件预取器也可能为我们获取一些邻居节点。它还具有与阻塞相同的TLB和行缓冲区效果。
 - en: 'Other possible minor optimizations include:'
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
+  zh: 其他可能的轻微优化包括：
 - en: Permuting the nodes of the last layer as well — if we only need the index and
     not the value.
+  id: totrans-129
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将最后一层的节点进行排列——如果我们只需要索引而不是值。
 - en: Reversing the order in which the layers are stored to left-to-right so that
     the first few layers are on the same page.
+  id: totrans-130
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将层的存储顺序从左到右反转，以便前几层在同一页上。
 - en: Rewriting the whole thing in assembly, as the compiler seems to struggle with
     pointer arithmetic.
+  id: totrans-131
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将整个程序重写为汇编语言，因为编译器似乎在指针算术方面有困难。
 - en: 'Using [blending](/hpc/simd/masking) instead of `packs`: you can odd-even shuffle
     node keys (`[1 3 5 7] [2 4 6 8]`), compare against the search key, and then blend
     the low 16 bits of the first register mask with the high 16 bits of the second.
@@ -601,96 +878,134 @@
     between packing and blending as they use different subsets of ports. (Thanks to
     Const-me from HackerNews for [suggesting](https://news.ycombinator.com/item?id=30381912)
     it.)'
+  id: totrans-132
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用[混合](/hpc/simd/masking)代替`packs`：你可以对节点键进行奇偶洗牌（`[1 3 5 7] [2 4 6 8]`），与搜索键进行比较，然后将第一个寄存器掩码的低16位与第二个寄存器掩码的高16位混合。在许多架构上，混合稍微快一些，并且它还可能有助于在打包和混合之间交替，因为它们使用不同的端口子集。（感谢HackerNews上的Const-me提出[建议](https://news.ycombinator.com/item?id=30381912)。）
 - en: 'Using [popcount](/hpc/simd/shuffling/#shuffles-and-popcount) instead of `tzcnt`:
     the index `i` is equal to the number of keys less than `x`, so we can compare
     `x` against all keys, combine the vector mask any way we want, call `maskmov`,
     and then calculate the number of set bits with `popcnt`. This removes the need
     to store the keys in any particular order, which lets us skip the permutation
     step and also use this procedure on the last layer as well.'
+  id: totrans-133
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 使用[popcount](/hpc/simd/shuffling/#shuffles-and-popcount)代替`tzcnt`：索引`i`等于小于`x`的键的数量，因此我们可以将`x`与所有键进行比较，以任何我们想要的方式组合向量掩码，调用`maskmov`，然后使用`popcnt`计算设置位的数量。这消除了存储键的特定顺序的需求，这使得我们可以跳过排列步骤，并且还可以在最后一层使用此过程。
 - en: Defining the key $i$ as the *maximum* key in the subtree of child $i$ instead
     of the *minimum* key in the subtree of child $(i + 1)$. The correctness doesn’t
     change, but this guarantees that the result will be stored in the last node we
     access (and not in the first element of the next neighbor node), which lets us
     fetch slightly fewer cache lines.
+  id: totrans-134
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将键$i$定义为子节点$i$的子树中的*最大*键，而不是子节点$(i + 1)$的子树中的*最小*键。正确性不会改变，但这保证了结果将存储在我们最后访问的节点中（而不是下一个相邻节点的第一个元素），这让我们可以获取更少的缓存行。
 - en: Note that the current implementation is specific to AVX2 and may require some
     non-trivial changes to adapt to other platforms. It would be interesting to port
     it for Intel CPUs with AVX-512 and Arm CPUs with 128-bit NEON, which may require
     some [trickery](https://github.com/WebAssembly/simd/issues/131) to work.
+  id: totrans-135
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，当前的实现是针对AVX2的，可能需要一些非平凡的更改才能适应其他平台。将其移植到具有AVX-512的Intel CPU和具有128位NEON的Arm
+    CPU可能会需要一些[技巧](https://github.com/WebAssembly/simd/issues/131)才能工作。
 - en: With these optimizations implemented, I wouldn’t be surprised to see another
     10-30% improvement and over 10x speedup over `std::lower_bound` on large arrays
     for some platforms.
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 实施了这些优化后，我并不惊讶地看到在大型数组上，某些平台上的性能可以提升10-30%，并且比`std::lower_bound`快10倍以上。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#as-a-dynamic-tree)As
     a Dynamic Tree'
+  id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#as-a-dynamic-tree)作为一个动态树'
 - en: 'The comparison is even more favorable against `std::set` and other pointer-based
     trees. In our benchmark, we add the same elements (without measuring the time
     it takes to add them) and use the same lower bound queries, and the S+ tree is
     up to 30x faster:'
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
+  zh: 与`std::set`和其他基于指针的树相比，这种比较更有利。在我们的基准测试中，我们添加了相同的元素（不测量添加它们所需的时间）并使用相同的下界查询，S+树的速度快到30倍：
 - en: '![](../Images/25753683e5199d6dc6feba258cf22581.png)'
+  id: totrans-139
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/25753683e5199d6dc6feba258cf22581.png)'
 - en: This suggests that we can probably use this approach to also improve on *dynamic*
     search trees by a large margin.
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 这表明我们可能可以使用这种方法通过大幅提高来改进*动态*搜索树。
 - en: To validate this hypothesis, I added an array of 17 indices for each node that
     point to where their children should be and used this array to descend the tree
     instead of the usual implicit numbering. This array is separate from the tree,
     not aligned, and isn’t even on a hugepage — the only optimization we do is prefetch
     the first and the last pointer of a node.
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了验证这个假设，我为每个节点添加了17个索引数组，这些索引指向它们子节点应该所在的位置，并使用这个数组来遍历树，而不是通常的隐式编号。这个数组与树是分开的，不对齐，甚至不在一个巨大的页面上——我们做的唯一优化是预取节点第一个和最后一个指针。
 - en: 'I also added [B-tree from Abseil](https://abseil.io/blog/20190812-btree) to
     the comparison, which is the only widely-used B-tree implementation I know of.
     It performs just slightly better than `std::lower_bound`, while the S+ tree with
     pointers is ~15x faster for large arrays:'
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
+  zh: 我还把[Abseil中的B树](https://abseil.io/blog/20190812-btree)添加到比较中，这是我知道的唯一广泛使用的B树实现。它的性能略好于`std::lower_bound`，而带有指针的S+树对于大型数组来说要快15倍左右：
 - en: '![](../Images/1999d0c055a6f6c41ff6dc14b7a49b61.png)'
+  id: totrans-143
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/1999d0c055a6f6c41ff6dc14b7a49b61.png)'
 - en: Of course, this comparison is not fair, as implementing a dynamic search tree
     is a more high-dimensional problem.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 当然，这种比较并不公平，因为实现动态搜索树是一个更高维的问题。
 - en: We’d also need to implement the update operation, which will not be that efficient,
     and for which we’d need to sacrifice the fanout factor. But it still seems possible
     to implement a 10-20x faster `std::set` and a 3-5x faster `absl::btree_set`, depending
     on how you define “faster” — and this is one of the things we’ll [attempt to do
     next](../b-tree).
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们还需要实现更新操作，这不会特别高效，并且我们需要牺牲分支因子。但似乎仍然可以实施一个10-20倍更快的`std::set`和一个3-5倍更快的`absl::btree_set`，具体取决于你如何定义“更快”——这是我们接下来[将尝试做的事情](../b-tree)之一。
 - en: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#acknowledgements)Acknowledgements'
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/data-structures/s-tree/#acknowledgements)致谢'
 - en: This [StackOverflow answer](https://stackoverflow.com/questions/20616605/using-simd-avx-sse-for-tree-traversal)
     by Cory Nelson is where I took the permuted 16-element search trick from.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
+  zh: 这[StackOverflow的回答](https://stackoverflow.com/questions/20616605/using-simd-avx-sse-for-tree-traversal)是Cory
+    Nelson，我从那里得到了排列16元素搜索技巧的。
 - en: '* * *'
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: '[Similar to B-trees](https://en.wikipedia.org/wiki/B-tree#Origin), “the more
     you think about what the S in S-trees means, the better you understand S-trees.” [↩︎](#fnref:1)'
+  id: totrans-149
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '[类似于B树](https://en.wikipedia.org/wiki/B-tree#Origin)，“你越思考S树中的S代表什么，你就越能更好地理解S树。” [↩︎](#fnref:1)'
 - en: 'If you need to work with [floating-point](/hpc/arithmetic/float) keys, consider
     whether `upper_bound` will suffice — because if you need `lower_bound` specifically,
     then subtracting one or the machine epsilon from the search key doesn’t work:
@@ -700,6 +1015,11 @@
     magically works because of how [IEEE-754 floating-point numbers](/hpc/arithmetic/ieee-754)
     are stored in memory). [↩︎](#fnref:2) [← Binary Search](https://en.algorithmica.org/hpc/data-structures/binary-search/)[Search
     Trees →](https://en.algorithmica.org/hpc/data-structures/b-tree/)'
+  id: totrans-150
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 如果你需要处理 [浮点数](/hpc/arithmetic/float) 键，考虑一下 `upper_bound` 是否足够——因为如果你需要特定的 `lower_bound`，那么从搜索键中减去一个或机器epsilon是不行的：你需要
+    [获取前一个可表示的数字](https://stackoverflow.com/questions/10160079/how-to-find-nearest-next-previous-double-value-numeric-limitsepsilon-for-give)。除了某些特殊情况外，这基本上意味着将其位重新解释为整数，减去一个，然后再将其重新解释为浮点数（这神奇地工作是因为
+    [IEEE-754 浮点数](/hpc/arithmetic/ieee-754) 在内存中的存储方式）。 [↩︎](#fnref:2) [← 二分查找](https://en.algorithmica.org/hpc/data-structures/binary-search/)[搜索树
+    →](https://en.algorithmica.org/hpc/data-structures/b-tree/)

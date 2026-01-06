@@ -1,90 +1,130 @@
 - en: External Memory Model
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 外部内存模型
 - en: 原文：[https://en.algorithmica.org/hpc/external-memory/model/](https://en.algorithmica.org/hpc/external-memory/model/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/external-memory/model/](https://en.algorithmica.org/hpc/external-memory/model/)
 - en: To reason about the performance of memory-bound algorithms, we need to develop
     a cost model that is more sensitive to expensive block I/O operations but is not
     too rigorous to still be useful.
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了推理内存绑定算法的性能，我们需要开发一个成本模型，它对昂贵的块I/O操作更敏感，但又不至于过于严格，仍然有用。
 - en: '### [#](https://en.algorithmica.org/hpc/external-memory/model/#cache-aware-model)Cache-Aware
     Model'
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/external-memory/model/#cache-aware-model)缓存感知模型'
 - en: In the [standard RAM model](/hpc/complexity), we ignore the fact that primitive
     operations take unequal time to complete. Most importantly, it does not differentiate
     between operations on different types of memory, equating a read from RAM taking
     ~50ns in real-time with a read from HDD taking ~5ms, or about a $10^5$ times as
     much.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[标准RAM模型](/hpc/complexity)中，我们忽略了基本操作完成所需时间不等的事实。最重要的是，它不区分不同类型内存上的操作，将RAM读取大约需要50ns的时间等同于HDD读取大约需要5ms的时间，或者说大约是$10^5$倍。
 - en: 'Similar in spirit, in the *external memory model*, we simply ignore every operation
     that is not an I/O operation. More specifically, we consider one level of cache
     hierarchy and assume the following about the hardware and the problem:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 在精神上类似，在外部内存模型中，我们简单地忽略所有非I/O操作。更具体地说，我们考虑一个缓存层次结构级别，并假设以下关于硬件和问题的内容：
 - en: The size of the dataset is $N$, and it is all stored in *external* memory, which
     we can read and write in blocks of $B$ elements in a unit time (reading a whole
     block and just one element takes the same time).
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 数据集的大小是$N$，并且全部存储在*外部*内存中，我们可以以$B$个元素为一个单元的时间（读取整个块和仅读取一个元素所需时间相同）进行读写。
 - en: We can store $M$ elements in *internal* memory, meaning that we can store up
     to $\left \lfloor \frac{M}{B} \right \rfloor$ blocks.
+  id: totrans-7
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们可以在*内部*内存中存储$M$个元素，这意味着我们可以存储多达$\left \lfloor \frac{M}{B} \right \rfloor$个块。
 - en: 'We only care about I/O operations: any computations done in-between the reads
     and the writes are free.'
+  id: totrans-8
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们只关心I/O操作：在读取和写入之间的任何计算都是免费的。
 - en: We additionally assume $N \gg M \gg B$.
+  id: totrans-9
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们还假设$N \gg M \gg B$。
 - en: In this model, we measure the performance of an algorithm in terms of its high-level
     *I/O operations*, or *IOPS* — that is, the total number of blocks read or written
     to external memory during execution.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个模型中，我们衡量算法的性能是通过其高级*I/O操作*，或*IOPS*——也就是说，在执行过程中读入或写入外部内存的总块数。
 - en: We will mostly focus on the case where the internal memory is RAM and the external
     memory is SSD or HDD, although the underlying analysis techniques that we will
     develop are applicable to any layer in the cache hierarchy. Under these settings,
     reasonable block size $B$ is about 1MB, internal memory size $M$ is usually a
     few gigabytes, and $N$ is up to a few terabytes.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将主要关注内部内存是RAM而外部内存是SSD或HDD的情况，尽管我们将开发的底层分析技术适用于缓存层次结构的任何层。在这些设置下，合理的块大小$B$约为1MB，内部内存大小$M$通常是几GB，而$N$高达几TB。
 - en: '### [#](https://en.algorithmica.org/hpc/external-memory/model/#array-scan)Array
     Scan'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/external-memory/model/#array-scan)数组扫描'
 - en: 'As a simple example, when we calculate the sum of an array by iterating through
     it one element at a time, we implicitly load it by chunks of $O(B)$ elements and,
     in terms of the external memory model, process these chunks one by one:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为简单的例子，当我们通过逐个元素迭代数组来计算其和时，我们隐式地以$O(B)$个元素的大小加载它，在外部内存模型中，我们逐个处理这些块：
 - en: $$ \underbrace{a_1, a_2, a_3,} _ {B_1} \underbrace{a_4, a_5, a_6,} _ {B_2} \ldots
     \underbrace{a_{n-3}, a_{n-2}, a_{n-1}} _ {B_{m-1}} $$ Thus, in the external memory
     model, the complexity of summation and other linear array scans is $$ SCAN(N)
     \stackrel{\text{def}}{=} O\left(\left \lceil \frac{N}{B} \right \rceil \right)
     \; \text{IOPS} $$
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \underbrace{a_1, a_2, a_3,} _ {B_1} \underbrace{a_4, a_5, a_6,} _ {B_2} \ldots
+    \underbrace{a_{n-3}, a_{n-2}, a_{n-1}} _ {B_{m-1}} $$ 因此，在外部内存模型中，求和和其他线性数组扫描的复杂度是
+    $$ SCAN(N) \stackrel{\text{def}}{=} O\left(\left \lceil \frac{N}{B} \right \rceil
+    \right) \; \text{IOPS} $$
 - en: 'You can implement external array scan explicitly like this:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 你可以像这样显式地实现外部数组扫描：
 - en: '[PRE0]'
+  id: totrans-16
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: Note that, in most cases, operating systems do this buffering automatically.
     Even when the data is just redirected to the standard input from a normal file,
     the operating system buffers its stream and reads it in blocks of ~4KB (by default).
     [← Virtual Memory](https://en.algorithmica.org/hpc/external-memory/virtual/)[External
     Sorting →](https://en.algorithmica.org/hpc/external-memory/sorting/)
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意，在大多数情况下，操作系统会自动进行缓冲。即使数据只是从普通文件重定向到标准输入，操作系统也会缓冲其流，并以约4KB（默认）的块读取。 [← 虚拟内存](https://en.algorithmica.org/hpc/external-memory/virtual/)[外部排序
+    →](https://en.algorithmica.org/hpc/external-memory/sorting/)

@@ -1,75 +1,108 @@
 - en: Fast Inverse Square Root
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 快速逆平方根
 - en: 原文：[https://en.algorithmica.org/hpc/arithmetic/rsqrt/](https://en.algorithmica.org/hpc/arithmetic/rsqrt/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/arithmetic/rsqrt/](https://en.algorithmica.org/hpc/arithmetic/rsqrt/)
 - en: The inverse square root of a floating-point number $\frac{1}{\sqrt x}$ is used
     in calculating normalized vectors, which are in turn extensively used in various
     simulation scenarios such as computer graphics (e.g., to determine angles of incidence
     and reflection to simulate lighting). $$ \hat{v} = \frac{\vec v}{\sqrt {v_x^2
     + v_y^2 + v_z^2}} $$
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 浮点数 $\frac{1}{\sqrt x}$ 的逆平方根用于计算归一化向量，而这些向量又广泛应用于各种模拟场景，例如计算机图形学（例如，用于确定入射角和反射角以模拟光照）。$$
+    \hat{v} = \frac{\vec v}{\sqrt {v_x^2 + v_y^2 + v_z^2}} $$
 - en: Calculating an inverse square root directly — by first calculating a square
     root and then dividing $1$ by it — is extremely slow because both of these operations
     are slow even though they are implemented in hardware.
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 直接计算逆平方根——首先计算平方根，然后除以 $1$——非常慢，因为这两个操作即使是在硬件中实现也是慢的。
 - en: But there is a surprisingly good approximation algorithm that takes advantage
     of the way floating-point numbers are stored in memory. In fact, it is so good
     that it has been [implemented in hardware](https://www.felixcloutier.com/x86/rsqrtps),
     so the algorithm is no longer relevant by itself for software engineers, but we
     are nonetheless going to walk through it for its intrinsic beauty and great educational
     value.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 但有一个出人意料的好近似算法，它利用了浮点数在内存中存储的方式。事实上，它非常好，以至于它已经被 [硬件实现](https://www.felixcloutier.com/x86/rsqrtps)，因此算法本身对于软件工程师来说不再相关，但我们仍然要探讨它，因为它具有内在的美感和巨大的教育价值。
 - en: Apart from the method itself, quite interesting is the history of its creation.
     It is attributed to a game studio *id Software* that used it in their iconic 1999
     game *Quake III Arena*, although apparently, it got there by a chain of “I learned
     it from a guy who learned it from a guy” that seems to end on William Kahan (the
     same one that is responsible for IEEE 754 and Kahan summation algorithm).
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了方法本身之外，其创建的历史也非常有趣。它归功于一家游戏工作室 *id Software*，他们在1999年的标志性游戏 *Quake III Arena*
+    中使用了它，尽管显然，它是通过一系列“我从一个人那里学到了它，那个人又从另一个人那里学到了它”的过程得到的，似乎最终结束在威廉·卡汉（William Kahan）身上（同一个人负责IEEE
+    754和卡汉求和算法）。
 - en: 'It became popular in game developing community around 2005 when they released
     the source code of the game. Here is [the relevant excerpt from it](https://github.com/id-Software/Quake-III-Arena/blob/master/code/game/q_math.c#L552),
     including the comments:'
+  id: totrans-6
   prefs: []
   type: TYPE_NORMAL
+  zh: 它在2005年左右在游戏开发社区中变得流行，当时他们发布了游戏的源代码。以下是 [其中的相关摘录](https://github.com/id-Software/Quake-III-Arena/blob/master/code/game/q_math.c#L552)，包括注释：
 - en: '[PRE0]'
+  id: totrans-7
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: We will go through what it does step by step, but first, we need to take a small
     detour.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将逐步解释它是如何工作的，但首先，我们需要稍微绕个弯。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/rsqrt/#approximate-logarithm)Approximate
     Logarithm'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/rsqrt/#approximate-logarithm)近似对数'
 - en: Before computers (or at least affordable calculators) became an everyday thing,
     people computed multiplication and related operations using logarithm tables —
     by looking up the logarithms of $a$ and $b$, adding them, and then finding the
     inverse logarithm of the result.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 在计算机（或至少是负担得起的计算器）成为日常用品之前，人们使用对数表来计算乘法及相关操作——通过查找 $a$ 和 $b$ 的对数，将它们相加，然后找到结果的逆对数。
 - en: '$$ a \times b = 10^{\log a + \log b} = \log^{-1}(\log a + \log b) $$ You can
     do the same trick when computing $\frac{1}{\sqrt x}$ using the identity: $$ \log
     \frac{1}{\sqrt x} = - \frac{1}{2} \log x $$'
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ a \times b = 10^{\log a + \log b} = \log^{-1}(\log a + \log b) $$ 当使用恒等式计算
+    $\frac{1}{\sqrt x}$ 时，你也可以做同样的技巧：$$ \log \frac{1}{\sqrt x} = - \frac{1}{2} \log
+    x $$
 - en: The fast inverse square root is based on this identity, and so it needs to calculate
     the logarithm of $x$ very quickly. Turns out, it can be approximated by just reinterpreting
     a 32-bit `float` as an integer.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 快速逆平方根基于这个恒等式，因此它需要非常快速地计算 $x$ 的对数。结果发现，它可以通过仅仅将32位 `float` 重新解释为整数来近似。
 - en: '[Recall](../float) that floating-point numbers sequentially store the sign
     bit (equal to zero for positive values, which is our case), exponent $e_x$ and
     mantissa $m_x$, which corresponds to'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: '[回忆](../float) 浮点数按顺序存储符号位（对于正值等于零，即我们的情况）、指数 $e_x$ 和尾数 $m_x$，这对应于'
 - en: $$ x = 2^{e_x} \cdot (1 + m_x) $$ Its logarithm is therefore $$ \log_2 x = e_x
     + \log_2 (1 + m_x) $$ Since $m_x \in [0, 1)$, the logarithm on the right-hand
     side can be approximated by $$ \log_2 (1 + m_x) \approx m_x $$ The approximation
@@ -81,91 +114,146 @@
     $I_x$, we essentially get $$ \begin{aligned} I_x &= L \cdot (e_x + B + m_x) \\
     &= L \cdot (e_x + m_x + \sigma +B-\sigma ) \\ &\approx L \cdot \log_2 (x) + L
     \cdot (B-\sigma ) \end{aligned} $$
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ x = 2^{e_x} \cdot (1 + m_x) $$ 它的对数因此是 $$ \log_2 x = e_x + \log_2 (1 + m_x)
+    $$ 由于 $m_x \in [0, 1)$，右侧的对数可以通过 $$ \log_2 (1 + m_x) \approx m_x $$ 来近似。近似在区间的两端是精确的，但为了考虑平均情况，我们需要通过一个小常数
+    $\sigma$ 来移动它，因此 $$ \log_2 x = e_x + \log_2 (1 + m_x) \approx e_x + m_x + \sigma
+    $$ 现在，考虑到这个近似并定义 $L=2^{23}$（`float` 中的尾数位数）和 $B=127$（指数偏差），当我们将 $x$ 的位模式重新解释为整数
+    $I_x$ 时，我们实际上得到 $$ \begin{aligned} I_x &= L \cdot (e_x + B + m_x) \\ &= L \cdot
+    (e_x + m_x + \sigma +B-\sigma ) \\ &\approx L \cdot \log_2 (x) + L \cdot (B-\sigma
+    ) \end{aligned} $$
 - en: (Multiplying an integer by $L=2^{23}$ is equivalent to left-shifting it by 23.)
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: （将一个整数乘以 $L=2^{23}$ 等同于将其左移23位。）
 - en: When you tune $\sigma$ to minimize the mean square error, this results in a
     surprisingly accurate approximation.
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 当你调整 $\sigma$ 以最小化均方误差时，这会导致一个令人惊讶的准确近似。
 - en: '![](../Images/88bc73d39f8ad83d3a6a5db10bcda863.png)'
+  id: totrans-17
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/88bc73d39f8ad83d3a6a5db10bcda863.png)'
 - en: Reinterpreting a floating-point number $x$ as an integer (blue) compared to
     its scaled and shifted logarithm (gray)
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 将浮点数 $x$ 重新解释为整数（蓝色）与其缩放和移位的对数（灰色）相比
 - en: Now, expressing the logarithm from the approximation, we get
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，从近似中表达对数，我们得到
 - en: $$ \log_2 x \approx \frac{I_x}{L} - (B - \sigma) $$
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \log_2 x \approx \frac{I_x}{L} - (B - \sigma) $$
 - en: Cool. Now, where were we? Oh, yes, we wanted to calculate the inverse square
     root.
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 很酷。现在，我们刚才在哪里？哦，是的，我们想要计算平方根的倒数。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/rsqrt/#approximating-the-result)Approximating
     the Result'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/rsqrt/#approximating-the-result)结果近似'
 - en: To calculate $y = \frac{1}{\sqrt x}$ using the identity $\log_2 y = - \frac{1}{2}
     \log_2 x$, we can plug it into our approximation formula and get
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 要使用恒等式 $\log_2 y = - \frac{1}{2} \log_2 x$ 来计算 $y = \frac{1}{\sqrt x}$，我们可以将其代入我们的近似公式，得到
 - en: '$$ \frac{I_y}{L} - (B - \sigma) \approx - \frac{1}{2} ( \frac{I_x}{L} - (B
     - \sigma) ) $$ Solving for $I_y$: $$ I_y \approx \frac{3}{2} L (B - \sigma) -
     \frac{1}{2} I_x $$'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ \frac{I_y}{L} - (B - \sigma) \approx - \frac{1}{2} ( \frac{I_x}{L} - (B -
+    \sigma) ) $$ 解出 $I_y$：$$ I_y \approx \frac{3}{2} L (B - \sigma) - \frac{1}{2}
+    I_x $$
 - en: 'It turns out, we don’t even need to calculate the logarithm in the first place:
     the formula above is just a constant minus half the integer reinterpretation of
     $x$. It is written in the code as:'
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 结果表明，我们甚至不需要最初计算对数：上面的公式只是一个常数减去 $x$ 的整数重新解释的一半。它在代码中写成：
 - en: '[PRE1]'
+  id: totrans-26
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: We reinterpret `y` as an integer in the first line, and then it plug into the
     formula on the second, the first term of which is the magic number $\frac{3}{2}
     L (B - \sigma) = \mathtt{0x5F3759DF}$, while the second is calculated with a binary
     shift instead of division.
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在第一行将 `y` 重新解释为整数，然后将其代入第二行的公式，其中第一个项是魔法数 $\frac{3}{2} L (B - \sigma) = \mathtt{0x5F3759DF}$，而第二个项是通过二进制移位而不是除法来计算的。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/rsqrt/#iterating-with-newtons-method)Iterating
     with Newton’s Method'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/arithmetic/rsqrt/#iterating-with-newtons-method)使用牛顿法迭代'
 - en: What we have next is a couple hand-coded iterations of Newton’s method with
     $f(y) = \frac{1}{y^2} - x$ and a very good initial value. Its update rule is
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们有一对用牛顿法编写的迭代，其中 $f(y) = \frac{1}{y^2} - x$ 和一个非常好的初始值。其更新规则是
 - en: $$ f'(y) = - \frac{2}{y^3} \implies y_{i+1} = y_{i} (\frac{3}{2} - \frac{x}{2}
     y_i^2) = \frac{y_i (3 - x y_i^2)}{2} $$
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: $$ f'(y) = - \frac{2}{y^3} \implies y_{i+1} = y_{i} (\frac{3}{2} - \frac{x}{2}
+    y_i^2) = \frac{y_i (3 - x y_i^2)}{2} $$
 - en: which is written in the code as
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 这在代码中写成
 - en: '[PRE2]'
+  id: totrans-32
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'The initial approximation is so good that just one iteration was enough for
     game development purposes. It falls within 99.8% of the correct answer after just
     the first iteration and can be reiterated further to improve accuracy — which
     is what is done in the hardware: [the x86 instruction](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,3009,5135,4870,4870,4872,4875,833,879,874,849,848,6715,4845,6046,3853,288,6570,6527,6527,90,7307,6385,5993&text=rsqrt&techs=AVX,AVX2)
     does a few of them and guarantees a relative error of no more than $1.5 \times
     2^{-12}$.'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 初始近似值非常准确，以至于仅一次迭代就足以满足游戏开发的需求。在第一次迭代后，它就落在了正确答案的99.8%范围内，并且可以通过进一步迭代来提高精度——这正是硬件所做的事情：[x86指令](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3037,3009,5135,4870,4870,4872,4875,833,879,874,849,848,6715,4845,6046,3853,288,6570,6527,6527,90,7307,6385,5993&text=rsqrt&techs=AVX,AVX2)执行其中的一些操作，并保证相对误差不超过$1.5
+    \times 2^{-12}$。
 - en: '### [#](https://en.algorithmica.org/hpc/arithmetic/rsqrt/#further-reading)Further
     Reading'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [进一步阅读](https://en.algorithmica.org/hpc/arithmetic/rsqrt/#further-reading)'
 - en: '[Wikipedia article on fast inverse square root](https://en.wikipedia.org/wiki/Fast_inverse_square_root#Floating-point_representation).
     [← Newton''s Method](https://en.algorithmica.org/hpc/arithmetic/newton/)[Integer
     Numbers →](https://en.algorithmica.org/hpc/arithmetic/integer/)'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: '[关于快速逆平方根的维基百科文章](https://en.wikipedia.org/wiki/Fast_inverse_square_root#Floating-point_representation).
+    [← 牛顿法](https://en.algorithmica.org/hpc/arithmetic/newton/)[整数数字 →](https://en.algorithmica.org/hpc/arithmetic/integer/)'

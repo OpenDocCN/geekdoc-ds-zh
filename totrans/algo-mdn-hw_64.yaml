@@ -1,32 +1,48 @@
 - en: SIMD Parallelism
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: SIMD并行性
 - en: 原文：[https://en.algorithmica.org/hpc/simd/](https://en.algorithmica.org/hpc/simd/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/simd/](https://en.algorithmica.org/hpc/simd/)
 - en: 'Consider the following little program, in which we calculate the sum of an
     integer array:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 考虑以下小程序，其中我们计算整数数组的和：
 - en: '[PRE0]'
+  id: totrans-3
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: If we compile it with plain `g++ -O3` and run, it finishes in 2.43 seconds.
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果我们用普通的`g++ -O3`编译并运行，它将在2.43秒内完成。
 - en: 'Now, let’s add the following magic directive in the very beginning:'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，让我们在开头添加以下神奇指令：
 - en: '[PRE1]'
+  id: totrans-6
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: When compiled and run in the same environment, it finishes in 1.24 seconds.
     This is almost twice as fast, and we didn’t change a single line of code or the
     optimization level.
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 在相同的环境下编译和运行，它将在1.24秒内完成。这几乎是两倍的速度，而我们没有更改任何代码行或优化级别。
 - en: What happened here is we provided a little bit of info about the computer on
     which this code is supposed to be run. Specifically, we told the compiler that
     the target CPU supports an extension to the x86 instruction set called “AVX2.”
@@ -36,60 +52,86 @@
     approach. Instead of working with a single scalar value, SIMD instructions divide
     the data in registers into blocks of 8, 16, 32, or 64 bits and perform the same
     operation on them in parallel, yielding a proportional increase in performance^([1](#fn:1)).
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 发生在这里的是，我们提供了一些关于运行此代码的计算机的信息。具体来说，我们告诉编译器目标CPU支持x86指令集的扩展，称为“AVX2”。AVX2是针对x86的许多所谓“SIMD扩展”之一。这些扩展包括在特殊寄存器上操作的指令，这些寄存器能够使用“单指令，多数据”（SIMD）方法存储128位、256位甚至512位的数据。与处理单个标量值不同，SIMD指令将寄存器中的数据分成8位、16位、32位或64位的块，并并行地对它们执行相同的操作，从而在性能上实现成比例的提升^([1](#fn:1))。
 - en: '![](../Images/8a87cc36216949812940ea31e82f25c7.png)'
+  id: totrans-9
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/8a87cc36216949812940ea31e82f25c7.png)'
 - en: These extensions are relatively new, and their support in CPUs has been implemented
     gradually while maintaining backward compatibility^([2](#fn:2)). Apart from adding
     more specialized instructions, the most important difference between them is the
     introduction of progressively wider registers.
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 这些扩展相对较新，它们在CPU中的支持是逐步实现的，同时保持向后兼容^([2](#fn:2))。除了添加更多专用指令外，它们之间最重要的区别是引入了越来越宽的寄存器。
 - en: In particular, AVX2 has instructions for working with 256-bit registers, while
     by default, GCC assumes that nothing past the 128-bit SSE2 is enabled. Hence,
     after telling the optimizer that it can use instructions that add 8 integers at
     once instead of 4, the performance was increased twofold.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 特别是，AVX2有用于处理256位寄存器的指令，而默认情况下，GCC假设没有启用超过128位的SSE2。因此，在告诉优化器它可以使用一次添加8个整数的指令而不是4个之后，性能翻倍。
 - en: '![](../Images/053898095c0d5f3ec5908c2f210846bb.png)'
+  id: totrans-12
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/053898095c0d5f3ec5908c2f210846bb.png)'
 - en: Compilers often do a good job rewriting simple loops with SIMD instructions,
     like in the case above. This optimization is called [auto-vectorization](auto-vectorization),
     and it is the most popular way of using SIMD.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 编译器通常能够很好地重写使用SIMD指令的简单循环，就像上面的例子一样。这种优化称为[自动向量化](auto-vectorization)，它是使用SIMD最流行的方式。
 - en: The problem is that it only works with certain types of loops, and even then
     it often yields suboptimal results. To understand its limitations, we need to
     get our hands dirty and explore this technology on a lower level, which is what
     we are going to do in this chapter.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 问题在于它只适用于某些类型的循环，即使如此，它通常也只会产生次优结果。为了理解其局限性，我们需要深入挖掘并从更低层次探索这项技术，这正是本章将要做的。
 - en: '* * *'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: '* * *'
 - en: On some CPUs, especially heavy SIMD instructions consume more energy and thus
     [require downclocking](https://blog.cloudflare.com/on-the-dangers-of-intels-frequency-scaling/)
     to balance off the total power consumption, so the real-time speedup is not always
     proportional. [↩︎](#fnref:1)
+  id: totrans-16
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在某些CPU上，特别是重SIMD指令消耗更多能量，因此[需要降频](https://blog.cloudflare.com/on-the-dangers-of-intels-frequency-scaling/)来平衡总功耗，所以实际的加速并不总是成比例的。[↩︎](#fnref:1)
 - en: 'Starting with AVX512, backward compatibility is no longer maintained: there
     are many different “flavors” tailored to specific needs such as data compression,
     encryption, or machine learning. [↩︎](#fnref:2)'
+  id: totrans-17
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 从AVX512开始，不再保持向后兼容：有许多不同的“风味”针对特定需求定制，如数据压缩、加密或机器学习。[↩︎](#fnref:2)
 - en: '[← AoS and SoA](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/)'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: '[← AoS和SoA](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/)'
 - en: '[← ../RAM & CPU Caches](https://en.algorithmica.org/hpc/cpu-cache/)[Intrinsics
     and Vector Types →](https://en.algorithmica.org/hpc/simd/intrinsics/)'
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: '[← ../RAM & CPU 缓存](https://en.algorithmica.org/hpc/cpu-cache/)[内联函数和向量类型 →](https://en.algorithmica.org/hpc/simd/intrinsics/)'
 - en: '[../Algorithms Case Studies →](https://en.algorithmica.org/hpc/algorithms/)'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: '[../算法案例研究 →](https://en.algorithmica.org/hpc/algorithms/)'

@@ -1,182 +1,266 @@
 - en: AoS and SoA
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: AoS 和 SoA
 - en: 原文：[https://en.algorithmica.org/hpc/cpu-cache/aos-soa/](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/)
+  id: totrans-1
   prefs:
   - PREF_BQ
   type: TYPE_NORMAL
+  zh: 原文：[https://en.algorithmica.org/hpc/cpu-cache/aos-soa/](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/)
 - en: 'It is often beneficial to group together the data you need to fetch at the
     same time: preferably, on the same or, if that isn’t possible, neighboring cache
     lines. This improves the [spatial locality](/hpc/external-memory/locality) of
     your memory accesses, positively impacting the performance of memory-bound algorithms.'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，将你需要同时获取的数据分组在一起是有益的：最好是放在相同的缓存行上，如果不可能，则放在相邻的缓存行上。这提高了你内存访问的 [空间局部性](/hpc/external-memory/locality)，从而对内存密集型算法的性能产生积极影响。
 - en: To demonstrate the potential effect of doing this, we modify the [pointer chasing](../latency)
     benchmark so that the next pointer is computed using not one, but a variable number
     of fields ($D$).
+  id: totrans-3
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了展示这样做可能产生的潜在影响，我们修改了 [指针追踪](../latency) 基准测试，使其使用不是单个字段，而是一个可变数量的字段（$D$）来计算下一个指针。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/#experiment)Experiment'
+  id: totrans-4
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/#experiment)实验'
 - en: 'The first approach will locate these fields together as the rows of a two-dimensional
     array. We will refer to this variant as *array of structures* (AoS):'
+  id: totrans-5
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一种方法将把这些字段定位在二维数组的行中。我们将把这个变体称为 *结构数组*（AoS）：
 - en: '[PRE0]'
+  id: totrans-6
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: 'And in the second approach, we will place them separately. The laziest way
     to do this is to transpose the two-dimensional array `q` and swap the indices
     in all its subsequent accesses:'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 在第二种方法中，我们将它们分别放置。这样做最懒惰的方式是将二维数组 `q` 转置，并在所有后续访问中交换索引：
 - en: '[PRE1]'
+  id: totrans-8
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: 'By analogy, we call this variant *structure of arrays* (SoA). Obviously, for
     large $D$’s, it performs much worse:'
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过类比，我们称这种变体为 *数组结构*（SoA）。显然，对于大的 $D$ 值，它的性能要差得多：
 - en: '![](../Images/a8913c2c0ee357c01a920ea278907ccd.png)'
+  id: totrans-10
   prefs: []
   type: TYPE_IMG
+  zh: '![](../Images/a8913c2c0ee357c01a920ea278907ccd.png)'
 - en: The performance of both variants grows linearly with $D$, but AoS needs to fetch
     up to 16 times fewer total cache lines as the data is stored sequentially. Even
     when $D=64$, the additional time it takes to process the other 63 values is less
     than the latency of the first fetch.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 这两种变体的性能都随着 $D$ 线性增长，但 AoS 由于数据是顺序存储的，因此需要获取的总缓存行数最多减少 16 倍。即使当 $D=64$ 时，处理其他
+    63 个值所需的时间也少于第一次获取的延迟。
 - en: 'You can also see the spikes at the powers of two. AoS performs slightly better
     because it can compute [horizontal xor-sum](/hpc/simd/reduction) faster with SIMD.
     In contrast, SoA performs much worse, but this isn’t about $D$, but about $\lfloor
     N / D \rfloor$, the size of the second dimension, being a large power of two:
     this causes a pretty complicated [cache associativity](../associativity) effect.'
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 你也可以看到在二进制幂次的地方有尖峰。AoS 的性能略好，因为它可以使用 SIMD 更快地计算 [水平异或和](/hpc/simd/reduction)。相比之下，SoA
+    的性能要差得多，但这并不是关于 $D$，而是关于 $\lfloor N / D \rfloor$，即第二维的大小是一个大的二进制幂：这导致了一个相当复杂的
+    [缓存关联性](../associativity) 影响。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/#temporary-storage-contention)Temporary
     Storage Contention'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/#temporary-storage-contention)临时存储竞争'
 - en: At first, it seems like there shouldn’t be any cache issues as $N=2^{23}$ and
     the array is just too big to fit into the L3 cache in the first place. The nuance
     is that to process a number of elements from different memory locations in parallel,
     you still need some space to store them temporarily. You can’t simply use registers
     as there aren’t enough of them, so they need to be stored in the cache even though
     in just a microsecond you won’t be needing them.
+  id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 起初，似乎不应该有任何缓存问题，因为 $N=2^{23}$，数组本身太大，根本无法放入最初的 L3 缓存。细微之处在于，为了并行处理来自不同内存位置的一组元素，你仍然需要一些空间来临时存储它们。你不能简单地使用寄存器，因为寄存器数量不足，所以它们需要存储在缓存中，即使在你只需要它们的一微秒内。
 - en: Therefore, when `N / D` is a large power of two, and we are iterating over the
     array `q[D][N / D]` along the first index, some of the memory addresses we temporarily
     need will map to the same cache line — and as there isn’t enough space there,
     many of them will have to be re-fetched from the upper layers of the memory hierarchy.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，当 `N / D` 是一个大的二进制幂时，并且我们正在按第一个索引迭代数组 `q[D][N / D]`，一些我们暂时需要的内存地址将映射到相同的缓存行——由于那里空间不足，其中许多将不得不从内存层次结构的上层重新获取。
 - en: 'Here is another head-scratcher: if we enable [huge pages](../paging), it expectedly
     makes the total latency 10-15% lower for most values of $D$, but for $D=64$, it
     makes things ten times worse:'
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里还有一个令人困惑的问题：如果我们启用[大页](../paging)，它预期会使得大多数$D$值下的总延迟降低10-15%，但对于$D=64$，它使得事情变得更糟十倍：
 - en: '![](../Images/13c5a43d7154694345a6742027166d31.png)'
+  id: totrans-17
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/13c5a43d7154694345a6742027166d31.png)'
 - en: Note the logarithmic scale
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 注意对数刻度
 - en: I doubt that even the engineers who design memory controllers can explain what’s
     happening right off the bat.
+  id: totrans-19
   prefs: []
   type: TYPE_NORMAL
+  zh: 我怀疑即使是设计内存控制器的工程师也无法立即解释正在发生的事情。
 - en: In short, the difference is because, unlike the L1/L2 caches that are private
     to each core, the L3 cache has to use *physical* memory addresses instead of *virtual*
     ones for synchronization between different cores sharing the cache.
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 简而言之，这种差异是因为，与每个核心私有的L1/L2缓存不同，L3缓存必须使用*物理*内存地址而不是*虚拟*地址来在不同核心之间共享缓存时的同步。
 - en: 'When we are using 4K memory pages, the virtual addresses get somewhat arbitrarily
     dispersed over the physical memory, which makes the cache associativity problem
     less severe: the physical addresses will have the same remainder modulo 4K bytes,
     and not `N / D` as for the virtual addresses. When we specifically require huge
     pages, this maximum alignment limit increases to 2M, and the cache lines receive
     much more contention.'
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 当我们使用4K内存页面时，虚拟地址在物理内存中有些任意地分散，这使得缓存关联性问题不那么严重：物理地址将具有相同的余数（模4K字节），而不是虚拟地址的`N
+    / D`。当我们特别需要大页时，这个最大对齐限制增加到2M，缓存行面临更多的竞争。
 - en: This is the only example I know when enabling huge pages makes performance worse,
     let alone by a factor of ten.
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是我所知的唯一一个例子，当启用大页时，性能会变差，更不用说降低十倍了。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/#padded-aos)Padded
     AoS'
+  id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/#padded-aos)填充AoS'
 - en: 'As long as we are fetching the same number of cache lines, it doesn’t matter
     where they are located, right? Let’s test it and switch to [padded integers](../cache-lines)
     in the AoS code:'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: 只要我们获取相同数量的缓存行，它们的位置并不重要，对吧？让我们测试一下，并在AoS代码中切换到[padded整数](../cache-lines)：
 - en: '[PRE2]'
+  id: totrans-25
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: 'Other than that, we are still calculating the xor-sum of $D$ padded integers.
     We fetch exactly $D$ cache lines, but this time sequentially. The running time
     shouldn’t be different from SoA, but this isn’t what happens:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了这一点，我们仍在计算$D$填充整数的异或和。我们获取了正好$D$个缓存行，但这次是顺序的。运行时间不应该与SoA不同，但这并不是发生的情况：
 - en: '![](../Images/3cb276886186fe1451c3d28a4d278800.png)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/3cb276886186fe1451c3d28a4d278800.png)'
 - en: 'The running time is about ⅓ lower for $D=63$, but this only applies to arrays
     that exceed the L3 cache. If we fix $D$ and change $N$, you can see that the padded
     version performs slightly worse on smaller arrays because there are less opportunities
     for random [cache sharing](../cache-lines):'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 当$D=63$时，运行时间大约降低了1/3，但这仅适用于超出L3缓存的数组。如果我们固定$D$并改变$N$，你可以看到填充版本在较小的数组上表现略差，因为随机[缓存共享](../cache-lines)的机会更少：
 - en: '![](../Images/2496d39734d942b7ce905b70543dfe68.png)'
+  id: totrans-29
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/2496d39734d942b7ce905b70543dfe68.png)'
 - en: As the performance on smaller arrays sizes is not affected, this clearly has
     something to do with how RAM works.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于较小数组大小的性能不受影响，这显然与RAM的工作方式有关。
 - en: '### [#](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/#ram-specific-timings)RAM-Specific
     Timings'
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: '### [#](https://en.algorithmica.org/hpc/cpu-cache/aos-soa/#ram-specific-timings)RAM特定时间'
 - en: 'From the performance analysis point of view, all data in RAM is physically
     stored in a two-dimensional array of tiny capacitor cells, which is split into
     rows and columns. To read or write any cell, you need to perform one, two, or
     three actions:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 从性能分析的角度来看，RAM中的所有数据都物理存储在一个由微小电容器细胞组成的二维数组中，该数组分为行和列。要读取或写入任何单元格，你需要执行一个、两个或三个操作：
 - en: Read the contents of a row in a *row buffer*, which temporarily discharges the
     capacitors.
+  id: totrans-33
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在*行缓冲区*中读取一行内容，这会暂时放电电容器。
 - en: Read or write a specific cell in this buffer.
+  id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 读取或写入此缓冲区中的特定单元格。
 - en: Write the contents of a row buffer back into the capacitors so that the data
     is preserved and the row buffer can be used for other memory accesses.
+  id: totrans-35
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将行缓冲区的内容写回电容器，以便保留数据，并且行缓冲区可以用于其他内存访问。
 - en: 'Here is the punchline: you don’t have to perform steps 1 and 3 between two
     memory accesses that correspond to the same row — you can just use the row buffer
     as a temporary cache. These three actions take roughly the same time, so this
     optimization makes long sequences of row-local accesses run thrice as fast compared
     to dispersed access patterns.'
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 这里是关键点：你不需要在对应同一行的两次内存访问之间执行步骤1和3——你只需将行缓冲区用作临时缓存。这三个动作所需的时间大致相同，因此这种优化使得长序列的行局部访问比分散的访问模式快三倍。
 - en: '![](../Images/271563d11054d97da95a6369d419d262.png)'
+  id: totrans-37
   prefs: []
   type: TYPE_IMG
+  zh: '![图片](../Images/271563d11054d97da95a6369d419d262.png)'
 - en: The size of the row differs depending on the hardware, but it is usually somewhere
     between 1024 and 8192 bytes. So even though the padded AoS benchmark places each
     element in a separate cache line, they are still very likely to be on the same
     RAM row, and the whole read sequence runs in roughly ⅓ of the time plus the latency
     of the first memory access. [← Memory Paging](https://en.algorithmica.org/hpc/cpu-cache/paging/)[../SIMD
     Parallelism →](https://en.algorithmica.org/hpc/simd/)
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 行的大小取决于硬件，但通常在1024到8192字节之间。因此，即使填充的 AoS 基准测试将每个元素放置在不同的缓存行中，它们仍然很可能位于同一 RAM
+    行上，整个读取序列大约需要1/3的时间加上第一次内存访问的延迟。[← 内存分页](https://en.algorithmica.org/hpc/cpu-cache/paging/)[→
+    SIMD 并行处理](https://en.algorithmica.org/hpc/simd/)
