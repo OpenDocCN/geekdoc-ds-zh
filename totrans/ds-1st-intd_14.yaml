@@ -1,0 +1,742 @@
+- en: Chapter 9 Clustering
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://datasciencebook.ca/clustering.html](https://datasciencebook.ca/clustering.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 9.1 Overview
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As part of exploratory data analysis, it is often helpful to see if there are
+    meaningful subgroups (or *clusters*) in the data. This grouping can be used for
+    many purposes, such as generating new questions or improving predictive analyses.
+    This chapter provides an introduction to clustering using the K-means algorithm,
+    including techniques to choose the number of clusters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 9.2 Chapter learning objectives
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'By the end of the chapter, readers will be able to do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Describe a situation in which clustering is an appropriate technique to use,
+    and what insight it might extract from the data.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Explain the K-means clustering algorithm.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Interpret the output of a K-means analysis.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Differentiate between clustering, classification, and regression.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Identify when it is necessary to scale variables before clustering, and do this
+    using R.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Perform K-means clustering in R using `tidymodels` workflows.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use the elbow method to choose the number of clusters for K-means.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Visualize the output of K-means clustering in R using colored scatter plots.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Describe the advantages, limitations and assumptions of the K-means clustering
+    algorithm.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 9.3 Clustering
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Clustering is a data analysis technique involving separating a data set into
+    subgroups of related data. For example, we might use clustering to separate a
+    data set of documents into groups that correspond to topics, a data set of human
+    genetic information into groups that correspond to ancestral subpopulations, or
+    a data set of online customers into groups that correspond to purchasing behaviors.
+    Once the data are separated, we can, for example, use the subgroups to generate
+    new questions about the data and follow up with a predictive modeling exercise.
+    In this course, clustering will be used only for exploratory analysis, i.e., uncovering
+    patterns in the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that clustering is a fundamentally different kind of task than classification
+    or regression. In particular, both classification and regression are *supervised
+    tasks* where there is a *response variable* (a category label or value), and we
+    have examples of past data with labels/values that help us predict those of future
+    data. By contrast, clustering is an *unsupervised task*, as we are trying to understand
+    and examine the structure of data without any response variable labels or values
+    to help us. This approach has both advantages and disadvantages. Clustering requires
+    no additional annotation or input on the data. For example, while it would be
+    nearly impossible to annotate all the articles on Wikipedia with human-made topic
+    labels, we can cluster the articles without this information to find groupings
+    corresponding to topics automatically. However, given that there is no response
+    variable, it is not as easy to evaluate the “quality” of a clustering. With classification,
+    we can use a test data set to assess prediction performance. In clustering, there
+    is not a single good choice for evaluation. In this book, we will use visualization
+    to ascertain the quality of a clustering, and leave rigorous evaluation for more
+    advanced courses.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As in the case of classification, there are many possible methods that we could
+    use to cluster our observations to look for subgroups. In this book, we will focus
+    on the widely used K-means algorithm ([Lloyd 1982](#ref-kmeans)). In your future
+    studies, you might encounter hierarchical clustering, principal component analysis,
+    multidimensional scaling, and more; see the additional resources section at the
+    end of this chapter for where to begin learning more about these other methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note:** There are also so-called *semisupervised* tasks, where only some
+    of the data come with response variable labels/values, but the vast majority don’t.
+    The goal is to try to uncover underlying structure in the data that allows one
+    to guess the missing labels. This sort of task is beneficial, for example, when
+    one has an unlabeled data set that is too large to manually label, but one is
+    willing to provide a few informative example labels as a “seed” to guess the labels
+    for all the data.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 9.4 An illustrative example
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this chapter we will focus on a data set from [the `palmerpenguins` R package](https://allisonhorst.github.io/palmerpenguins/)
+    ([Horst, Hill, and Gorman 2020](#ref-palmerpenguins)). This data set was collected
+    by Dr. Kristen Gorman and the Palmer Station, Antarctica Long Term Ecological
+    Research Site, and includes measurements for adult penguins (Figure [9.1](clustering.html#fig:09-penguins))
+    found near there ([Gorman, Williams, and Fraser 2014](#ref-penguinpaper)). Our
+    goal will be to use two variables—penguin bill and flipper length, both in millimeters—to
+    determine whether there are distinct types of penguins in our data. Understanding
+    this might help us with species discovery and classification in a data-driven
+    way. Note that we have reduced the size of the data set to 18 observations and
+    2 variables; this will help us make clear visualizations that illustrate how clustering
+    works for learning purposes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A Gentoo penguin.](../Images/587e65c59e3cbf110b7dc3fa162adf40.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.1: A Gentoo penguin.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we get started, we will load the `tidyverse` metapackage as well as set
+    a random seed. This will ensure we have access to the functions we need and that
+    our analysis will be reproducible. As we will learn in more detail later in the
+    chapter, setting the seed here is important because the K-means clustering algorithm
+    uses randomness when choosing a starting position for each cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we can load and preview the `penguins` data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will begin by using a version of the data that we have standardized, `penguins_standardized`,
+    to illustrate how K-means clustering works (recall standardization from Chapter
+    [5](classification1.html#classification1)). Later in this chapter, we will return
+    to the original `penguins` data to see how to include standardization automatically
+    in the clustering pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we can create a scatter plot using this data set to see if we can detect
+    subtypes or groups in our data set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Scatter plot of standardized bill length versus standardized flipper length.](../Images/1b4fb65d637c9162fd8bac2616286adf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.2: Scatter plot of standardized bill length versus standardized flipper
+    length.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Based on the visualization in Figure [9.2](clustering.html#fig:10-toy-example-plot),
+    we might suspect there are a few subtypes of penguins within our data set. We
+    can see roughly 3 groups of observations in Figure [9.2](clustering.html#fig:10-toy-example-plot),
+    including:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: a small flipper and bill length group,
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: a small flipper length, but large bill length group, and
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: a large flipper and bill length group.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Data visualization is a great tool to give us a rough sense of such patterns
+    when we have a small number of variables. But if we are to group data—and select
+    the number of groups—as part of a reproducible analysis, we need something a bit
+    more automated. Additionally, finding groups via visualization becomes more difficult
+    as we increase the number of variables we consider when clustering. The way to
+    rigorously separate the data into groups is to use a clustering algorithm. In
+    this chapter, we will focus on the *K-means* algorithm, a widely used and often
+    very effective clustering method, combined with the *elbow method* for selecting
+    the number of clusters. This procedure will separate the data into groups; Figure
+    [9.3](clustering.html#fig:10-toy-example-clustering) shows these groups denoted
+    by colored scatter points.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Scatter plot of standardized bill length versus standardized flipper length
+    with colored groups.](../Images/193770128dda6dec7f1c0874f6a92578.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.3: Scatter plot of standardized bill length versus standardized flipper
+    length with colored groups.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'What are the labels for these groups? Unfortunately, we don’t have any. K-means,
+    like almost all clustering algorithms, just outputs meaningless “cluster labels”
+    that are typically whole numbers: 1, 2, 3, etc. But in a simple case like this,
+    where we can easily visualize the clusters on a scatter plot, we can give human-made
+    labels to the groups using their positions on the plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: small flipper length and small bill length (orange cluster),
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: small flipper length and large bill length (blue cluster).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: and large flipper length and large bill length (yellow cluster).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Once we have made these determinations, we can use them to inform our species
+    classifications or ask further questions about our data. For example, we might
+    be interested in understanding the relationship between flipper length and bill
+    length, and that relationship may differ depending on the type of penguin we have.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 9.5 K-means
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 9.5.1 Measuring cluster quality
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The K-means algorithm is a procedure that groups data into K clusters. It starts
+    with an initial clustering of the data, and then iteratively improves it by making
+    adjustments to the assignment of data to clusters until it cannot improve any
+    further. But how do we measure the “quality” of a clustering, and what does it
+    mean to improve it? In K-means clustering, we measure the quality of a cluster
+    by its *within-cluster sum-of-squared-distances* (WSSD). Computing this involves
+    two steps. First, we find the cluster centers by computing the mean of each variable
+    over data points in the cluster. For example, suppose we have a cluster containing
+    four observations, and we are using two variables, \(x\) and \(y\), to cluster
+    the data. Then we would compute the coordinates, \(\mu_x\) and \(\mu_y\), of the
+    cluster center via
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\mu_x = \frac{1}{4}(x_1+x_2+x_3+x_4) \quad \mu_y = \frac{1}{4}(y_1+y_2+y_3+y_4).\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the first cluster from the example, there are 4 data points. These are shown
+    with their cluster center (standardized flipper length -0.35, standardized bill
+    length 0.99) highlighted in Figure [9.4](clustering.html#fig:10-toy-example-clus1-center).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Cluster 1 from the penguins_standardized data set example. Observations are
+    small blue points, with the cluster center highlighted as a large blue point with
+    a black outline.](../Images/f02afd23291ef58592f7296f2f23bac7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.4: Cluster 1 from the `penguins_standardized` data set example. Observations
+    are small blue points, with the cluster center highlighted as a large blue point
+    with a black outline.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second step in computing the WSSD is to add up the squared distance between
+    each point in the cluster and the cluster center. We use the straight-line / Euclidean
+    distance formula that we learned about in Chapter [5](classification1.html#classification1).
+    In the 4-observation cluster example above, we would compute the WSSD \(S^2\)
+    via
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[\begin{align*} S^2 = \left((x_1 - \mu_x)^2 + (y_1 - \mu_y)^2\right) + \left((x_2
+    - \mu_x)^2 + (y_2 - \mu_y)^2\right) + \\ \left((x_3 - \mu_x)^2 + (y_3 - \mu_y)^2\right)
+    + \left((x_4 - \mu_x)^2 + (y_4 - \mu_y)^2\right). \end{align*}\]
+  prefs: []
+  type: TYPE_NORMAL
+- en: These distances are denoted by lines in Figure [9.5](clustering.html#fig:10-toy-example-clus1-dists)
+    for the first cluster of the penguin data example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Cluster 1 from the penguins_standardized data set example. Observations are
+    small blue points, with the cluster center highlighted as a large blue point with
+    a black outline. The distances from the observations to the cluster center are
+    represented as black lines.](../Images/51a0c7cde00f207637200c30905c629d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.5: Cluster 1 from the `penguins_standardized` data set example. Observations
+    are small blue points, with the cluster center highlighted as a large blue point
+    with a black outline. The distances from the observations to the cluster center
+    are represented as black lines.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The larger the value of \(S^2\), the more spread out the cluster is, since large
+    \(S^2\) means that points are far from the cluster center. Note, however, that
+    “large” is relative to *both* the scale of the variables for clustering *and*
+    the number of points in the cluster. A cluster where points are very close to
+    the center might still have a large \(S^2\) if there are many data points in the
+    cluster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After we have calculated the WSSD for all the clusters, we sum them together
+    to get the *total WSSD*. For our example, this means adding up all the squared
+    distances for the 18 observations. These distances are denoted by black lines
+    in Figure [9.6](clustering.html#fig:10-toy-example-all-clus-dists).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![All clusters from the penguins_standardized data set example. Observations
+    are small orange, blue, and yellow points with cluster centers denoted by larger
+    points with a black outline. The distances from the observations to each of the
+    respective cluster centers are represented as black lines.](../Images/012947f886c403f6d4173d7ae9f56027.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.6: All clusters from the `penguins_standardized` data set example.
+    Observations are small orange, blue, and yellow points with cluster centers denoted
+    by larger points with a black outline. The distances from the observations to
+    each of the respective cluster centers are represented as black lines.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since K-means uses the straight-line distance to measure the quality of a clustering,
+    it is limited to clustering based on quantitative variables. However, note that
+    there are variants of the K-means algorithm, as well as other clustering algorithms
+    entirely, that use other distance metrics to allow for non-quantitative data to
+    be clustered. These are beyond the scope of this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 9.5.2 The clustering algorithm
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We begin the K-means algorithm by picking K, and randomly assigning a roughly
+    equal number of observations to each of the K clusters. An example random initialization
+    is shown in Figure [9.7](clustering.html#fig:10-toy-kmeans-init).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Random initialization of labels.](../Images/e352ef7b753d70195dd99c27ad8471b4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.7: Random initialization of labels.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then K-means consists of two major steps that attempt to minimize the sum of
+    WSSDs over all the clusters, i.e., the *total WSSD*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Center update:** Compute the center of each cluster.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Label update:** Reassign each data point to the cluster with the nearest
+    center.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: These two steps are repeated until the cluster assignments no longer change.
+    We show what the first four iterations of K-means would look like in Figure [9.8](clustering.html#fig:10-toy-kmeans-iter).
+    There each pair of plots in each row corresponds to an iteration, where the left
+    figure in the pair depicts the center update, and the right figure in the pair
+    depicts the label update (i.e., the reassignment of data to clusters).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![First four iterations of K-means clustering on the penguins_standardized
+    example data set. Each pair of plots corresponds to an iteration. Within the pair,
+    the first plot depicts the center update, and the second plot depicts the reassignment
+    of data to clusters. Cluster centers are indicated by larger points that are outlined
+    in black.](../Images/aa0c7fab33c23e145b2dc2b7451fc95a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.8: First four iterations of K-means clustering on the `penguins_standardized`
+    example data set. Each pair of plots corresponds to an iteration. Within the pair,
+    the first plot depicts the center update, and the second plot depicts the reassignment
+    of data to clusters. Cluster centers are indicated by larger points that are outlined
+    in black.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that at this point, we can terminate the algorithm since none of the assignments
+    changed in the fourth iteration; both the centers and labels will remain the same
+    from this point onward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note:** Is K-means *guaranteed* to stop at some point, or could it iterate
+    forever? As it turns out, thankfully, the answer is that K-means is guaranteed
+    to stop after *some* number of iterations. For the interested reader, the logic
+    for this has three steps: (1) both the label update and the center update decrease
+    total WSSD in each iteration, (2) the total WSSD is always greater than or equal
+    to 0, and (3) there are only a finite number of possible ways to assign the data
+    to clusters. So at some point, the total WSSD must stop decreasing, which means
+    none of the assignments are changing, and the algorithm terminates.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 9.5.3 Random restarts
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Unlike the classification and regression models we studied in previous chapters,
+    K-means can get “stuck” in a bad solution. For example, Figure [9.9](clustering.html#fig:10-toy-kmeans-bad-init)
+    illustrates an unlucky random initialization by K-means.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Random initialization of labels.](../Images/2e3267fca078082988a01ee94f3b45f1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.9: Random initialization of labels.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure [9.10](clustering.html#fig:10-toy-kmeans-bad-iter) shows what the iterations
+    of K-means would look like with the unlucky random initialization shown in Figure
+    [9.9](clustering.html#fig:10-toy-kmeans-bad-init).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![First five iterations of K-means clustering on the penguins_standardized
+    example data set with a poor random initialization. Each pair of plots corresponds
+    to an iteration. Within the pair, the first plot depicts the center update, and
+    the second plot depicts the reassignment of data to clusters. Cluster centers
+    are indicated by larger points that are outlined in black.](../Images/8696cc629e0ebbd8fdb26406de1a95a8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.10: First five iterations of K-means clustering on the `penguins_standardized`
+    example data set with a poor random initialization. Each pair of plots corresponds
+    to an iteration. Within the pair, the first plot depicts the center update, and
+    the second plot depicts the reassignment of data to clusters. Cluster centers
+    are indicated by larger points that are outlined in black.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This looks like a relatively bad clustering of the data, but K-means cannot
+    improve it. To solve this problem when clustering data using K-means, we should
+    randomly re-initialize the labels a few times, run K-means for each initialization,
+    and pick the clustering that has the lowest final total WSSD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 9.5.4 Choosing K
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In order to cluster data using K-means, we also have to pick the number of clusters,
+    K. But unlike in classification, we have no response variable and cannot perform
+    cross-validation with some measure of model prediction error. Further, if K is
+    chosen too small, then multiple clusters get grouped together; if K is too large,
+    then clusters get subdivided. In both cases, we will potentially miss interesting
+    structure in the data. Figure [9.11](clustering.html#fig:10-toy-kmeans-vary-k)
+    illustrates the impact of K on K-means clustering of our penguin flipper and bill
+    length data by showing the different clusterings for K’s ranging from 1 to 9.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Clustering of the penguin data for K clusters ranging from 1 to 9\. Cluster
+    centers are indicated by larger points that are outlined in black.](../Images/d220603f7561e4813be2c04b7dd738ee.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.11: Clustering of the penguin data for K clusters ranging from 1 to
+    9\. Cluster centers are indicated by larger points that are outlined in black.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we set K less than 3, then the clustering merges separate groups of data;
+    this causes a large total WSSD, since the cluster center is not close to any of
+    the data in the cluster. On the other hand, if we set K greater than 3, the clustering
+    subdivides subgroups of data; this does indeed still decrease the total WSSD,
+    but by only a *diminishing amount*. If we plot the total WSSD versus the number
+    of clusters, we see that the decrease in total WSSD levels off (or forms an “elbow
+    shape”) when we reach roughly the right number of clusters (Figure [9.12](clustering.html#fig:10-toy-kmeans-elbow)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Total WSSD for K clusters ranging from 1 to 9.](../Images/5eeece9ba6160364818c383b43971119.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.12: Total WSSD for K clusters ranging from 1 to 9.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 9.6 K-means in R
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We can perform K-means clustering in R using a `tidymodels` workflow similar
+    to those in the earlier classification and regression chapters. We will begin
+    by loading the `tidyclust` library, which contains the necessary functionality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Returning to the original (unstandardized) `penguins` data, recall that K-means
+    clustering uses straight-line distance to decide which points are similar to each
+    other. Therefore, the *scale* of each of the variables in the data will influence
+    which cluster data points end up being assigned. Variables with a large scale
+    will have a much larger effect on deciding cluster assignment than variables with
+    a small scale. To address this problem, we need to create a recipe that standardizes
+    our data before clustering using the `step_scale` and `step_center` preprocessing
+    steps. Standardization will ensure that each variable has a mean of 0 and standard
+    deviation of 1 prior to clustering. We will designate that all variables are to
+    be used in clustering via the model formula `~ .`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note:** Recipes were originally designed specifically for *predictive* data
+    analysis problems—like classification and regression—not clustering problems.
+    So the functions in R that we use to construct recipes are a little bit awkward
+    in the setting of clustering In particular, we will have to treat “predictors”
+    here as if it meant “variables to be used in clustering”. So the model formula
+    `~ .` specifies that all variables are “predictors”, i.e., all variables should
+    be used for clustering. Similarly, when we use the `all_predictors()` function
+    in the preprocessing steps, we really mean “apply this step to all variables used
+    for clustering.”'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: To indicate that we are performing K-means clustering, we will use the `k_means`
+    model specification. We will use the `num_clusters` argument to specify the number
+    of clusters (here we choose K = 3), and specify that we are using the `"stats"`
+    engine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: To actually run the K-means clustering, we combine the recipe and model specification
+    in a workflow, and use the `fit` function. Note that the K-means algorithm uses
+    a random initialization of assignments; but since we set the random seed earlier,
+    the clustering will be reproducible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: As you can see above, the fit object has a lot of information that can be used
+    to visualize the clusters, pick K, and evaluate the total WSSD. Let’s start by
+    visualizing the clusters as a colored scatter plot! In order to do that, we first
+    need to augment our original data frame with the cluster assignments. We can achieve
+    this using the `augment` function from `tidyclust`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have the cluster assignments included in the `clustered_data` tidy
+    data frame, we can visualize them as shown in Figure [9.13](clustering.html#fig:10-plot-clusters-2).
+    Note that we are plotting the *un-standardized* data here; if we for some reason
+    wanted to visualize the *standardized* data from the recipe, we would need to
+    use the `bake` function to obtain that first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![The data colored by the cluster assignments returned by K-means.](../Images/deaa07481c71253f123210823524aa90.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.13: The data colored by the cluster assignments returned by K-means.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As mentioned above, we also need to select K by finding where the “elbow” occurs
+    in the plot of total WSSD versus the number of clusters. We can obtain the total
+    WSSD (`tot.withinss`) from our clustering with 3 clusters using the `glance` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: To calculate the total WSSD for a variety of Ks, we will create a data frame
+    with a column named `num_clusters` with rows containing each value of K we want
+    to run K-means with (here, 1 to 9).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then we construct our model specification again, this time specifying that we
+    want to tune the `num_clusters` parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: We combine the recipe and specification in a workflow, and then use the `tune_cluster`
+    function to run K-means on each of the different settings of `num_clusters`. The
+    `grid` argument controls which values of K we want to try—in this case, the values
+    from 1 to 9 that are stored in the `penguin_clust_ks` data frame. We set the `resamples`
+    argument to `apparent(penguins)` to tell K-means to run on the whole data set
+    for each value of `num_clusters`. Finally, we collect the results using the `collect_metrics`
+    function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: The total WSSD results correspond to the `mean` column when the `.metric` variable
+    is equal to `sse_within_total`. We can obtain a tidy data frame with this information
+    using `filter` and `mutate`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have `total_WSSD` and `num_clusters` as columns in a data frame,
+    we can make a line plot (Figure [9.14](clustering.html#fig:10-plot-choose-k))
+    and search for the “elbow” to find which value of K to use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A plot showing the total WSSD versus the number of clusters.](../Images/da50d2295bc82d58a7747896b7bf800a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.14: A plot showing the total WSSD versus the number of clusters.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It looks like 3 clusters is the right choice for this data. But why is there
+    a “bump” in the total WSSD plot here? Shouldn’t total WSSD always decrease as
+    we add more clusters? Technically yes, but remember: K-means can get “stuck” in
+    a bad solution. Unfortunately, for K = 8 we had an unlucky initialization and
+    found a bad clustering! We can help prevent finding a bad clustering by trying
+    a few different random initializations via the `nstart` argument in the model
+    specification. Here we will try using 10 restarts.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now if we rerun the same workflow with the new model specification, K-means
+    clustering will be performed `nstart = 10` times for each value of K. The `collect_metrics`
+    function will then pick the best clustering of the 10 runs for each value of K,
+    and report the results for that best clustering. Figure [9.15](clustering.html#fig:10-choose-k-nstart)
+    shows the resulting total WSSD plot from using 10 restarts; the bump is gone and
+    the total WSSD decreases as expected. The more times we perform K-means clustering,
+    the more likely we are to find a good clustering (if one exists). What value should
+    you choose for `nstart`? The answer is that it depends on many factors: the size
+    and characteristics of your data set, as well as how powerful your computer is.
+    The larger the `nstart` value the better from an analysis perspective, but there
+    is a trade-off that doing many clusterings could take a long time. So this is
+    something that needs to be balanced.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A plot showing the total WSSD versus the number of clusters when K-means
+    is run with 10 restarts.](../Images/498f76cd33ff5f37dd4d0de5ae978fa1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9.15: A plot showing the total WSSD versus the number of clusters when
+    K-means is run with 10 restarts.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 9.7 Exercises
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Practice exercises for the material covered in this chapter can be found in
+    the accompanying [worksheets repository](https://worksheets.datasciencebook.ca)
+    in the “Clustering” row. You can launch an interactive version of the worksheet
+    in your browser by clicking the “launch binder” button. You can also preview a
+    non-interactive version of the worksheet by clicking “view worksheet.” If you
+    instead decide to download the worksheet and run it on your own machine, make
+    sure to follow the instructions for computer setup found in Chapter [13](setup.html#setup).
+    This will ensure that the automated feedback and guidance that the worksheets
+    provide will function as intended.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 9.8 Additional resources
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Chapter 10 of *An Introduction to Statistical Learning* ([James et al. 2013](#ref-james2013introduction))
+    provides a great next stop in the process of learning about clustering and unsupervised
+    learning in general. In the realm of clustering specifically, it provides a great
+    companion introduction to K-means, but also covers *hierarchical* clustering for
+    when you expect there to be subgroups, and then subgroups within subgroups, etc.,
+    in your data. In the realm of more general unsupervised learning, it covers *principal
+    components analysis (PCA)*, which is a very popular technique for reducing the
+    number of predictors in a data set.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Gorman, Kristen, Tony Williams, and William Fraser. 2014\. “Ecological Sexual
+    Dimorphism and Environmental Variability Within a Community of Antarctic Penguins
+    (Genus Pygoscelis).” *PLoS ONE* 9 (3).Horst, Allison, Alison Hill, and Kristen
+    Gorman. 2020\. *palmerpenguins: Palmer Archipelago Penguin Data*. [https://allisonhorst.github.io/palmerpenguins/](https://allisonhorst.github.io/palmerpenguins/).James,
+    Gareth, Daniela Witten, Trevor Hastie, and Robert Tibshirani. 2013\. *An Introduction
+    to Statistical Learning*. 1st ed. Springer. [https://www.statlearning.com/](https://www.statlearning.com/).Lloyd,
+    Stuart. 1982\. “Least Square Quantization in PCM.” *IEEE Transactions on Information
+    Theory* 28 (2): 129–37.'
+  prefs: []
+  type: TYPE_NORMAL
