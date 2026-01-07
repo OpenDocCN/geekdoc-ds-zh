@@ -1,0 +1,1675 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>7 Draw maps</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>7 Draw maps</h1>
+<blockquote>原文：<a href="https://socviz.co/maps.html">https://socviz.co/maps.html</a></blockquote>
+
+<p>Choropleth maps show geographical regions colored, shaded, or graded
+according to some variable. They are visually striking, especially
+when the spatial units of the map are familiar entities, like the
+countries of the European Union, or states in the US. But maps like
+this can also sometimes be misleading. Although it is not a dedicated
+Geographical Information System (GIS), R can work with geographical
+data, and ggplot can make choropleth maps. But we’ll also consider
+some other ways of representing data like this.</p>
+<p>Figure <a href="maps.html#fig:ch-07-maps1">7.1</a> shows a series of maps of the 2012 US
+general election results. Reading from the top left, From top left we
+see, first, a state-level, two-color map where the margin of victory
+can be high (a darker blue or red) or low (a lighter blue or red). The
+color scheme has no midpoint. Second, we see a two-color, county-level
+maps colored red or blue depending on the winner. Third is a
+county-level map where the color of red and blue counties is graded by
+the size of the vote share. Again, the color scale has no midpoint.
+Fourth is a county-level map with a continuous color gradient from
+blue to red, but that passes through a purple midpoint for areas where
+the balance of the vote is close to even. The map in the bottom left
+distorts the geographical boundaries by squeezing or inflating them to
+reflect the population of the county shown. Finally in the bottom
+right we see a cartogram, where states are drawn using square tiles,
+and the number of tiles each state gets is proportional to the number
+of electoral college votes it has (which in turn is proportional to
+that state’s population).</p>
+<div class="figure fullwidth"><span id="fig:ch-07-maps1"/>
+<img src="../Images/a26bf45fb34a8e5e4a89bd93eb7d673a.png" alt="2012 US election results maps of different kinds." width="45%" data-original-src="https://socviz.co/assets/ch-07-election-state-1.png"/><img src="../Images/b56c24f4318aedb73444ea9a158d08c0.png" alt="2012 US election results maps of different kinds." width="45%" data-original-src="https://socviz.co/assets/ch-07-election-county.png"/><img src="../Images/3067a46e627fe4a23f0de2f827c5b870.png" alt="2012 US election results maps of different kinds." width="45%" data-original-src="https://socviz.co/assets/ch-07-election-county-share.png"/><img src="../Images/7e57c406818fe4596df50a44d2bff04a.png" alt="2012 US election results maps of different kinds." width="45%" data-original-src="https://socviz.co/assets/ch-07-election-county-purple.png"/><img src="../Images/46b0dbbd173026c3854d04f209ed4485.png" alt="2012 US election results maps of different kinds." width="45%" data-original-src="https://socviz.co/assets/ch-07-election-county-purple-pop.png"/><img src="../Images/1b3ad18732fdaff0ed0597ad5395eadc.png" alt="2012 US election results maps of different kinds." width="45%" data-original-src="https://socviz.co/assets/ch-07-election-electoral-college-cartogram.png"/>
+<p class="caption marginnote shownote">
+Figure 7.1: 2012 US election results maps of different kinds.
+</p>
+</div>
+<p>Each of these maps shows data for the same event, but the impressions they convey are very different. Each faces two main problems. First, the underlying quantities of interest are only partly spatial. The number of electoral college votes won and the share of votes cast within a state or county are expressed in spatial terms, but ultimately it is the numbers of people within those regions that matter. Second, the regions themselves are of wildly differing sizes, and they differ in a way that is not well-correlated with the magnitudes of the underlying votes. The map makers also face choices that would arise in many other representations of the data. Do we want to just show who won each state in absolute terms (this is all that matters for the actual result, in the end) or do we want to indicate how close the race was? Do we want to display the results at some finer level of resolution than is relevant to the outcome, such as county rather than state counts? How can we convey that different data points can carry very different weights, because they represent vastly larger or smaller numbers of people? It is tricky enough to convey these choices honestly with different colors and shape sizes on a simple scatterplot. Often, a map is like a weird grid that you are forced to conform to even though you know it systematically misrepresents what you want to show.</p>
+<p>This is not always the case, of course. Sometimes our data really is purely spatial, and we can observe it at a fine enough level of detail that we can represent spatial distributions honestly and in a very compelling way. But the spatial features of much social science are collected through entities such as precincts, neighborhoods, metro areas, census tracts, counties, states, and nations. These may themselves be socially contingent. A great deal of cartographic work with social-scientific variables involves working both with and against that arbitrariness.</p>
+<div id="map-u.s.-state-level-data" class="section level2">
+<h2><span class="header-section-number">7.1</span> Map U.S. state-level data</h2>
+<p>Let’s take a look at some data for the 2016 U.S. presidential election
+and see how we might plot it in R. The <code>election</code> dataset has various
+measures of the vote and vote shares by state. Here we pick some
+columns and sample a few rows at random.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb241-1" data-line-number="1">election <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(state, total_vote,</a>
+<a class="sourceLine" id="cb241-2" data-line-number="2">                    r_points, pct_trump, party, census) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb241-3" data-line-number="3"><span class="st">    </span><span class="kw">sample_n</span>(<span class="dv">5</span>)</a></code></pre>
+<pre><code>## # A tibble: 5 x 6
+##   state          total_vote r_points pct_trump party      census   
+##   &lt;chr&gt;               &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;      &lt;chr&gt;    
+## 1 Kentucky          1924149     29.8      62.5 Republican South    
+## 2 Vermont            315067    -26.4      30.3 Democrat   Northeast
+## 3 South Carolina    2103027     14.3      54.9 Republican South    
+## 4 Wyoming            255849     46.3      68.2 Republican West     
+## 5 Kansas            1194755     20.4      56.2 Republican Midwest</code></pre>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-electiondotplot"/>
+<img src="../Images/41812dbdbd37c2e03ec02011347ccf84.png" alt="2016 Election Results. Would a two-color choropleth map be more informative than this, or less?" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-electiondotplot-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.2: 2016 Election Results. Would a two-color choropleth map be more informative than this, or less?<!--</p>-->
+<!--</div>--></span>
+</p>
+<p>The FIPS code is a federal code that numbers states and territories of
+the US. It extends to the county level with an additional four
+digits, so every county in the US has a unique six-digit identifier,
+where the first two digits represent the state. This dataset also contains
+the census region of each state.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb243-1" data-line-number="1"><span class="co"># Hex color codes for Dem Blue and Rep Red</span></a>
+<a class="sourceLine" id="cb243-2" data-line-number="2">party_colors &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">"#2E74C0"</span>, <span class="st">"#CB454A"</span>) </a>
+<a class="sourceLine" id="cb243-3" data-line-number="3"/>
+<a class="sourceLine" id="cb243-4" data-line-number="4">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> <span class="kw">subset</span>(election, st <span class="op">%nin%</span><span class="st"> "DC"</span>),</a>
+<a class="sourceLine" id="cb243-5" data-line-number="5">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> r_points,</a>
+<a class="sourceLine" id="cb243-6" data-line-number="6">                           <span class="dt">y =</span> <span class="kw">reorder</span>(state, r_points),</a>
+<a class="sourceLine" id="cb243-7" data-line-number="7">                           <span class="dt">color =</span> party))</a>
+<a class="sourceLine" id="cb243-8" data-line-number="8"/>
+<a class="sourceLine" id="cb243-9" data-line-number="9">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_vline</span>(<span class="dt">xintercept =</span> <span class="dv">0</span>, <span class="dt">color =</span> <span class="st">"gray30"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb243-10" data-line-number="10"><span class="st">    </span><span class="kw">geom_point</span>(<span class="dt">size =</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb243-11" data-line-number="11"/>
+<a class="sourceLine" id="cb243-12" data-line-number="12">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_color_manual</span>(<span class="dt">values =</span> party_colors)</a>
+<a class="sourceLine" id="cb243-13" data-line-number="13"/>
+<a class="sourceLine" id="cb243-14" data-line-number="14">p3 &lt;-<span class="st"> </span>p2 <span class="op">+</span><span class="st"> </span><span class="kw">scale_x_continuous</span>(<span class="dt">breaks =</span> <span class="kw">c</span>(<span class="op">-</span><span class="dv">30</span>, <span class="dv">-20</span>, <span class="dv">-10</span>, <span class="dv">0</span>, <span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">30</span>, <span class="dv">40</span>),</a>
+<a class="sourceLine" id="cb243-15" data-line-number="15">                              <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">"30</span><span class="ch">\n</span><span class="st"> (Clinton)"</span>, <span class="st">"20"</span>, <span class="st">"10"</span>, <span class="st">"0"</span>,</a>
+<a class="sourceLine" id="cb243-16" data-line-number="16">                                         <span class="st">"10"</span>, <span class="st">"20"</span>, <span class="st">"30"</span>, <span class="st">"40</span><span class="ch">\n</span><span class="st">(Trump)"</span>))</a>
+<a class="sourceLine" id="cb243-17" data-line-number="17"/>
+<a class="sourceLine" id="cb243-18" data-line-number="18">p3 <span class="op">+</span><span class="st"> </span><span class="kw">facet_wrap</span>(<span class="op">~</span><span class="st"> </span>census, <span class="dt">ncol=</span><span class="dv">1</span>, <span class="dt">scales=</span><span class="st">"free_y"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb243-19" data-line-number="19"><span class="st">    </span><span class="kw">guides</span>(<span class="dt">color=</span><span class="ot">FALSE</span>) <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">x =</span> <span class="st">"Point Margin"</span>, <span class="dt">y =</span> <span class="st">""</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb243-20" data-line-number="20"><span class="st">    </span><span class="kw">theme</span>(<span class="dt">axis.text=</span><span class="kw">element_text</span>(<span class="dt">size=</span><span class="dv">8</span>))</a></code></pre>
+<p>The first thing you should remember about spatial data is that you
+don’t have to represent it spatially. We’ve been working with
+country-level data throughout, and have yet to make a map of it. Of
+course, spatial representations can be very useful, and sometimes
+absolutely necesssary. But we can start with a state-level dotplot,
+faceted by region. This plot brings together many aspects of plot
+construction that we have worked on so far, including subsetting data,
+reordering results by a second variable, and using a scale formatter.
+It also introduces some new options, like allowing free scales on an
+axis, and manually setting the color of an aesthetic. We break up the
+construction process into several steps by creating intermediate
+objects (<code>p0</code>, <code>p1</code>, <code>p2</code>) along the way. It makes the code a little
+more readable. Bear in mind also that, as always, you can try plotting
+each of these intermediate objects as well (just type their name at
+the console and hit return) to see what they look like. What happens
+if you remove the <code>scales="free_y"</code> argument to <code>facet_wrap()</code>? What
+happens if you delete the call to <code>scale_color_manual()</code>?</p>
+<p>As always, the first task in drawing a map is to get a data frame with
+the right information in it, and in the right order. First we load R’s
+<code>maps</code> package, which provides us with some pre-drawn map data.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb244-1" data-line-number="1"><span class="kw">library</span>(maps)</a>
+<a class="sourceLine" id="cb244-2" data-line-number="2">us_states &lt;-<span class="st"> </span><span class="kw">map_data</span>(<span class="st">"state"</span>)</a>
+<a class="sourceLine" id="cb244-3" data-line-number="3"><span class="kw">head</span>(us_states)</a></code></pre>
+<pre><code>##       long     lat group order  region subregion
+## 1 -87.4620 30.3897     1     1 alabama      &lt;NA&gt;
+## 2 -87.4849 30.3725     1     2 alabama      &lt;NA&gt;
+## 3 -87.5250 30.3725     1     3 alabama      &lt;NA&gt;
+## 4 -87.5308 30.3324     1     4 alabama      &lt;NA&gt;
+## 5 -87.5709 30.3267     1     5 alabama      &lt;NA&gt;
+## 6 -87.5881 30.3267     1     6 alabama      &lt;NA&gt;</code></pre>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb246-1" data-line-number="1"><span class="kw">dim</span>(us_states)</a></code></pre>
+<pre><code>## [1] 15537     6</code></pre>
+<p>This just a data frame. It has more than 15,000 rows because you need
+a lot of lines to draw a good-looking map. We can make a blank state
+map right away with this data, using <code>geom_polygon()</code>.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb248-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states,</a>
+<a class="sourceLine" id="cb248-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb248-3" data-line-number="3">                          <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb248-4" data-line-number="4"/>
+<a class="sourceLine" id="cb248-5" data-line-number="5">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">fill =</span> <span class="st">"white"</span>, <span class="dt">color =</span> <span class="st">"black"</span>)</a></code></pre>
+<p>The map is plotted with latitude and longitude points, which are there
+as scale elements mapped to the x and y axes. A map is, after all, just
+a set of lines drawn in the right order on a grid.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap"/>
+<img src="../Images/50400274958d6a7511ccc1502da75fab.png" alt="A first US map" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.3: A first US map<!--</p>-->
+<!--</div>--></span>
+</p>
+<p>We can map the <code>fill</code> aesthetic to <code>region</code> and change the <code>color</code>
+mapping to a light gray and thin the lines to make the state borders a
+little nicer. We’ll also tell R not to plot a legend.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap-02"/>
+<img src="../Images/12b837f02b22ed78c883832fbba6c494.png" alt="Coloring the states" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-02-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.4: Coloring the states<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb249-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states,</a>
+<a class="sourceLine" id="cb249-2" data-line-number="2">            <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb249-3" data-line-number="3">                <span class="dt">group =</span> group, <span class="dt">fill =</span> region))</a>
+<a class="sourceLine" id="cb249-4" data-line-number="4"/>
+<a class="sourceLine" id="cb249-5" data-line-number="5">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span><span class="st"> </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="ot">FALSE</span>)</a></code></pre>
+<p>Next, let’s deal with the projection. By default the map is plotted
+using the venerable Mercator projection. It doesn’t look that good.
+Assuming we are not planning on sailing across the Atlantic, the
+practical virtues of this projection are not much use to us, either.
+If you glance again at the maps in Figure <a href="maps.html#fig:ch-07-maps1">7.1</a>, you’ll
+notice they look nicer. This is because they are using an Albers
+projection. (Look, for example, at the way that the US-Canadian border
+is a little curved along the 49th parallel from Washington state to
+Minnesota, rather than not a straight line.) Techniques for map
+projection are a fascinating world of their own, but for now just
+remember we can transform the default projection used by
+<code>geom_polygon()</code>, via the <code>coord_map()</code> function. You’ll remember that
+we said that projection onto a coordinate system is a necessary part
+of the plotting process for any data. Normally it is left implicit. We
+have not usually had to specify a <code>coord_</code> function because most of
+the time we have drawn our plots on a simple Cartesian plane. Maps are
+more complex. Our locations and borders are defined on a more or less
+spherical object, which means must have a method for transforming or
+projecting our points and lines from a round to a flat surface. The
+many ways of doing this gives us a menu of cartographic options.</p>
+<p>The Albers projection requires two latitude parameters, <code>lat0</code> and
+<code>lat1</code>. We give them their conventional values for a US map here. (Try
+messing around with their values and see what happens when you redraw
+the map.)</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap-03"/>
+<img src="../Images/7e82b98cf4878a25e166d767073cf3f4.png" alt="Improving the projection" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-03-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.5: Improving the projection<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb250-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states,</a>
+<a class="sourceLine" id="cb250-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb250-3" data-line-number="3">                          <span class="dt">group =</span> group, <span class="dt">fill =</span> region))</a>
+<a class="sourceLine" id="cb250-4" data-line-number="4"/>
+<a class="sourceLine" id="cb250-5" data-line-number="5">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb250-6" data-line-number="6"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb250-7" data-line-number="7"><span class="st">    </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="ot">FALSE</span>)</a></code></pre>
+<p>Now we need to get our own data on to the map. Remember, underneath
+that map is just a big data frame specifying a large number of lines
+that need to be drawn. We have to merge our data with that data frame.
+Somewhat annoyingly, in the map data the state names (in a variable
+named <code>region</code>) are in lower case. We can create a variable in our own
+data frame to correspond to this, using the <code>tolower()</code> function to
+convert the <code>state</code> names. We then use <code>left_join</code> to merge but you
+could also use <code>merge(..., sort = FALSE)</code>. This merge step is
+important! You need to take care that the values of the key variables
+you are matching on really do exactly correspond to one another. If
+they do not, missing values (<code>NA</code> codes) will be introduced into your
+merge, and the lines on your map will not join up. This will result in
+a weirdly “sharded” appearance to your map when R tries to fill the
+polygons. Here, the <code>region</code> variable is the only column with the same
+name in both the data sets we are joining, and so the <code>left_join()</code>
+function uses it used by default. If the keys have different names in
+each data set you can specify that, if needed.</p>
+<p>To reiterate, it is important to know your data and variables well
+enough to check that they have merged properly. Do not do it blindly.
+For example, if rows corresponding to Washington DC were named
+“washington dc” in the <code>region</code> variable of your <code>election</code> data
+frame, but “district of columbia” in the corresponding <code>region</code>
+variable of your map data, then merging on <code>region</code> would mean no rows
+in the <code>election</code> data frame would match “washington dc” in the map
+data, and the resulting merged variables for those rows would all be
+coded as missing. Maps that look broken when you draw them are usually
+caused by merge errors. But errors can also be subtle. For example,
+perhaps one of your state names inadvertently has a leading (or,
+worse, a trailing) space as a result of the data originally being
+imported from elsewhere and not fully cleaned. That would mean, for
+example, that <code>california</code> and <code>california␣</code> are different strings,
+and the match would fail. In ordinary use you might not easily see the
+extra space (designated here by <code>␣</code>). So, be careful.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb251-1" data-line-number="1">election<span class="op">$</span>region &lt;-<span class="st"> </span><span class="kw">tolower</span>(election<span class="op">$</span>state)</a>
+<a class="sourceLine" id="cb251-2" data-line-number="2">us_states_elec &lt;-<span class="st"> </span><span class="kw">left_join</span>(us_states, election)</a></code></pre>
+<p>We have now merged the data. Take a look at the object with
+<code>head(us_states_elec)</code>. Now that everything is in one big data frame,
+we can plot it in a map.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap-04"/>
+<img src="../Images/d0857ad451b1d786f96fdbb38d2809e8.png" alt="Mapping the results" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-04-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.6: Mapping the results<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb252-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states_elec,</a>
+<a class="sourceLine" id="cb252-2" data-line-number="2">            <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb252-3" data-line-number="3">                <span class="dt">group =</span> group, <span class="dt">fill =</span> party))</a>
+<a class="sourceLine" id="cb252-4" data-line-number="4"/>
+<a class="sourceLine" id="cb252-5" data-line-number="5">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb252-6" data-line-number="6"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a></code></pre>
+<p>To complete the map, we will use our party colors for the fill, move
+the legend to the bottom, and add a title. Finally we will remove the
+grid lines and axis labels, which aren’t really needed, by defining a
+special theme for maps that removes most of the elements we don’t
+need. (We’ll learn more about themes in Chapter <a href="refineplots.html#refineplots">8</a>. You can also see the
+code for the map theme in the Appendix.)</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb253-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states_elec,</a>
+<a class="sourceLine" id="cb253-2" data-line-number="2">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb253-3" data-line-number="3">                           <span class="dt">group =</span> group, <span class="dt">fill =</span> party))</a>
+<a class="sourceLine" id="cb253-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb253-5" data-line-number="5"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb253-6" data-line-number="6">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_manual</span>(<span class="dt">values =</span> party_colors) <span class="op">+</span></a>
+<a class="sourceLine" id="cb253-7" data-line-number="7"><span class="st">    </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Election Results 2016"</span>, <span class="dt">fill =</span> <span class="ot">NULL</span>)</a>
+<a class="sourceLine" id="cb253-8" data-line-number="8">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() </a></code></pre>
+<div class="figure fullwidth"><span id="fig:ch-07-firstmap-05"/>
+<img src="../Images/0101fe11ace19e521d5f1150cb4c441b.png" alt="Election 2016 by State" width="80%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-05-1.png"/>
+<p class="caption marginnote shownote">
+Figure 7.7: Election 2016 by State
+</p>
+</div>
+<p>With the map data frame in place, we can map other variables if we
+like. Let’s try a continuous measure, such as the percentage of the vote
+received by Donald Trump. To begin with, we just map the variable we
+want (<code>pct_trump</code>) to the <code>fill</code> aesthetic, and see what <code>geom_polygon()</code>
+does by default.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap-06"/>
+<img src="../Images/8189ee7190135dfd038997b7b9794b77.png" alt="Two versions of Percent Trump by State" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-06-1.png"/><img src="../Images/9fd04466e47e74a20ef939fb88e33aee.png" alt="Two versions of Percent Trump by State" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-06-2.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.8: Two versions of Percent Trump by State<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb254-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states_elec,</a>
+<a class="sourceLine" id="cb254-2" data-line-number="2">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat, <span class="dt">group =</span> group, <span class="dt">fill =</span> pct_trump))</a>
+<a class="sourceLine" id="cb254-3" data-line-number="3"/>
+<a class="sourceLine" id="cb254-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb254-5" data-line-number="5"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb254-6" data-line-number="6"/>
+<a class="sourceLine" id="cb254-7" data-line-number="7">p1 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Trump vote"</span>) <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a>
+<a class="sourceLine" id="cb254-8" data-line-number="8"/>
+<a class="sourceLine" id="cb254-9" data-line-number="9">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_gradient</span>(<span class="dt">low =</span> <span class="st">"white"</span>, <span class="dt">high =</span> <span class="st">"#CB454A"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb254-10" data-line-number="10"><span class="st">        </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Trump vote"</span>) </a>
+<a class="sourceLine" id="cb254-11" data-line-number="11">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a></code></pre>
+<p>The default color used in the <code>p1</code> object is blue. Just for reasons of
+convention, that isn’t what is wanted here. In addition, the gradient
+runs in the wrong direction. In our case, the standard interpretation
+is that a higher vote share makes for a darker color. We fix both
+of these problems in the <code>p2</code> object by specifying the <code>scale</code> directly. We’ll use the
+values we created earlier in <code>party_colors</code>.</p>
+<p>For election results, we might prefer a gradient that diverges from a
+midpoint. The <code>scale_gradient2()</code> function gives us a blue-red
+spectrum that passes through white by default. Alternatively, we can
+re-specify the mid-level color along with the high and low colors. We
+will make purple our midpoint, and use the <code>muted()</code> function from the
+<code>scales</code> library to tone down the color a little.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-purple1st"/>
+<img src="../Images/5a8f3b4c873f04e7a842cc0d670914c6.png" alt="Two views of Trump vs Clinton share: a white midpoint, and a Purple America version." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-purple1st-1.png"/><img src="../Images/24ca50be3c0e06e458c318aa5d404727.png" alt="Two views of Trump vs Clinton share: a white midpoint, and a Purple America version." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-purple1st-2.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.9: Two views of Trump vs Clinton share: a white midpoint, and a Purple America version.<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb255-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states_elec,</a>
+<a class="sourceLine" id="cb255-2" data-line-number="2">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat, <span class="dt">group =</span> group, <span class="dt">fill =</span> d_points))</a>
+<a class="sourceLine" id="cb255-3" data-line-number="3"/>
+<a class="sourceLine" id="cb255-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb255-5" data-line-number="5"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb255-6" data-line-number="6"/>
+<a class="sourceLine" id="cb255-7" data-line-number="7">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_gradient2</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Winning margins"</span>) </a>
+<a class="sourceLine" id="cb255-8" data-line-number="8">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a>
+<a class="sourceLine" id="cb255-9" data-line-number="9"/>
+<a class="sourceLine" id="cb255-10" data-line-number="10">p3 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_gradient2</span>(<span class="dt">low =</span> <span class="st">"red"</span>, <span class="dt">mid =</span> scales<span class="op">::</span><span class="kw">muted</span>(<span class="st">"purple"</span>),</a>
+<a class="sourceLine" id="cb255-11" data-line-number="11">                                <span class="dt">high =</span> <span class="st">"blue"</span>, <span class="dt">breaks =</span> <span class="kw">c</span>(<span class="op">-</span><span class="dv">25</span>, <span class="dv">0</span>, <span class="dv">25</span>, <span class="dv">50</span>, <span class="dv">75</span>)) <span class="op">+</span></a>
+<a class="sourceLine" id="cb255-12" data-line-number="12"><span class="st">    </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Winning margins"</span>) </a>
+<a class="sourceLine" id="cb255-13" data-line-number="13">p3 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a></code></pre>
+<p>If you take a look at the gradient scale for this first “purple
+America” map, in Figure <a href="maps.html#fig:ch-07-purple1st">7.9</a>, you’ll see that it
+extends very high on the Blue side. This is because Washington DC is
+included in the data, and hence the scale. Even though it is barely
+visible on the map, DC has by far the highest points margin in favor
+of the Democrats of any unit of observation in the data. If we omit
+it, we’ll see that our scale shifts in a way that does not just affect
+the top of the blue end, but re-centers the whole gradient and makes
+the red side more vivid as a result. Figure <a href="maps.html#fig:ch-07-purple2nd">7.10</a> shows
+the result.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb256-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> <span class="kw">subset</span>(us_states_elec,</a>
+<a class="sourceLine" id="cb256-2" data-line-number="2">                           region <span class="op">%nin%</span><span class="st"> "district of columbia"</span>),</a>
+<a class="sourceLine" id="cb256-3" data-line-number="3">             <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat, <span class="dt">group =</span> group, <span class="dt">fill =</span> d_points))</a>
+<a class="sourceLine" id="cb256-4" data-line-number="4"/>
+<a class="sourceLine" id="cb256-5" data-line-number="5">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb256-6" data-line-number="6"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb256-7" data-line-number="7"/>
+<a class="sourceLine" id="cb256-8" data-line-number="8">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_gradient2</span>(<span class="dt">low =</span> <span class="st">"red"</span>,</a>
+<a class="sourceLine" id="cb256-9" data-line-number="9">                                <span class="dt">mid =</span> scales<span class="op">::</span><span class="kw">muted</span>(<span class="st">"purple"</span>),</a>
+<a class="sourceLine" id="cb256-10" data-line-number="10">                                <span class="dt">high =</span> <span class="st">"blue"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb256-11" data-line-number="11"><span class="st">    </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Winning margins"</span>) </a>
+<a class="sourceLine" id="cb256-12" data-line-number="12">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a></code></pre>
+<div class="figure"><span id="fig:ch-07-purple2nd"/>
+<p class="caption marginnote shownote">
+Figure 7.10: A Purple America version of Trump vs Clinton that excludes results from Washington, DC.
+</p>
+<img src="../Images/4f8d8961e73231bd264b9fa571a330f0.png" alt="A Purple America version of Trump vs Clinton that excludes results from Washington, DC." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-purple2nd-1.png"/>
+</div>
+<p>This brings out the familiar choropleth problem of having geographical
+areas that only partially represent the variable we are mapping. In
+this case, we’re showing votes spatially, but what really matters
+is the number of people who voted.</p>
+</div>
+<div id="americas-ur-choropleths" class="section level2">
+<h2><span class="header-section-number">7.2</span> America’s ur-choropleths</h2>
+<p>In the U.S. case, administrative areas vary widely in geographical
+area and they also vary widely in population size. The problem is
+evident at the state level, as we have seen, also arises even more at
+the county level. County-level US maps can be aesthetically pleasing,
+because of the added detail they bring to a national map. But they
+also make it easy to present a geographical distribution to insinuate
+an explanation. The results can be tricky to work with. When producing
+county maps, it is important to remember that the states of New
+Hampshire, Rhode Island, Massachussetts, and Connecticut are all
+smaller in area than any of the ten largest Western <em>counties</em>. Many
+of those counties have fewer than a hundred thousand people living in
+them. Some have fewer than ten thousand inhabitants.</p>
+<p>The result is that most choropleth maps of the U.S. for whatever
+variable in effect show population density more than anything else. The
+other big variable, in the U.S. case, is Percent Black. Let’s see how
+to draw these two maps in R. The procedure is essentially
+the same as it was for the state-level map. We need two data frames,
+one containing the map data, and the other containing the fill
+variables we want plotted. Because there are more than three thousand
+counties in the United States, these two data frames will be rather
+larger than they were for the state-level maps.</p>
+<p>The datasets are included in the <code>socviz</code> library. The county map data
+frame has already been processed a little in order to transform it to
+an Albers projection, and also to relocate (and rescale) Alaska and
+Hawaii so that they fit into an area in the bottom left of the figure. This
+is better than throwing away two states from the data. The steps for this transformation and relocation are not shown here. If you want to see how it’s done, consult the Supplementary Material for details. Let’s take a look at our county map data first:</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb257-1" data-line-number="1">county_map <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">sample_n</span>(<span class="dv">5</span>)</a></code></pre>
+<pre><code>##            long      lat  order  hole piece             group    id
+## 116977  -286097 -1302531 116977 FALSE     1  0500000US35025.1 35025
+## 175994  1657614  -698592 175994 FALSE     1  0500000US51197.1 51197
+## 186409   674547   -65321 186409 FALSE     1  0500000US55011.1 55011
+## 22624    619876 -1093164  22624 FALSE     1  0500000US05105.1 05105
+## 5906   -1983421 -2424955   5906 FALSE    10 0500000US02016.10 02016</code></pre>
+<p>It looks the same as our State map data frame, but it is much larger, running to almost 200,000 rows. The <code>id</code> field is the FIPS code for the county. Next, we have a data frame with county-level demographic, geographic, and election data:</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb259-1" data-line-number="1">county_data <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb259-2" data-line-number="2"><span class="st">    </span><span class="kw">select</span>(id, name, state, pop_dens, pct_black) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb259-3" data-line-number="3"><span class="st">    </span><span class="kw">sample_n</span>(<span class="dv">5</span>)</a></code></pre>
+<pre><code>##         id                name state      pop_dens   pct_black
+## 3029 53051 Pend Oreille County    WA [    0,   10) [ 0.0, 2.0)
+## 1851 35041    Roosevelt County    NM [    0,   10) [ 2.0, 5.0)
+## 1593 29165       Platte County    MO [  100,  500) [ 5.0,10.0)
+## 2363 45009      Bamberg County    SC [   10,   50) [50.0,85.3]
+## 654  17087      Johnson County    IL [   10,   50) [ 5.0,10.0)</code></pre>
+<p>This data frame includes information for entities besides counties, though not for all variables. If you look at the top of the object with <code>head()</code> you’ll notice that the first row of has an <code>id</code> of <code>0</code>. Zero is the FIPS code for the entire United States, and thus the data in this row are for the whole country. Similarly, the second row has an <code>id</code> of 01000, which corresponds to the State FIPS of 01, for the whole of Alabama. As we merge <code>county_data</code> in to <code>county_map</code>, these state rows will be dropped, along with the national row, as <code>county_map</code> only has county-level data.</p>
+<p>We merge the data frames using the shared FIPS <code>id</code> column:</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb261-1" data-line-number="1">county_full &lt;-<span class="st"> </span><span class="kw">left_join</span>(county_map, county_data, <span class="dt">by =</span> <span class="st">"id"</span>)</a></code></pre>
+<p>With the data merged, we can map the population density per square mile.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb262-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> county_full,</a>
+<a class="sourceLine" id="cb262-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb262-3" data-line-number="3">                          <span class="dt">fill =</span> pop_dens, </a>
+<a class="sourceLine" id="cb262-4" data-line-number="4">                          <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb262-5" data-line-number="5"/>
+<a class="sourceLine" id="cb262-6" data-line-number="6">p1 &lt;-<span class="st"> </span>p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span><span class="st"> </span><span class="kw">coord_equal</span>()</a>
+<a class="sourceLine" id="cb262-7" data-line-number="7"/>
+<a class="sourceLine" id="cb262-8" data-line-number="8">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_brewer</span>(<span class="dt">palette=</span><span class="st">"Blues"</span>,</a>
+<a class="sourceLine" id="cb262-9" data-line-number="9">                             <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">"0-10"</span>, <span class="st">"10-50"</span>, <span class="st">"50-100"</span>, <span class="st">"100-500"</span>,</a>
+<a class="sourceLine" id="cb262-10" data-line-number="10">                                        <span class="st">"500-1,000"</span>, <span class="st">"1,000-5,000"</span>, <span class="st">"&gt;5,000"</span>))</a>
+<a class="sourceLine" id="cb262-11" data-line-number="11"/>
+<a class="sourceLine" id="cb262-12" data-line-number="12">p2 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Population per</span><span class="ch">\n</span><span class="st">square mile"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb262-13" data-line-number="13"><span class="st">    </span><span class="kw">theme_map</span>() <span class="op">+</span></a>
+<a class="sourceLine" id="cb262-14" data-line-number="14"><span class="st">    </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="kw">guide_legend</span>(<span class="dt">nrow =</span> <span class="dv">1</span>)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb262-15" data-line-number="15"><span class="st">    </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>)</a></code></pre>
+<div class="figure"><span id="fig:ch-07-urchoro1"/>
+<p class="caption marginnote shownote">
+Figure 7.11: US population density by county.
+</p>
+<img src="../Images/5878e805ae980e18438416dbc167051d.png" alt="US population density by county." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-urchoro1-1.png"/>
+</div>
+<p>If you try out the <code>p1</code> object you will see that ggplot produces a legible map, but by default it chooses an unordered categorical layout. This is because the <code>pop_dens</code> variable is not ordered. We could recode it so that R is aware of the ordering. Alternatively, we can manually supply the right sort of scale using the <code>scale_fill_brewer()</code> function, together with a nicer set of labels. We will learn more about this scale function in the next chapter. We also tweak how the legend is drawn using the <code>guides()</code> function to make sure each element of the key appears on the same row. Again, we will see this use of <code>guides()</code> in more detail in the next chapter. The use of <code>coord_equal()</code> makes sure that the relative scale of our map does not change even if we alter the overall dimensions of the plot.</p>
+<p>We can now do exactly the same thing for our map of percent Black
+population by county. Once again, we specify a palette for the <code>fill</code>
+mapping using <code>scale_fill_brewer()</code>, this time choosing a different
+range of hues for the map.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb263-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> county_full,</a>
+<a class="sourceLine" id="cb263-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat, <span class="dt">fill =</span> pct_black, </a>
+<a class="sourceLine" id="cb263-3" data-line-number="3">                          <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb263-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span><span class="st"> </span><span class="kw">coord_equal</span>()</a>
+<a class="sourceLine" id="cb263-5" data-line-number="5">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_brewer</span>(<span class="dt">palette=</span><span class="st">"Greens"</span>)</a>
+<a class="sourceLine" id="cb263-6" data-line-number="6"/>
+<a class="sourceLine" id="cb263-7" data-line-number="7">p2 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"US Population, Percent Black"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb263-8" data-line-number="8"><span class="st">    </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="kw">guide_legend</span>(<span class="dt">nrow =</span> <span class="dv">1</span>)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb263-9" data-line-number="9"><span class="st">    </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>)</a></code></pre>
+<div class="figure"><span id="fig:ch-07-urchoro2"/>
+<p class="caption marginnote shownote">
+Figure 7.12: Percent Black population by county.
+</p>
+<img src="../Images/b477ed9a2c1be43e478f72930491524a.png" alt="Percent Black population by county." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-urchoro2-1.png"/>
+</div>
+<p>Figures <a href="maps.html#fig:ch-07-urchoro1">7.11</a> and <a href="maps.html#fig:ch-07-urchoro2">7.12</a> are America’s
+“ur-choropleths”. Between the two of them, population density and
+percent Black will do a lot to obliterate many a
+suggestively-patterned map of the United States. These two variables
+aren’t <em>explanations</em> of anything in isolation, but if it turns out
+that it is more useful to know one or both of them instead of the
+thing you’re plotting, you probably want to reconsider your theory.</p>
+<p>As an example of the problem in action, let’s draw two new
+county-level choropleths. The first is an effort to replicate a
+poorly-sourced but widely-circulated county map of firearm-related
+suicide rates in the United States. The <code>su_gun6</code> variable in
+<code>county_data</code> (and <code>county_full</code>) is a measure of the rate of all
+firearm-related suicides between 1999 and 2015. The rates are binned
+into six categories. We have a <code>pop_dens6</code> variable that divides the
+population density into six categories, too.</p>
+<p>We first draw a map with the <code>su_gun6</code> variable. We will match the
+color palettes between the maps, but for the population map we will
+flip our color scale around so that less populated areas are shown in
+a darker shade. We do this by using a function from the RColorBrewer
+library to manually create two palettes. The <code>rev()</code> function used
+here reverses the order of a vector.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb264-1" data-line-number="1">orange_pal &lt;-<span class="st"> </span>RColorBrewer<span class="op">::</span><span class="kw">brewer.pal</span>(<span class="dt">n =</span> <span class="dv">6</span>, <span class="dt">name =</span> <span class="st">"Oranges"</span>)</a>
+<a class="sourceLine" id="cb264-2" data-line-number="2">orange_pal</a></code></pre>
+<pre><code>## [1] "#FEEDDE" "#FDD0A2" "#FDAE6B" "#FD8D3C" "#E6550D"
+## [6] "#A63603"</code></pre>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb266-1" data-line-number="1">orange_rev &lt;-<span class="st"> </span><span class="kw">rev</span>(orange_pal)</a>
+<a class="sourceLine" id="cb266-2" data-line-number="2">orange_rev</a></code></pre>
+<pre><code>## [1] "#A63603" "#E6550D" "#FD8D3C" "#FDAE6B" "#FDD0A2"
+## [6] "#FEEDDE"</code></pre>
+<p>The <code>brewer.pal()</code> function produces evenly-spaced color schemes to
+order from any one of several named palettes. The colors are specified
+in hexadecimal format. Again, we will learn more about color
+specifications and how to manipulate palettes for mapped variables in
+Chapter <a href="refineplots.html#refineplots">8</a>.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb268-1" data-line-number="1">gun_p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> county_full,</a>
+<a class="sourceLine" id="cb268-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb268-3" data-line-number="3">                          <span class="dt">fill =</span> su_gun6, </a>
+<a class="sourceLine" id="cb268-4" data-line-number="4">                          <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb268-5" data-line-number="5"/>
+<a class="sourceLine" id="cb268-6" data-line-number="6">gun_p1 &lt;-<span class="st"> </span>gun_p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span><span class="st"> </span><span class="kw">coord_equal</span>()</a>
+<a class="sourceLine" id="cb268-7" data-line-number="7"/>
+<a class="sourceLine" id="cb268-8" data-line-number="8">gun_p2 &lt;-<span class="st"> </span>gun_p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_manual</span>(<span class="dt">values =</span> orange_pal)</a>
+<a class="sourceLine" id="cb268-9" data-line-number="9"/>
+<a class="sourceLine" id="cb268-10" data-line-number="10">gun_p2 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Gun-Related Suicides, 1999-2015"</span>,</a>
+<a class="sourceLine" id="cb268-11" data-line-number="11">              <span class="dt">fill =</span> <span class="st">"Rate per 100,000 pop."</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb268-12" data-line-number="12"><span class="st">    </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>)</a></code></pre>
+<p>Having drawn the gun plot, we use almost exactly the same code to draw the reverse-coded population density map.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb269-1" data-line-number="1">pop_p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> county_full, <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb269-2" data-line-number="2">                                                  <span class="dt">fill =</span> pop_dens6, </a>
+<a class="sourceLine" id="cb269-3" data-line-number="3">                                                  <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb269-4" data-line-number="4"/>
+<a class="sourceLine" id="cb269-5" data-line-number="5">pop_p1 &lt;-<span class="st"> </span>pop_p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span><span class="st"> </span><span class="kw">coord_equal</span>()</a>
+<a class="sourceLine" id="cb269-6" data-line-number="6"/>
+<a class="sourceLine" id="cb269-7" data-line-number="7">pop_p2 &lt;-<span class="st"> </span>pop_p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_manual</span>(<span class="dt">values =</span> orange_rev)</a>
+<a class="sourceLine" id="cb269-8" data-line-number="8"/>
+<a class="sourceLine" id="cb269-9" data-line-number="9">pop_p2 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Reverse-coded Population Density"</span>,</a>
+<a class="sourceLine" id="cb269-10" data-line-number="10">              <span class="dt">fill =</span> <span class="st">"People per square mile"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb269-11" data-line-number="11"><span class="st">    </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>)</a></code></pre>
+<p>It’s clear that the two maps are not identical. However, the visual
+impact of the first has a lot in common with the second. The dark
+bands in the West (except for California) stand out, and fade as we
+move toward the center of the country. There are some strong
+similarities elsewhere on the map too, such as in the Northeast.</p>
+<p>The gun-related suicide measure is already expressed as a rate. It is the
+number of qualifying deaths in a county, divided by that county’s
+population. Normally, we standardize in this way to “control for” the
+fact that larger populations will tend to produce more gun-related
+suicides just because they have more people in them. However, this
+sort of standardization has its limits. In particular, when the event
+of interest is not very common, and there is very wide variation in
+the base size of the units, then the denominator (e.g., the population
+size) starts to be expressed more and more in the standardized
+measure.</p>
+<div class="figure fullwidth"><span id="fig:ch-07-gunsu"/>
+<img src="../Images/2a742741590b78d74676dfecc884c5b2.png" alt="Gun-related suicides by county; Reverse-coded population density by county. Before tweeting this picture, please read the text for discussion of what is wrong with it." width="50%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-gunsu-1.png"/><img src="../Images/1a4e08124d11e0309a71b43af45fc48e.png" alt="Gun-related suicides by county; Reverse-coded population density by county. Before tweeting this picture, please read the text for discussion of what is wrong with it." width="50%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-gunsu-2.png"/>
+<p class="caption marginnote shownote">
+Figure 7.13: Gun-related suicides by county; Reverse-coded population density by county. Before tweeting this picture, please read the text for discussion of what is wrong with it.
+</p>
+</div>
+<p>Third, and more subtly, the data is subject to reporting constraints
+connected to population size. If there are fewer than ten events per
+year for a cause of death, the Centers for Disease Control (CDC) will
+not report them at the county level because it might be possible to
+identify particular deceased individuals. Assigning data like this to
+bins creates a threshold problem for choropleth maps. Look again
+Figure <a href="maps.html#fig:ch-07-gunsu">7.13</a>. The gun-related suicides panel seems to show
+a north-south band of counties with the lowest rate of suicides
+running from the Dakotas down through Nebraska, Kansas, and into West
+Texas. Oddly, this band borders counties in the West with the very
+highest rates, from New Mexico on up. But from the density map we can
+see that many counties in both these regions have very low population
+densities. Are they really that different in their gun-related suicide
+rates?</p>
+<p>Probably not. More likely, we are seeing an artifact arising from how
+the data is coded. For example, imagine a county with 100,000
+inhabitants that experiences nine gun-related suicides in a year. The
+CDC will not report this number. Instead it will be coded as
+“suppressed”, accompanied by a note saying any standardized estimates
+or rates will also be unreliable. But if we are determined to make a
+map where all the counties are colored in, we might be tempted to put
+any suppressed results into the lowest bin. After all, we know that
+the number is somewhere between zero and ten. Why not just code it as
+zero?<label for="tufte-mn-76" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-76" class="margin-toggle"/><span class="marginnote shownote">Do not do this. One standard alternative is to
+estimate the suppressed observations using a count model. An approach
+like this might naturally lead to more extensive, properly spatial
+modeling of the data.</span> Meanwhile, a county with 100,000 inhabitants
+that experiences twelve gun-related suicides a year <em>will</em> be
+numerically reported. The CDC is a responsible organization, and so
+although it provides the absolute number of deaths for all counties
+above the threshold, the notes to the data file will still warn you
+that any rate calculated with this number will be unreliable. If we
+push ahead and do it anyway, then 12 deaths in a small population
+might well put a sparsely-populated county in the highest category of
+suicide rate. Meanwhile, a low-population counties just under that
+threshold would be coded as being in the lowest (lightest) bin. But in
+reality they might not be so different, and in any case efforts to
+quantify that difference will be unreliable. If estimates for these
+counties cannot be obtained directly or estimated with a good model,
+then it is better to drop those cases as missing, even at the cost of your
+beautiful map, than have large areas of the country painted with a
+color derived from an unreliable number.</p>
+<p>Small differences in reporting, combined with miscoding, will produce
+spatially misleading and substantively mistaken results. It might seem
+that focusing on the details of variable coding in this particular
+case is a little too much in the weeds for a general introduction. But
+it is exactly these details that can dramatically alter the appearance
+of any graph, but especially maps, in a way that can be hard to
+detect after the fact.</p>
+</div>
+<div id="statebins" class="section level2">
+<h2><span class="header-section-number">7.3</span> Statebins</h2>
+<p>As an alternative to state-level choropleths, we can consider
+<em>statebins</em>, using a package developed by Bob Rudis. We will use it to
+look again at our state-level election results. Statebins is similar
+to ggplot but has a slightly different syntax from the one we’re used
+to. It needs several arguments including the basic data frame (the
+<code>state_data</code> argument), a vector of state names (<code>state_col</code>), and the
+value being shown (<code>value_col</code>). In addition, we can optionally tell
+it the color palette we want to use and the color of the text to label
+the state boxes. For a continuous variable we can use
+<code>statebins_continuous()</code>, as follows:</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-statebins1"/>
+<img src="../Images/b0cc80f86d663953bb000c192b3c5ef0.png" alt="Statebins of the election results. We omit DC from the Clinton map to prevent the scale becoming unbalanced." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-statebins1-1.png"/><img src="../Images/b3532df43e28c7c4536ec4e6831ed120.png" alt="Statebins of the election results. We omit DC from the Clinton map to prevent the scale becoming unbalanced." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-statebins1-2.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.14: Statebins of the election results. We omit DC from the Clinton map to prevent the scale becoming unbalanced.<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb270-1" data-line-number="1"><span class="kw">library</span>(statebins)</a>
+<a class="sourceLine" id="cb270-2" data-line-number="2"/>
+<a class="sourceLine" id="cb270-3" data-line-number="3"><span class="kw">statebins_continuous</span>(<span class="dt">state_data =</span> election, <span class="dt">state_col =</span> <span class="st">"state"</span>,</a>
+<a class="sourceLine" id="cb270-4" data-line-number="4">                     <span class="dt">text_color =</span> <span class="st">"white"</span>, <span class="dt">value_col =</span> <span class="st">"pct_trump"</span>,</a>
+<a class="sourceLine" id="cb270-5" data-line-number="5">                     <span class="dt">brewer_pal=</span><span class="st">"Reds"</span>, <span class="dt">font_size =</span> <span class="dv">3</span>,</a>
+<a class="sourceLine" id="cb270-6" data-line-number="6">                     <span class="dt">legend_title=</span><span class="st">"Percent Trump"</span>)</a>
+<a class="sourceLine" id="cb270-7" data-line-number="7"/>
+<a class="sourceLine" id="cb270-8" data-line-number="8"><span class="kw">statebins_continuous</span>(<span class="dt">state_data =</span> <span class="kw">subset</span>(election, st <span class="op">%nin%</span><span class="st"> "DC"</span>),</a>
+<a class="sourceLine" id="cb270-9" data-line-number="9">                     <span class="dt">state_col =</span> <span class="st">"state"</span>,</a>
+<a class="sourceLine" id="cb270-10" data-line-number="10">                     <span class="dt">text_color =</span> <span class="st">"black"</span>, <span class="dt">value_col =</span> <span class="st">"pct_clinton"</span>,</a>
+<a class="sourceLine" id="cb270-11" data-line-number="11">                     <span class="dt">brewer_pal=</span><span class="st">"Blues"</span>, <span class="dt">font_size =</span> <span class="dv">3</span>,</a>
+<a class="sourceLine" id="cb270-12" data-line-number="12">                     <span class="dt">legend_title=</span><span class="st">"Percent Clinton"</span>)</a></code></pre>
+<p>Sometimes we will want to present categorical data. If our variable is
+already cut into categories we can use <code>statebins_manual()</code> to
+represent it. Here add a new variable to the <code>election</code> data called
+<code>color</code>, just mirroring party names with two appropriate color names.
+We do this because we need to specify the colors we are using by way
+of a variable in the data frame, not as a proper mapping. We tell the
+<code>statebins_manual()</code> function that the colors are contained in column
+named <code>color</code>.</p>
+<p>Alternatively, we can have <code>statebins()</code> cut the data for us using the
+<code>breaks</code> argument, as in the second plot.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-statebins2"/>
+<img src="../Images/75d1261dd857cf92c3802f2eca4bdd7f.png" alt="Manually specifying colors for statebins." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-statebins2-1.png"/><img src="../Images/5d771d400ed1ae057f1f2f1b733778c5.png" alt="Manually specifying colors for statebins." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-statebins2-2.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.15: Manually specifying colors for statebins.<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb271-1" data-line-number="1">election &lt;-<span class="st"> </span>election <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">color =</span> <span class="kw">recode</span>(party, <span class="dt">Republican =</span> <span class="st">"darkred"</span>,</a>
+<a class="sourceLine" id="cb271-2" data-line-number="2">                                               <span class="dt">Democrat =</span> <span class="st">"royalblue"</span>))</a>
+<a class="sourceLine" id="cb271-3" data-line-number="3"/>
+<a class="sourceLine" id="cb271-4" data-line-number="4"><span class="kw">statebins_manual</span>(<span class="dt">state_data =</span> election, <span class="dt">state_col =</span> <span class="st">"st"</span>,</a>
+<a class="sourceLine" id="cb271-5" data-line-number="5">                 <span class="dt">color_col =</span> <span class="st">"color"</span>, <span class="dt">text_color =</span> <span class="st">"white"</span>,</a>
+<a class="sourceLine" id="cb271-6" data-line-number="6">                 <span class="dt">font_size =</span> <span class="dv">3</span>, <span class="dt">legend_title=</span><span class="st">"Winner"</span>,</a>
+<a class="sourceLine" id="cb271-7" data-line-number="7">                 <span class="dt">labels=</span><span class="kw">c</span>(<span class="st">"Trump"</span>, <span class="st">"Clinton"</span>), <span class="dt">legend_position =</span> <span class="st">"right"</span>)</a>
+<a class="sourceLine" id="cb271-8" data-line-number="8"/>
+<a class="sourceLine" id="cb271-9" data-line-number="9"><span class="kw">statebins</span>(<span class="dt">state_data =</span> election,          </a>
+<a class="sourceLine" id="cb271-10" data-line-number="10">          <span class="dt">state_col =</span> <span class="st">"state"</span>, <span class="dt">value_col =</span> <span class="st">"pct_trump"</span>,</a>
+<a class="sourceLine" id="cb271-11" data-line-number="11">          <span class="dt">text_color =</span> <span class="st">"white"</span>, <span class="dt">breaks =</span> <span class="dv">4</span>,</a>
+<a class="sourceLine" id="cb271-12" data-line-number="12">          <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">"4-21"</span>, <span class="st">"21-37"</span>, <span class="st">"37-53"</span>, <span class="st">"53-70"</span>),</a>
+<a class="sourceLine" id="cb271-13" data-line-number="13">          <span class="dt">brewer_pal=</span><span class="st">"Reds"</span>, <span class="dt">font_size =</span> <span class="dv">3</span>, <span class="dt">legend_title=</span><span class="st">"Percent Trump"</span>)</a></code></pre>
+</div>
+<div id="small-multiple-maps" class="section level2">
+<h2><span class="header-section-number">7.4</span> Small-multiple maps</h2>
+<p>Sometimes we have geographical data with repeated observations over time. A common case is to have a country- or state-level measure observed over a period of years. In these cases, we might want to make a small multiple map to show changes over time. For example, the <code>opiates</code> data has state-level measures of the death rate from opiate-related causes (such as heroin or fentanyl overdoses) between 1999 and 2014.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb272-1" data-line-number="1">opiates</a></code></pre>
+<pre><code>## # A tibble: 800 x 11
+##     year state        fips deaths population crude adjusted
+##    &lt;int&gt; &lt;chr&gt;       &lt;int&gt;  &lt;int&gt;      &lt;int&gt; &lt;dbl&gt;    &lt;dbl&gt;
+##  1  1999 Alabama         1     37    4430141 0.800    0.800
+##  2  1999 Alaska          2     27     624779 4.30     4.00 
+##  3  1999 Arizona         4    229    5023823 4.60     4.70 
+##  4  1999 Arkansas        5     28    2651860 1.10     1.10 
+##  5  1999 California      6   1474   33499204 4.40     4.50 
+##  6  1999 Colorado        8    164    4226018 3.90     3.70 
+##  7  1999 Connecticut     9    151    3386401 4.50     4.40 
+##  8  1999 Delaware       10     32     774990 4.10     4.10 
+##  9  1999 District o…    11     28     570213 4.90     4.90 
+## 10  1999 Florida        12    402   15759421 2.60     2.60 
+## # ... with 790 more rows, and 4 more variables:
+## #   adjusted_se &lt;dbl&gt;, region &lt;ord&gt;, abbr &lt;chr&gt;,
+## #   division_name &lt;chr&gt;</code></pre>
+<p>As before, we can take our <code>us_states</code> object, the one with the state-level map details, and merge it with our opiates dataset. As before, we convert the <code>State</code> variable in the <code>opiates</code> data to lower-case first, to make the match work properly.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb274-1" data-line-number="1">opiates<span class="op">$</span>region &lt;-<span class="st"> </span><span class="kw">tolower</span>(opiates<span class="op">$</span>state)</a>
+<a class="sourceLine" id="cb274-2" data-line-number="2">opiates_map &lt;-<span class="st"> </span><span class="kw">left_join</span>(us_states, opiates)</a></code></pre>
+<p>Because the <code>opiates</code> data includes the <code>Year</code> variable, we are now in
+a position to make a faceted small-multiple with one map for each year
+in the data. The following chunk of code is similar to the single
+state-level maps we have drawn so far. We specify the map data as
+usual, adding <code>geom_polygon()</code> and <code>coord_map()</code> to it, with the arguments those
+functions need. Instead of cutting our data into bins we will plot the continuous values for the adjusted death rate variable (<code>adjusted</code>) directly.<label for="tufte-mn-77" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-77" class="margin-toggle"/><span class="marginnote shownote">If you want to experiment with cutting the data in to groups on the fly, take a look at the <code>cut_interval()</code> function.</span> To help plot this variable effectively, we will use a new scale function from the <code>viridis</code> library. The viridis colors run in low-to-high sequences and do a very good
+job of combining perceptually uniform colors with easy-to-see,
+easily-contrasted hues along their scales. The <code>viridis</code> library provides continuous and discrete versions, both in several alternatives. Some balanced palettes can be a little washed out at their lower end, especially, but the viridis palettes avoid this. In this code, the <code>_c_</code> suffix in the <code>scale_fill_viridis_c()</code> function signals that it is the scale for continuous data. There is a <code>scale_fill_viridis_d()</code> equivalent for discrete data.</p>
+<p>We facet the maps just like any other small-multiple with <code>facet_wrap()</code>. We use the <code>theme()</code>
+function to put the legend at the bottom and remove the default shaded
+background from the year labels. We will learn more about this use of
+the <code>theme()</code> function in Chapter <a href="refineplots.html#refineplots">8</a>. The final map is
+shown in Figure <a href="maps.html#fig:ch-07-opiatemap">7.16</a>.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb275-1" data-line-number="1"><span class="kw">library</span>(viridis)</a>
+<a class="sourceLine" id="cb275-2" data-line-number="2"/>
+<a class="sourceLine" id="cb275-3" data-line-number="3">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> <span class="kw">subset</span>(opiates_map, year <span class="op">&gt;</span><span class="st"> </span><span class="dv">1999</span>),</a>
+<a class="sourceLine" id="cb275-4" data-line-number="4">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb275-5" data-line-number="5">                 <span class="dt">group =</span> group,</a>
+<a class="sourceLine" id="cb275-6" data-line-number="6">                 <span class="dt">fill =</span> adjusted))</a>
+<a class="sourceLine" id="cb275-7" data-line-number="7"/>
+<a class="sourceLine" id="cb275-8" data-line-number="8">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb275-9" data-line-number="9"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb275-10" data-line-number="10"/>
+<a class="sourceLine" id="cb275-11" data-line-number="11">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_viridis_c</span>(<span class="dt">option =</span> <span class="st">"plasma"</span>)</a>
+<a class="sourceLine" id="cb275-12" data-line-number="12"/>
+<a class="sourceLine" id="cb275-13" data-line-number="13">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">facet_wrap</span>(<span class="op">~</span><span class="st"> </span>year, <span class="dt">ncol =</span> <span class="dv">3</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb275-14" data-line-number="14"><span class="st">    </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>,</a>
+<a class="sourceLine" id="cb275-15" data-line-number="15">          <span class="dt">strip.background =</span> <span class="kw">element_blank</span>()) <span class="op">+</span></a>
+<a class="sourceLine" id="cb275-16" data-line-number="16"><span class="st">    </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Death rate per 100,000 population "</span>,</a>
+<a class="sourceLine" id="cb275-17" data-line-number="17">         <span class="dt">title =</span> <span class="st">"Opiate Related Deaths by State, 2000-2014"</span>)  </a></code></pre>
+<div class="figure fullwidth"><span id="fig:ch-07-opiatemap"/>
+<img src="../Images/bf2bb1d1d0aaef98040ceb454e3a68f0.png" alt="A small multiple map. States in grey reported too few deaths for a reliable population estimate in that year. States in white reported no data." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-opiatemap-1.png"/>
+<p class="caption marginnote shownote">
+Figure 7.16: A small multiple map. States in grey reported too few deaths for a reliable population estimate in that year. States in white reported no data.
+</p>
+</div>
+<p>Is this a good way to visualize this data?<label for="tufte-mn-78" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-78" class="margin-toggle"/><span class="marginnote shownote">Try revisiting your code for the ur-choropleths, but use continuous rather than binned measures, as well as the <code>viridis</code> palette. Instead of <code>pct_black</code> use the <code>black</code> variable. For the population density, divide <code>pop</code> by <code>land_area</code>. You will need to adjust the <code>scale_</code> functions. How do the maps compare to the binned versions? What happens to the population density map, and why?</span> As we discussed above,
+choropleth maps of the U.S. tend to track first the size of the local
+population and secondarily the percent of the population that is
+African-American. The differences in the geographical size of states
+makes spotting changes more difficult again. And it is quite difficult
+to compare repeatedly across spatial regions. The repeated measures do
+mean that some comparison is possible, and the strong trends for this
+data make things a little easier to see. In this case, a casual viewer
+might think, for example, that the opiod crisis was worst
+in the desert southwest in comparison to many other parts of the
+country, although it also seems that something serious is happening in
+the Appalachians.</p>
+</div>
+<div id="is-your-data-really-spatial" class="section level2">
+<h2><span class="header-section-number">7.5</span> Is your data really spatial?</h2>
+<p>As we noted at the beginning of the Chapter, even if our data is
+collected via or grouped into spatial units, it is always worth asking
+whether a map is the best way to present it. Much county- state- and
+national data is not properly spatial, insofar as it is really about
+individuals (or some other unit of interest) rather than the
+geographical distribution of those units <em>per se</em>. Let’s take our
+state-level opiates data and redraw it as a time-series plot. We will
+keep the state-level focus (these are state-level rates, after all),
+but try to make the trends more directly visible.</p>
+<p>We could just plot the trends for every state, as we did at the very
+beginning with the <code>gapminder</code> data. But fifty states is too many
+lines to keep track of at once.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:unnamed-chunk-120"/>
+<img src="../Images/d208d7f0edc933a531d4f9d35093bddf.png" alt="All the states at once." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/unnamed-chunk-120-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.17: All the states at once.<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb276-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> opiates,</a>
+<a class="sourceLine" id="cb276-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> year, <span class="dt">y =</span> adjusted,</a>
+<a class="sourceLine" id="cb276-3" data-line-number="3">                          <span class="dt">group =</span> state))</a>
+<a class="sourceLine" id="cb276-4" data-line-number="4">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_line</span>(<span class="dt">color =</span> <span class="st">"gray70"</span>) </a></code></pre>
+<p>A more informative approach is to take advantage of the geographical
+structure of the data by using the census regions to group the States.
+Imagine a faceted plot showing state-level trends within each region
+of the country, perhaps with a trend line for each region. To do this,
+we will take advantage of ggplot’s ability to layer geoms one on top
+of another, using a different dataset in each case. We begin by taking
+the <code>opiates</code> data (removing Washington DC, as it is not a state), and
+plotting the adjusted death rate over time.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb277-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> <span class="kw">drop_na</span>(opiates, division_name),</a>
+<a class="sourceLine" id="cb277-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> year, <span class="dt">y =</span> adjusted))</a>
+<a class="sourceLine" id="cb277-3" data-line-number="3">            </a>
+<a class="sourceLine" id="cb277-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_line</span>(<span class="dt">color =</span> <span class="st">"gray70"</span>, </a>
+<a class="sourceLine" id="cb277-5" data-line-number="5">              <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">group =</span> state)) </a></code></pre>
+<p>The <code>drop_na()</code> function deletes rows that have observations missing on the specified variables, in this case just <code>division_name</code>, because Washington DC is not part of any Census Division. We map the <code>group</code> aesthetic to <code>state</code> in <code>geom_line()</code>, which gives
+us a line plot for every state. We use the <code>color</code> argument in to set
+the lines to a light gray. Next, we add a smoother:</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb278-1" data-line-number="1">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">geom_smooth</span>(<span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">group =</span> division_name),</a>
+<a class="sourceLine" id="cb278-2" data-line-number="2">                       <span class="dt">se =</span> <span class="ot">FALSE</span>)</a></code></pre>
+<p>For this geom we set the <code>group</code> aesthetic to <code>division_name</code>. (Division is a smaller Census classification than Region.) If we set it to <code>state</code> we would get fifty separate smoothers in addition to our fifty trend lines. Then, using what we learned in Chapter <a href="groupfacettx.html#groupfacettx">4</a>, we add a <code>geom_text_repel()</code> object that puts the label for each state at the
+end of the series. Because we are labeling lines rather than points,
+we only want the state label to appear at the end of the line. The
+trick is to subset the data so that only the points the last year
+observed are used (and thus labeled). We also must remember to remove
+Washington DC again here, as the new <code>data</code> argument supersedes the
+original one in <code>p0</code>.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb279-1" data-line-number="1">p3 &lt;-<span class="st"> </span>p2 <span class="op">+</span><span class="st"> </span><span class="kw">geom_text_repel</span>(<span class="dt">data =</span> <span class="kw">subset</span>(opiates,</a>
+<a class="sourceLine" id="cb279-2" data-line-number="2">                                         year <span class="op">==</span><span class="st"> </span><span class="kw">max</span>(year) <span class="op">&amp;</span><span class="st"> </span>abbr <span class="op">!=</span><span class="st">"DC"</span>),</a>
+<a class="sourceLine" id="cb279-3" data-line-number="3">                     <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> year, <span class="dt">y =</span> adjusted, <span class="dt">label =</span> abbr),</a>
+<a class="sourceLine" id="cb279-4" data-line-number="4">                     <span class="dt">size =</span> <span class="fl">1.8</span>, <span class="dt">segment.color =</span> <span class="ot">NA</span>, <span class="dt">nudge_x =</span> <span class="dv">30</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb279-5" data-line-number="5"><span class="st">         </span><span class="kw">coord_cartesian</span>(<span class="kw">c</span>(<span class="kw">min</span>(opiates<span class="op">$</span>year), </a>
+<a class="sourceLine" id="cb279-6" data-line-number="6">                    <span class="kw">max</span>(opiates<span class="op">$</span>year)))</a></code></pre>
+<p>By default, <code>geom_text_repel</code> will at little line segments that
+indicate what the labels refer to. But that is not helpful here, as we
+are already dealing with the end point of a line. So we turn them off
+with the argument <code>segment.color = NA</code>. We also bump the labels off to
+the right of the lines a little, using the <code>nudge_x</code> argument, and use
+<code>coord_cartesian()</code> to set the axis limits so that there is enough
+room for them.</p>
+<p>Finally, we facet the results by Census Division and add our labels. A
+useful adjustment is to reorder the panels by the average death rate.
+We put a minus in front of <code>adjusted</code> to that the divisions with the
+highest average rates appear in the chart first.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb280-1" data-line-number="1">p3 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">x =</span> <span class="st">""</span>, <span class="dt">y =</span> <span class="st">"Rate per 100,000 population"</span>,</a>
+<a class="sourceLine" id="cb280-2" data-line-number="2">       <span class="dt">title =</span> <span class="st">"State-Level Opiate Death Rates by Census Division, 1999-2014"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb280-3" data-line-number="3"><span class="st">    </span><span class="kw">facet_wrap</span>(<span class="op">~</span><span class="st"> </span><span class="kw">reorder</span>(division_name, <span class="op">-</span>adjusted, <span class="dt">na.rm =</span> <span class="ot">TRUE</span>), <span class="dt">nrow  =</span> <span class="dv">3</span>)</a></code></pre>
+<p>Our new plot brings out much of the overall story that is in the maps,
+but also shifts the emphasis a bit. It is easier to see more clearly
+what is happening in some parts of the country. In particular you can see the
+climbing numbers in New Hampshire, Rhode Island, Massachussetts, and
+Connecticut. You can more easily see the state-level differences in
+the West, for instance between Arizona, on the one hand, and New
+Mexico or Utah on the other. And as was also visible on the maps, the
+astonishingly rapid rise in West Virginia’s death rate is also
+evident. Finally, the time-series plots are better at conveying the
+diverging trajectories of various states within regions. There is a
+lot more variance at the end of the series than at the beginning,
+especially in the Northeast, Midwest, and South, and while this can be
+inferred from the maps it is easier to see in the trend plots.</p>
+<div class="figure fullwidth"><span id="fig:ch-07-opiatesm"/>
+<img src="../Images/419e9fabf3a7a4c4d47b584db781464b.png" alt="The opiate data as a faceted time-series." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-opiatesm-1.png"/>
+<p class="caption marginnote shownote">
+Figure 7.18: The opiate data as a faceted time-series.
+</p>
+</div>
+<p>The unit of observation in this graph is still the state-year. The
+geographically-bound nature of the data never goes away. The lines we
+draw still represent states. Thus, the basic arbitrariness of the
+representation cannot be made to disappear. In some sense, an ideal
+dataset here would be collected at some much more fine-grained level
+of unit, time, and spatial specificity. Imagine individual-level data
+with arbitrarily precise information on personal characteristics,
+times, and location of death. In a case like that, we could then
+aggregate up to any categorical, spatial, or temporal units we liked.
+But data like that is extremely rare, often for very good reasons that
+range from practicality of collection to the privacy of individuals.
+In practice we need to take care not to commit a kind of fallacy of
+misplaced concreteness that mistakes the unit of observation for the
+thing of real substantive or theoretical interest. This is a problem
+for most kinds of social-scientific data. But their striking visual
+character makes maps perhaps more vulnerable to this problem than
+other kinds of visualization.</p>
+</div>
+<div id="where-to-go-next-6" class="section level2">
+<h2><span class="header-section-number">7.6</span> Where to go next</h2>
+<p>In this chapter, we learned how to begin work with state-level and
+county-level data organized by FIPS codes. But this barely scratches
+the surface of visualization where spatial features and distributions
+are the main focus. The analysis and visualization of spatial data is
+its own research area, with its own research disciplines in Geography
+and Cartography. Concepts and methods for representing spatial
+features are both well-developed and standardized. Until recently,
+most of this functionality was accessible only through dedicated
+Geographical Information Systems. Their mapping and spatial analysis
+features were not well connected. Or at least, they were not
+conveniently connected to software oriented to the analysis of tabular
+data.</p>
+<p>This is changing fast. <span class="citation">Brundson &amp; Comber (2015)</span> provide an
+introduction to some of R’s mapping capabilities. Meanwhile, very recently these
+tools have become much more easily accessible via the tidyverse. Of
+particular interest to social scientists<label for="tufte-mn-79" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-79" class="margin-toggle"/><span class="marginnote shownote"><code>r-spatial.github.io/sf/</code>. Also see news and updates at <code>r-spatial.org</code>.</span> is Edzer Pebesma’s ongoing development of the <code>sf</code> package, which implements the standard Simple Features data model for spatial features in a tidyverse-friendly way. Relatedly, Kyle Walker and Bob Rudis’s <code>tigris</code> package<label for="tufte-mn-80" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-80" class="margin-toggle"/><span class="marginnote shownote"><code>github.com/walkerke/tigris</code></span> allows for (sf-library combatible) access to the U.S. Census Bureau’s TIGER/Line shapefiles, which allow you to map data for many different
+geographical, administrative, and Census-related subdivisions of the United States, as well as things roads and water features. Finally, Kyle Walker’s <code>tidycensus</code> package<label for="tufte-mn-81" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-81" class="margin-toggle"/><span class="marginnote shownote"><code>walkerke.github.io/tidycensus</code></span> <span class="citation">(Walker, 2018)</span> makes it much easier to tidily get both substantive and spatial feature data from the U.S. Census and the
+American Community Survey.</p>
+
+</div>
+&#13;
+
+<h2><span class="header-section-number">7.1</span> Map U.S. state-level data</h2>
+<p>Let’s take a look at some data for the 2016 U.S. presidential election
+and see how we might plot it in R. The <code>election</code> dataset has various
+measures of the vote and vote shares by state. Here we pick some
+columns and sample a few rows at random.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb241-1" data-line-number="1">election <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">select</span>(state, total_vote,</a>
+<a class="sourceLine" id="cb241-2" data-line-number="2">                    r_points, pct_trump, party, census) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb241-3" data-line-number="3"><span class="st">    </span><span class="kw">sample_n</span>(<span class="dv">5</span>)</a></code></pre>
+<pre><code>## # A tibble: 5 x 6
+##   state          total_vote r_points pct_trump party      census   
+##   &lt;chr&gt;               &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;      &lt;chr&gt;    
+## 1 Kentucky          1924149     29.8      62.5 Republican South    
+## 2 Vermont            315067    -26.4      30.3 Democrat   Northeast
+## 3 South Carolina    2103027     14.3      54.9 Republican South    
+## 4 Wyoming            255849     46.3      68.2 Republican West     
+## 5 Kansas            1194755     20.4      56.2 Republican Midwest</code></pre>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-electiondotplot"/>
+<img src="../Images/41812dbdbd37c2e03ec02011347ccf84.png" alt="2016 Election Results. Would a two-color choropleth map be more informative than this, or less?" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-electiondotplot-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.2: 2016 Election Results. Would a two-color choropleth map be more informative than this, or less?<!--</p>-->
+<!--</div>--></span>
+</p>
+<p>The FIPS code is a federal code that numbers states and territories of
+the US. It extends to the county level with an additional four
+digits, so every county in the US has a unique six-digit identifier,
+where the first two digits represent the state. This dataset also contains
+the census region of each state.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb243-1" data-line-number="1"><span class="co"># Hex color codes for Dem Blue and Rep Red</span></a>
+<a class="sourceLine" id="cb243-2" data-line-number="2">party_colors &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">"#2E74C0"</span>, <span class="st">"#CB454A"</span>) </a>
+<a class="sourceLine" id="cb243-3" data-line-number="3"/>
+<a class="sourceLine" id="cb243-4" data-line-number="4">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> <span class="kw">subset</span>(election, st <span class="op">%nin%</span><span class="st"> "DC"</span>),</a>
+<a class="sourceLine" id="cb243-5" data-line-number="5">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> r_points,</a>
+<a class="sourceLine" id="cb243-6" data-line-number="6">                           <span class="dt">y =</span> <span class="kw">reorder</span>(state, r_points),</a>
+<a class="sourceLine" id="cb243-7" data-line-number="7">                           <span class="dt">color =</span> party))</a>
+<a class="sourceLine" id="cb243-8" data-line-number="8"/>
+<a class="sourceLine" id="cb243-9" data-line-number="9">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_vline</span>(<span class="dt">xintercept =</span> <span class="dv">0</span>, <span class="dt">color =</span> <span class="st">"gray30"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb243-10" data-line-number="10"><span class="st">    </span><span class="kw">geom_point</span>(<span class="dt">size =</span> <span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb243-11" data-line-number="11"/>
+<a class="sourceLine" id="cb243-12" data-line-number="12">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_color_manual</span>(<span class="dt">values =</span> party_colors)</a>
+<a class="sourceLine" id="cb243-13" data-line-number="13"/>
+<a class="sourceLine" id="cb243-14" data-line-number="14">p3 &lt;-<span class="st"> </span>p2 <span class="op">+</span><span class="st"> </span><span class="kw">scale_x_continuous</span>(<span class="dt">breaks =</span> <span class="kw">c</span>(<span class="op">-</span><span class="dv">30</span>, <span class="dv">-20</span>, <span class="dv">-10</span>, <span class="dv">0</span>, <span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">30</span>, <span class="dv">40</span>),</a>
+<a class="sourceLine" id="cb243-15" data-line-number="15">                              <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">"30</span><span class="ch">\n</span><span class="st"> (Clinton)"</span>, <span class="st">"20"</span>, <span class="st">"10"</span>, <span class="st">"0"</span>,</a>
+<a class="sourceLine" id="cb243-16" data-line-number="16">                                         <span class="st">"10"</span>, <span class="st">"20"</span>, <span class="st">"30"</span>, <span class="st">"40</span><span class="ch">\n</span><span class="st">(Trump)"</span>))</a>
+<a class="sourceLine" id="cb243-17" data-line-number="17"/>
+<a class="sourceLine" id="cb243-18" data-line-number="18">p3 <span class="op">+</span><span class="st"> </span><span class="kw">facet_wrap</span>(<span class="op">~</span><span class="st"> </span>census, <span class="dt">ncol=</span><span class="dv">1</span>, <span class="dt">scales=</span><span class="st">"free_y"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb243-19" data-line-number="19"><span class="st">    </span><span class="kw">guides</span>(<span class="dt">color=</span><span class="ot">FALSE</span>) <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">x =</span> <span class="st">"Point Margin"</span>, <span class="dt">y =</span> <span class="st">""</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb243-20" data-line-number="20"><span class="st">    </span><span class="kw">theme</span>(<span class="dt">axis.text=</span><span class="kw">element_text</span>(<span class="dt">size=</span><span class="dv">8</span>))</a></code></pre>
+<p>The first thing you should remember about spatial data is that you
+don’t have to represent it spatially. We’ve been working with
+country-level data throughout, and have yet to make a map of it. Of
+course, spatial representations can be very useful, and sometimes
+absolutely necesssary. But we can start with a state-level dotplot,
+faceted by region. This plot brings together many aspects of plot
+construction that we have worked on so far, including subsetting data,
+reordering results by a second variable, and using a scale formatter.
+It also introduces some new options, like allowing free scales on an
+axis, and manually setting the color of an aesthetic. We break up the
+construction process into several steps by creating intermediate
+objects (<code>p0</code>, <code>p1</code>, <code>p2</code>) along the way. It makes the code a little
+more readable. Bear in mind also that, as always, you can try plotting
+each of these intermediate objects as well (just type their name at
+the console and hit return) to see what they look like. What happens
+if you remove the <code>scales="free_y"</code> argument to <code>facet_wrap()</code>? What
+happens if you delete the call to <code>scale_color_manual()</code>?</p>
+<p>As always, the first task in drawing a map is to get a data frame with
+the right information in it, and in the right order. First we load R’s
+<code>maps</code> package, which provides us with some pre-drawn map data.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb244-1" data-line-number="1"><span class="kw">library</span>(maps)</a>
+<a class="sourceLine" id="cb244-2" data-line-number="2">us_states &lt;-<span class="st"> </span><span class="kw">map_data</span>(<span class="st">"state"</span>)</a>
+<a class="sourceLine" id="cb244-3" data-line-number="3"><span class="kw">head</span>(us_states)</a></code></pre>
+<pre><code>##       long     lat group order  region subregion
+## 1 -87.4620 30.3897     1     1 alabama      &lt;NA&gt;
+## 2 -87.4849 30.3725     1     2 alabama      &lt;NA&gt;
+## 3 -87.5250 30.3725     1     3 alabama      &lt;NA&gt;
+## 4 -87.5308 30.3324     1     4 alabama      &lt;NA&gt;
+## 5 -87.5709 30.3267     1     5 alabama      &lt;NA&gt;
+## 6 -87.5881 30.3267     1     6 alabama      &lt;NA&gt;</code></pre>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb246-1" data-line-number="1"><span class="kw">dim</span>(us_states)</a></code></pre>
+<pre><code>## [1] 15537     6</code></pre>
+<p>This just a data frame. It has more than 15,000 rows because you need
+a lot of lines to draw a good-looking map. We can make a blank state
+map right away with this data, using <code>geom_polygon()</code>.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb248-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states,</a>
+<a class="sourceLine" id="cb248-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb248-3" data-line-number="3">                          <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb248-4" data-line-number="4"/>
+<a class="sourceLine" id="cb248-5" data-line-number="5">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">fill =</span> <span class="st">"white"</span>, <span class="dt">color =</span> <span class="st">"black"</span>)</a></code></pre>
+<p>The map is plotted with latitude and longitude points, which are there
+as scale elements mapped to the x and y axes. A map is, after all, just
+a set of lines drawn in the right order on a grid.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap"/>
+<img src="../Images/50400274958d6a7511ccc1502da75fab.png" alt="A first US map" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.3: A first US map<!--</p>-->
+<!--</div>--></span>
+</p>
+<p>We can map the <code>fill</code> aesthetic to <code>region</code> and change the <code>color</code>
+mapping to a light gray and thin the lines to make the state borders a
+little nicer. We’ll also tell R not to plot a legend.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap-02"/>
+<img src="../Images/12b837f02b22ed78c883832fbba6c494.png" alt="Coloring the states" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-02-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.4: Coloring the states<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb249-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states,</a>
+<a class="sourceLine" id="cb249-2" data-line-number="2">            <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb249-3" data-line-number="3">                <span class="dt">group =</span> group, <span class="dt">fill =</span> region))</a>
+<a class="sourceLine" id="cb249-4" data-line-number="4"/>
+<a class="sourceLine" id="cb249-5" data-line-number="5">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span><span class="st"> </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="ot">FALSE</span>)</a></code></pre>
+<p>Next, let’s deal with the projection. By default the map is plotted
+using the venerable Mercator projection. It doesn’t look that good.
+Assuming we are not planning on sailing across the Atlantic, the
+practical virtues of this projection are not much use to us, either.
+If you glance again at the maps in Figure <a href="maps.html#fig:ch-07-maps1">7.1</a>, you’ll
+notice they look nicer. This is because they are using an Albers
+projection. (Look, for example, at the way that the US-Canadian border
+is a little curved along the 49th parallel from Washington state to
+Minnesota, rather than not a straight line.) Techniques for map
+projection are a fascinating world of their own, but for now just
+remember we can transform the default projection used by
+<code>geom_polygon()</code>, via the <code>coord_map()</code> function. You’ll remember that
+we said that projection onto a coordinate system is a necessary part
+of the plotting process for any data. Normally it is left implicit. We
+have not usually had to specify a <code>coord_</code> function because most of
+the time we have drawn our plots on a simple Cartesian plane. Maps are
+more complex. Our locations and borders are defined on a more or less
+spherical object, which means must have a method for transforming or
+projecting our points and lines from a round to a flat surface. The
+many ways of doing this gives us a menu of cartographic options.</p>
+<p>The Albers projection requires two latitude parameters, <code>lat0</code> and
+<code>lat1</code>. We give them their conventional values for a US map here. (Try
+messing around with their values and see what happens when you redraw
+the map.)</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap-03"/>
+<img src="../Images/7e82b98cf4878a25e166d767073cf3f4.png" alt="Improving the projection" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-03-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.5: Improving the projection<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb250-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states,</a>
+<a class="sourceLine" id="cb250-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb250-3" data-line-number="3">                          <span class="dt">group =</span> group, <span class="dt">fill =</span> region))</a>
+<a class="sourceLine" id="cb250-4" data-line-number="4"/>
+<a class="sourceLine" id="cb250-5" data-line-number="5">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb250-6" data-line-number="6"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb250-7" data-line-number="7"><span class="st">    </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="ot">FALSE</span>)</a></code></pre>
+<p>Now we need to get our own data on to the map. Remember, underneath
+that map is just a big data frame specifying a large number of lines
+that need to be drawn. We have to merge our data with that data frame.
+Somewhat annoyingly, in the map data the state names (in a variable
+named <code>region</code>) are in lower case. We can create a variable in our own
+data frame to correspond to this, using the <code>tolower()</code> function to
+convert the <code>state</code> names. We then use <code>left_join</code> to merge but you
+could also use <code>merge(..., sort = FALSE)</code>. This merge step is
+important! You need to take care that the values of the key variables
+you are matching on really do exactly correspond to one another. If
+they do not, missing values (<code>NA</code> codes) will be introduced into your
+merge, and the lines on your map will not join up. This will result in
+a weirdly “sharded” appearance to your map when R tries to fill the
+polygons. Here, the <code>region</code> variable is the only column with the same
+name in both the data sets we are joining, and so the <code>left_join()</code>
+function uses it used by default. If the keys have different names in
+each data set you can specify that, if needed.</p>
+<p>To reiterate, it is important to know your data and variables well
+enough to check that they have merged properly. Do not do it blindly.
+For example, if rows corresponding to Washington DC were named
+“washington dc” in the <code>region</code> variable of your <code>election</code> data
+frame, but “district of columbia” in the corresponding <code>region</code>
+variable of your map data, then merging on <code>region</code> would mean no rows
+in the <code>election</code> data frame would match “washington dc” in the map
+data, and the resulting merged variables for those rows would all be
+coded as missing. Maps that look broken when you draw them are usually
+caused by merge errors. But errors can also be subtle. For example,
+perhaps one of your state names inadvertently has a leading (or,
+worse, a trailing) space as a result of the data originally being
+imported from elsewhere and not fully cleaned. That would mean, for
+example, that <code>california</code> and <code>california␣</code> are different strings,
+and the match would fail. In ordinary use you might not easily see the
+extra space (designated here by <code>␣</code>). So, be careful.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb251-1" data-line-number="1">election<span class="op">$</span>region &lt;-<span class="st"> </span><span class="kw">tolower</span>(election<span class="op">$</span>state)</a>
+<a class="sourceLine" id="cb251-2" data-line-number="2">us_states_elec &lt;-<span class="st"> </span><span class="kw">left_join</span>(us_states, election)</a></code></pre>
+<p>We have now merged the data. Take a look at the object with
+<code>head(us_states_elec)</code>. Now that everything is in one big data frame,
+we can plot it in a map.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap-04"/>
+<img src="../Images/d0857ad451b1d786f96fdbb38d2809e8.png" alt="Mapping the results" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-04-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.6: Mapping the results<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb252-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states_elec,</a>
+<a class="sourceLine" id="cb252-2" data-line-number="2">            <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb252-3" data-line-number="3">                <span class="dt">group =</span> group, <span class="dt">fill =</span> party))</a>
+<a class="sourceLine" id="cb252-4" data-line-number="4"/>
+<a class="sourceLine" id="cb252-5" data-line-number="5">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb252-6" data-line-number="6"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a></code></pre>
+<p>To complete the map, we will use our party colors for the fill, move
+the legend to the bottom, and add a title. Finally we will remove the
+grid lines and axis labels, which aren’t really needed, by defining a
+special theme for maps that removes most of the elements we don’t
+need. (We’ll learn more about themes in Chapter <a href="refineplots.html#refineplots">8</a>. You can also see the
+code for the map theme in the Appendix.)</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb253-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states_elec,</a>
+<a class="sourceLine" id="cb253-2" data-line-number="2">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb253-3" data-line-number="3">                           <span class="dt">group =</span> group, <span class="dt">fill =</span> party))</a>
+<a class="sourceLine" id="cb253-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb253-5" data-line-number="5"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb253-6" data-line-number="6">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_manual</span>(<span class="dt">values =</span> party_colors) <span class="op">+</span></a>
+<a class="sourceLine" id="cb253-7" data-line-number="7"><span class="st">    </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Election Results 2016"</span>, <span class="dt">fill =</span> <span class="ot">NULL</span>)</a>
+<a class="sourceLine" id="cb253-8" data-line-number="8">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() </a></code></pre>
+<div class="figure fullwidth"><span id="fig:ch-07-firstmap-05"/>
+<img src="../Images/0101fe11ace19e521d5f1150cb4c441b.png" alt="Election 2016 by State" width="80%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-05-1.png"/>
+<p class="caption marginnote shownote">
+Figure 7.7: Election 2016 by State
+</p>
+</div>
+<p>With the map data frame in place, we can map other variables if we
+like. Let’s try a continuous measure, such as the percentage of the vote
+received by Donald Trump. To begin with, we just map the variable we
+want (<code>pct_trump</code>) to the <code>fill</code> aesthetic, and see what <code>geom_polygon()</code>
+does by default.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-firstmap-06"/>
+<img src="../Images/8189ee7190135dfd038997b7b9794b77.png" alt="Two versions of Percent Trump by State" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-06-1.png"/><img src="../Images/9fd04466e47e74a20ef939fb88e33aee.png" alt="Two versions of Percent Trump by State" width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-firstmap-06-2.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.8: Two versions of Percent Trump by State<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb254-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states_elec,</a>
+<a class="sourceLine" id="cb254-2" data-line-number="2">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat, <span class="dt">group =</span> group, <span class="dt">fill =</span> pct_trump))</a>
+<a class="sourceLine" id="cb254-3" data-line-number="3"/>
+<a class="sourceLine" id="cb254-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb254-5" data-line-number="5"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb254-6" data-line-number="6"/>
+<a class="sourceLine" id="cb254-7" data-line-number="7">p1 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Trump vote"</span>) <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a>
+<a class="sourceLine" id="cb254-8" data-line-number="8"/>
+<a class="sourceLine" id="cb254-9" data-line-number="9">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_gradient</span>(<span class="dt">low =</span> <span class="st">"white"</span>, <span class="dt">high =</span> <span class="st">"#CB454A"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb254-10" data-line-number="10"><span class="st">        </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Trump vote"</span>) </a>
+<a class="sourceLine" id="cb254-11" data-line-number="11">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a></code></pre>
+<p>The default color used in the <code>p1</code> object is blue. Just for reasons of
+convention, that isn’t what is wanted here. In addition, the gradient
+runs in the wrong direction. In our case, the standard interpretation
+is that a higher vote share makes for a darker color. We fix both
+of these problems in the <code>p2</code> object by specifying the <code>scale</code> directly. We’ll use the
+values we created earlier in <code>party_colors</code>.</p>
+<p>For election results, we might prefer a gradient that diverges from a
+midpoint. The <code>scale_gradient2()</code> function gives us a blue-red
+spectrum that passes through white by default. Alternatively, we can
+re-specify the mid-level color along with the high and low colors. We
+will make purple our midpoint, and use the <code>muted()</code> function from the
+<code>scales</code> library to tone down the color a little.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-purple1st"/>
+<img src="../Images/5a8f3b4c873f04e7a842cc0d670914c6.png" alt="Two views of Trump vs Clinton share: a white midpoint, and a Purple America version." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-purple1st-1.png"/><img src="../Images/24ca50be3c0e06e458c318aa5d404727.png" alt="Two views of Trump vs Clinton share: a white midpoint, and a Purple America version." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-purple1st-2.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.9: Two views of Trump vs Clinton share: a white midpoint, and a Purple America version.<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb255-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> us_states_elec,</a>
+<a class="sourceLine" id="cb255-2" data-line-number="2">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat, <span class="dt">group =</span> group, <span class="dt">fill =</span> d_points))</a>
+<a class="sourceLine" id="cb255-3" data-line-number="3"/>
+<a class="sourceLine" id="cb255-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb255-5" data-line-number="5"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb255-6" data-line-number="6"/>
+<a class="sourceLine" id="cb255-7" data-line-number="7">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_gradient2</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Winning margins"</span>) </a>
+<a class="sourceLine" id="cb255-8" data-line-number="8">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a>
+<a class="sourceLine" id="cb255-9" data-line-number="9"/>
+<a class="sourceLine" id="cb255-10" data-line-number="10">p3 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_gradient2</span>(<span class="dt">low =</span> <span class="st">"red"</span>, <span class="dt">mid =</span> scales<span class="op">::</span><span class="kw">muted</span>(<span class="st">"purple"</span>),</a>
+<a class="sourceLine" id="cb255-11" data-line-number="11">                                <span class="dt">high =</span> <span class="st">"blue"</span>, <span class="dt">breaks =</span> <span class="kw">c</span>(<span class="op">-</span><span class="dv">25</span>, <span class="dv">0</span>, <span class="dv">25</span>, <span class="dv">50</span>, <span class="dv">75</span>)) <span class="op">+</span></a>
+<a class="sourceLine" id="cb255-12" data-line-number="12"><span class="st">    </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Winning margins"</span>) </a>
+<a class="sourceLine" id="cb255-13" data-line-number="13">p3 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a></code></pre>
+<p>If you take a look at the gradient scale for this first “purple
+America” map, in Figure <a href="maps.html#fig:ch-07-purple1st">7.9</a>, you’ll see that it
+extends very high on the Blue side. This is because Washington DC is
+included in the data, and hence the scale. Even though it is barely
+visible on the map, DC has by far the highest points margin in favor
+of the Democrats of any unit of observation in the data. If we omit
+it, we’ll see that our scale shifts in a way that does not just affect
+the top of the blue end, but re-centers the whole gradient and makes
+the red side more vivid as a result. Figure <a href="maps.html#fig:ch-07-purple2nd">7.10</a> shows
+the result.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb256-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> <span class="kw">subset</span>(us_states_elec,</a>
+<a class="sourceLine" id="cb256-2" data-line-number="2">                           region <span class="op">%nin%</span><span class="st"> "district of columbia"</span>),</a>
+<a class="sourceLine" id="cb256-3" data-line-number="3">             <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat, <span class="dt">group =</span> group, <span class="dt">fill =</span> d_points))</a>
+<a class="sourceLine" id="cb256-4" data-line-number="4"/>
+<a class="sourceLine" id="cb256-5" data-line-number="5">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.1</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb256-6" data-line-number="6"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb256-7" data-line-number="7"/>
+<a class="sourceLine" id="cb256-8" data-line-number="8">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_gradient2</span>(<span class="dt">low =</span> <span class="st">"red"</span>,</a>
+<a class="sourceLine" id="cb256-9" data-line-number="9">                                <span class="dt">mid =</span> scales<span class="op">::</span><span class="kw">muted</span>(<span class="st">"purple"</span>),</a>
+<a class="sourceLine" id="cb256-10" data-line-number="10">                                <span class="dt">high =</span> <span class="st">"blue"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb256-11" data-line-number="11"><span class="st">    </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Winning margins"</span>) </a>
+<a class="sourceLine" id="cb256-12" data-line-number="12">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Percent"</span>)</a></code></pre>
+<div class="figure"><span id="fig:ch-07-purple2nd"/>
+<p class="caption marginnote shownote">
+Figure 7.10: A Purple America version of Trump vs Clinton that excludes results from Washington, DC.
+</p>
+<img src="../Images/4f8d8961e73231bd264b9fa571a330f0.png" alt="A Purple America version of Trump vs Clinton that excludes results from Washington, DC." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-purple2nd-1.png"/>
+</div>
+<p>This brings out the familiar choropleth problem of having geographical
+areas that only partially represent the variable we are mapping. In
+this case, we’re showing votes spatially, but what really matters
+is the number of people who voted.</p>
+&#13;
+
+<h2><span class="header-section-number">7.2</span> America’s ur-choropleths</h2>
+<p>In the U.S. case, administrative areas vary widely in geographical
+area and they also vary widely in population size. The problem is
+evident at the state level, as we have seen, also arises even more at
+the county level. County-level US maps can be aesthetically pleasing,
+because of the added detail they bring to a national map. But they
+also make it easy to present a geographical distribution to insinuate
+an explanation. The results can be tricky to work with. When producing
+county maps, it is important to remember that the states of New
+Hampshire, Rhode Island, Massachussetts, and Connecticut are all
+smaller in area than any of the ten largest Western <em>counties</em>. Many
+of those counties have fewer than a hundred thousand people living in
+them. Some have fewer than ten thousand inhabitants.</p>
+<p>The result is that most choropleth maps of the U.S. for whatever
+variable in effect show population density more than anything else. The
+other big variable, in the U.S. case, is Percent Black. Let’s see how
+to draw these two maps in R. The procedure is essentially
+the same as it was for the state-level map. We need two data frames,
+one containing the map data, and the other containing the fill
+variables we want plotted. Because there are more than three thousand
+counties in the United States, these two data frames will be rather
+larger than they were for the state-level maps.</p>
+<p>The datasets are included in the <code>socviz</code> library. The county map data
+frame has already been processed a little in order to transform it to
+an Albers projection, and also to relocate (and rescale) Alaska and
+Hawaii so that they fit into an area in the bottom left of the figure. This
+is better than throwing away two states from the data. The steps for this transformation and relocation are not shown here. If you want to see how it’s done, consult the Supplementary Material for details. Let’s take a look at our county map data first:</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb257-1" data-line-number="1">county_map <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">sample_n</span>(<span class="dv">5</span>)</a></code></pre>
+<pre><code>##            long      lat  order  hole piece             group    id
+## 116977  -286097 -1302531 116977 FALSE     1  0500000US35025.1 35025
+## 175994  1657614  -698592 175994 FALSE     1  0500000US51197.1 51197
+## 186409   674547   -65321 186409 FALSE     1  0500000US55011.1 55011
+## 22624    619876 -1093164  22624 FALSE     1  0500000US05105.1 05105
+## 5906   -1983421 -2424955   5906 FALSE    10 0500000US02016.10 02016</code></pre>
+<p>It looks the same as our State map data frame, but it is much larger, running to almost 200,000 rows. The <code>id</code> field is the FIPS code for the county. Next, we have a data frame with county-level demographic, geographic, and election data:</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb259-1" data-line-number="1">county_data <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb259-2" data-line-number="2"><span class="st">    </span><span class="kw">select</span>(id, name, state, pop_dens, pct_black) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb259-3" data-line-number="3"><span class="st">    </span><span class="kw">sample_n</span>(<span class="dv">5</span>)</a></code></pre>
+<pre><code>##         id                name state      pop_dens   pct_black
+## 3029 53051 Pend Oreille County    WA [    0,   10) [ 0.0, 2.0)
+## 1851 35041    Roosevelt County    NM [    0,   10) [ 2.0, 5.0)
+## 1593 29165       Platte County    MO [  100,  500) [ 5.0,10.0)
+## 2363 45009      Bamberg County    SC [   10,   50) [50.0,85.3]
+## 654  17087      Johnson County    IL [   10,   50) [ 5.0,10.0)</code></pre>
+<p>This data frame includes information for entities besides counties, though not for all variables. If you look at the top of the object with <code>head()</code> you’ll notice that the first row of has an <code>id</code> of <code>0</code>. Zero is the FIPS code for the entire United States, and thus the data in this row are for the whole country. Similarly, the second row has an <code>id</code> of 01000, which corresponds to the State FIPS of 01, for the whole of Alabama. As we merge <code>county_data</code> in to <code>county_map</code>, these state rows will be dropped, along with the national row, as <code>county_map</code> only has county-level data.</p>
+<p>We merge the data frames using the shared FIPS <code>id</code> column:</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb261-1" data-line-number="1">county_full &lt;-<span class="st"> </span><span class="kw">left_join</span>(county_map, county_data, <span class="dt">by =</span> <span class="st">"id"</span>)</a></code></pre>
+<p>With the data merged, we can map the population density per square mile.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb262-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> county_full,</a>
+<a class="sourceLine" id="cb262-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb262-3" data-line-number="3">                          <span class="dt">fill =</span> pop_dens, </a>
+<a class="sourceLine" id="cb262-4" data-line-number="4">                          <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb262-5" data-line-number="5"/>
+<a class="sourceLine" id="cb262-6" data-line-number="6">p1 &lt;-<span class="st"> </span>p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span><span class="st"> </span><span class="kw">coord_equal</span>()</a>
+<a class="sourceLine" id="cb262-7" data-line-number="7"/>
+<a class="sourceLine" id="cb262-8" data-line-number="8">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_brewer</span>(<span class="dt">palette=</span><span class="st">"Blues"</span>,</a>
+<a class="sourceLine" id="cb262-9" data-line-number="9">                             <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">"0-10"</span>, <span class="st">"10-50"</span>, <span class="st">"50-100"</span>, <span class="st">"100-500"</span>,</a>
+<a class="sourceLine" id="cb262-10" data-line-number="10">                                        <span class="st">"500-1,000"</span>, <span class="st">"1,000-5,000"</span>, <span class="st">"&gt;5,000"</span>))</a>
+<a class="sourceLine" id="cb262-11" data-line-number="11"/>
+<a class="sourceLine" id="cb262-12" data-line-number="12">p2 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Population per</span><span class="ch">\n</span><span class="st">square mile"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb262-13" data-line-number="13"><span class="st">    </span><span class="kw">theme_map</span>() <span class="op">+</span></a>
+<a class="sourceLine" id="cb262-14" data-line-number="14"><span class="st">    </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="kw">guide_legend</span>(<span class="dt">nrow =</span> <span class="dv">1</span>)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb262-15" data-line-number="15"><span class="st">    </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>)</a></code></pre>
+<div class="figure"><span id="fig:ch-07-urchoro1"/>
+<p class="caption marginnote shownote">
+Figure 7.11: US population density by county.
+</p>
+<img src="../Images/5878e805ae980e18438416dbc167051d.png" alt="US population density by county." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-urchoro1-1.png"/>
+</div>
+<p>If you try out the <code>p1</code> object you will see that ggplot produces a legible map, but by default it chooses an unordered categorical layout. This is because the <code>pop_dens</code> variable is not ordered. We could recode it so that R is aware of the ordering. Alternatively, we can manually supply the right sort of scale using the <code>scale_fill_brewer()</code> function, together with a nicer set of labels. We will learn more about this scale function in the next chapter. We also tweak how the legend is drawn using the <code>guides()</code> function to make sure each element of the key appears on the same row. Again, we will see this use of <code>guides()</code> in more detail in the next chapter. The use of <code>coord_equal()</code> makes sure that the relative scale of our map does not change even if we alter the overall dimensions of the plot.</p>
+<p>We can now do exactly the same thing for our map of percent Black
+population by county. Once again, we specify a palette for the <code>fill</code>
+mapping using <code>scale_fill_brewer()</code>, this time choosing a different
+range of hues for the map.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb263-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> county_full,</a>
+<a class="sourceLine" id="cb263-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat, <span class="dt">fill =</span> pct_black, </a>
+<a class="sourceLine" id="cb263-3" data-line-number="3">                          <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb263-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span><span class="st"> </span><span class="kw">coord_equal</span>()</a>
+<a class="sourceLine" id="cb263-5" data-line-number="5">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_brewer</span>(<span class="dt">palette=</span><span class="st">"Greens"</span>)</a>
+<a class="sourceLine" id="cb263-6" data-line-number="6"/>
+<a class="sourceLine" id="cb263-7" data-line-number="7">p2 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"US Population, Percent Black"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb263-8" data-line-number="8"><span class="st">    </span><span class="kw">guides</span>(<span class="dt">fill =</span> <span class="kw">guide_legend</span>(<span class="dt">nrow =</span> <span class="dv">1</span>)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb263-9" data-line-number="9"><span class="st">    </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>)</a></code></pre>
+<div class="figure"><span id="fig:ch-07-urchoro2"/>
+<p class="caption marginnote shownote">
+Figure 7.12: Percent Black population by county.
+</p>
+<img src="../Images/b477ed9a2c1be43e478f72930491524a.png" alt="Percent Black population by county." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-urchoro2-1.png"/>
+</div>
+<p>Figures <a href="maps.html#fig:ch-07-urchoro1">7.11</a> and <a href="maps.html#fig:ch-07-urchoro2">7.12</a> are America’s
+“ur-choropleths”. Between the two of them, population density and
+percent Black will do a lot to obliterate many a
+suggestively-patterned map of the United States. These two variables
+aren’t <em>explanations</em> of anything in isolation, but if it turns out
+that it is more useful to know one or both of them instead of the
+thing you’re plotting, you probably want to reconsider your theory.</p>
+<p>As an example of the problem in action, let’s draw two new
+county-level choropleths. The first is an effort to replicate a
+poorly-sourced but widely-circulated county map of firearm-related
+suicide rates in the United States. The <code>su_gun6</code> variable in
+<code>county_data</code> (and <code>county_full</code>) is a measure of the rate of all
+firearm-related suicides between 1999 and 2015. The rates are binned
+into six categories. We have a <code>pop_dens6</code> variable that divides the
+population density into six categories, too.</p>
+<p>We first draw a map with the <code>su_gun6</code> variable. We will match the
+color palettes between the maps, but for the population map we will
+flip our color scale around so that less populated areas are shown in
+a darker shade. We do this by using a function from the RColorBrewer
+library to manually create two palettes. The <code>rev()</code> function used
+here reverses the order of a vector.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb264-1" data-line-number="1">orange_pal &lt;-<span class="st"> </span>RColorBrewer<span class="op">::</span><span class="kw">brewer.pal</span>(<span class="dt">n =</span> <span class="dv">6</span>, <span class="dt">name =</span> <span class="st">"Oranges"</span>)</a>
+<a class="sourceLine" id="cb264-2" data-line-number="2">orange_pal</a></code></pre>
+<pre><code>## [1] "#FEEDDE" "#FDD0A2" "#FDAE6B" "#FD8D3C" "#E6550D"
+## [6] "#A63603"</code></pre>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb266-1" data-line-number="1">orange_rev &lt;-<span class="st"> </span><span class="kw">rev</span>(orange_pal)</a>
+<a class="sourceLine" id="cb266-2" data-line-number="2">orange_rev</a></code></pre>
+<pre><code>## [1] "#A63603" "#E6550D" "#FD8D3C" "#FDAE6B" "#FDD0A2"
+## [6] "#FEEDDE"</code></pre>
+<p>The <code>brewer.pal()</code> function produces evenly-spaced color schemes to
+order from any one of several named palettes. The colors are specified
+in hexadecimal format. Again, we will learn more about color
+specifications and how to manipulate palettes for mapped variables in
+Chapter <a href="refineplots.html#refineplots">8</a>.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb268-1" data-line-number="1">gun_p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> county_full,</a>
+<a class="sourceLine" id="cb268-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb268-3" data-line-number="3">                          <span class="dt">fill =</span> su_gun6, </a>
+<a class="sourceLine" id="cb268-4" data-line-number="4">                          <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb268-5" data-line-number="5"/>
+<a class="sourceLine" id="cb268-6" data-line-number="6">gun_p1 &lt;-<span class="st"> </span>gun_p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span><span class="st"> </span><span class="kw">coord_equal</span>()</a>
+<a class="sourceLine" id="cb268-7" data-line-number="7"/>
+<a class="sourceLine" id="cb268-8" data-line-number="8">gun_p2 &lt;-<span class="st"> </span>gun_p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_manual</span>(<span class="dt">values =</span> orange_pal)</a>
+<a class="sourceLine" id="cb268-9" data-line-number="9"/>
+<a class="sourceLine" id="cb268-10" data-line-number="10">gun_p2 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Gun-Related Suicides, 1999-2015"</span>,</a>
+<a class="sourceLine" id="cb268-11" data-line-number="11">              <span class="dt">fill =</span> <span class="st">"Rate per 100,000 pop."</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb268-12" data-line-number="12"><span class="st">    </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>)</a></code></pre>
+<p>Having drawn the gun plot, we use almost exactly the same code to draw the reverse-coded population density map.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb269-1" data-line-number="1">pop_p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> county_full, <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb269-2" data-line-number="2">                                                  <span class="dt">fill =</span> pop_dens6, </a>
+<a class="sourceLine" id="cb269-3" data-line-number="3">                                                  <span class="dt">group =</span> group))</a>
+<a class="sourceLine" id="cb269-4" data-line-number="4"/>
+<a class="sourceLine" id="cb269-5" data-line-number="5">pop_p1 &lt;-<span class="st"> </span>pop_p <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span><span class="st"> </span><span class="kw">coord_equal</span>()</a>
+<a class="sourceLine" id="cb269-6" data-line-number="6"/>
+<a class="sourceLine" id="cb269-7" data-line-number="7">pop_p2 &lt;-<span class="st"> </span>pop_p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_manual</span>(<span class="dt">values =</span> orange_rev)</a>
+<a class="sourceLine" id="cb269-8" data-line-number="8"/>
+<a class="sourceLine" id="cb269-9" data-line-number="9">pop_p2 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">"Reverse-coded Population Density"</span>,</a>
+<a class="sourceLine" id="cb269-10" data-line-number="10">              <span class="dt">fill =</span> <span class="st">"People per square mile"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb269-11" data-line-number="11"><span class="st">    </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>)</a></code></pre>
+<p>It’s clear that the two maps are not identical. However, the visual
+impact of the first has a lot in common with the second. The dark
+bands in the West (except for California) stand out, and fade as we
+move toward the center of the country. There are some strong
+similarities elsewhere on the map too, such as in the Northeast.</p>
+<p>The gun-related suicide measure is already expressed as a rate. It is the
+number of qualifying deaths in a county, divided by that county’s
+population. Normally, we standardize in this way to “control for” the
+fact that larger populations will tend to produce more gun-related
+suicides just because they have more people in them. However, this
+sort of standardization has its limits. In particular, when the event
+of interest is not very common, and there is very wide variation in
+the base size of the units, then the denominator (e.g., the population
+size) starts to be expressed more and more in the standardized
+measure.</p>
+<div class="figure fullwidth"><span id="fig:ch-07-gunsu"/>
+<img src="../Images/2a742741590b78d74676dfecc884c5b2.png" alt="Gun-related suicides by county; Reverse-coded population density by county. Before tweeting this picture, please read the text for discussion of what is wrong with it." width="50%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-gunsu-1.png"/><img src="../Images/1a4e08124d11e0309a71b43af45fc48e.png" alt="Gun-related suicides by county; Reverse-coded population density by county. Before tweeting this picture, please read the text for discussion of what is wrong with it." width="50%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-gunsu-2.png"/>
+<p class="caption marginnote shownote">
+Figure 7.13: Gun-related suicides by county; Reverse-coded population density by county. Before tweeting this picture, please read the text for discussion of what is wrong with it.
+</p>
+</div>
+<p>Third, and more subtly, the data is subject to reporting constraints
+connected to population size. If there are fewer than ten events per
+year for a cause of death, the Centers for Disease Control (CDC) will
+not report them at the county level because it might be possible to
+identify particular deceased individuals. Assigning data like this to
+bins creates a threshold problem for choropleth maps. Look again
+Figure <a href="maps.html#fig:ch-07-gunsu">7.13</a>. The gun-related suicides panel seems to show
+a north-south band of counties with the lowest rate of suicides
+running from the Dakotas down through Nebraska, Kansas, and into West
+Texas. Oddly, this band borders counties in the West with the very
+highest rates, from New Mexico on up. But from the density map we can
+see that many counties in both these regions have very low population
+densities. Are they really that different in their gun-related suicide
+rates?</p>
+<p>Probably not. More likely, we are seeing an artifact arising from how
+the data is coded. For example, imagine a county with 100,000
+inhabitants that experiences nine gun-related suicides in a year. The
+CDC will not report this number. Instead it will be coded as
+“suppressed”, accompanied by a note saying any standardized estimates
+or rates will also be unreliable. But if we are determined to make a
+map where all the counties are colored in, we might be tempted to put
+any suppressed results into the lowest bin. After all, we know that
+the number is somewhere between zero and ten. Why not just code it as
+zero?<label for="tufte-mn-76" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-76" class="margin-toggle"/><span class="marginnote shownote">Do not do this. One standard alternative is to
+estimate the suppressed observations using a count model. An approach
+like this might naturally lead to more extensive, properly spatial
+modeling of the data.</span> Meanwhile, a county with 100,000 inhabitants
+that experiences twelve gun-related suicides a year <em>will</em> be
+numerically reported. The CDC is a responsible organization, and so
+although it provides the absolute number of deaths for all counties
+above the threshold, the notes to the data file will still warn you
+that any rate calculated with this number will be unreliable. If we
+push ahead and do it anyway, then 12 deaths in a small population
+might well put a sparsely-populated county in the highest category of
+suicide rate. Meanwhile, a low-population counties just under that
+threshold would be coded as being in the lowest (lightest) bin. But in
+reality they might not be so different, and in any case efforts to
+quantify that difference will be unreliable. If estimates for these
+counties cannot be obtained directly or estimated with a good model,
+then it is better to drop those cases as missing, even at the cost of your
+beautiful map, than have large areas of the country painted with a
+color derived from an unreliable number.</p>
+<p>Small differences in reporting, combined with miscoding, will produce
+spatially misleading and substantively mistaken results. It might seem
+that focusing on the details of variable coding in this particular
+case is a little too much in the weeds for a general introduction. But
+it is exactly these details that can dramatically alter the appearance
+of any graph, but especially maps, in a way that can be hard to
+detect after the fact.</p>
+&#13;
+
+<h2><span class="header-section-number">7.3</span> Statebins</h2>
+<p>As an alternative to state-level choropleths, we can consider
+<em>statebins</em>, using a package developed by Bob Rudis. We will use it to
+look again at our state-level election results. Statebins is similar
+to ggplot but has a slightly different syntax from the one we’re used
+to. It needs several arguments including the basic data frame (the
+<code>state_data</code> argument), a vector of state names (<code>state_col</code>), and the
+value being shown (<code>value_col</code>). In addition, we can optionally tell
+it the color palette we want to use and the color of the text to label
+the state boxes. For a continuous variable we can use
+<code>statebins_continuous()</code>, as follows:</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-statebins1"/>
+<img src="../Images/b0cc80f86d663953bb000c192b3c5ef0.png" alt="Statebins of the election results. We omit DC from the Clinton map to prevent the scale becoming unbalanced." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-statebins1-1.png"/><img src="../Images/b3532df43e28c7c4536ec4e6831ed120.png" alt="Statebins of the election results. We omit DC from the Clinton map to prevent the scale becoming unbalanced." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-statebins1-2.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.14: Statebins of the election results. We omit DC from the Clinton map to prevent the scale becoming unbalanced.<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb270-1" data-line-number="1"><span class="kw">library</span>(statebins)</a>
+<a class="sourceLine" id="cb270-2" data-line-number="2"/>
+<a class="sourceLine" id="cb270-3" data-line-number="3"><span class="kw">statebins_continuous</span>(<span class="dt">state_data =</span> election, <span class="dt">state_col =</span> <span class="st">"state"</span>,</a>
+<a class="sourceLine" id="cb270-4" data-line-number="4">                     <span class="dt">text_color =</span> <span class="st">"white"</span>, <span class="dt">value_col =</span> <span class="st">"pct_trump"</span>,</a>
+<a class="sourceLine" id="cb270-5" data-line-number="5">                     <span class="dt">brewer_pal=</span><span class="st">"Reds"</span>, <span class="dt">font_size =</span> <span class="dv">3</span>,</a>
+<a class="sourceLine" id="cb270-6" data-line-number="6">                     <span class="dt">legend_title=</span><span class="st">"Percent Trump"</span>)</a>
+<a class="sourceLine" id="cb270-7" data-line-number="7"/>
+<a class="sourceLine" id="cb270-8" data-line-number="8"><span class="kw">statebins_continuous</span>(<span class="dt">state_data =</span> <span class="kw">subset</span>(election, st <span class="op">%nin%</span><span class="st"> "DC"</span>),</a>
+<a class="sourceLine" id="cb270-9" data-line-number="9">                     <span class="dt">state_col =</span> <span class="st">"state"</span>,</a>
+<a class="sourceLine" id="cb270-10" data-line-number="10">                     <span class="dt">text_color =</span> <span class="st">"black"</span>, <span class="dt">value_col =</span> <span class="st">"pct_clinton"</span>,</a>
+<a class="sourceLine" id="cb270-11" data-line-number="11">                     <span class="dt">brewer_pal=</span><span class="st">"Blues"</span>, <span class="dt">font_size =</span> <span class="dv">3</span>,</a>
+<a class="sourceLine" id="cb270-12" data-line-number="12">                     <span class="dt">legend_title=</span><span class="st">"Percent Clinton"</span>)</a></code></pre>
+<p>Sometimes we will want to present categorical data. If our variable is
+already cut into categories we can use <code>statebins_manual()</code> to
+represent it. Here add a new variable to the <code>election</code> data called
+<code>color</code>, just mirroring party names with two appropriate color names.
+We do this because we need to specify the colors we are using by way
+of a variable in the data frame, not as a proper mapping. We tell the
+<code>statebins_manual()</code> function that the colors are contained in column
+named <code>color</code>.</p>
+<p>Alternatively, we can have <code>statebins()</code> cut the data for us using the
+<code>breaks</code> argument, as in the second plot.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:ch-07-statebins2"/>
+<img src="../Images/75d1261dd857cf92c3802f2eca4bdd7f.png" alt="Manually specifying colors for statebins." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-statebins2-1.png"/><img src="../Images/5d771d400ed1ae057f1f2f1b733778c5.png" alt="Manually specifying colors for statebins." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-statebins2-2.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.15: Manually specifying colors for statebins.<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb271-1" data-line-number="1">election &lt;-<span class="st"> </span>election <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">color =</span> <span class="kw">recode</span>(party, <span class="dt">Republican =</span> <span class="st">"darkred"</span>,</a>
+<a class="sourceLine" id="cb271-2" data-line-number="2">                                               <span class="dt">Democrat =</span> <span class="st">"royalblue"</span>))</a>
+<a class="sourceLine" id="cb271-3" data-line-number="3"/>
+<a class="sourceLine" id="cb271-4" data-line-number="4"><span class="kw">statebins_manual</span>(<span class="dt">state_data =</span> election, <span class="dt">state_col =</span> <span class="st">"st"</span>,</a>
+<a class="sourceLine" id="cb271-5" data-line-number="5">                 <span class="dt">color_col =</span> <span class="st">"color"</span>, <span class="dt">text_color =</span> <span class="st">"white"</span>,</a>
+<a class="sourceLine" id="cb271-6" data-line-number="6">                 <span class="dt">font_size =</span> <span class="dv">3</span>, <span class="dt">legend_title=</span><span class="st">"Winner"</span>,</a>
+<a class="sourceLine" id="cb271-7" data-line-number="7">                 <span class="dt">labels=</span><span class="kw">c</span>(<span class="st">"Trump"</span>, <span class="st">"Clinton"</span>), <span class="dt">legend_position =</span> <span class="st">"right"</span>)</a>
+<a class="sourceLine" id="cb271-8" data-line-number="8"/>
+<a class="sourceLine" id="cb271-9" data-line-number="9"><span class="kw">statebins</span>(<span class="dt">state_data =</span> election,          </a>
+<a class="sourceLine" id="cb271-10" data-line-number="10">          <span class="dt">state_col =</span> <span class="st">"state"</span>, <span class="dt">value_col =</span> <span class="st">"pct_trump"</span>,</a>
+<a class="sourceLine" id="cb271-11" data-line-number="11">          <span class="dt">text_color =</span> <span class="st">"white"</span>, <span class="dt">breaks =</span> <span class="dv">4</span>,</a>
+<a class="sourceLine" id="cb271-12" data-line-number="12">          <span class="dt">labels =</span> <span class="kw">c</span>(<span class="st">"4-21"</span>, <span class="st">"21-37"</span>, <span class="st">"37-53"</span>, <span class="st">"53-70"</span>),</a>
+<a class="sourceLine" id="cb271-13" data-line-number="13">          <span class="dt">brewer_pal=</span><span class="st">"Reds"</span>, <span class="dt">font_size =</span> <span class="dv">3</span>, <span class="dt">legend_title=</span><span class="st">"Percent Trump"</span>)</a></code></pre>
+&#13;
+
+<h2><span class="header-section-number">7.4</span> Small-multiple maps</h2>
+<p>Sometimes we have geographical data with repeated observations over time. A common case is to have a country- or state-level measure observed over a period of years. In these cases, we might want to make a small multiple map to show changes over time. For example, the <code>opiates</code> data has state-level measures of the death rate from opiate-related causes (such as heroin or fentanyl overdoses) between 1999 and 2014.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb272-1" data-line-number="1">opiates</a></code></pre>
+<pre><code>## # A tibble: 800 x 11
+##     year state        fips deaths population crude adjusted
+##    &lt;int&gt; &lt;chr&gt;       &lt;int&gt;  &lt;int&gt;      &lt;int&gt; &lt;dbl&gt;    &lt;dbl&gt;
+##  1  1999 Alabama         1     37    4430141 0.800    0.800
+##  2  1999 Alaska          2     27     624779 4.30     4.00 
+##  3  1999 Arizona         4    229    5023823 4.60     4.70 
+##  4  1999 Arkansas        5     28    2651860 1.10     1.10 
+##  5  1999 California      6   1474   33499204 4.40     4.50 
+##  6  1999 Colorado        8    164    4226018 3.90     3.70 
+##  7  1999 Connecticut     9    151    3386401 4.50     4.40 
+##  8  1999 Delaware       10     32     774990 4.10     4.10 
+##  9  1999 District o…    11     28     570213 4.90     4.90 
+## 10  1999 Florida        12    402   15759421 2.60     2.60 
+## # ... with 790 more rows, and 4 more variables:
+## #   adjusted_se &lt;dbl&gt;, region &lt;ord&gt;, abbr &lt;chr&gt;,
+## #   division_name &lt;chr&gt;</code></pre>
+<p>As before, we can take our <code>us_states</code> object, the one with the state-level map details, and merge it with our opiates dataset. As before, we convert the <code>State</code> variable in the <code>opiates</code> data to lower-case first, to make the match work properly.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb274-1" data-line-number="1">opiates<span class="op">$</span>region &lt;-<span class="st"> </span><span class="kw">tolower</span>(opiates<span class="op">$</span>state)</a>
+<a class="sourceLine" id="cb274-2" data-line-number="2">opiates_map &lt;-<span class="st"> </span><span class="kw">left_join</span>(us_states, opiates)</a></code></pre>
+<p>Because the <code>opiates</code> data includes the <code>Year</code> variable, we are now in
+a position to make a faceted small-multiple with one map for each year
+in the data. The following chunk of code is similar to the single
+state-level maps we have drawn so far. We specify the map data as
+usual, adding <code>geom_polygon()</code> and <code>coord_map()</code> to it, with the arguments those
+functions need. Instead of cutting our data into bins we will plot the continuous values for the adjusted death rate variable (<code>adjusted</code>) directly.<label for="tufte-mn-77" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-77" class="margin-toggle"/><span class="marginnote shownote">If you want to experiment with cutting the data in to groups on the fly, take a look at the <code>cut_interval()</code> function.</span> To help plot this variable effectively, we will use a new scale function from the <code>viridis</code> library. The viridis colors run in low-to-high sequences and do a very good
+job of combining perceptually uniform colors with easy-to-see,
+easily-contrasted hues along their scales. The <code>viridis</code> library provides continuous and discrete versions, both in several alternatives. Some balanced palettes can be a little washed out at their lower end, especially, but the viridis palettes avoid this. In this code, the <code>_c_</code> suffix in the <code>scale_fill_viridis_c()</code> function signals that it is the scale for continuous data. There is a <code>scale_fill_viridis_d()</code> equivalent for discrete data.</p>
+<p>We facet the maps just like any other small-multiple with <code>facet_wrap()</code>. We use the <code>theme()</code>
+function to put the legend at the bottom and remove the default shaded
+background from the year labels. We will learn more about this use of
+the <code>theme()</code> function in Chapter <a href="refineplots.html#refineplots">8</a>. The final map is
+shown in Figure <a href="maps.html#fig:ch-07-opiatemap">7.16</a>.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb275-1" data-line-number="1"><span class="kw">library</span>(viridis)</a>
+<a class="sourceLine" id="cb275-2" data-line-number="2"/>
+<a class="sourceLine" id="cb275-3" data-line-number="3">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> <span class="kw">subset</span>(opiates_map, year <span class="op">&gt;</span><span class="st"> </span><span class="dv">1999</span>),</a>
+<a class="sourceLine" id="cb275-4" data-line-number="4">             <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> long, <span class="dt">y =</span> lat,</a>
+<a class="sourceLine" id="cb275-5" data-line-number="5">                 <span class="dt">group =</span> group,</a>
+<a class="sourceLine" id="cb275-6" data-line-number="6">                 <span class="dt">fill =</span> adjusted))</a>
+<a class="sourceLine" id="cb275-7" data-line-number="7"/>
+<a class="sourceLine" id="cb275-8" data-line-number="8">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_polygon</span>(<span class="dt">color =</span> <span class="st">"gray90"</span>, <span class="dt">size =</span> <span class="fl">0.05</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb275-9" data-line-number="9"><span class="st">    </span><span class="kw">coord_map</span>(<span class="dt">projection =</span> <span class="st">"albers"</span>, <span class="dt">lat0 =</span> <span class="dv">39</span>, <span class="dt">lat1 =</span> <span class="dv">45</span>) </a>
+<a class="sourceLine" id="cb275-10" data-line-number="10"/>
+<a class="sourceLine" id="cb275-11" data-line-number="11">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">scale_fill_viridis_c</span>(<span class="dt">option =</span> <span class="st">"plasma"</span>)</a>
+<a class="sourceLine" id="cb275-12" data-line-number="12"/>
+<a class="sourceLine" id="cb275-13" data-line-number="13">p2 <span class="op">+</span><span class="st"> </span><span class="kw">theme_map</span>() <span class="op">+</span><span class="st"> </span><span class="kw">facet_wrap</span>(<span class="op">~</span><span class="st"> </span>year, <span class="dt">ncol =</span> <span class="dv">3</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb275-14" data-line-number="14"><span class="st">    </span><span class="kw">theme</span>(<span class="dt">legend.position =</span> <span class="st">"bottom"</span>,</a>
+<a class="sourceLine" id="cb275-15" data-line-number="15">          <span class="dt">strip.background =</span> <span class="kw">element_blank</span>()) <span class="op">+</span></a>
+<a class="sourceLine" id="cb275-16" data-line-number="16"><span class="st">    </span><span class="kw">labs</span>(<span class="dt">fill =</span> <span class="st">"Death rate per 100,000 population "</span>,</a>
+<a class="sourceLine" id="cb275-17" data-line-number="17">         <span class="dt">title =</span> <span class="st">"Opiate Related Deaths by State, 2000-2014"</span>)  </a></code></pre>
+<div class="figure fullwidth"><span id="fig:ch-07-opiatemap"/>
+<img src="../Images/bf2bb1d1d0aaef98040ceb454e3a68f0.png" alt="A small multiple map. States in grey reported too few deaths for a reliable population estimate in that year. States in white reported no data." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-opiatemap-1.png"/>
+<p class="caption marginnote shownote">
+Figure 7.16: A small multiple map. States in grey reported too few deaths for a reliable population estimate in that year. States in white reported no data.
+</p>
+</div>
+<p>Is this a good way to visualize this data?<label for="tufte-mn-78" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-78" class="margin-toggle"/><span class="marginnote shownote">Try revisiting your code for the ur-choropleths, but use continuous rather than binned measures, as well as the <code>viridis</code> palette. Instead of <code>pct_black</code> use the <code>black</code> variable. For the population density, divide <code>pop</code> by <code>land_area</code>. You will need to adjust the <code>scale_</code> functions. How do the maps compare to the binned versions? What happens to the population density map, and why?</span> As we discussed above,
+choropleth maps of the U.S. tend to track first the size of the local
+population and secondarily the percent of the population that is
+African-American. The differences in the geographical size of states
+makes spotting changes more difficult again. And it is quite difficult
+to compare repeatedly across spatial regions. The repeated measures do
+mean that some comparison is possible, and the strong trends for this
+data make things a little easier to see. In this case, a casual viewer
+might think, for example, that the opiod crisis was worst
+in the desert southwest in comparison to many other parts of the
+country, although it also seems that something serious is happening in
+the Appalachians.</p>
+&#13;
+
+<h2><span class="header-section-number">7.5</span> Is your data really spatial?</h2>
+<p>As we noted at the beginning of the Chapter, even if our data is
+collected via or grouped into spatial units, it is always worth asking
+whether a map is the best way to present it. Much county- state- and
+national data is not properly spatial, insofar as it is really about
+individuals (or some other unit of interest) rather than the
+geographical distribution of those units <em>per se</em>. Let’s take our
+state-level opiates data and redraw it as a time-series plot. We will
+keep the state-level focus (these are state-level rates, after all),
+but try to make the trends more directly visible.</p>
+<p>We could just plot the trends for every state, as we did at the very
+beginning with the <code>gapminder</code> data. But fifty states is too many
+lines to keep track of at once.</p>
+<p>
+<span class="marginnote shownote">
+<!--
+<div class="figure">--><span id="fig:unnamed-chunk-120"/>
+<img src="../Images/d208d7f0edc933a531d4f9d35093bddf.png" alt="All the states at once." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/unnamed-chunk-120-1.png"/>
+<!--
+<p class="caption marginnote">-->Figure 7.17: All the states at once.<!--</p>-->
+<!--</div>--></span>
+</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb276-1" data-line-number="1">p &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> opiates,</a>
+<a class="sourceLine" id="cb276-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> year, <span class="dt">y =</span> adjusted,</a>
+<a class="sourceLine" id="cb276-3" data-line-number="3">                          <span class="dt">group =</span> state))</a>
+<a class="sourceLine" id="cb276-4" data-line-number="4">p <span class="op">+</span><span class="st"> </span><span class="kw">geom_line</span>(<span class="dt">color =</span> <span class="st">"gray70"</span>) </a></code></pre>
+<p>A more informative approach is to take advantage of the geographical
+structure of the data by using the census regions to group the States.
+Imagine a faceted plot showing state-level trends within each region
+of the country, perhaps with a trend line for each region. To do this,
+we will take advantage of ggplot’s ability to layer geoms one on top
+of another, using a different dataset in each case. We begin by taking
+the <code>opiates</code> data (removing Washington DC, as it is not a state), and
+plotting the adjusted death rate over time.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb277-1" data-line-number="1">p0 &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="dt">data =</span> <span class="kw">drop_na</span>(opiates, division_name),</a>
+<a class="sourceLine" id="cb277-2" data-line-number="2">            <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> year, <span class="dt">y =</span> adjusted))</a>
+<a class="sourceLine" id="cb277-3" data-line-number="3">            </a>
+<a class="sourceLine" id="cb277-4" data-line-number="4">p1 &lt;-<span class="st"> </span>p0 <span class="op">+</span><span class="st"> </span><span class="kw">geom_line</span>(<span class="dt">color =</span> <span class="st">"gray70"</span>, </a>
+<a class="sourceLine" id="cb277-5" data-line-number="5">              <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">group =</span> state)) </a></code></pre>
+<p>The <code>drop_na()</code> function deletes rows that have observations missing on the specified variables, in this case just <code>division_name</code>, because Washington DC is not part of any Census Division. We map the <code>group</code> aesthetic to <code>state</code> in <code>geom_line()</code>, which gives
+us a line plot for every state. We use the <code>color</code> argument in to set
+the lines to a light gray. Next, we add a smoother:</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb278-1" data-line-number="1">p2 &lt;-<span class="st"> </span>p1 <span class="op">+</span><span class="st"> </span><span class="kw">geom_smooth</span>(<span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">group =</span> division_name),</a>
+<a class="sourceLine" id="cb278-2" data-line-number="2">                       <span class="dt">se =</span> <span class="ot">FALSE</span>)</a></code></pre>
+<p>For this geom we set the <code>group</code> aesthetic to <code>division_name</code>. (Division is a smaller Census classification than Region.) If we set it to <code>state</code> we would get fifty separate smoothers in addition to our fifty trend lines. Then, using what we learned in Chapter <a href="groupfacettx.html#groupfacettx">4</a>, we add a <code>geom_text_repel()</code> object that puts the label for each state at the
+end of the series. Because we are labeling lines rather than points,
+we only want the state label to appear at the end of the line. The
+trick is to subset the data so that only the points the last year
+observed are used (and thus labeled). We also must remember to remove
+Washington DC again here, as the new <code>data</code> argument supersedes the
+original one in <code>p0</code>.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb279-1" data-line-number="1">p3 &lt;-<span class="st"> </span>p2 <span class="op">+</span><span class="st"> </span><span class="kw">geom_text_repel</span>(<span class="dt">data =</span> <span class="kw">subset</span>(opiates,</a>
+<a class="sourceLine" id="cb279-2" data-line-number="2">                                         year <span class="op">==</span><span class="st"> </span><span class="kw">max</span>(year) <span class="op">&amp;</span><span class="st"> </span>abbr <span class="op">!=</span><span class="st">"DC"</span>),</a>
+<a class="sourceLine" id="cb279-3" data-line-number="3">                     <span class="dt">mapping =</span> <span class="kw">aes</span>(<span class="dt">x =</span> year, <span class="dt">y =</span> adjusted, <span class="dt">label =</span> abbr),</a>
+<a class="sourceLine" id="cb279-4" data-line-number="4">                     <span class="dt">size =</span> <span class="fl">1.8</span>, <span class="dt">segment.color =</span> <span class="ot">NA</span>, <span class="dt">nudge_x =</span> <span class="dv">30</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb279-5" data-line-number="5"><span class="st">         </span><span class="kw">coord_cartesian</span>(<span class="kw">c</span>(<span class="kw">min</span>(opiates<span class="op">$</span>year), </a>
+<a class="sourceLine" id="cb279-6" data-line-number="6">                    <span class="kw">max</span>(opiates<span class="op">$</span>year)))</a></code></pre>
+<p>By default, <code>geom_text_repel</code> will at little line segments that
+indicate what the labels refer to. But that is not helpful here, as we
+are already dealing with the end point of a line. So we turn them off
+with the argument <code>segment.color = NA</code>. We also bump the labels off to
+the right of the lines a little, using the <code>nudge_x</code> argument, and use
+<code>coord_cartesian()</code> to set the axis limits so that there is enough
+room for them.</p>
+<p>Finally, we facet the results by Census Division and add our labels. A
+useful adjustment is to reorder the panels by the average death rate.
+We put a minus in front of <code>adjusted</code> to that the divisions with the
+highest average rates appear in the chart first.</p>
+<p class="sourceCode"/><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb280-1" data-line-number="1">p3 <span class="op">+</span><span class="st"> </span><span class="kw">labs</span>(<span class="dt">x =</span> <span class="st">""</span>, <span class="dt">y =</span> <span class="st">"Rate per 100,000 population"</span>,</a>
+<a class="sourceLine" id="cb280-2" data-line-number="2">       <span class="dt">title =</span> <span class="st">"State-Level Opiate Death Rates by Census Division, 1999-2014"</span>) <span class="op">+</span></a>
+<a class="sourceLine" id="cb280-3" data-line-number="3"><span class="st">    </span><span class="kw">facet_wrap</span>(<span class="op">~</span><span class="st"> </span><span class="kw">reorder</span>(division_name, <span class="op">-</span>adjusted, <span class="dt">na.rm =</span> <span class="ot">TRUE</span>), <span class="dt">nrow  =</span> <span class="dv">3</span>)</a></code></pre>
+<p>Our new plot brings out much of the overall story that is in the maps,
+but also shifts the emphasis a bit. It is easier to see more clearly
+what is happening in some parts of the country. In particular you can see the
+climbing numbers in New Hampshire, Rhode Island, Massachussetts, and
+Connecticut. You can more easily see the state-level differences in
+the West, for instance between Arizona, on the one hand, and New
+Mexico or Utah on the other. And as was also visible on the maps, the
+astonishingly rapid rise in West Virginia’s death rate is also
+evident. Finally, the time-series plots are better at conveying the
+diverging trajectories of various states within regions. There is a
+lot more variance at the end of the series than at the beginning,
+especially in the Northeast, Midwest, and South, and while this can be
+inferred from the maps it is easier to see in the trend plots.</p>
+<div class="figure fullwidth"><span id="fig:ch-07-opiatesm"/>
+<img src="../Images/419e9fabf3a7a4c4d47b584db781464b.png" alt="The opiate data as a faceted time-series." width="100%" data-original-src="https://socviz.co/dataviz-pdfl_files/figure-html4/ch-07-opiatesm-1.png"/>
+<p class="caption marginnote shownote">
+Figure 7.18: The opiate data as a faceted time-series.
+</p>
+</div>
+<p>The unit of observation in this graph is still the state-year. The
+geographically-bound nature of the data never goes away. The lines we
+draw still represent states. Thus, the basic arbitrariness of the
+representation cannot be made to disappear. In some sense, an ideal
+dataset here would be collected at some much more fine-grained level
+of unit, time, and spatial specificity. Imagine individual-level data
+with arbitrarily precise information on personal characteristics,
+times, and location of death. In a case like that, we could then
+aggregate up to any categorical, spatial, or temporal units we liked.
+But data like that is extremely rare, often for very good reasons that
+range from practicality of collection to the privacy of individuals.
+In practice we need to take care not to commit a kind of fallacy of
+misplaced concreteness that mistakes the unit of observation for the
+thing of real substantive or theoretical interest. This is a problem
+for most kinds of social-scientific data. But their striking visual
+character makes maps perhaps more vulnerable to this problem than
+other kinds of visualization.</p>
+&#13;
+
+<h2><span class="header-section-number">7.6</span> Where to go next</h2>
+<p>In this chapter, we learned how to begin work with state-level and
+county-level data organized by FIPS codes. But this barely scratches
+the surface of visualization where spatial features and distributions
+are the main focus. The analysis and visualization of spatial data is
+its own research area, with its own research disciplines in Geography
+and Cartography. Concepts and methods for representing spatial
+features are both well-developed and standardized. Until recently,
+most of this functionality was accessible only through dedicated
+Geographical Information Systems. Their mapping and spatial analysis
+features were not well connected. Or at least, they were not
+conveniently connected to software oriented to the analysis of tabular
+data.</p>
+<p>This is changing fast. <span class="citation">Brundson &amp; Comber (2015)</span> provide an
+introduction to some of R’s mapping capabilities. Meanwhile, very recently these
+tools have become much more easily accessible via the tidyverse. Of
+particular interest to social scientists<label for="tufte-mn-79" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-79" class="margin-toggle"/><span class="marginnote shownote"><code>r-spatial.github.io/sf/</code>. Also see news and updates at <code>r-spatial.org</code>.</span> is Edzer Pebesma’s ongoing development of the <code>sf</code> package, which implements the standard Simple Features data model for spatial features in a tidyverse-friendly way. Relatedly, Kyle Walker and Bob Rudis’s <code>tigris</code> package<label for="tufte-mn-80" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-80" class="margin-toggle"/><span class="marginnote shownote"><code>github.com/walkerke/tigris</code></span> allows for (sf-library combatible) access to the U.S. Census Bureau’s TIGER/Line shapefiles, which allow you to map data for many different
+geographical, administrative, and Census-related subdivisions of the United States, as well as things roads and water features. Finally, Kyle Walker’s <code>tidycensus</code> package<label for="tufte-mn-81" class="margin-toggle">⊕</label><input type="checkbox" id="tufte-mn-81" class="margin-toggle"/><span class="marginnote shownote"><code>walkerke.github.io/tidycensus</code></span> <span class="citation">(Walker, 2018)</span> makes it much easier to tidily get both substantive and spatial feature data from the U.S. Census and the
+American Community Survey.</p>
+
+    
+</body>
+</html>
