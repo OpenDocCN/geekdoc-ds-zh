@@ -1,0 +1,2442 @@
+- en: 5 Graph tables, add labels, make notes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://socviz.co/workgeoms.html](https://socviz.co/workgeoms.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: This Chapter builds on the foundation we have laid down. Things will get a little
+    more sophisticated in three ways. First, we will learn about how to transform
+    data *before* we send it to ggplot to be turned into a figure. As we saw in Chapter
+    [4](groupfacettx.html#groupfacettx), ggplot’s geoms will often summarize data
+    for us. While convenient, this can sometimes be awkward or even a little opaque.
+    Often, it’s better to get things into the right shape before we send anything
+    to ggplot. This is a job for another tidyverse component, the `dplyr` library.
+    We will learn how to use some of its “action verbs” to select, group, summarize
+    and transform our data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Second, we will expand the number of geoms we know about, and learn more about
+    how to choose between them. The more we learn about ggplot’s geoms, the easier
+    it will be to pick the right one given the data we have and the visualization
+    we want. As we learn about new geoms, we will also get a little more adventurous
+    and depart from some of ggplot’s default arguments and settings. We will learn
+    how to reorder the variables displayed in our figures, and how to subset the data
+    we use before we display it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Third, this process of gradual customization will give us the opportunity to
+    learn a little more about the scale, guide, and theme functions that we have mostly
+    taken for granted until now. These will give us even more control over the content
+    and appearance of our graphs. Together, these techniques can be used to make plots
+    much more legible to readers. They allow us to present our data in a more structured
+    and easily comprehensible way, and to pick out the elements of it that are of
+    particular interest. We will begin to use these techniques to layer geoms on top
+    of one another, a technique that will allow us to produce very sophisticated graphs
+    in a systematic, comprehensible way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our basic approach will not change. No matter how complex our plots get, or
+    how many individual steps we take to layer and tweak their features, underneath
+    we will always be doing the same thing. We want a table of tidy data, a mapping
+    of variables to aesthetic elements, and a particular type of graph. If you can
+    keep sight of this, it will make it easier to confidently approach the job of
+    getting any particular graph to look just right.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Table 5.1: Column marginals. (Numbers in columns sum to 100.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  | Protestant | Catholic | Jewish | None | Other | NA |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --: | --: | --: | --: | --: | --: |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Northeast | 12 | 25 | 53 | 18 | 18 | 6 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Midwest | 24 | 27 | 6 | 25 | 21 | 28 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| South | 47 | 25 | 22 | 27 | 31 | 61 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| West | 17 | 24 | 20 | 29 | 30 | 6 |'
+  prefs: []
+  type: TYPE_TB
+- en: 5.1 Use pipes to summarize data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In Chapter [4](groupfacettx.html#groupfacettx) we began making plots of the
+    distributions and relative frequencies of variables. Cross-classifying one measure
+    by another is one of the basic descriptive tasks in data analysis. Tables [5.1](workgeoms.html#tab:relig1)
+    and [5.2](workgeoms.html#tab:relig2) show two common ways of summarizing our GSS
+    data on the distribution of religious affiliation and region. Table [5.1](workgeoms.html#tab:relig1)
+    shows the column marginals, where the numbers sum to a hundred by column and show,
+    e.g., the distribution of Protestants across regions. Meanwhile in Table [5.2](workgeoms.html#tab:relig2)
+    the numbers sum to a hundred across the rows, showing for example the distribution
+    of religious affiliations within any particular region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We saw in Chapter [4](groupfacettx.html#groupfacettx) that `geom_bar()` can
+    plot both counts and relative frequencies depending on what we asked of it. In
+    practice, though, letting the geoms (and their `stat_` functions) do the work
+    can sometimes get a little confusing. It is too easy to lose track of whether
+    one has calculated row margins, column margins, or overall relative frequencies.
+    The code to do the calculations on the fly ends up stuffed into the mapping function
+    and can become hard to read. A better strategy is to calculate the frequency table
+    you want first, and then plot that table. This has the benefit of allowing you
+    do to some quick sanity checks on your tables, to make sure you haven’t made any
+    errors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Table 5.2: Row marginals. (Numbers in rows sum to 100.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  | Protestant | Catholic | Jewish | None | Other | NA |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --: | --: | --: | --: | --: | --: |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Northeast | 32 | 33 | 6 | 23 | 6 | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Midwest | 47 | 25 | 0 | 23 | 5 | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| South | 62 | 15 | 1 | 16 | 5 | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| West | 38 | 25 | 2 | 28 | 8 | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: Let’s say we want a plot of the row-marginals for religion within region. We
+    will take the opportunity to do a little bit of data-munging in order to get from
+    our underlying table of GSS data to the summary tabulation that we want to plot.
+    To do this we will use the tools provided by `dplyr`, a component of the tidyverse
+    library that provides functions for manipulating and reshaping tables of data
+    on the fly. We start from our individual-level `gss_sm` data frame with its `bigregion`
+    and `religion` variables. Our goal is a summary table with percentages of religious
+    preferences grouped within region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![How we want to transform the individual-level data.](../Images/c96fe64ed11c6cdbac73f2faf91c0a26.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.1: How we want to transform the individual-level data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown schematically in Figure [5.1](workgeoms.html#fig:ch-05-dplyr-example),
+    we will start with our individual-level table of about 2,500 GSS respondents.
+    Then we want to summarize them into a new table that shows a count of each religious
+    preference, grouped by region. Finally we will turn these within-region counts
+    into percentages, where the denominator is the total number of respondents within
+    each region. The `dplyr` library provides a few tools to make this easy and clear
+    to read. We will use a special operator, `%>%`, to do our work. This is the *pipe*
+    operator. It plays the role of the yellow triangle in Figure [5.1](workgeoms.html#fig:ch-05-dplyr-example),
+    in that it helps us perform the actions that get us from one table to the next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have being building our plots in an *additive* fashion, starting with a
+    `ggplot` object and layering on new elements. By analogy, think of the `%>%` operator
+    as allowing us to start with a data frame and perform a *sequence* or *pipeline*
+    of operations to turn it into another, usually smaller and more aggregated table.
+    Data goes in one side of the pipe, actions are performed via functions, and results
+    come out the other. A pipeline is typically a series of operations that do one
+    or more of four things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Group*`group_by()` the data into the nested structure we want for our summary,
+    such as “Religion by Region” or “Authors by Publications by Year”.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Filter*`filter()` rows; `select()` columns or *select* pieces of the data
+    by row, column, or both. This gets us the piece of the table we want to work on.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Mutate*`mutate()` the data by creating new variables at the *current* level
+    of grouping. This adds new columns to the table without aggregating it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Summarize*`summarize()` or aggregate the grouped data. This creates new variables
+    at a *higher* level of grouping. For example we might calculate means with `mean()`
+    or counts with `n()`. This results in a smaller, summary table, which we might
+    do more things on if we want.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We use the `dplyr` functions `group_by()`, `filter()`, `select()`, `mutate()`,
+    and `summarize()` to carry out these tasks within our pipeline. They are written
+    in a way that allows them to be easily piped. That is, they understand how to
+    take inputs from the left side of a pipe operator and pass results along through
+    the right side of one. The dplyr documentation has some useful vignettes that
+    introduce these grouping, filtering, selection, and transformation functions.
+    There is also a more detailed discussion of these tools, along with many more
+    examples, in Wickham & Grolemund (2016).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will create a new table called `rel_by_region`. Here’s the code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: What are these lines doing? First, we are creating an object as usual, with
+    the familiar assignment operator, `<-`. Next, at the steps to the right. Read
+    the objects and functions from left to right, with the pipe operator “`%>%`” connecting
+    them together meaning “and then …”. Objects on the left hand side “pass through”
+    the pipe, and whatever is specified on the right of the pipe gets done to that
+    object. The resulting object then passes through to the right again, and so on
+    down to the end of the pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Reading from the left, the code says this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create`rel_by_region <- gss_sm %>%` a new object, `rel_by_region`. It will
+    get the result of the following sequence of actions: Start with the `gss_sm` data,
+    and then'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Group`group_by(bigregion, religion) %>%` the rows by `bigregion` and, within
+    that, by `religion`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Summarize this table`summarize(N = n()) %>%` to create a new, much smaller
+    table, with three columns: `bigregion`, `religion`, and a new summary variable,
+    `N`, that is a count of the number of observations within each religious group
+    for each region.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'With this new table, `mutate(freq = N / sum(N), pct = round((freq*100), 0))`
+    use the `N` variable to calculate two new columns: the relative proportion (`freq`)
+    and percentage (`pct`) for each religious category, still grouped by region. Round
+    the results to the nearest percentage point.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this way of doing things, objects passed along the pipeline and the functions
+    acting on them carry some assumptions about their context. For one thing, you
+    don’t have to keep specifying the name of the underlying data frame object you
+    are working from. Everything is implicitly carried forward from `gss_sm`. Within
+    the pipeline, the transient or implicit objects created from your summaries and
+    other transformations are carried through, too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Second, the `group_by()` function sets up how the grouped or nested data will
+    be processed within the `summarize()` step. Any function used to create a new
+    variable within `summarize()`, such as `mean()` or `sd()` or `n()`, will be applied
+    to the *innermost* grouping level first. Grouping levels are named from left to
+    right within `group_by()` from outermost to innermost. So the function call `summarize(N
+    = n())` counts up the number of observations for each value of `religion` within
+    `bigregion` and puts them in a new variable named `N`. As dplyr’s functions see
+    things, summarizing actions “peel off” one grouping level at a time, so that the
+    resulting summaries are at the next level up. In this case, we start with individual-level
+    observations and group them by religion within region. The `summarize()` operation
+    aggregates the individual observations to counts of the number of people affiliated
+    with each religion, for each region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Third, the `mutate()` step takes the `N` variable and uses it to create `freq`,
+    the relative frequency for each subgroup within region, and finally `pct`, the
+    relative frequency turned into a rounded percentage. These `mutate()` operations
+    add or remove columns from tables, but do not change the grouping level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inside both `mutate()` and `summarize()`, we are able to create new variables
+    in a way that we have not seen before. Usually, when we see something like `name
+    = value` inside a function, the `name` is a general, named argument and the function
+    is expecting information from us about the specific value it should take.As in
+    the case of `aes(x = gdpPercap, y = lifeExp)`, for example. Normally if we give
+    a function a named argument it doesn’t know about (`aes(chuckles = year)`) it
+    will ignore it, complain, or break. With `summarize()` and `mutate()`, however,
+    we can invent named arguments. We are still assigning specific values to `N`,
+    `freq`, and `pct`, but we pick the names, too. They are the names that the newly-created
+    variables in the summary table will have. The `summarize()` and `mutate()` functions
+    do not need to know what they will be in advance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, when we use `mutate()` to create the `freq` variable, not only can
+    we make up that name within the function, `mutate()` is also clever enough to
+    let us *use* that name right away, on the next line of the same function call,
+    when we create the `pct` variable. This means we do not have to repeatedly write
+    separate `mutate()` calls for every new variable we want to create.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our pipeline takes the `gss_sm` data frame, which has 2867 rows and 32 columns,
+    and transforms it into `rel_by_region`, a summary table with 24 rows and 5 columns
+    that looks like this, in part:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The variables specified in `group_by()` are retained in the new summary table;
+    the variables created with `summarize()` and `mutate()` are added, and all the
+    other variables in the original dataset are dropped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We said before that, when trying to grasp what each additive step in a `ggplot()`
+    sequence does, it can be helpful to work backwards, removing one piece at a time
+    to see what the plot looks like when that step is not included. In the same way,
+    when looking at pipelined code it can be helpful to start from the end of the
+    line, and then remove one “`%>%`” step at a time to see what the resulting intermediate
+    object looks like. For instance, what if we remove the `mutate()` step from the
+    code above? What does `rel_by_region` look like then? What if we remove the `summarize()`
+    step? How big is the table returned at each step? What level of grouping is it
+    at? What variables have been added or removed?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Plots that do not require sequential aggregation and transformation of the
+    data before they are displayed are usually easy to write directly in ggplot, as
+    the details of the layout are handled by a combination of mapping variables and
+    layering geoms. One-step filtering or aggregation of the data (such as calculating
+    a proportion, or a specific subset of observations) is also straightforward. But
+    when the result we want to display is several steps removed from the data, and
+    in particular when we want to group or aggregate a table and do some more calculations
+    on the result before drawing anything, then it can make sense to use dplyr’s tools
+    to produce these summary tables first. This is true even if would also be possible
+    to do it within a `ggplot()` call. In addition to making our code easier to read,
+    it lets us more easily perform sanity checks on our results, so that we are sure
+    we have grouped and summarized things in the right order. For instance, if we
+    have done things properly with `rel_by_region`, the `pct` values associated with
+    `religion` should sum to 100 within each region, perhaps with a bit of rounding
+    error. We can quickly check this using a very short pipeline, too:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: This looks good. As before, now that we are working directly with percentage
+    values in a summary table, we can use `geom_col()` instead of `geom_bar()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Religious preferences by Region.](../Images/215092b752bc49a696e9556855685408.png)
+    Figure 5.2: Religious preferences by Region.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use a different `position` argument here, `dodge2` instead of `dodge`. This
+    puts the bars side by side. When dealing with pre-computed values in `geom_col()`,
+    the default `position` is to make a proportionally stacked column chart. If you
+    use `dodge` they will be stacked within columns but the result will read incorrectly.
+    Using `dodge2` puts the sub-categories (religious affiliations) side-by-side within
+    groups (regions).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The values in this bar chart are the percentage equivalents to the stacked counts
+    in Figure [4.10](groupfacettx.html#fig:ch-04-gss-06). Religious affiliations sum
+    to 100 percent within region. The trouble is, although we now know how to cleanly
+    produce frequency tables, this is still a bad figure. It is too crowded, with
+    too many bars side-by-side. We can do better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a rule, dodged charts can be more cleanly expressed as faceted plots. This
+    removes the need for a legend, and thus makes the chart simpler to read. We also
+    introduce a new function. If we map religion to the x-axis, the labels will overlap
+    and become illegible. It’s possible to manually adjust the tick mark labels so
+    that they are printed at an angle, but that isn’t so easy to read, either. It
+    makes more sense to put the religions on the y-axis and the percent scores on
+    the x-axis. Because of the way `geom_bar()` works internally, simply swapping
+    the `x` and `y` mapping will not work. (Try it and see what happens.) What we
+    do instead is to transform the *coordinate system* that the results are plotted
+    in, so that the x and y axes are flipped. We do this with `coord_flip()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Religious preferences by Region, faceted version.](../Images/004dec05a264c8e45176131cd621f9b9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.3: Religious preferences by Region, faceted version.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For most plots the coordinate system is cartesian, showing plots on a plane
+    defined by an x-axis and a y-axis. The `coord_cartesian()` function manages this,
+    but we don’t need to call it. The `coord_flip()` function switches the x and y
+    axes after the plot is made. It does not remap variables to aesthetics. In this
+    case, `religion` is still mapped to `x` and `pct` to `y`. Because the religion
+    names do not need an axis label to be understood, we set `x = NULL` in the `labs()`
+    call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will see more of what dplyr’s grouping and filtering operations can do later.
+    It is a flexible and powerful framework. For now, think of it as a way to quickly
+    summarize tables of data without having to write code in the body of our `ggplot()`
+    or `geom_` functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5.2 Continuous variables by group or category
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s move to a new dataset, the `organdata` table. Like `gapminder`, it has
+    a country-year structure. It contains a little more than a decade’s worth of information
+    on the donation of organs for transplants in seventeen OECD countries. The organ
+    procurement rate is a measure of the number of human organs obtained from cadaver
+    organ donors for use in transplant operations. Along with this donation data,
+    the dataset has a variety of numerical demographic measures, and several categorical
+    measures of health and welfare policy and law. Unlike the `gapminder` data, some
+    observations are missing. These are designated with a value of `NA`, R’s standard
+    code for missing data. The `organdata` table is included in the `socviz` library.
+    Load it up and take a quick look. Instead of using `head()`, for variety this
+    time we will make a short pipeline to select the first six columns of the dataset,
+    and then pick five rows at random using a function called `sample_n()`. This function
+    takes two main arguments. First we provide the table of data we want to sample
+    from. Because we are using a pipeline, this is implicitly passed down from the
+    beginning of the pipe. Then we supply the number of draws we want to make.Using
+    numbers this way in `select()` chooses the numbered columns of the data frame.
+    You can also select variable names directly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Lets’s start by naively graphing some of the data. We can take a look at a scatterplot
+    of donors vs year.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Not very informative.](../Images/8a6a1259ee0fd826e0f9513be05f79d3.png) Figure
+    5.4: Not very informative.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: A message from ggplot warns you about the missing values. We’ll suppress this
+    warning from now on, so that it doesn’t clutter the output, but in general it’s
+    wise to read and understand the warnings that R gives, even when code appears
+    to run properly. If there are a large number of warnings, R will collect them
+    all and invite you to view them with the `warnings()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could use `geom_line()` to plot each country’s time series, like we did with
+    the gapminder data. To do that, remember, we need to tell ggplot what the grouping
+    variable is. This time we can also facet the figure by country, as we do not have
+    too many of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A faceted line plot.](../Images/2b99e6558ebdda27d7c48cbb953eb8fa.png) Figure
+    5.5: A faceted line plot.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: By default the facets are ordered alphabetically by country. We will see how
+    to change this momentarily.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s focus on the country-level variation, but without paying attention to
+    the time trend. We can use `geom_boxplot()` to get a picture of variation by year
+    across countries. Just as `geom_bar()` by default calculates a count of observations
+    by the category you map to `x`, the `stat_boxplot()` function that works with
+    `geom_boxplot()` will calculate a number of statistics that allow the box and
+    whiskers to be drawn. We tell `geom_boxplot()` the variable we want to categorize
+    by (here, `country`) and the continuous variable we want summarized (here, `donors`)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A first attempt at boxplots by country.](../Images/e451458bc9c750df1e711b18dbf06767.png)
+    Figure 5.6: A first attempt at boxplots by country.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: The boxplots look interesting but two issues could be addressed. First, as we
+    saw in the previous chapter, it is awkward to have the country names on the x-axis
+    because the labels will overlap. We use `coord_flip()` again to switch the axes
+    (but not the mappings).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Moving the countries to the y-axis.](../Images/3b584e8c67dab2c11385972d18069b5f.png)
+    Figure 5.7: Moving the countries to the y-axis.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That’s more legible but still not ideal. We generally want our plots to present
+    data in some meaningful order. An obvious way is to have the countries listed
+    from high to low average donation rate. We accomplish this by reordering the `country`
+    variable by the mean of `donors.` The `reorder()` function will do this for us.
+    It takes two required arguments. The first is the categorical variable or factor
+    that we want to reorder. In this case, that’s `country`. The second is the variable
+    we want to reorder it by. Here that is the donation rate, `donors`. The third
+    and optional argument to `reorder()` is the function you want to use as a summary
+    statistic. If you only give `reorder()` the first two required arguments, then
+    by default it will reorder the categories of your first variable by the mean value
+    of the second. You can name any sensible function you like to reorder the categorical
+    variable (e.g., `median`, or `sd`). There is one additional wrinkle. In R, the
+    default `mean` function will fail with an error if there are missing values in
+    the variable you are trying to take the average of. You must say that it is OK
+    to remove the missing values when calculating the mean. This is done by supplying
+    the `na.rm=TRUE` argument to `reorder()`, which internally passes that argument
+    on to `mean()`. We are reordering the variable we are mapping to the `x` aesthetic,
+    so we use `reorder()` at that point in our code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Boxplots reordered by mean donation rate.](../Images/303d95e0edeba02ff11d09e70bc320f9.png)
+    Figure 5.8: Boxplots reordered by mean donation rate.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because it’s obvious what the country names are, in the `labs()` call we set
+    their axis label to empty with `labs(x=NULL)`. Ggplot offers some variants on
+    the basic boxplot, including the violin plot. Try it with `geom_violin()`. There
+    are also numerous arguments that control the finer details of the boxes and whiskers,
+    including their width. Boxplots can also take `color` and `fill` aesthetic mappings
+    like other geoms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 5.9: A boxplot with the fill aesthetic mapped.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A boxplot with the fill aesthetic mapped.](../Images/0ec40145582f9a93b39249c1a11f8e55.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Putting categorical variables on the y-axis to compare their distributions is
+    a very useful trick. Its makes it easy to effectively present summary data on
+    more categories. The plots can be quite compact and fit a relatively large number
+    of cases in by row. The approach also has the advantage of putting the variable
+    being compared onto the x-axis, which sometimes makes it easier to compare across
+    categories. If the number of observations within each categoriy is relatively
+    small, we can skip (or supplement) the boxplots and show the individual observations,
+    too. In this next example we map the `world` variable to `color` instead of `fill`
+    as the default `geom_point()` plot shape has a color attribute, but not a fill.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Using points instead of a boxplot.](../Images/ee3d7de1c71b47df463cd41a77952b9e.png)
+    Figure 5.10: Using points instead of a boxplot.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: When we use `geom_point()` like this, there is some overplotting of observations.
+    In these cases, it can be useful to perturb the data just a little bit in order
+    to get a better sense of how many observations there are at different values.
+    We use `geom_jitter()` to do this. This geom works much like `geom_point()`, but
+    randomly nudges each observation by a small amount.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Jittering the points.](../Images/bc484a1d7342a9dabffc983284087891.png) Figure
+    5.11: Jittering the points.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The default amount of jitter is a little too much for our purposes. We can control
+    it using `height` and `width` arguments to a `position_jitter()` function within
+    the geom. Because we’re making a one-dimensional summary here, we just need `width`.Can
+    you see why we did not use height? If not, try it and see what happens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 5.12: A jittered plot.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A jittered plot.](../Images/3962f4a2a83430505c2d11a495b5584b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: When we want to summarize a categorical variable that just has one point per
+    category, we should use this approach as well. The result will be a Cleveland
+    dotplot, a simple and extremely effective method of presenting data that is usually
+    better than either a bar chart or a table. For example, we can make a Cleveland
+    dotplot of the average donation rate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This also gives us another opportunity to do a little bit of data munging with
+    a dplyr pipeline. We will use one to aggregate our larger country-year data frame
+    to a smaller table of summary statistics by country. There is more than one way
+    to do pipeline this task. We could choose the variables we want to summarize and
+    then repeatedly use the `mean()` and `sd()` functions to calculate the means and
+    standard deviations of the variables we want. We will again use the pipe operator,
+    `%>%`, to do our work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: The pipeline consists of two steps. First we group the data by `consent_law`
+    and `country`, and then use `summarize()` to create six new variables, each one
+    of which is the mean or standard deviation of each country’s score on a corresponding
+    variable in the original `organdata` data frame.For an alternative view, change
+    `country` to `year` in the grouping statement and see what happens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As usual, `summarize()` step, will inherit information about the original data
+    and the grouping, and then do its calculations at the innermost grouping level.
+    In this case it takes all the observations for each country and calculates the
+    mean or standard deviation as requested. Here is what the resulting object looks
+    like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: As before, the variables specified in `group_by()` are retained in the new data
+    frame, the variables created with `summarize()` are added, and all the other variables
+    in the original data are dropped. The countries are also summarized alphabetically
+    within `consent_law`, which was the outermost grouping variable in the `group_by()`
+    statement at the start of the pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using our pipeline this way is reasonable, but the code is worth looking at
+    again. For one thing, we have to repeatedly type out the names of the `mean()`
+    and `sd()` functions and give each of them the name of the variable we want summarized
+    *and* the `na.rm = TRUE` argument each time to make sure the functions don’t complain
+    about missing values. We also repeatedly name our new summary variables in the
+    same way, by adding `_mean` or `_sd` to the end of the original variable name.
+    If we wanted to calculate the mean and standard deviation for all the numerical
+    variables in `organdata`, our code would get even longer. Plus, in this version
+    we lose the other, time-invariant categorical variables that we haven’t grouped
+    by, such as `world`. When we see repeated actions like this in our code, we can
+    ask whether there’s a better way to proceed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is. What we would like to do is apply the `mean()` and `sd()` functions
+    to every numerical variable in `organdata`, but *only* the numerical ones. Then
+    we want to name the results in a consistent way, and return a summary table including
+    all the categorical variables like `world`. We can create a better version of
+    the `by_country` object using a little bit of R’s functional programming abilities.
+    Here is the code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: The pipeline starts off just as before, taking `organdata` and then grouping
+    it by `consent_law` and `country`. In the next step, though, instead of manually
+    taking the mean and standard deviation of a subset of variables, we use the `summarize_if()`
+    function instead. As its name suggests, it examines each column in our data and
+    applies a test to it. It only summarizes if the test is passed, that is, if it
+    returns a value of `TRUE`.We do not have to use parentheses when naming the functions
+    inside `summarize_if()`. Here the test is the function `is.numeric()`, which looks
+    to see if a vector is a numeric value or not. If it is, then `summarize_if()`
+    will apply the summary function or functions we want to `organdata`. Because we
+    are taking both the mean and the standard deviation, we use `funs()` to list the
+    functions we want to use. And we finish with the `na.rm = TRUE` argument, which
+    will be passed on to each use of both `mean()` and `sd()`. In the last step in
+    the pipeline we `ungroup()` the dataSometimes graphing functions can get confused
+    by grouped tibbles where we don’t explicitly use the groups in the plot., so that
+    the result is a plain tibble.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what the pipeline returns:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All the numeric variables have been summarized. They are named using the original
+    variable, with the function’s name appended: `donors_mean` and `donors_sd`, and
+    so on. This is a compact way to rapidly transform our data in various ways. There
+    is a family of `summarize_` functions for various tasks, and a complementary group
+    of `mutate_` functions for when we want to add columns to the data rather than
+    aggregated it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With our data summarized by country, we can draw a dotplot with `geom_point()`.
+    Let’s also color the results by the consent law for each country.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A Cleveland dotplot, with colored points.](../Images/54fe19bef527864af0679a092193b9cc.png)
+    Figure 5.13: A Cleveland dotplot, with colored points.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alternatively, if we liked, we could use a facet instead of coloring the points.
+    Using `facet_wrap()` we can split the `consent_law` variable into two panels,
+    and then rank the countries by donation rate within each panel. Because we have
+    a categorical variable on our y-axis, there are two wrinkles worth noting. First,
+    if we leave `facet_wrap()` to its defaults, the panels will be plotted side by
+    side. This will make it difficult to compare the two groups on the same scale.
+    Instead the plot will be read left to right, which is not useful. To avoid this,
+    we will have the panels appear one on top of the other by saying we only want
+    toq have one column. This is the `ncol=1` argument. Second, and again because
+    we have a categorical variable on the y-axis, the default facet plot will have
+    the names of every country appear on the y-axis of *both* panels. (Were the y-axis
+    a continuous variable this would be the what we would want.) In that case, only
+    half the rows in each panel of our plot will have points in them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To avoid this we allow the y-axes scale to be free. This is the `scales="free_y"`
+    argument. Again, for faceted plots where both variables are continuous, we generally
+    do not want the scales to be free, because it allows the x- or y-axis for each
+    panel to vary with the range of the data inside that panel only, instead of the
+    range across the whole dataset. Ordinarily, the point of small-multiple facets
+    is to be able to compare across the panels. This means free scales are usually
+    not a good idea, because each panel gets its own x- or y-axis range, which breaks
+    comparability. But where one axis is categorical, as here, we can free the categorical
+    axis and leave the continuous one fixed. The result is that each panel shares
+    the same x-axis, and it is easy to compare between them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A faceted dotplot with free scales on the y-axis.](../Images/f23ad812ec7dc45c1eb758591a5bc983.png)
+    Figure 5.14: A faceted dotplot with free scales on the y-axis.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Cleveland dotplots are generally preferred to bar or column charts. When making
+    them, put the categories on the y-axis and order them in the way that is most
+    relevant to the numerical summary you are providing. This sort of plot is also
+    an excellent way to summarize model results or any data with with error ranges.
+    We use `geom_point()` to draw our dotplots. There is a geom called `geom_dotplot()`,
+    but it is designed to produce a different sort of figure. It is a kind of histogram,
+    with individual observations represented by dots that are then stacked on top
+    of one another to show how many of them there are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Cleveland-style dotplot can be extended to cases where we want to include
+    some information about variance or error in the plot. Using `geom_pointrange()`,
+    we can tell ggplot to show us a point estimate and a range around it. Here we
+    will use the standard deviation of the donation rate that we calculated above.
+    But this is also the natural way to present, for example, estimates of model coefficients
+    with confidence intervals. With `geom_pointrange()` we map our `x` and `y` variables
+    as usual, but the function needs a little more information than `geom_point`.
+    It needs to know the range of the line to draw on either side of the point, defined
+    by the arguments `ymax` and `ymin`. This is given by the y value (`donors_mean`)
+    plus or minus its standard deviation (`donors_sd`). If a function argument expects
+    a number, it is OK to give it a mathematical expression that resolves to the number
+    you want. R will calculate the result for you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 5.15: A dot-and-whisker plot, with the range defined by the standard
+    deviation of the measured variable.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A dot-and-whisker plot, with the range defined by the standard deviation
+    of the measured variable.](../Images/952e4fd0cb72b9c57a8b9aa4a0a54573.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Because `geom_pointrange()` expects `y`, `ymin`, and `ymax` as arguments, we
+    map `donors_mean` to `y` and the `ccode` variable to `x`, then flip the axes at
+    the end with `coord_flip()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5.3 Plot text directly
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: It can sometimes be useful to plot the labels along with the points in a scatterplot,
+    or just plot informative labels directly. We can do this with `geom_text()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Plotting labels and text.](../Images/98e62e9b42d105ddde8909e3548704e4.png)
+    Figure 5.16: Plotting labels and text.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: The text is plotted right on top of the points, because both are positioned
+    using the same x and y mapping. One way of dealing with this, often the most effective
+    if we are not too worried about excessive precision in the graph, is to remove
+    the points by dropping `geom_point()` from the plot. A second option is to adjust
+    the position of the text. We can left- or right-justify the labels using the `hjust`
+    argument to `geom_text()`. Setting `hjust=0` will left justify the label, and
+    `hjust=1` will right justify it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: You might be tempted to try different values to `hjust` to fine-tune your labels.
+    But this is not a robust approach. It will often fail because the space is added
+    in proportion to the length of the label. The result is that longer labels move
+    further away from their points than you want. There are ways around this, but
+    they introduce other problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Plot points and text labels, with a horizontal position adjustment.](../Images/13eb6a51f767063ac5af3c89c8c60bea.png)
+    Figure 5.17: Plot points and text labels, with a horizontal position adjustment.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of wrestling any further with `geom_text()`, we will use `ggrepel`
+    instead. This very useful library adds some new geoms to ggplot. Just as `ggplot`
+    extends the plotting capabilities of R, there are many small libraries that extend
+    the capabilities of `ggplot`, often by providing some new type of `geom`. The
+    `ggrepel` library provides `geom_text_repel()` and `geom_label_repel()`, two geoms
+    that can pick out labels much more flexibly than the default `geom_text()`. First,
+    make sure the library is installed, then load it in the usual way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will use `geom_text_repel()` instead of `geom_text()`. To demonstrate some
+    of what `geom_text_repel()` can do, we will switch datasets and work with some
+    historical U.S. presidential election data provided in the `socviz` library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: Figure [5.18](workgeoms.html#fig:ch-05-electionplot-01) takes each U.S. presidential
+    election since 1824 (the first year that the size of the popular vote was recorded),
+    and plots the winner’s share of the popular vote against the winner’s share of
+    the electoral college vote. The shares are stored in the data as proportions (from
+    0 to 1) rather than percentages, so we need to adjust the labels of the scales
+    using `scale_x_continuous()` and `scale_y_continuous()`. Seeing as we are interested
+    in particular presidencies, we also want to label the points. ButNormally it is
+    not a good idea to label every point on a plot in the way we do here. A better
+    approach might be to select a few points of particular interest. because many
+    of the data points are plotted quite close together we need to make sure the labels
+    do not overlap with each other, or obscure other points. The `geom_text_repel()`
+    function handles the problem very well. This plot has relatively long labels.
+    We could put them directly in the code, but just to keep things a bit tidier we
+    assign the text to some named objects instead. Then we use those in the plot formula.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text labels with ggrepel.](../Images/a2613e5adc2cd4f46414ddca11200103.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.18: Text labels with ggrepel.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this plot, what is of interest about any particular point is the quadrant
+    of the x-y plane each point it is in, and how far away it is from the fifty percent
+    threshold on both the x-axis (with the popular vote share) and the y-axis (with
+    the electoral college vote share). To underscore this point we draw two reference
+    lines at the fifty percent line in each direction. They are drawn at the beginning
+    of the plotting process so that the points and labels can be layered on top of
+    them. We use two new geoms, `geom_hline()` and `geom_vline()` to make the lines.
+    They take `yintercept` and `xintercept` arguments, respectively, and the lines
+    can also be sized and colored as you please. There is also a `geom_abline()` geom
+    that draws straight lines based on a supplied slope and intercept. This is useful
+    for plotting, for example, 45 degree reference lines in scatterplots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ggrepel package has several other useful geoms and options to aid with effectively
+    plotting labels along with points. The performance of its labeling algorithm is
+    consistently very good. For many purposes it will be a better first choice than
+    `geom_text()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5.4 Label outliers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Sometimes we want to pick out some points of interest in the data without labeling
+    every single item. We can still use `geom_text()` or `geom_text_repel()`. We just
+    need to pick out the points we want to label. In the code above, we do this on
+    the fly by telling `geom_text_repel()` to use a different data set from the one
+    `geom_point()` is using. We do this using the `subset()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Top: Labeling text according to a single criterion. Bottom: Labeling according
+    to several criteria.](../Images/5d49387a28c157265c595c015e091824.png)![Top: Labeling
+    text according to a single criterion. Bottom: Labeling according to several criteria.](../Images/ede49654a99f1b182c6ac76cf63d9833.png)
+    Figure 5.19: Top: Labeling text according to a single criterion. Bottom: Labeling
+    according to several criteria.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the first figure, we specify a new `data` argument to the text geom, and
+    use `subset()` to create a small dataset on the fly. The `subset()` function takes
+    the `by_country` object and selects only the cases where `gdp_mean` is over 25,000,
+    with the result that only those points are labeled in the plot. The criteria we
+    use can be whatever we like, as long as we can write a logical expression that
+    defines it. For example, in the lower figure we pick out cases where `gdp_mean`
+    is greater than 25,000, *or* `health_mean` is less than 1,500, *or* the country
+    is Belgium. In all of these plots, because we are using `geom_text_repel()`, we
+    no longer have to worry about our earlier problem where the country labels were
+    clipped at the edge of the plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, we can pick out specific points by creating a dummy variable
+    in the data set just for this purpose. Here we add a column to `organdata` called
+    `ind`. An observation gets coded as `TRUE` if `ccode` is “Ita”, or “Spa”, *and*
+    if the `year` is greater than 1998\. We use this new `ind` variable in two ways
+    in the plotting code. First, we map it to the `color` aesthetic in the usual way.
+    Second, we use it to subset the data that the text geom will label. Then we suppress
+    the legend that would otherwise appear for the `label` and `color` aesthetics
+    by using the `guides()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Labeling using a dummy variable.](../Images/caf5eb8cfdc0c144bcad11c66fd01e87.png)
+    Figure 5.20: Labeling using a dummy variable.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 5.5 Write and draw in the plot area
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Sometimes we want to annotate the figure directly. Maybe we need to point out
+    something important that is not mapped to a variable. We use `annotate()` for
+    this purpose. It isn’t quite a geom, as it doesn’t accept any variable mappings
+    from our data. Instead, it can *use* geoms, temporarily taking advantage of their
+    features in order to place something on the plot. The most obvious use-case is
+    putting arbitrary text on the plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will tell `annotate()` to use a text geom. It hands the plotting duties to
+    `geom_text()`, which means that we can use all of that geom’s arguments in the
+    `annotate()` call. This includes the `x`, `y`, and `label` arguments, as one would
+    expect, but also things like `size`, `color`, and the `hjust` and `vjust` settings
+    that allow text to be justified. This is particularly useful when our label has
+    several lines in it. We include extra lines by using the special “newline” code,
+    `\n`, which we use instead of a space to force a line-break as needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Arbitrary text with <code>annotate()</code>.](../Images/3f86d50559672b7f362dad81b3e0db5d.png)
+    Figure 5.21: Arbitrary text with `annotate()`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `annotate()` function can work with other geoms, too. Use it to draw rectangles,
+    line segments, and arrows. Just remember to pass along the right arguments to
+    the geom you use. We can add a rectangle to this plot, for instance, with a second
+    call to the function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 5.22: Using two different geoms with `annotate()`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Using two different geoms with <code>annotate()</code>.](../Images/6e64df4718fa9855a4e9dac823c96edf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 5.6 Understanding scales, guides, and themes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This chapter has gradually extended our ggplot vocabulary in two ways. First,
+    we introduced some new `geom_` functions that allowed us to draw new kinds of
+    plots. Second, we made use of new functions controlling some aspects of the appearance
+    of our graph. We used `scale_x_log10()`, `scale_x_continuous()` and other `scale_`
+    functions to adjust axis labels. We used the `guides()` function to remove the
+    legends for a `color` mapping and a `label` mapping. And we also used the `theme()`
+    function to move the position of a legend from the side to the top of a figure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning about new geoms extended what we have seen already. Each geom makes
+    a different type of plot. Different plots require different mappings in order
+    to work, and so each `geom_` function takes mappings tailored to the kind of graph
+    it draws. You can’t use `geom_point()` to make a scatterplot without supplying
+    an `x` and a `y` mapping, for example. Using `geom_histogram()` only requires
+    you to supply an `x` mapping. Similarly, `geom_pointrange()` requires `ymin` and
+    `ymax` mappings in order to know where to draw the lineranges it makes. A `geom_`
+    function may take optional arguments, too. When using `geom_boxplot()` you can
+    specify what the outliers look like using arguments like `outlier.shape` and `outlier.color`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second kind of extension introduced some new functions, and with them some
+    new concepts. What are the differences between the `scale_` functions, the `guides()`
+    function, and the `theme()` function? When do you know to use one rather than
+    the other? Why are there so many `scale_` functions listed in the online help,
+    anyway? How can you tell which one you need?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is a rough and ready starting point:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Every aesthetic mapping has a scale. If you want to adjust how that scale is
+    marked or graduated, then you use a `scale_` function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Many scales come with a legend or key to help the reader interpret the graph.
+    These are called *guides*. You can make adjustments to them with the `guides()`
+    function. Perhaps the most common use case is to make the legend disappear, as
+    it is sometimes superfluous. Another is to adjust the arrangement of the key in
+    legends and colorbars.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Graphs have other features not strictly connected to the logical structure of
+    the data being displayed. These include things like their background color, the
+    typeface used for labels, or the placement of the legend on the graph. To adjust
+    these, use the `theme()` function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Consistent with ggplot’s overall approach, adjusting some visible feature of
+    the graph means first thinking about the relationship that the feature has with
+    the underlying data. Roughly speaking, if the change you want to make will affect
+    the substantive interpretation of any particular geom, then most likely you will
+    either be mapping an aesthetic to a variable using that geom’s `aes()` function,
+    or you will be specifying a change via some `scale_` function. If the change you
+    want to make does not affect the interpretation of a given geom_, then most likely
+    you will either be setting a variable inside the `geom_` function, or making a
+    cosmetic change via the `theme()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Every mapped variable has a scale.](../Images/2baf5a838809dd86e16a88cbfc970f7e.png)
+    Figure 5.23: Every mapped variable has a scale.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scales and guides are closely connected, which can make things confusing. The
+    guide provides information about the scale, such as in a legend or colorbar. Thus,
+    it is possible to make adjustments to guides from inside the various `scale_`
+    functions. More often it is easier to use the `guides()` function directly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: Figure [5.23](workgeoms.html#fig:ch-05-scalesfig-01) shows a plot with three
+    aesthetic mappings. The variable `roads` is mapped to `x`; `donors` is mapped
+    to `y`; and `world` is mapped to `color`. The `x` and `y` scales are both *continuous*,
+    running smoothly from just under the lowest value of the variable to just over
+    the highest value. Various labeled tick marks orient the reader to the values
+    on each axis. The `color` mapping also has a scale. The `world` measure is an
+    unordered categorical variable, so its scale is *discrete*. It takes one of four
+    values, each represented by a different color.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Along with `color`, mappings like `fill`, `shape`, and `size` will have scales
+    that we might want to customize or adjust. We could have mapped `world` to `shape`
+    instead of `color`. In that case our four-category variable would have a scale
+    consisting of four different shapes. Scales for these mappings may have labels,
+    axis tick marks at particular positions, or specific colors or shapes. If we want
+    to adjust them, we use one of the `scale_` functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many different kinds of variable can be mapped. More often than not `x` and
+    `y` are continuous measures. But they might also easily be discrete, as when we
+    mapped country names to the `y` axis in our boxplots and dotplots. An `x` or `y`
+    mapping can also be defined as a transformation onto a log scale, or as a special
+    sort of number value like a date. Similarly, a `color` or a `fill` mapping can
+    be discrete and *unordered*, as with our `world` variable, or discrete and *ordered*,
+    as with letter grades in an exam. A `color` or `fill` mapping can also be a continuous
+    quantity, represented as a gradient running smoothly from a low to a high value.
+    Finally, both continuous gradients and ordered discrete values might have some
+    defined neutral midpoint with extremes diverging in both directions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A schema for naming the <code>scale</code> functions.](../Images/f68891a3a348d121e8d9d743eaa18404.png)
+    Figure 5.24: A schema for naming the `scale` functions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because we have several potential mappings, and each mapping might be to one
+    of several different scales, we end up with a lot of individual `scale_` functions.
+    Each deals with one combination of mapping and scale. They are named according
+    to a consistent logic, shown in Figure [5.24](workgeoms.html#fig:ch-05-scale-template).
+    First comes the `scale_` name, then the *mapping* it applies to, and finally the
+    *kind* of value the scale will display. Thus, the `scale_x_continuous()` function
+    controls `x` scales for continuous variables; `scale_y_discrete()` adjusts `y`
+    scales for discrete variables; and `scale_x_log10()` transforms an `x` mapping
+    to a log scale. Most of the time, ggplot will guess correctly what sort of scale
+    is needed for your mapping. Then it will work out some default features of the
+    scale (such as its labels and where the tick marks go). In many cases you will
+    not need to make any scale adjustments. If `x` is mapped to a continuous variable
+    then adding `+ scale_x_continuous()` to your plot statement with no further arguments
+    will have no effect. It is already there implicitly. Adding `+ scale_x_log10()`,
+    on the other hand, will transform your scale, as now you have replaced the default
+    treatment of a continuous x variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you want to adjust the labels or tick marks on a scale, you will need to
+    know which mapping it is for and what sort of scale it is. Then you supply the
+    arguments to the appropriate scale function. For example, we can change the x-axis
+    of the previous plot to a log scale, and then also change the position and labels
+    of the tick marks on the y-axis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Making some scale adjustments.](../Images/cc6fa882fd8215de245122737bccb83c.png)
+    Figure 5.25: Making some scale adjustments.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: The same applies to mappings like `color` and `fill`. Here the available `scale_`
+    functions include ones that deal with continuous, diverging, and discrete variables,
+    as well as others that we will encounter later when we discuss the use of color
+    and color palettes in more detail. When working with a scale that produces a legend,
+    we can also use this its `scale_` function to specify the labels in the key. To
+    change the *title* of the legend, however, we use the `labs()` function, which
+    lets us label all the mappings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Relabeling via a scale function.](../Images/de3905e462410cdccab6ff95d4746cc5.png)
+    Figure 5.26: Relabeling via a scale function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we want to move the legend somewhere else on the plot, we are making a purely
+    cosmetic decision and that is the job of the `theme()` function. As we have already
+    seen, adding `+ theme(legend.position = "top")` will move the legend as instructed.
+    Finally, to make the legend disappear altogether, we tell ggplot that we do not
+    want a guide for that scale. This is generally not good practice, but there can
+    be good reasons to do it. We will see some examples later on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Removing the guide to a scale.](../Images/c75b51f0fc2df917751b27f2d454693b.png)
+    Figure 5.27: Removing the guide to a scale.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will look more closely at `scale_` and `theme()` functions in Chapter [8](refineplots.html#refineplots),
+    when we discuss how to polish plots that we are ready to display or publish. Until
+    then, we will use `scale_` functions fairly regularly to make small adjustments
+    to the labels and axes of our graphs. And we will occasionally use the `theme()`
+    function to make some cosmetic adjustments here and there. So you do not need
+    to worry too much about additional details of how they work until later on. But
+    at this point it *is* worth knowing what `scale_` functions are for, and the logic
+    behind their naming scheme. Understanding the `scale_<mapping>_<kind>()` rule
+    makes it easier to see what is going on when one of these functions is called
+    to make an adjustment to a plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5.7 Where to go next
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We covered several new functions and data aggregation techniques in this Chapter.
+    You should practice working with them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Two figures from Chapter 1.](../Images/29521484b08d54e09144a78dfbe4c4ba.png)![Two
+    figures from Chapter 1.](../Images/4d47e812c07ab78006c1ab2415e80c88.png) Figure
+    5.28: Two figures from Chapter 1.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `subset()` function is very useful when used in conjunction with a series
+    of layered geoms. Go back to your code for the Presidential Elections plot (Figure
+    [5.18](workgeoms.html#fig:ch-05-electionplot-01)) and redo it so that it shows
+    all the data points but only labels elections since 1992\. You might need to look
+    again at the `elections_historic` data to see what variables are available to
+    you. You can also experiment with subsetting by political party, or changing the
+    colors of the points to reflect the winning party.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use `geom_point()` and `reorder()` to make a Cleveland dot plot of all Presidential
+    elections, ordered by share of the popular vote.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Try using `annotate()` to add a rectangle that lightly colors the entire upper
+    left quadrant of Figure [5.18](workgeoms.html#fig:ch-05-electionplot-01).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The main action verbs in the `dplyr` library are `group_by()`, `filter()`, `select()`,
+    `summarize()`, and `mutate()`. Practice with them by revisiting the `gapminder`
+    data to see if you can reproduce a pair of graphs from Chapter One, shown here
+    again in Figure [5.28](workgeoms.html#fig:ch-05-gapminder-revisit). You will need
+    to filter some rows, group the data by continent, and calculate the mean life
+    expectancy by continent before beginning the plotting process.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Get comfortable with grouping, mutating, and summarizing data in pipelines.
+    This will become a routine task as you work with your data. There are many ways
+    that tables can be aggregated and transformed. Remember `group_by()` groups your
+    data from left to right, with the rightmost or innermost group being the level
+    calculations will be done at; `mutate()` adds a column at the current level of
+    grouping; and `summarize()` aggregates to the next level up. Try creating some
+    grouped objects from the GSS data, calculating frequencies as you learned in this
+    Chapter, and then check to see if the totals are what you expect. For example,
+    start by grouping `degree` by `race`, like this:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code is similar to what you saw earlier, but a little more compact. (We
+    calculate the `pct` values directly.) Check the results are as you expect by grouping
+    by `race` and summing the percentages. Try doing the same exercise grouping by
+    `sex` or `region`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Try summary calculations with functions other than `sum`. Can you calculate
+    the mean and median number of children by `degree`? (Hint: the `childs` variable
+    in `gss_sm` has children as a numeric value.)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`dplyr` has a large number of helper functions that let you summarize data
+    in many different ways. The vignette on *window functions* included with the `dplyr`
+    documentation is a good place to begin learning about these. You should also look
+    at Chapter 3 of Wickham & Grolemund (2016) for more information on transforming
+    data with `dplyr`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Experiment with the `gapminder` data to practice some of the new geoms we have
+    learned. Try examining population or life expectancy over time using a series
+    of boxplots. (Hint: you may need to use the `group` aesthetic in the `aes()` call.)
+    Can you facet this boxplot by continent? Is anything different if you create a
+    tibble from `gapminder` that explicitly groups the data by `year` and `continent`
+    first, and then create your plots with that?'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Read the help page for `geom_boxplot()` and take a look at the `notch` and `varwidth`
+    options. Try them out to see how they change the look of the plot.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As an alternative to `geom_boxplot()` try `geom_violin()` for a similar plot,
+    but with a mirrored density distribution instead of a box and whiskers.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`geom_pointrange()` is one of a family of related geoms that produce different
+    kinds of error bars and ranges, depending on your specific needs. They include
+    `geom_linerange()`, `geom_crossbar()`, and `geom_errorbar()`. Try them out using
+    `gapminder` or `organdata` to see how they differ.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 5.1 Use pipes to summarize data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In Chapter [4](groupfacettx.html#groupfacettx) we began making plots of the
+    distributions and relative frequencies of variables. Cross-classifying one measure
+    by another is one of the basic descriptive tasks in data analysis. Tables [5.1](workgeoms.html#tab:relig1)
+    and [5.2](workgeoms.html#tab:relig2) show two common ways of summarizing our GSS
+    data on the distribution of religious affiliation and region. Table [5.1](workgeoms.html#tab:relig1)
+    shows the column marginals, where the numbers sum to a hundred by column and show,
+    e.g., the distribution of Protestants across regions. Meanwhile in Table [5.2](workgeoms.html#tab:relig2)
+    the numbers sum to a hundred across the rows, showing for example the distribution
+    of religious affiliations within any particular region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We saw in Chapter [4](groupfacettx.html#groupfacettx) that `geom_bar()` can
+    plot both counts and relative frequencies depending on what we asked of it. In
+    practice, though, letting the geoms (and their `stat_` functions) do the work
+    can sometimes get a little confusing. It is too easy to lose track of whether
+    one has calculated row margins, column margins, or overall relative frequencies.
+    The code to do the calculations on the fly ends up stuffed into the mapping function
+    and can become hard to read. A better strategy is to calculate the frequency table
+    you want first, and then plot that table. This has the benefit of allowing you
+    do to some quick sanity checks on your tables, to make sure you haven’t made any
+    errors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Table 5.2: Row marginals. (Numbers in rows sum to 100.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  | Protestant | Catholic | Jewish | None | Other | NA |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --: | --: | --: | --: | --: | --: |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Northeast | 32 | 33 | 6 | 23 | 6 | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Midwest | 47 | 25 | 0 | 23 | 5 | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| South | 62 | 15 | 1 | 16 | 5 | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| West | 38 | 25 | 2 | 28 | 8 | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: Let’s say we want a plot of the row-marginals for religion within region. We
+    will take the opportunity to do a little bit of data-munging in order to get from
+    our underlying table of GSS data to the summary tabulation that we want to plot.
+    To do this we will use the tools provided by `dplyr`, a component of the tidyverse
+    library that provides functions for manipulating and reshaping tables of data
+    on the fly. We start from our individual-level `gss_sm` data frame with its `bigregion`
+    and `religion` variables. Our goal is a summary table with percentages of religious
+    preferences grouped within region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![How we want to transform the individual-level data.](../Images/c96fe64ed11c6cdbac73f2faf91c0a26.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.1: How we want to transform the individual-level data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown schematically in Figure [5.1](workgeoms.html#fig:ch-05-dplyr-example),
+    we will start with our individual-level table of about 2,500 GSS respondents.
+    Then we want to summarize them into a new table that shows a count of each religious
+    preference, grouped by region. Finally we will turn these within-region counts
+    into percentages, where the denominator is the total number of respondents within
+    each region. The `dplyr` library provides a few tools to make this easy and clear
+    to read. We will use a special operator, `%>%`, to do our work. This is the *pipe*
+    operator. It plays the role of the yellow triangle in Figure [5.1](workgeoms.html#fig:ch-05-dplyr-example),
+    in that it helps us perform the actions that get us from one table to the next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have being building our plots in an *additive* fashion, starting with a
+    `ggplot` object and layering on new elements. By analogy, think of the `%>%` operator
+    as allowing us to start with a data frame and perform a *sequence* or *pipeline*
+    of operations to turn it into another, usually smaller and more aggregated table.
+    Data goes in one side of the pipe, actions are performed via functions, and results
+    come out the other. A pipeline is typically a series of operations that do one
+    or more of four things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Group*`group_by()` the data into the nested structure we want for our summary,
+    such as “Religion by Region” or “Authors by Publications by Year”.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Filter*`filter()` rows; `select()` columns or *select* pieces of the data
+    by row, column, or both. This gets us the piece of the table we want to work on.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Mutate*`mutate()` the data by creating new variables at the *current* level
+    of grouping. This adds new columns to the table without aggregating it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Summarize*`summarize()` or aggregate the grouped data. This creates new variables
+    at a *higher* level of grouping. For example we might calculate means with `mean()`
+    or counts with `n()`. This results in a smaller, summary table, which we might
+    do more things on if we want.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We use the `dplyr` functions `group_by()`, `filter()`, `select()`, `mutate()`,
+    and `summarize()` to carry out these tasks within our pipeline. They are written
+    in a way that allows them to be easily piped. That is, they understand how to
+    take inputs from the left side of a pipe operator and pass results along through
+    the right side of one. The dplyr documentation has some useful vignettes that
+    introduce these grouping, filtering, selection, and transformation functions.
+    There is also a more detailed discussion of these tools, along with many more
+    examples, in Wickham & Grolemund (2016).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will create a new table called `rel_by_region`. Here’s the code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: What are these lines doing? First, we are creating an object as usual, with
+    the familiar assignment operator, `<-`. Next, at the steps to the right. Read
+    the objects and functions from left to right, with the pipe operator “`%>%`” connecting
+    them together meaning “and then …”. Objects on the left hand side “pass through”
+    the pipe, and whatever is specified on the right of the pipe gets done to that
+    object. The resulting object then passes through to the right again, and so on
+    down to the end of the pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Reading from the left, the code says this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create`rel_by_region <- gss_sm %>%` a new object, `rel_by_region`. It will
+    get the result of the following sequence of actions: Start with the `gss_sm` data,
+    and then'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Group`group_by(bigregion, religion) %>%` the rows by `bigregion` and, within
+    that, by `religion`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Summarize this table`summarize(N = n()) %>%` to create a new, much smaller
+    table, with three columns: `bigregion`, `religion`, and a new summary variable,
+    `N`, that is a count of the number of observations within each religious group
+    for each region.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'With this new table, `mutate(freq = N / sum(N), pct = round((freq*100), 0))`
+    use the `N` variable to calculate two new columns: the relative proportion (`freq`)
+    and percentage (`pct`) for each religious category, still grouped by region. Round
+    the results to the nearest percentage point.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this way of doing things, objects passed along the pipeline and the functions
+    acting on them carry some assumptions about their context. For one thing, you
+    don’t have to keep specifying the name of the underlying data frame object you
+    are working from. Everything is implicitly carried forward from `gss_sm`. Within
+    the pipeline, the transient or implicit objects created from your summaries and
+    other transformations are carried through, too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Second, the `group_by()` function sets up how the grouped or nested data will
+    be processed within the `summarize()` step. Any function used to create a new
+    variable within `summarize()`, such as `mean()` or `sd()` or `n()`, will be applied
+    to the *innermost* grouping level first. Grouping levels are named from left to
+    right within `group_by()` from outermost to innermost. So the function call `summarize(N
+    = n())` counts up the number of observations for each value of `religion` within
+    `bigregion` and puts them in a new variable named `N`. As dplyr’s functions see
+    things, summarizing actions “peel off” one grouping level at a time, so that the
+    resulting summaries are at the next level up. In this case, we start with individual-level
+    observations and group them by religion within region. The `summarize()` operation
+    aggregates the individual observations to counts of the number of people affiliated
+    with each religion, for each region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Third, the `mutate()` step takes the `N` variable and uses it to create `freq`,
+    the relative frequency for each subgroup within region, and finally `pct`, the
+    relative frequency turned into a rounded percentage. These `mutate()` operations
+    add or remove columns from tables, but do not change the grouping level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inside both `mutate()` and `summarize()`, we are able to create new variables
+    in a way that we have not seen before. Usually, when we see something like `name
+    = value` inside a function, the `name` is a general, named argument and the function
+    is expecting information from us about the specific value it should take.As in
+    the case of `aes(x = gdpPercap, y = lifeExp)`, for example. Normally if we give
+    a function a named argument it doesn’t know about (`aes(chuckles = year)`) it
+    will ignore it, complain, or break. With `summarize()` and `mutate()`, however,
+    we can invent named arguments. We are still assigning specific values to `N`,
+    `freq`, and `pct`, but we pick the names, too. They are the names that the newly-created
+    variables in the summary table will have. The `summarize()` and `mutate()` functions
+    do not need to know what they will be in advance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, when we use `mutate()` to create the `freq` variable, not only can
+    we make up that name within the function, `mutate()` is also clever enough to
+    let us *use* that name right away, on the next line of the same function call,
+    when we create the `pct` variable. This means we do not have to repeatedly write
+    separate `mutate()` calls for every new variable we want to create.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our pipeline takes the `gss_sm` data frame, which has 2867 rows and 32 columns,
+    and transforms it into `rel_by_region`, a summary table with 24 rows and 5 columns
+    that looks like this, in part:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: The variables specified in `group_by()` are retained in the new summary table;
+    the variables created with `summarize()` and `mutate()` are added, and all the
+    other variables in the original dataset are dropped.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We said before that, when trying to grasp what each additive step in a `ggplot()`
+    sequence does, it can be helpful to work backwards, removing one piece at a time
+    to see what the plot looks like when that step is not included. In the same way,
+    when looking at pipelined code it can be helpful to start from the end of the
+    line, and then remove one “`%>%`” step at a time to see what the resulting intermediate
+    object looks like. For instance, what if we remove the `mutate()` step from the
+    code above? What does `rel_by_region` look like then? What if we remove the `summarize()`
+    step? How big is the table returned at each step? What level of grouping is it
+    at? What variables have been added or removed?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Plots that do not require sequential aggregation and transformation of the
+    data before they are displayed are usually easy to write directly in ggplot, as
+    the details of the layout are handled by a combination of mapping variables and
+    layering geoms. One-step filtering or aggregation of the data (such as calculating
+    a proportion, or a specific subset of observations) is also straightforward. But
+    when the result we want to display is several steps removed from the data, and
+    in particular when we want to group or aggregate a table and do some more calculations
+    on the result before drawing anything, then it can make sense to use dplyr’s tools
+    to produce these summary tables first. This is true even if would also be possible
+    to do it within a `ggplot()` call. In addition to making our code easier to read,
+    it lets us more easily perform sanity checks on our results, so that we are sure
+    we have grouped and summarized things in the right order. For instance, if we
+    have done things properly with `rel_by_region`, the `pct` values associated with
+    `religion` should sum to 100 within each region, perhaps with a bit of rounding
+    error. We can quickly check this using a very short pipeline, too:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: This looks good. As before, now that we are working directly with percentage
+    values in a summary table, we can use `geom_col()` instead of `geom_bar()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Religious preferences by Region.](../Images/215092b752bc49a696e9556855685408.png)
+    Figure 5.2: Religious preferences by Region.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: We use a different `position` argument here, `dodge2` instead of `dodge`. This
+    puts the bars side by side. When dealing with pre-computed values in `geom_col()`,
+    the default `position` is to make a proportionally stacked column chart. If you
+    use `dodge` they will be stacked within columns but the result will read incorrectly.
+    Using `dodge2` puts the sub-categories (religious affiliations) side-by-side within
+    groups (regions).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The values in this bar chart are the percentage equivalents to the stacked counts
+    in Figure [4.10](groupfacettx.html#fig:ch-04-gss-06). Religious affiliations sum
+    to 100 percent within region. The trouble is, although we now know how to cleanly
+    produce frequency tables, this is still a bad figure. It is too crowded, with
+    too many bars side-by-side. We can do better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a rule, dodged charts can be more cleanly expressed as faceted plots. This
+    removes the need for a legend, and thus makes the chart simpler to read. We also
+    introduce a new function. If we map religion to the x-axis, the labels will overlap
+    and become illegible. It’s possible to manually adjust the tick mark labels so
+    that they are printed at an angle, but that isn’t so easy to read, either. It
+    makes more sense to put the religions on the y-axis and the percent scores on
+    the x-axis. Because of the way `geom_bar()` works internally, simply swapping
+    the `x` and `y` mapping will not work. (Try it and see what happens.) What we
+    do instead is to transform the *coordinate system* that the results are plotted
+    in, so that the x and y axes are flipped. We do this with `coord_flip()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Religious preferences by Region, faceted version.](../Images/004dec05a264c8e45176131cd621f9b9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.3: Religious preferences by Region, faceted version.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For most plots the coordinate system is cartesian, showing plots on a plane
+    defined by an x-axis and a y-axis. The `coord_cartesian()` function manages this,
+    but we don’t need to call it. The `coord_flip()` function switches the x and y
+    axes after the plot is made. It does not remap variables to aesthetics. In this
+    case, `religion` is still mapped to `x` and `pct` to `y`. Because the religion
+    names do not need an axis label to be understood, we set `x = NULL` in the `labs()`
+    call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will see more of what dplyr’s grouping and filtering operations can do later.
+    It is a flexible and powerful framework. For now, think of it as a way to quickly
+    summarize tables of data without having to write code in the body of our `ggplot()`
+    or `geom_` functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5.2 Continuous variables by group or category
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s move to a new dataset, the `organdata` table. Like `gapminder`, it has
+    a country-year structure. It contains a little more than a decade’s worth of information
+    on the donation of organs for transplants in seventeen OECD countries. The organ
+    procurement rate is a measure of the number of human organs obtained from cadaver
+    organ donors for use in transplant operations. Along with this donation data,
+    the dataset has a variety of numerical demographic measures, and several categorical
+    measures of health and welfare policy and law. Unlike the `gapminder` data, some
+    observations are missing. These are designated with a value of `NA`, R’s standard
+    code for missing data. The `organdata` table is included in the `socviz` library.
+    Load it up and take a quick look. Instead of using `head()`, for variety this
+    time we will make a short pipeline to select the first six columns of the dataset,
+    and then pick five rows at random using a function called `sample_n()`. This function
+    takes two main arguments. First we provide the table of data we want to sample
+    from. Because we are using a pipeline, this is implicitly passed down from the
+    beginning of the pipe. Then we supply the number of draws we want to make.Using
+    numbers this way in `select()` chooses the numbered columns of the data frame.
+    You can also select variable names directly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: Lets’s start by naively graphing some of the data. We can take a look at a scatterplot
+    of donors vs year.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Not very informative.](../Images/8a6a1259ee0fd826e0f9513be05f79d3.png) Figure
+    5.4: Not very informative.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: A message from ggplot warns you about the missing values. We’ll suppress this
+    warning from now on, so that it doesn’t clutter the output, but in general it’s
+    wise to read and understand the warnings that R gives, even when code appears
+    to run properly. If there are a large number of warnings, R will collect them
+    all and invite you to view them with the `warnings()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could use `geom_line()` to plot each country’s time series, like we did with
+    the gapminder data. To do that, remember, we need to tell ggplot what the grouping
+    variable is. This time we can also facet the figure by country, as we do not have
+    too many of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A faceted line plot.](../Images/2b99e6558ebdda27d7c48cbb953eb8fa.png) Figure
+    5.5: A faceted line plot.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: By default the facets are ordered alphabetically by country. We will see how
+    to change this momentarily.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s focus on the country-level variation, but without paying attention to
+    the time trend. We can use `geom_boxplot()` to get a picture of variation by year
+    across countries. Just as `geom_bar()` by default calculates a count of observations
+    by the category you map to `x`, the `stat_boxplot()` function that works with
+    `geom_boxplot()` will calculate a number of statistics that allow the box and
+    whiskers to be drawn. We tell `geom_boxplot()` the variable we want to categorize
+    by (here, `country`) and the continuous variable we want summarized (here, `donors`)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A first attempt at boxplots by country.](../Images/e451458bc9c750df1e711b18dbf06767.png)
+    Figure 5.6: A first attempt at boxplots by country.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: The boxplots look interesting but two issues could be addressed. First, as we
+    saw in the previous chapter, it is awkward to have the country names on the x-axis
+    because the labels will overlap. We use `coord_flip()` again to switch the axes
+    (but not the mappings).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Moving the countries to the y-axis.](../Images/3b584e8c67dab2c11385972d18069b5f.png)
+    Figure 5.7: Moving the countries to the y-axis.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That’s more legible but still not ideal. We generally want our plots to present
+    data in some meaningful order. An obvious way is to have the countries listed
+    from high to low average donation rate. We accomplish this by reordering the `country`
+    variable by the mean of `donors.` The `reorder()` function will do this for us.
+    It takes two required arguments. The first is the categorical variable or factor
+    that we want to reorder. In this case, that’s `country`. The second is the variable
+    we want to reorder it by. Here that is the donation rate, `donors`. The third
+    and optional argument to `reorder()` is the function you want to use as a summary
+    statistic. If you only give `reorder()` the first two required arguments, then
+    by default it will reorder the categories of your first variable by the mean value
+    of the second. You can name any sensible function you like to reorder the categorical
+    variable (e.g., `median`, or `sd`). There is one additional wrinkle. In R, the
+    default `mean` function will fail with an error if there are missing values in
+    the variable you are trying to take the average of. You must say that it is OK
+    to remove the missing values when calculating the mean. This is done by supplying
+    the `na.rm=TRUE` argument to `reorder()`, which internally passes that argument
+    on to `mean()`. We are reordering the variable we are mapping to the `x` aesthetic,
+    so we use `reorder()` at that point in our code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Boxplots reordered by mean donation rate.](../Images/303d95e0edeba02ff11d09e70bc320f9.png)
+    Figure 5.8: Boxplots reordered by mean donation rate.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because it’s obvious what the country names are, in the `labs()` call we set
+    their axis label to empty with `labs(x=NULL)`. Ggplot offers some variants on
+    the basic boxplot, including the violin plot. Try it with `geom_violin()`. There
+    are also numerous arguments that control the finer details of the boxes and whiskers,
+    including their width. Boxplots can also take `color` and `fill` aesthetic mappings
+    like other geoms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 5.9: A boxplot with the fill aesthetic mapped.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A boxplot with the fill aesthetic mapped.](../Images/0ec40145582f9a93b39249c1a11f8e55.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Putting categorical variables on the y-axis to compare their distributions is
+    a very useful trick. Its makes it easy to effectively present summary data on
+    more categories. The plots can be quite compact and fit a relatively large number
+    of cases in by row. The approach also has the advantage of putting the variable
+    being compared onto the x-axis, which sometimes makes it easier to compare across
+    categories. If the number of observations within each categoriy is relatively
+    small, we can skip (or supplement) the boxplots and show the individual observations,
+    too. In this next example we map the `world` variable to `color` instead of `fill`
+    as the default `geom_point()` plot shape has a color attribute, but not a fill.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Using points instead of a boxplot.](../Images/ee3d7de1c71b47df463cd41a77952b9e.png)
+    Figure 5.10: Using points instead of a boxplot.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: When we use `geom_point()` like this, there is some overplotting of observations.
+    In these cases, it can be useful to perturb the data just a little bit in order
+    to get a better sense of how many observations there are at different values.
+    We use `geom_jitter()` to do this. This geom works much like `geom_point()`, but
+    randomly nudges each observation by a small amount.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Jittering the points.](../Images/bc484a1d7342a9dabffc983284087891.png) Figure
+    5.11: Jittering the points.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: The default amount of jitter is a little too much for our purposes. We can control
+    it using `height` and `width` arguments to a `position_jitter()` function within
+    the geom. Because we’re making a one-dimensional summary here, we just need `width`.Can
+    you see why we did not use height? If not, try it and see what happens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 5.12: A jittered plot.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A jittered plot.](../Images/3962f4a2a83430505c2d11a495b5584b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: When we want to summarize a categorical variable that just has one point per
+    category, we should use this approach as well. The result will be a Cleveland
+    dotplot, a simple and extremely effective method of presenting data that is usually
+    better than either a bar chart or a table. For example, we can make a Cleveland
+    dotplot of the average donation rate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This also gives us another opportunity to do a little bit of data munging with
+    a dplyr pipeline. We will use one to aggregate our larger country-year data frame
+    to a smaller table of summary statistics by country. There is more than one way
+    to do pipeline this task. We could choose the variables we want to summarize and
+    then repeatedly use the `mean()` and `sd()` functions to calculate the means and
+    standard deviations of the variables we want. We will again use the pipe operator,
+    `%>%`, to do our work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: The pipeline consists of two steps. First we group the data by `consent_law`
+    and `country`, and then use `summarize()` to create six new variables, each one
+    of which is the mean or standard deviation of each country’s score on a corresponding
+    variable in the original `organdata` data frame.For an alternative view, change
+    `country` to `year` in the grouping statement and see what happens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As usual, `summarize()` step, will inherit information about the original data
+    and the grouping, and then do its calculations at the innermost grouping level.
+    In this case it takes all the observations for each country and calculates the
+    mean or standard deviation as requested. Here is what the resulting object looks
+    like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: As before, the variables specified in `group_by()` are retained in the new data
+    frame, the variables created with `summarize()` are added, and all the other variables
+    in the original data are dropped. The countries are also summarized alphabetically
+    within `consent_law`, which was the outermost grouping variable in the `group_by()`
+    statement at the start of the pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using our pipeline this way is reasonable, but the code is worth looking at
+    again. For one thing, we have to repeatedly type out the names of the `mean()`
+    and `sd()` functions and give each of them the name of the variable we want summarized
+    *and* the `na.rm = TRUE` argument each time to make sure the functions don’t complain
+    about missing values. We also repeatedly name our new summary variables in the
+    same way, by adding `_mean` or `_sd` to the end of the original variable name.
+    If we wanted to calculate the mean and standard deviation for all the numerical
+    variables in `organdata`, our code would get even longer. Plus, in this version
+    we lose the other, time-invariant categorical variables that we haven’t grouped
+    by, such as `world`. When we see repeated actions like this in our code, we can
+    ask whether there’s a better way to proceed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is. What we would like to do is apply the `mean()` and `sd()` functions
+    to every numerical variable in `organdata`, but *only* the numerical ones. Then
+    we want to name the results in a consistent way, and return a summary table including
+    all the categorical variables like `world`. We can create a better version of
+    the `by_country` object using a little bit of R’s functional programming abilities.
+    Here is the code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: The pipeline starts off just as before, taking `organdata` and then grouping
+    it by `consent_law` and `country`. In the next step, though, instead of manually
+    taking the mean and standard deviation of a subset of variables, we use the `summarize_if()`
+    function instead. As its name suggests, it examines each column in our data and
+    applies a test to it. It only summarizes if the test is passed, that is, if it
+    returns a value of `TRUE`.We do not have to use parentheses when naming the functions
+    inside `summarize_if()`. Here the test is the function `is.numeric()`, which looks
+    to see if a vector is a numeric value or not. If it is, then `summarize_if()`
+    will apply the summary function or functions we want to `organdata`. Because we
+    are taking both the mean and the standard deviation, we use `funs()` to list the
+    functions we want to use. And we finish with the `na.rm = TRUE` argument, which
+    will be passed on to each use of both `mean()` and `sd()`. In the last step in
+    the pipeline we `ungroup()` the dataSometimes graphing functions can get confused
+    by grouped tibbles where we don’t explicitly use the groups in the plot., so that
+    the result is a plain tibble.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is what the pipeline returns:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All the numeric variables have been summarized. They are named using the original
+    variable, with the function’s name appended: `donors_mean` and `donors_sd`, and
+    so on. This is a compact way to rapidly transform our data in various ways. There
+    is a family of `summarize_` functions for various tasks, and a complementary group
+    of `mutate_` functions for when we want to add columns to the data rather than
+    aggregated it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With our data summarized by country, we can draw a dotplot with `geom_point()`.
+    Let’s also color the results by the consent law for each country.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A Cleveland dotplot, with colored points.](../Images/54fe19bef527864af0679a092193b9cc.png)
+    Figure 5.13: A Cleveland dotplot, with colored points.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alternatively, if we liked, we could use a facet instead of coloring the points.
+    Using `facet_wrap()` we can split the `consent_law` variable into two panels,
+    and then rank the countries by donation rate within each panel. Because we have
+    a categorical variable on our y-axis, there are two wrinkles worth noting. First,
+    if we leave `facet_wrap()` to its defaults, the panels will be plotted side by
+    side. This will make it difficult to compare the two groups on the same scale.
+    Instead the plot will be read left to right, which is not useful. To avoid this,
+    we will have the panels appear one on top of the other by saying we only want
+    toq have one column. This is the `ncol=1` argument. Second, and again because
+    we have a categorical variable on the y-axis, the default facet plot will have
+    the names of every country appear on the y-axis of *both* panels. (Were the y-axis
+    a continuous variable this would be the what we would want.) In that case, only
+    half the rows in each panel of our plot will have points in them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To avoid this we allow the y-axes scale to be free. This is the `scales="free_y"`
+    argument. Again, for faceted plots where both variables are continuous, we generally
+    do not want the scales to be free, because it allows the x- or y-axis for each
+    panel to vary with the range of the data inside that panel only, instead of the
+    range across the whole dataset. Ordinarily, the point of small-multiple facets
+    is to be able to compare across the panels. This means free scales are usually
+    not a good idea, because each panel gets its own x- or y-axis range, which breaks
+    comparability. But where one axis is categorical, as here, we can free the categorical
+    axis and leave the continuous one fixed. The result is that each panel shares
+    the same x-axis, and it is easy to compare between them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A faceted dotplot with free scales on the y-axis.](../Images/f23ad812ec7dc45c1eb758591a5bc983.png)
+    Figure 5.14: A faceted dotplot with free scales on the y-axis.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: Cleveland dotplots are generally preferred to bar or column charts. When making
+    them, put the categories on the y-axis and order them in the way that is most
+    relevant to the numerical summary you are providing. This sort of plot is also
+    an excellent way to summarize model results or any data with with error ranges.
+    We use `geom_point()` to draw our dotplots. There is a geom called `geom_dotplot()`,
+    but it is designed to produce a different sort of figure. It is a kind of histogram,
+    with individual observations represented by dots that are then stacked on top
+    of one another to show how many of them there are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Cleveland-style dotplot can be extended to cases where we want to include
+    some information about variance or error in the plot. Using `geom_pointrange()`,
+    we can tell ggplot to show us a point estimate and a range around it. Here we
+    will use the standard deviation of the donation rate that we calculated above.
+    But this is also the natural way to present, for example, estimates of model coefficients
+    with confidence intervals. With `geom_pointrange()` we map our `x` and `y` variables
+    as usual, but the function needs a little more information than `geom_point`.
+    It needs to know the range of the line to draw on either side of the point, defined
+    by the arguments `ymax` and `ymin`. This is given by the y value (`donors_mean`)
+    plus or minus its standard deviation (`donors_sd`). If a function argument expects
+    a number, it is OK to give it a mathematical expression that resolves to the number
+    you want. R will calculate the result for you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 5.15: A dot-and-whisker plot, with the range defined by the standard
+    deviation of the measured variable.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A dot-and-whisker plot, with the range defined by the standard deviation
+    of the measured variable.](../Images/952e4fd0cb72b9c57a8b9aa4a0a54573.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Because `geom_pointrange()` expects `y`, `ymin`, and `ymax` as arguments, we
+    map `donors_mean` to `y` and the `ccode` variable to `x`, then flip the axes at
+    the end with `coord_flip()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5.3 Plot text directly
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: It can sometimes be useful to plot the labels along with the points in a scatterplot,
+    or just plot informative labels directly. We can do this with `geom_text()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Plotting labels and text.](../Images/98e62e9b42d105ddde8909e3548704e4.png)
+    Figure 5.16: Plotting labels and text.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: The text is plotted right on top of the points, because both are positioned
+    using the same x and y mapping. One way of dealing with this, often the most effective
+    if we are not too worried about excessive precision in the graph, is to remove
+    the points by dropping `geom_point()` from the plot. A second option is to adjust
+    the position of the text. We can left- or right-justify the labels using the `hjust`
+    argument to `geom_text()`. Setting `hjust=0` will left justify the label, and
+    `hjust=1` will right justify it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: You might be tempted to try different values to `hjust` to fine-tune your labels.
+    But this is not a robust approach. It will often fail because the space is added
+    in proportion to the length of the label. The result is that longer labels move
+    further away from their points than you want. There are ways around this, but
+    they introduce other problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Plot points and text labels, with a horizontal position adjustment.](../Images/13eb6a51f767063ac5af3c89c8c60bea.png)
+    Figure 5.17: Plot points and text labels, with a horizontal position adjustment.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of wrestling any further with `geom_text()`, we will use `ggrepel`
+    instead. This very useful library adds some new geoms to ggplot. Just as `ggplot`
+    extends the plotting capabilities of R, there are many small libraries that extend
+    the capabilities of `ggplot`, often by providing some new type of `geom`. The
+    `ggrepel` library provides `geom_text_repel()` and `geom_label_repel()`, two geoms
+    that can pick out labels much more flexibly than the default `geom_text()`. First,
+    make sure the library is installed, then load it in the usual way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will use `geom_text_repel()` instead of `geom_text()`. To demonstrate some
+    of what `geom_text_repel()` can do, we will switch datasets and work with some
+    historical U.S. presidential election data provided in the `socviz` library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: Figure [5.18](workgeoms.html#fig:ch-05-electionplot-01) takes each U.S. presidential
+    election since 1824 (the first year that the size of the popular vote was recorded),
+    and plots the winner’s share of the popular vote against the winner’s share of
+    the electoral college vote. The shares are stored in the data as proportions (from
+    0 to 1) rather than percentages, so we need to adjust the labels of the scales
+    using `scale_x_continuous()` and `scale_y_continuous()`. Seeing as we are interested
+    in particular presidencies, we also want to label the points. ButNormally it is
+    not a good idea to label every point on a plot in the way we do here. A better
+    approach might be to select a few points of particular interest. because many
+    of the data points are plotted quite close together we need to make sure the labels
+    do not overlap with each other, or obscure other points. The `geom_text_repel()`
+    function handles the problem very well. This plot has relatively long labels.
+    We could put them directly in the code, but just to keep things a bit tidier we
+    assign the text to some named objects instead. Then we use those in the plot formula.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Text labels with ggrepel.](../Images/a2613e5adc2cd4f46414ddca11200103.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.18: Text labels with ggrepel.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this plot, what is of interest about any particular point is the quadrant
+    of the x-y plane each point it is in, and how far away it is from the fifty percent
+    threshold on both the x-axis (with the popular vote share) and the y-axis (with
+    the electoral college vote share). To underscore this point we draw two reference
+    lines at the fifty percent line in each direction. They are drawn at the beginning
+    of the plotting process so that the points and labels can be layered on top of
+    them. We use two new geoms, `geom_hline()` and `geom_vline()` to make the lines.
+    They take `yintercept` and `xintercept` arguments, respectively, and the lines
+    can also be sized and colored as you please. There is also a `geom_abline()` geom
+    that draws straight lines based on a supplied slope and intercept. This is useful
+    for plotting, for example, 45 degree reference lines in scatterplots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ggrepel package has several other useful geoms and options to aid with effectively
+    plotting labels along with points. The performance of its labeling algorithm is
+    consistently very good. For many purposes it will be a better first choice than
+    `geom_text()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5.4 Label outliers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Sometimes we want to pick out some points of interest in the data without labeling
+    every single item. We can still use `geom_text()` or `geom_text_repel()`. We just
+    need to pick out the points we want to label. In the code above, we do this on
+    the fly by telling `geom_text_repel()` to use a different data set from the one
+    `geom_point()` is using. We do this using the `subset()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Top: Labeling text according to a single criterion. Bottom: Labeling according
+    to several criteria.](../Images/5d49387a28c157265c595c015e091824.png)![Top: Labeling
+    text according to a single criterion. Bottom: Labeling according to several criteria.](../Images/ede49654a99f1b182c6ac76cf63d9833.png)
+    Figure 5.19: Top: Labeling text according to a single criterion. Bottom: Labeling
+    according to several criteria.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the first figure, we specify a new `data` argument to the text geom, and
+    use `subset()` to create a small dataset on the fly. The `subset()` function takes
+    the `by_country` object and selects only the cases where `gdp_mean` is over 25,000,
+    with the result that only those points are labeled in the plot. The criteria we
+    use can be whatever we like, as long as we can write a logical expression that
+    defines it. For example, in the lower figure we pick out cases where `gdp_mean`
+    is greater than 25,000, *or* `health_mean` is less than 1,500, *or* the country
+    is Belgium. In all of these plots, because we are using `geom_text_repel()`, we
+    no longer have to worry about our earlier problem where the country labels were
+    clipped at the edge of the plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, we can pick out specific points by creating a dummy variable
+    in the data set just for this purpose. Here we add a column to `organdata` called
+    `ind`. An observation gets coded as `TRUE` if `ccode` is “Ita”, or “Spa”, *and*
+    if the `year` is greater than 1998\. We use this new `ind` variable in two ways
+    in the plotting code. First, we map it to the `color` aesthetic in the usual way.
+    Second, we use it to subset the data that the text geom will label. Then we suppress
+    the legend that would otherwise appear for the `label` and `color` aesthetics
+    by using the `guides()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Labeling using a dummy variable.](../Images/caf5eb8cfdc0c144bcad11c66fd01e87.png)
+    Figure 5.20: Labeling using a dummy variable.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: 5.5 Write and draw in the plot area
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Sometimes we want to annotate the figure directly. Maybe we need to point out
+    something important that is not mapped to a variable. We use `annotate()` for
+    this purpose. It isn’t quite a geom, as it doesn’t accept any variable mappings
+    from our data. Instead, it can *use* geoms, temporarily taking advantage of their
+    features in order to place something on the plot. The most obvious use-case is
+    putting arbitrary text on the plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will tell `annotate()` to use a text geom. It hands the plotting duties to
+    `geom_text()`, which means that we can use all of that geom’s arguments in the
+    `annotate()` call. This includes the `x`, `y`, and `label` arguments, as one would
+    expect, but also things like `size`, `color`, and the `hjust` and `vjust` settings
+    that allow text to be justified. This is particularly useful when our label has
+    several lines in it. We include extra lines by using the special “newline” code,
+    `\n`, which we use instead of a space to force a line-break as needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Arbitrary text with <code>annotate()</code>.](../Images/3f86d50559672b7f362dad81b3e0db5d.png)
+    Figure 5.21: Arbitrary text with `annotate()`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `annotate()` function can work with other geoms, too. Use it to draw rectangles,
+    line segments, and arrows. Just remember to pass along the right arguments to
+    the geom you use. We can add a rectangle to this plot, for instance, with a second
+    call to the function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 5.22: Using two different geoms with `annotate()`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Using two different geoms with <code>annotate()</code>.](../Images/6e64df4718fa9855a4e9dac823c96edf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 5.6 Understanding scales, guides, and themes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This chapter has gradually extended our ggplot vocabulary in two ways. First,
+    we introduced some new `geom_` functions that allowed us to draw new kinds of
+    plots. Second, we made use of new functions controlling some aspects of the appearance
+    of our graph. We used `scale_x_log10()`, `scale_x_continuous()` and other `scale_`
+    functions to adjust axis labels. We used the `guides()` function to remove the
+    legends for a `color` mapping and a `label` mapping. And we also used the `theme()`
+    function to move the position of a legend from the side to the top of a figure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning about new geoms extended what we have seen already. Each geom makes
+    a different type of plot. Different plots require different mappings in order
+    to work, and so each `geom_` function takes mappings tailored to the kind of graph
+    it draws. You can’t use `geom_point()` to make a scatterplot without supplying
+    an `x` and a `y` mapping, for example. Using `geom_histogram()` only requires
+    you to supply an `x` mapping. Similarly, `geom_pointrange()` requires `ymin` and
+    `ymax` mappings in order to know where to draw the lineranges it makes. A `geom_`
+    function may take optional arguments, too. When using `geom_boxplot()` you can
+    specify what the outliers look like using arguments like `outlier.shape` and `outlier.color`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second kind of extension introduced some new functions, and with them some
+    new concepts. What are the differences between the `scale_` functions, the `guides()`
+    function, and the `theme()` function? When do you know to use one rather than
+    the other? Why are there so many `scale_` functions listed in the online help,
+    anyway? How can you tell which one you need?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is a rough and ready starting point:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Every aesthetic mapping has a scale. If you want to adjust how that scale is
+    marked or graduated, then you use a `scale_` function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Many scales come with a legend or key to help the reader interpret the graph.
+    These are called *guides*. You can make adjustments to them with the `guides()`
+    function. Perhaps the most common use case is to make the legend disappear, as
+    it is sometimes superfluous. Another is to adjust the arrangement of the key in
+    legends and colorbars.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Graphs have other features not strictly connected to the logical structure of
+    the data being displayed. These include things like their background color, the
+    typeface used for labels, or the placement of the legend on the graph. To adjust
+    these, use the `theme()` function.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Consistent with ggplot’s overall approach, adjusting some visible feature of
+    the graph means first thinking about the relationship that the feature has with
+    the underlying data. Roughly speaking, if the change you want to make will affect
+    the substantive interpretation of any particular geom, then most likely you will
+    either be mapping an aesthetic to a variable using that geom’s `aes()` function,
+    or you will be specifying a change via some `scale_` function. If the change you
+    want to make does not affect the interpretation of a given geom_, then most likely
+    you will either be setting a variable inside the `geom_` function, or making a
+    cosmetic change via the `theme()` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Every mapped variable has a scale.](../Images/2baf5a838809dd86e16a88cbfc970f7e.png)
+    Figure 5.23: Every mapped variable has a scale.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scales and guides are closely connected, which can make things confusing. The
+    guide provides information about the scale, such as in a legend or colorbar. Thus,
+    it is possible to make adjustments to guides from inside the various `scale_`
+    functions. More often it is easier to use the `guides()` function directly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: Figure [5.23](workgeoms.html#fig:ch-05-scalesfig-01) shows a plot with three
+    aesthetic mappings. The variable `roads` is mapped to `x`; `donors` is mapped
+    to `y`; and `world` is mapped to `color`. The `x` and `y` scales are both *continuous*,
+    running smoothly from just under the lowest value of the variable to just over
+    the highest value. Various labeled tick marks orient the reader to the values
+    on each axis. The `color` mapping also has a scale. The `world` measure is an
+    unordered categorical variable, so its scale is *discrete*. It takes one of four
+    values, each represented by a different color.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Along with `color`, mappings like `fill`, `shape`, and `size` will have scales
+    that we might want to customize or adjust. We could have mapped `world` to `shape`
+    instead of `color`. In that case our four-category variable would have a scale
+    consisting of four different shapes. Scales for these mappings may have labels,
+    axis tick marks at particular positions, or specific colors or shapes. If we want
+    to adjust them, we use one of the `scale_` functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many different kinds of variable can be mapped. More often than not `x` and
+    `y` are continuous measures. But they might also easily be discrete, as when we
+    mapped country names to the `y` axis in our boxplots and dotplots. An `x` or `y`
+    mapping can also be defined as a transformation onto a log scale, or as a special
+    sort of number value like a date. Similarly, a `color` or a `fill` mapping can
+    be discrete and *unordered*, as with our `world` variable, or discrete and *ordered*,
+    as with letter grades in an exam. A `color` or `fill` mapping can also be a continuous
+    quantity, represented as a gradient running smoothly from a low to a high value.
+    Finally, both continuous gradients and ordered discrete values might have some
+    defined neutral midpoint with extremes diverging in both directions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A schema for naming the <code>scale</code> functions.](../Images/f68891a3a348d121e8d9d743eaa18404.png)
+    Figure 5.24: A schema for naming the `scale` functions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because we have several potential mappings, and each mapping might be to one
+    of several different scales, we end up with a lot of individual `scale_` functions.
+    Each deals with one combination of mapping and scale. They are named according
+    to a consistent logic, shown in Figure [5.24](workgeoms.html#fig:ch-05-scale-template).
+    First comes the `scale_` name, then the *mapping* it applies to, and finally the
+    *kind* of value the scale will display. Thus, the `scale_x_continuous()` function
+    controls `x` scales for continuous variables; `scale_y_discrete()` adjusts `y`
+    scales for discrete variables; and `scale_x_log10()` transforms an `x` mapping
+    to a log scale. Most of the time, ggplot will guess correctly what sort of scale
+    is needed for your mapping. Then it will work out some default features of the
+    scale (such as its labels and where the tick marks go). In many cases you will
+    not need to make any scale adjustments. If `x` is mapped to a continuous variable
+    then adding `+ scale_x_continuous()` to your plot statement with no further arguments
+    will have no effect. It is already there implicitly. Adding `+ scale_x_log10()`,
+    on the other hand, will transform your scale, as now you have replaced the default
+    treatment of a continuous x variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you want to adjust the labels or tick marks on a scale, you will need to
+    know which mapping it is for and what sort of scale it is. Then you supply the
+    arguments to the appropriate scale function. For example, we can change the x-axis
+    of the previous plot to a log scale, and then also change the position and labels
+    of the tick marks on the y-axis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Making some scale adjustments.](../Images/cc6fa882fd8215de245122737bccb83c.png)
+    Figure 5.25: Making some scale adjustments.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: The same applies to mappings like `color` and `fill`. Here the available `scale_`
+    functions include ones that deal with continuous, diverging, and discrete variables,
+    as well as others that we will encounter later when we discuss the use of color
+    and color palettes in more detail. When working with a scale that produces a legend,
+    we can also use this its `scale_` function to specify the labels in the key. To
+    change the *title* of the legend, however, we use the `labs()` function, which
+    lets us label all the mappings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Relabeling via a scale function.](../Images/de3905e462410cdccab6ff95d4746cc5.png)
+    Figure 5.26: Relabeling via a scale function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: If we want to move the legend somewhere else on the plot, we are making a purely
+    cosmetic decision and that is the job of the `theme()` function. As we have already
+    seen, adding `+ theme(legend.position = "top")` will move the legend as instructed.
+    Finally, to make the legend disappear altogether, we tell ggplot that we do not
+    want a guide for that scale. This is generally not good practice, but there can
+    be good reasons to do it. We will see some examples later on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Removing the guide to a scale.](../Images/c75b51f0fc2df917751b27f2d454693b.png)
+    Figure 5.27: Removing the guide to a scale.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will look more closely at `scale_` and `theme()` functions in Chapter [8](refineplots.html#refineplots),
+    when we discuss how to polish plots that we are ready to display or publish. Until
+    then, we will use `scale_` functions fairly regularly to make small adjustments
+    to the labels and axes of our graphs. And we will occasionally use the `theme()`
+    function to make some cosmetic adjustments here and there. So you do not need
+    to worry too much about additional details of how they work until later on. But
+    at this point it *is* worth knowing what `scale_` functions are for, and the logic
+    behind their naming scheme. Understanding the `scale_<mapping>_<kind>()` rule
+    makes it easier to see what is going on when one of these functions is called
+    to make an adjustment to a plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 5.7 Where to go next
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We covered several new functions and data aggregation techniques in this Chapter.
+    You should practice working with them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Two figures from Chapter 1.](../Images/29521484b08d54e09144a78dfbe4c4ba.png)![Two
+    figures from Chapter 1.](../Images/4d47e812c07ab78006c1ab2415e80c88.png) Figure
+    5.28: Two figures from Chapter 1.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `subset()` function is very useful when used in conjunction with a series
+    of layered geoms. Go back to your code for the Presidential Elections plot (Figure
+    [5.18](workgeoms.html#fig:ch-05-electionplot-01)) and redo it so that it shows
+    all the data points but only labels elections since 1992\. You might need to look
+    again at the `elections_historic` data to see what variables are available to
+    you. You can also experiment with subsetting by political party, or changing the
+    colors of the points to reflect the winning party.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use `geom_point()` and `reorder()` to make a Cleveland dot plot of all Presidential
+    elections, ordered by share of the popular vote.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Try using `annotate()` to add a rectangle that lightly colors the entire upper
+    left quadrant of Figure [5.18](workgeoms.html#fig:ch-05-electionplot-01).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The main action verbs in the `dplyr` library are `group_by()`, `filter()`, `select()`,
+    `summarize()`, and `mutate()`. Practice with them by revisiting the `gapminder`
+    data to see if you can reproduce a pair of graphs from Chapter One, shown here
+    again in Figure [5.28](workgeoms.html#fig:ch-05-gapminder-revisit). You will need
+    to filter some rows, group the data by continent, and calculate the mean life
+    expectancy by continent before beginning the plotting process.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Get comfortable with grouping, mutating, and summarizing data in pipelines.
+    This will become a routine task as you work with your data. There are many ways
+    that tables can be aggregated and transformed. Remember `group_by()` groups your
+    data from left to right, with the rightmost or innermost group being the level
+    calculations will be done at; `mutate()` adds a column at the current level of
+    grouping; and `summarize()` aggregates to the next level up. Try creating some
+    grouped objects from the GSS data, calculating frequencies as you learned in this
+    Chapter, and then check to see if the totals are what you expect. For example,
+    start by grouping `degree` by `race`, like this:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE87]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code is similar to what you saw earlier, but a little more compact. (We
+    calculate the `pct` values directly.) Check the results are as you expect by grouping
+    by `race` and summing the percentages. Try doing the same exercise grouping by
+    `sex` or `region`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Try summary calculations with functions other than `sum`. Can you calculate
+    the mean and median number of children by `degree`? (Hint: the `childs` variable
+    in `gss_sm` has children as a numeric value.)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`dplyr` has a large number of helper functions that let you summarize data
+    in many different ways. The vignette on *window functions* included with the `dplyr`
+    documentation is a good place to begin learning about these. You should also look
+    at Chapter 3 of Wickham & Grolemund (2016) for more information on transforming
+    data with `dplyr`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Experiment with the `gapminder` data to practice some of the new geoms we have
+    learned. Try examining population or life expectancy over time using a series
+    of boxplots. (Hint: you may need to use the `group` aesthetic in the `aes()` call.)
+    Can you facet this boxplot by continent? Is anything different if you create a
+    tibble from `gapminder` that explicitly groups the data by `year` and `continent`
+    first, and then create your plots with that?'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Read the help page for `geom_boxplot()` and take a look at the `notch` and `varwidth`
+    options. Try them out to see how they change the look of the plot.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As an alternative to `geom_boxplot()` try `geom_violin()` for a similar plot,
+    but with a mirrored density distribution instead of a box and whiskers.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`geom_pointrange()` is one of a family of related geoms that produce different
+    kinds of error bars and ranges, depending on your specific needs. They include
+    `geom_linerange()`, `geom_crossbar()`, and `geom_errorbar()`. Try them out using
+    `gapminder` or `organdata` to see how they differ.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

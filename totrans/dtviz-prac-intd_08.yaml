@@ -1,0 +1,1592 @@
+- en: 7 Draw maps
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://socviz.co/maps.html](https://socviz.co/maps.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Choropleth maps show geographical regions colored, shaded, or graded according
+    to some variable. They are visually striking, especially when the spatial units
+    of the map are familiar entities, like the countries of the European Union, or
+    states in the US. But maps like this can also sometimes be misleading. Although
+    it is not a dedicated Geographical Information System (GIS), R can work with geographical
+    data, and ggplot can make choropleth maps. But we’ll also consider some other
+    ways of representing data like this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure [7.1](maps.html#fig:ch-07-maps1) shows a series of maps of the 2012 US
+    general election results. Reading from the top left, From top left we see, first,
+    a state-level, two-color map where the margin of victory can be high (a darker
+    blue or red) or low (a lighter blue or red). The color scheme has no midpoint.
+    Second, we see a two-color, county-level maps colored red or blue depending on
+    the winner. Third is a county-level map where the color of red and blue counties
+    is graded by the size of the vote share. Again, the color scale has no midpoint.
+    Fourth is a county-level map with a continuous color gradient from blue to red,
+    but that passes through a purple midpoint for areas where the balance of the vote
+    is close to even. The map in the bottom left distorts the geographical boundaries
+    by squeezing or inflating them to reflect the population of the county shown.
+    Finally in the bottom right we see a cartogram, where states are drawn using square
+    tiles, and the number of tiles each state gets is proportional to the number of
+    electoral college votes it has (which in turn is proportional to that state’s
+    population).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![2012 US election results maps of different kinds.](../Images/a26bf45fb34a8e5e4a89bd93eb7d673a.png)![2012
+    US election results maps of different kinds.](../Images/b56c24f4318aedb73444ea9a158d08c0.png)![2012
+    US election results maps of different kinds.](../Images/3067a46e627fe4a23f0de2f827c5b870.png)![2012
+    US election results maps of different kinds.](../Images/7e57c406818fe4596df50a44d2bff04a.png)![2012
+    US election results maps of different kinds.](../Images/46b0dbbd173026c3854d04f209ed4485.png)![2012
+    US election results maps of different kinds.](../Images/1b3ad18732fdaff0ed0597ad5395eadc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.1: 2012 US election results maps of different kinds.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each of these maps shows data for the same event, but the impressions they convey
+    are very different. Each faces two main problems. First, the underlying quantities
+    of interest are only partly spatial. The number of electoral college votes won
+    and the share of votes cast within a state or county are expressed in spatial
+    terms, but ultimately it is the numbers of people within those regions that matter.
+    Second, the regions themselves are of wildly differing sizes, and they differ
+    in a way that is not well-correlated with the magnitudes of the underlying votes.
+    The map makers also face choices that would arise in many other representations
+    of the data. Do we want to just show who won each state in absolute terms (this
+    is all that matters for the actual result, in the end) or do we want to indicate
+    how close the race was? Do we want to display the results at some finer level
+    of resolution than is relevant to the outcome, such as county rather than state
+    counts? How can we convey that different data points can carry very different
+    weights, because they represent vastly larger or smaller numbers of people? It
+    is tricky enough to convey these choices honestly with different colors and shape
+    sizes on a simple scatterplot. Often, a map is like a weird grid that you are
+    forced to conform to even though you know it systematically misrepresents what
+    you want to show.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is not always the case, of course. Sometimes our data really is purely
+    spatial, and we can observe it at a fine enough level of detail that we can represent
+    spatial distributions honestly and in a very compelling way. But the spatial features
+    of much social science are collected through entities such as precincts, neighborhoods,
+    metro areas, census tracts, counties, states, and nations. These may themselves
+    be socially contingent. A great deal of cartographic work with social-scientific
+    variables involves working both with and against that arbitrariness.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.1 Map U.S. state-level data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s take a look at some data for the 2016 U.S. presidential election and see
+    how we might plot it in R. The `election` dataset has various measures of the
+    vote and vote shares by state. Here we pick some columns and sample a few rows
+    at random.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![2016 Election Results. Would a two-color choropleth map be more informative
+    than this, or less?](../Images/41812dbdbd37c2e03ec02011347ccf84.png) Figure 7.2:
+    2016 Election Results. Would a two-color choropleth map be more informative than
+    this, or less?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The FIPS code is a federal code that numbers states and territories of the US.
+    It extends to the county level with an additional four digits, so every county
+    in the US has a unique six-digit identifier, where the first two digits represent
+    the state. This dataset also contains the census region of each state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first thing you should remember about spatial data is that you don’t have
+    to represent it spatially. We’ve been working with country-level data throughout,
+    and have yet to make a map of it. Of course, spatial representations can be very
+    useful, and sometimes absolutely necesssary. But we can start with a state-level
+    dotplot, faceted by region. This plot brings together many aspects of plot construction
+    that we have worked on so far, including subsetting data, reordering results by
+    a second variable, and using a scale formatter. It also introduces some new options,
+    like allowing free scales on an axis, and manually setting the color of an aesthetic.
+    We break up the construction process into several steps by creating intermediate
+    objects (`p0`, `p1`, `p2`) along the way. It makes the code a little more readable.
+    Bear in mind also that, as always, you can try plotting each of these intermediate
+    objects as well (just type their name at the console and hit return) to see what
+    they look like. What happens if you remove the `scales="free_y"` argument to `facet_wrap()`?
+    What happens if you delete the call to `scale_color_manual()`?
+  prefs: []
+  type: TYPE_NORMAL
+- en: As always, the first task in drawing a map is to get a data frame with the right
+    information in it, and in the right order. First we load R’s `maps` package, which
+    provides us with some pre-drawn map data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: This just a data frame. It has more than 15,000 rows because you need a lot
+    of lines to draw a good-looking map. We can make a blank state map right away
+    with this data, using `geom_polygon()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The map is plotted with latitude and longitude points, which are there as scale
+    elements mapped to the x and y axes. A map is, after all, just a set of lines
+    drawn in the right order on a grid.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A first US map](../Images/50400274958d6a7511ccc1502da75fab.png) Figure 7.3:
+    A first US map'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can map the `fill` aesthetic to `region` and change the `color` mapping to
+    a light gray and thin the lines to make the state borders a little nicer. We’ll
+    also tell R not to plot a legend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Coloring the states](../Images/12b837f02b22ed78c883832fbba6c494.png) Figure
+    7.4: Coloring the states'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, let’s deal with the projection. By default the map is plotted using the
+    venerable Mercator projection. It doesn’t look that good. Assuming we are not
+    planning on sailing across the Atlantic, the practical virtues of this projection
+    are not much use to us, either. If you glance again at the maps in Figure [7.1](maps.html#fig:ch-07-maps1),
+    you’ll notice they look nicer. This is because they are using an Albers projection.
+    (Look, for example, at the way that the US-Canadian border is a little curved
+    along the 49th parallel from Washington state to Minnesota, rather than not a
+    straight line.) Techniques for map projection are a fascinating world of their
+    own, but for now just remember we can transform the default projection used by
+    `geom_polygon()`, via the `coord_map()` function. You’ll remember that we said
+    that projection onto a coordinate system is a necessary part of the plotting process
+    for any data. Normally it is left implicit. We have not usually had to specify
+    a `coord_` function because most of the time we have drawn our plots on a simple
+    Cartesian plane. Maps are more complex. Our locations and borders are defined
+    on a more or less spherical object, which means must have a method for transforming
+    or projecting our points and lines from a round to a flat surface. The many ways
+    of doing this gives us a menu of cartographic options.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Albers projection requires two latitude parameters, `lat0` and `lat1`. We
+    give them their conventional values for a US map here. (Try messing around with
+    their values and see what happens when you redraw the map.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Improving the projection](../Images/7e82b98cf4878a25e166d767073cf3f4.png)
+    Figure 7.5: Improving the projection'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we need to get our own data on to the map. Remember, underneath that map
+    is just a big data frame specifying a large number of lines that need to be drawn.
+    We have to merge our data with that data frame. Somewhat annoyingly, in the map
+    data the state names (in a variable named `region`) are in lower case. We can
+    create a variable in our own data frame to correspond to this, using the `tolower()`
+    function to convert the `state` names. We then use `left_join` to merge but you
+    could also use `merge(..., sort = FALSE)`. This merge step is important! You need
+    to take care that the values of the key variables you are matching on really do
+    exactly correspond to one another. If they do not, missing values (`NA` codes)
+    will be introduced into your merge, and the lines on your map will not join up.
+    This will result in a weirdly “sharded” appearance to your map when R tries to
+    fill the polygons. Here, the `region` variable is the only column with the same
+    name in both the data sets we are joining, and so the `left_join()` function uses
+    it used by default. If the keys have different names in each data set you can
+    specify that, if needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To reiterate, it is important to know your data and variables well enough to
+    check that they have merged properly. Do not do it blindly. For example, if rows
+    corresponding to Washington DC were named “washington dc” in the `region` variable
+    of your `election` data frame, but “district of columbia” in the corresponding
+    `region` variable of your map data, then merging on `region` would mean no rows
+    in the `election` data frame would match “washington dc” in the map data, and
+    the resulting merged variables for those rows would all be coded as missing. Maps
+    that look broken when you draw them are usually caused by merge errors. But errors
+    can also be subtle. For example, perhaps one of your state names inadvertently
+    has a leading (or, worse, a trailing) space as a result of the data originally
+    being imported from elsewhere and not fully cleaned. That would mean, for example,
+    that `california` and `california␣` are different strings, and the match would
+    fail. In ordinary use you might not easily see the extra space (designated here
+    by `␣`). So, be careful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have now merged the data. Take a look at the object with `head(us_states_elec)`.
+    Now that everything is in one big data frame, we can plot it in a map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Mapping the results](../Images/d0857ad451b1d786f96fdbb38d2809e8.png) Figure
+    7.6: Mapping the results'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: To complete the map, we will use our party colors for the fill, move the legend
+    to the bottom, and add a title. Finally we will remove the grid lines and axis
+    labels, which aren’t really needed, by defining a special theme for maps that
+    removes most of the elements we don’t need. (We’ll learn more about themes in
+    Chapter [8](refineplots.html#refineplots). You can also see the code for the map
+    theme in the Appendix.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Election 2016 by State](../Images/0101fe11ace19e521d5f1150cb4c441b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.7: Election 2016 by State'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the map data frame in place, we can map other variables if we like. Let’s
+    try a continuous measure, such as the percentage of the vote received by Donald
+    Trump. To begin with, we just map the variable we want (`pct_trump`) to the `fill`
+    aesthetic, and see what `geom_polygon()` does by default.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Two versions of Percent Trump by State](../Images/8189ee7190135dfd038997b7b9794b77.png)![Two
+    versions of Percent Trump by State](../Images/9fd04466e47e74a20ef939fb88e33aee.png)
+    Figure 7.8: Two versions of Percent Trump by State'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The default color used in the `p1` object is blue. Just for reasons of convention,
+    that isn’t what is wanted here. In addition, the gradient runs in the wrong direction.
+    In our case, the standard interpretation is that a higher vote share makes for
+    a darker color. We fix both of these problems in the `p2` object by specifying
+    the `scale` directly. We’ll use the values we created earlier in `party_colors`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For election results, we might prefer a gradient that diverges from a midpoint.
+    The `scale_gradient2()` function gives us a blue-red spectrum that passes through
+    white by default. Alternatively, we can re-specify the mid-level color along with
+    the high and low colors. We will make purple our midpoint, and use the `muted()`
+    function from the `scales` library to tone down the color a little.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Two views of Trump vs Clinton share: a white midpoint, and a Purple America
+    version.](../Images/5a8f3b4c873f04e7a842cc0d670914c6.png)![Two views of Trump
+    vs Clinton share: a white midpoint, and a Purple America version.](../Images/24ca50be3c0e06e458c318aa5d404727.png)
+    Figure 7.9: Two views of Trump vs Clinton share: a white midpoint, and a Purple
+    America version.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you take a look at the gradient scale for this first “purple America” map,
+    in Figure [7.9](maps.html#fig:ch-07-purple1st), you’ll see that it extends very
+    high on the Blue side. This is because Washington DC is included in the data,
+    and hence the scale. Even though it is barely visible on the map, DC has by far
+    the highest points margin in favor of the Democrats of any unit of observation
+    in the data. If we omit it, we’ll see that our scale shifts in a way that does
+    not just affect the top of the blue end, but re-centers the whole gradient and
+    makes the red side more vivid as a result. Figure [7.10](maps.html#fig:ch-07-purple2nd)
+    shows the result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 7.10: A Purple America version of Trump vs Clinton that excludes results
+    from Washington, DC.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A Purple America version of Trump vs Clinton that excludes results from Washington,
+    DC.](../Images/4f8d8961e73231bd264b9fa571a330f0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This brings out the familiar choropleth problem of having geographical areas
+    that only partially represent the variable we are mapping. In this case, we’re
+    showing votes spatially, but what really matters is the number of people who voted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.2 America’s ur-choropleths
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the U.S. case, administrative areas vary widely in geographical area and
+    they also vary widely in population size. The problem is evident at the state
+    level, as we have seen, also arises even more at the county level. County-level
+    US maps can be aesthetically pleasing, because of the added detail they bring
+    to a national map. But they also make it easy to present a geographical distribution
+    to insinuate an explanation. The results can be tricky to work with. When producing
+    county maps, it is important to remember that the states of New Hampshire, Rhode
+    Island, Massachussetts, and Connecticut are all smaller in area than any of the
+    ten largest Western *counties*. Many of those counties have fewer than a hundred
+    thousand people living in them. Some have fewer than ten thousand inhabitants.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The result is that most choropleth maps of the U.S. for whatever variable in
+    effect show population density more than anything else. The other big variable,
+    in the U.S. case, is Percent Black. Let’s see how to draw these two maps in R.
+    The procedure is essentially the same as it was for the state-level map. We need
+    two data frames, one containing the map data, and the other containing the fill
+    variables we want plotted. Because there are more than three thousand counties
+    in the United States, these two data frames will be rather larger than they were
+    for the state-level maps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The datasets are included in the `socviz` library. The county map data frame
+    has already been processed a little in order to transform it to an Albers projection,
+    and also to relocate (and rescale) Alaska and Hawaii so that they fit into an
+    area in the bottom left of the figure. This is better than throwing away two states
+    from the data. The steps for this transformation and relocation are not shown
+    here. If you want to see how it’s done, consult the Supplementary Material for
+    details. Let’s take a look at our county map data first:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It looks the same as our State map data frame, but it is much larger, running
+    to almost 200,000 rows. The `id` field is the FIPS code for the county. Next,
+    we have a data frame with county-level demographic, geographic, and election data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: This data frame includes information for entities besides counties, though not
+    for all variables. If you look at the top of the object with `head()` you’ll notice
+    that the first row of has an `id` of `0`. Zero is the FIPS code for the entire
+    United States, and thus the data in this row are for the whole country. Similarly,
+    the second row has an `id` of 01000, which corresponds to the State FIPS of 01,
+    for the whole of Alabama. As we merge `county_data` in to `county_map`, these
+    state rows will be dropped, along with the national row, as `county_map` only
+    has county-level data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We merge the data frames using the shared FIPS `id` column:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: With the data merged, we can map the population density per square mile.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 7.11: US population density by county.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![US population density by county.](../Images/5878e805ae980e18438416dbc167051d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: If you try out the `p1` object you will see that ggplot produces a legible map,
+    but by default it chooses an unordered categorical layout. This is because the
+    `pop_dens` variable is not ordered. We could recode it so that R is aware of the
+    ordering. Alternatively, we can manually supply the right sort of scale using
+    the `scale_fill_brewer()` function, together with a nicer set of labels. We will
+    learn more about this scale function in the next chapter. We also tweak how the
+    legend is drawn using the `guides()` function to make sure each element of the
+    key appears on the same row. Again, we will see this use of `guides()` in more
+    detail in the next chapter. The use of `coord_equal()` makes sure that the relative
+    scale of our map does not change even if we alter the overall dimensions of the
+    plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can now do exactly the same thing for our map of percent Black population
+    by county. Once again, we specify a palette for the `fill` mapping using `scale_fill_brewer()`,
+    this time choosing a different range of hues for the map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 7.12: Percent Black population by county.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Percent Black population by county.](../Images/b477ed9a2c1be43e478f72930491524a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figures [7.11](maps.html#fig:ch-07-urchoro1) and [7.12](maps.html#fig:ch-07-urchoro2)
+    are America’s “ur-choropleths”. Between the two of them, population density and
+    percent Black will do a lot to obliterate many a suggestively-patterned map of
+    the United States. These two variables aren’t *explanations* of anything in isolation,
+    but if it turns out that it is more useful to know one or both of them instead
+    of the thing you’re plotting, you probably want to reconsider your theory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an example of the problem in action, let’s draw two new county-level choropleths.
+    The first is an effort to replicate a poorly-sourced but widely-circulated county
+    map of firearm-related suicide rates in the United States. The `su_gun6` variable
+    in `county_data` (and `county_full`) is a measure of the rate of all firearm-related
+    suicides between 1999 and 2015\. The rates are binned into six categories. We
+    have a `pop_dens6` variable that divides the population density into six categories,
+    too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first draw a map with the `su_gun6` variable. We will match the color palettes
+    between the maps, but for the population map we will flip our color scale around
+    so that less populated areas are shown in a darker shade. We do this by using
+    a function from the RColorBrewer library to manually create two palettes. The
+    `rev()` function used here reverses the order of a vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `brewer.pal()` function produces evenly-spaced color schemes to order from
+    any one of several named palettes. The colors are specified in hexadecimal format.
+    Again, we will learn more about color specifications and how to manipulate palettes
+    for mapped variables in Chapter [8](refineplots.html#refineplots).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: Having drawn the gun plot, we use almost exactly the same code to draw the reverse-coded
+    population density map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: It’s clear that the two maps are not identical. However, the visual impact of
+    the first has a lot in common with the second. The dark bands in the West (except
+    for California) stand out, and fade as we move toward the center of the country.
+    There are some strong similarities elsewhere on the map too, such as in the Northeast.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The gun-related suicide measure is already expressed as a rate. It is the number
+    of qualifying deaths in a county, divided by that county’s population. Normally,
+    we standardize in this way to “control for” the fact that larger populations will
+    tend to produce more gun-related suicides just because they have more people in
+    them. However, this sort of standardization has its limits. In particular, when
+    the event of interest is not very common, and there is very wide variation in
+    the base size of the units, then the denominator (e.g., the population size) starts
+    to be expressed more and more in the standardized measure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Gun-related suicides by county; Reverse-coded population density by county.
+    Before tweeting this picture, please read the text for discussion of what is wrong
+    with it.](../Images/2a742741590b78d74676dfecc884c5b2.png)![Gun-related suicides
+    by county; Reverse-coded population density by county. Before tweeting this picture,
+    please read the text for discussion of what is wrong with it.](../Images/1a4e08124d11e0309a71b43af45fc48e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.13: Gun-related suicides by county; Reverse-coded population density
+    by county. Before tweeting this picture, please read the text for discussion of
+    what is wrong with it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Third, and more subtly, the data is subject to reporting constraints connected
+    to population size. If there are fewer than ten events per year for a cause of
+    death, the Centers for Disease Control (CDC) will not report them at the county
+    level because it might be possible to identify particular deceased individuals.
+    Assigning data like this to bins creates a threshold problem for choropleth maps.
+    Look again Figure [7.13](maps.html#fig:ch-07-gunsu). The gun-related suicides
+    panel seems to show a north-south band of counties with the lowest rate of suicides
+    running from the Dakotas down through Nebraska, Kansas, and into West Texas. Oddly,
+    this band borders counties in the West with the very highest rates, from New Mexico
+    on up. But from the density map we can see that many counties in both these regions
+    have very low population densities. Are they really that different in their gun-related
+    suicide rates?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Probably not. More likely, we are seeing an artifact arising from how the data
+    is coded. For example, imagine a county with 100,000 inhabitants that experiences
+    nine gun-related suicides in a year. The CDC will not report this number. Instead
+    it will be coded as “suppressed”, accompanied by a note saying any standardized
+    estimates or rates will also be unreliable. But if we are determined to make a
+    map where all the counties are colored in, we might be tempted to put any suppressed
+    results into the lowest bin. After all, we know that the number is somewhere between
+    zero and ten. Why not just code it as zero?Do not do this. One standard alternative
+    is to estimate the suppressed observations using a count model. An approach like
+    this might naturally lead to more extensive, properly spatial modeling of the
+    data. Meanwhile, a county with 100,000 inhabitants that experiences twelve gun-related
+    suicides a year *will* be numerically reported. The CDC is a responsible organization,
+    and so although it provides the absolute number of deaths for all counties above
+    the threshold, the notes to the data file will still warn you that any rate calculated
+    with this number will be unreliable. If we push ahead and do it anyway, then 12
+    deaths in a small population might well put a sparsely-populated county in the
+    highest category of suicide rate. Meanwhile, a low-population counties just under
+    that threshold would be coded as being in the lowest (lightest) bin. But in reality
+    they might not be so different, and in any case efforts to quantify that difference
+    will be unreliable. If estimates for these counties cannot be obtained directly
+    or estimated with a good model, then it is better to drop those cases as missing,
+    even at the cost of your beautiful map, than have large areas of the country painted
+    with a color derived from an unreliable number.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Small differences in reporting, combined with miscoding, will produce spatially
+    misleading and substantively mistaken results. It might seem that focusing on
+    the details of variable coding in this particular case is a little too much in
+    the weeds for a general introduction. But it is exactly these details that can
+    dramatically alter the appearance of any graph, but especially maps, in a way
+    that can be hard to detect after the fact.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.3 Statebins
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As an alternative to state-level choropleths, we can consider *statebins*,
+    using a package developed by Bob Rudis. We will use it to look again at our state-level
+    election results. Statebins is similar to ggplot but has a slightly different
+    syntax from the one we’re used to. It needs several arguments including the basic
+    data frame (the `state_data` argument), a vector of state names (`state_col`),
+    and the value being shown (`value_col`). In addition, we can optionally tell it
+    the color palette we want to use and the color of the text to label the state
+    boxes. For a continuous variable we can use `statebins_continuous()`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Statebins of the election results. We omit DC from the Clinton map to prevent
+    the scale becoming unbalanced.](../Images/b0cc80f86d663953bb000c192b3c5ef0.png)![Statebins
+    of the election results. We omit DC from the Clinton map to prevent the scale
+    becoming unbalanced.](../Images/b3532df43e28c7c4536ec4e6831ed120.png) Figure 7.14:
+    Statebins of the election results. We omit DC from the Clinton map to prevent
+    the scale becoming unbalanced.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Sometimes we will want to present categorical data. If our variable is already
+    cut into categories we can use `statebins_manual()` to represent it. Here add
+    a new variable to the `election` data called `color`, just mirroring party names
+    with two appropriate color names. We do this because we need to specify the colors
+    we are using by way of a variable in the data frame, not as a proper mapping.
+    We tell the `statebins_manual()` function that the colors are contained in column
+    named `color`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, we can have `statebins()` cut the data for us using the `breaks`
+    argument, as in the second plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Manually specifying colors for statebins.](../Images/75d1261dd857cf92c3802f2eca4bdd7f.png)![Manually
+    specifying colors for statebins.](../Images/5d771d400ed1ae057f1f2f1b733778c5.png)
+    Figure 7.15: Manually specifying colors for statebins.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 7.4 Small-multiple maps
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Sometimes we have geographical data with repeated observations over time. A
+    common case is to have a country- or state-level measure observed over a period
+    of years. In these cases, we might want to make a small multiple map to show changes
+    over time. For example, the `opiates` data has state-level measures of the death
+    rate from opiate-related causes (such as heroin or fentanyl overdoses) between
+    1999 and 2014.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: As before, we can take our `us_states` object, the one with the state-level
+    map details, and merge it with our opiates dataset. As before, we convert the
+    `State` variable in the `opiates` data to lower-case first, to make the match
+    work properly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because the `opiates` data includes the `Year` variable, we are now in a position
+    to make a faceted small-multiple with one map for each year in the data. The following
+    chunk of code is similar to the single state-level maps we have drawn so far.
+    We specify the map data as usual, adding `geom_polygon()` and `coord_map()` to
+    it, with the arguments those functions need. Instead of cutting our data into
+    bins we will plot the continuous values for the adjusted death rate variable (`adjusted`)
+    directly.If you want to experiment with cutting the data in to groups on the fly,
+    take a look at the `cut_interval()` function. To help plot this variable effectively,
+    we will use a new scale function from the `viridis` library. The viridis colors
+    run in low-to-high sequences and do a very good job of combining perceptually
+    uniform colors with easy-to-see, easily-contrasted hues along their scales. The
+    `viridis` library provides continuous and discrete versions, both in several alternatives.
+    Some balanced palettes can be a little washed out at their lower end, especially,
+    but the viridis palettes avoid this. In this code, the `_c_` suffix in the `scale_fill_viridis_c()`
+    function signals that it is the scale for continuous data. There is a `scale_fill_viridis_d()`
+    equivalent for discrete data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We facet the maps just like any other small-multiple with `facet_wrap()`. We
+    use the `theme()` function to put the legend at the bottom and remove the default
+    shaded background from the year labels. We will learn more about this use of the
+    `theme()` function in Chapter [8](refineplots.html#refineplots). The final map
+    is shown in Figure [7.16](maps.html#fig:ch-07-opiatemap).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A small multiple map. States in grey reported too few deaths for a reliable
+    population estimate in that year. States in white reported no data.](../Images/bf2bb1d1d0aaef98040ceb454e3a68f0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.16: A small multiple map. States in grey reported too few deaths for
+    a reliable population estimate in that year. States in white reported no data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Is this a good way to visualize this data?Try revisiting your code for the ur-choropleths,
+    but use continuous rather than binned measures, as well as the `viridis` palette.
+    Instead of `pct_black` use the `black` variable. For the population density, divide
+    `pop` by `land_area`. You will need to adjust the `scale_` functions. How do the
+    maps compare to the binned versions? What happens to the population density map,
+    and why? As we discussed above, choropleth maps of the U.S. tend to track first
+    the size of the local population and secondarily the percent of the population
+    that is African-American. The differences in the geographical size of states makes
+    spotting changes more difficult again. And it is quite difficult to compare repeatedly
+    across spatial regions. The repeated measures do mean that some comparison is
+    possible, and the strong trends for this data make things a little easier to see.
+    In this case, a casual viewer might think, for example, that the opiod crisis
+    was worst in the desert southwest in comparison to many other parts of the country,
+    although it also seems that something serious is happening in the Appalachians.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.5 Is your data really spatial?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As we noted at the beginning of the Chapter, even if our data is collected via
+    or grouped into spatial units, it is always worth asking whether a map is the
+    best way to present it. Much county- state- and national data is not properly
+    spatial, insofar as it is really about individuals (or some other unit of interest)
+    rather than the geographical distribution of those units *per se*. Let’s take
+    our state-level opiates data and redraw it as a time-series plot. We will keep
+    the state-level focus (these are state-level rates, after all), but try to make
+    the trends more directly visible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could just plot the trends for every state, as we did at the very beginning
+    with the `gapminder` data. But fifty states is too many lines to keep track of
+    at once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![All the states at once.](../Images/d208d7f0edc933a531d4f9d35093bddf.png)
+    Figure 7.17: All the states at once.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: A more informative approach is to take advantage of the geographical structure
+    of the data by using the census regions to group the States. Imagine a faceted
+    plot showing state-level trends within each region of the country, perhaps with
+    a trend line for each region. To do this, we will take advantage of ggplot’s ability
+    to layer geoms one on top of another, using a different dataset in each case.
+    We begin by taking the `opiates` data (removing Washington DC, as it is not a
+    state), and plotting the adjusted death rate over time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `drop_na()` function deletes rows that have observations missing on the
+    specified variables, in this case just `division_name`, because Washington DC
+    is not part of any Census Division. We map the `group` aesthetic to `state` in
+    `geom_line()`, which gives us a line plot for every state. We use the `color`
+    argument in to set the lines to a light gray. Next, we add a smoother:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: For this geom we set the `group` aesthetic to `division_name`. (Division is
+    a smaller Census classification than Region.) If we set it to `state` we would
+    get fifty separate smoothers in addition to our fifty trend lines. Then, using
+    what we learned in Chapter [4](groupfacettx.html#groupfacettx), we add a `geom_text_repel()`
+    object that puts the label for each state at the end of the series. Because we
+    are labeling lines rather than points, we only want the state label to appear
+    at the end of the line. The trick is to subset the data so that only the points
+    the last year observed are used (and thus labeled). We also must remember to remove
+    Washington DC again here, as the new `data` argument supersedes the original one
+    in `p0`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: By default, `geom_text_repel` will at little line segments that indicate what
+    the labels refer to. But that is not helpful here, as we are already dealing with
+    the end point of a line. So we turn them off with the argument `segment.color
+    = NA`. We also bump the labels off to the right of the lines a little, using the
+    `nudge_x` argument, and use `coord_cartesian()` to set the axis limits so that
+    there is enough room for them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we facet the results by Census Division and add our labels. A useful
+    adjustment is to reorder the panels by the average death rate. We put a minus
+    in front of `adjusted` to that the divisions with the highest average rates appear
+    in the chart first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our new plot brings out much of the overall story that is in the maps, but also
+    shifts the emphasis a bit. It is easier to see more clearly what is happening
+    in some parts of the country. In particular you can see the climbing numbers in
+    New Hampshire, Rhode Island, Massachussetts, and Connecticut. You can more easily
+    see the state-level differences in the West, for instance between Arizona, on
+    the one hand, and New Mexico or Utah on the other. And as was also visible on
+    the maps, the astonishingly rapid rise in West Virginia’s death rate is also evident.
+    Finally, the time-series plots are better at conveying the diverging trajectories
+    of various states within regions. There is a lot more variance at the end of the
+    series than at the beginning, especially in the Northeast, Midwest, and South,
+    and while this can be inferred from the maps it is easier to see in the trend
+    plots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![The opiate data as a faceted time-series.](../Images/419e9fabf3a7a4c4d47b584db781464b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.18: The opiate data as a faceted time-series.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The unit of observation in this graph is still the state-year. The geographically-bound
+    nature of the data never goes away. The lines we draw still represent states.
+    Thus, the basic arbitrariness of the representation cannot be made to disappear.
+    In some sense, an ideal dataset here would be collected at some much more fine-grained
+    level of unit, time, and spatial specificity. Imagine individual-level data with
+    arbitrarily precise information on personal characteristics, times, and location
+    of death. In a case like that, we could then aggregate up to any categorical,
+    spatial, or temporal units we liked. But data like that is extremely rare, often
+    for very good reasons that range from practicality of collection to the privacy
+    of individuals. In practice we need to take care not to commit a kind of fallacy
+    of misplaced concreteness that mistakes the unit of observation for the thing
+    of real substantive or theoretical interest. This is a problem for most kinds
+    of social-scientific data. But their striking visual character makes maps perhaps
+    more vulnerable to this problem than other kinds of visualization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.6 Where to go next
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how to begin work with state-level and county-level
+    data organized by FIPS codes. But this barely scratches the surface of visualization
+    where spatial features and distributions are the main focus. The analysis and
+    visualization of spatial data is its own research area, with its own research
+    disciplines in Geography and Cartography. Concepts and methods for representing
+    spatial features are both well-developed and standardized. Until recently, most
+    of this functionality was accessible only through dedicated Geographical Information
+    Systems. Their mapping and spatial analysis features were not well connected.
+    Or at least, they were not conveniently connected to software oriented to the
+    analysis of tabular data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is changing fast. Brundson & Comber (2015) provide an introduction to some
+    of R’s mapping capabilities. Meanwhile, very recently these tools have become
+    much more easily accessible via the tidyverse. Of particular interest to social
+    scientists`r-spatial.github.io/sf/`. Also see news and updates at `r-spatial.org`.
+    is Edzer Pebesma’s ongoing development of the `sf` package, which implements the
+    standard Simple Features data model for spatial features in a tidyverse-friendly
+    way. Relatedly, Kyle Walker and Bob Rudis’s `tigris` package`github.com/walkerke/tigris`
+    allows for (sf-library combatible) access to the U.S. Census Bureau’s TIGER/Line
+    shapefiles, which allow you to map data for many different geographical, administrative,
+    and Census-related subdivisions of the United States, as well as things roads
+    and water features. Finally, Kyle Walker’s `tidycensus` package`walkerke.github.io/tidycensus`
+    (Walker, 2018) makes it much easier to tidily get both substantive and spatial
+    feature data from the U.S. Census and the American Community Survey.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.1 Map U.S. state-level data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s take a look at some data for the 2016 U.S. presidential election and see
+    how we might plot it in R. The `election` dataset has various measures of the
+    vote and vote shares by state. Here we pick some columns and sample a few rows
+    at random.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![2016 Election Results. Would a two-color choropleth map be more informative
+    than this, or less?](../Images/41812dbdbd37c2e03ec02011347ccf84.png) Figure 7.2:
+    2016 Election Results. Would a two-color choropleth map be more informative than
+    this, or less?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The FIPS code is a federal code that numbers states and territories of the US.
+    It extends to the county level with an additional four digits, so every county
+    in the US has a unique six-digit identifier, where the first two digits represent
+    the state. This dataset also contains the census region of each state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first thing you should remember about spatial data is that you don’t have
+    to represent it spatially. We’ve been working with country-level data throughout,
+    and have yet to make a map of it. Of course, spatial representations can be very
+    useful, and sometimes absolutely necesssary. But we can start with a state-level
+    dotplot, faceted by region. This plot brings together many aspects of plot construction
+    that we have worked on so far, including subsetting data, reordering results by
+    a second variable, and using a scale formatter. It also introduces some new options,
+    like allowing free scales on an axis, and manually setting the color of an aesthetic.
+    We break up the construction process into several steps by creating intermediate
+    objects (`p0`, `p1`, `p2`) along the way. It makes the code a little more readable.
+    Bear in mind also that, as always, you can try plotting each of these intermediate
+    objects as well (just type their name at the console and hit return) to see what
+    they look like. What happens if you remove the `scales="free_y"` argument to `facet_wrap()`?
+    What happens if you delete the call to `scale_color_manual()`?
+  prefs: []
+  type: TYPE_NORMAL
+- en: As always, the first task in drawing a map is to get a data frame with the right
+    information in it, and in the right order. First we load R’s `maps` package, which
+    provides us with some pre-drawn map data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: This just a data frame. It has more than 15,000 rows because you need a lot
+    of lines to draw a good-looking map. We can make a blank state map right away
+    with this data, using `geom_polygon()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: The map is plotted with latitude and longitude points, which are there as scale
+    elements mapped to the x and y axes. A map is, after all, just a set of lines
+    drawn in the right order on a grid.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A first US map](../Images/50400274958d6a7511ccc1502da75fab.png) Figure 7.3:
+    A first US map'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can map the `fill` aesthetic to `region` and change the `color` mapping to
+    a light gray and thin the lines to make the state borders a little nicer. We’ll
+    also tell R not to plot a legend.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Coloring the states](../Images/12b837f02b22ed78c883832fbba6c494.png) Figure
+    7.4: Coloring the states'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, let’s deal with the projection. By default the map is plotted using the
+    venerable Mercator projection. It doesn’t look that good. Assuming we are not
+    planning on sailing across the Atlantic, the practical virtues of this projection
+    are not much use to us, either. If you glance again at the maps in Figure [7.1](maps.html#fig:ch-07-maps1),
+    you’ll notice they look nicer. This is because they are using an Albers projection.
+    (Look, for example, at the way that the US-Canadian border is a little curved
+    along the 49th parallel from Washington state to Minnesota, rather than not a
+    straight line.) Techniques for map projection are a fascinating world of their
+    own, but for now just remember we can transform the default projection used by
+    `geom_polygon()`, via the `coord_map()` function. You’ll remember that we said
+    that projection onto a coordinate system is a necessary part of the plotting process
+    for any data. Normally it is left implicit. We have not usually had to specify
+    a `coord_` function because most of the time we have drawn our plots on a simple
+    Cartesian plane. Maps are more complex. Our locations and borders are defined
+    on a more or less spherical object, which means must have a method for transforming
+    or projecting our points and lines from a round to a flat surface. The many ways
+    of doing this gives us a menu of cartographic options.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Albers projection requires two latitude parameters, `lat0` and `lat1`. We
+    give them their conventional values for a US map here. (Try messing around with
+    their values and see what happens when you redraw the map.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Improving the projection](../Images/7e82b98cf4878a25e166d767073cf3f4.png)
+    Figure 7.5: Improving the projection'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we need to get our own data on to the map. Remember, underneath that map
+    is just a big data frame specifying a large number of lines that need to be drawn.
+    We have to merge our data with that data frame. Somewhat annoyingly, in the map
+    data the state names (in a variable named `region`) are in lower case. We can
+    create a variable in our own data frame to correspond to this, using the `tolower()`
+    function to convert the `state` names. We then use `left_join` to merge but you
+    could also use `merge(..., sort = FALSE)`. This merge step is important! You need
+    to take care that the values of the key variables you are matching on really do
+    exactly correspond to one another. If they do not, missing values (`NA` codes)
+    will be introduced into your merge, and the lines on your map will not join up.
+    This will result in a weirdly “sharded” appearance to your map when R tries to
+    fill the polygons. Here, the `region` variable is the only column with the same
+    name in both the data sets we are joining, and so the `left_join()` function uses
+    it used by default. If the keys have different names in each data set you can
+    specify that, if needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To reiterate, it is important to know your data and variables well enough to
+    check that they have merged properly. Do not do it blindly. For example, if rows
+    corresponding to Washington DC were named “washington dc” in the `region` variable
+    of your `election` data frame, but “district of columbia” in the corresponding
+    `region` variable of your map data, then merging on `region` would mean no rows
+    in the `election` data frame would match “washington dc” in the map data, and
+    the resulting merged variables for those rows would all be coded as missing. Maps
+    that look broken when you draw them are usually caused by merge errors. But errors
+    can also be subtle. For example, perhaps one of your state names inadvertently
+    has a leading (or, worse, a trailing) space as a result of the data originally
+    being imported from elsewhere and not fully cleaned. That would mean, for example,
+    that `california` and `california␣` are different strings, and the match would
+    fail. In ordinary use you might not easily see the extra space (designated here
+    by `␣`). So, be careful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have now merged the data. Take a look at the object with `head(us_states_elec)`.
+    Now that everything is in one big data frame, we can plot it in a map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Mapping the results](../Images/d0857ad451b1d786f96fdbb38d2809e8.png) Figure
+    7.6: Mapping the results'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: To complete the map, we will use our party colors for the fill, move the legend
+    to the bottom, and add a title. Finally we will remove the grid lines and axis
+    labels, which aren’t really needed, by defining a special theme for maps that
+    removes most of the elements we don’t need. (We’ll learn more about themes in
+    Chapter [8](refineplots.html#refineplots). You can also see the code for the map
+    theme in the Appendix.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Election 2016 by State](../Images/0101fe11ace19e521d5f1150cb4c441b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.7: Election 2016 by State'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the map data frame in place, we can map other variables if we like. Let’s
+    try a continuous measure, such as the percentage of the vote received by Donald
+    Trump. To begin with, we just map the variable we want (`pct_trump`) to the `fill`
+    aesthetic, and see what `geom_polygon()` does by default.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Two versions of Percent Trump by State](../Images/8189ee7190135dfd038997b7b9794b77.png)![Two
+    versions of Percent Trump by State](../Images/9fd04466e47e74a20ef939fb88e33aee.png)
+    Figure 7.8: Two versions of Percent Trump by State'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: The default color used in the `p1` object is blue. Just for reasons of convention,
+    that isn’t what is wanted here. In addition, the gradient runs in the wrong direction.
+    In our case, the standard interpretation is that a higher vote share makes for
+    a darker color. We fix both of these problems in the `p2` object by specifying
+    the `scale` directly. We’ll use the values we created earlier in `party_colors`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For election results, we might prefer a gradient that diverges from a midpoint.
+    The `scale_gradient2()` function gives us a blue-red spectrum that passes through
+    white by default. Alternatively, we can re-specify the mid-level color along with
+    the high and low colors. We will make purple our midpoint, and use the `muted()`
+    function from the `scales` library to tone down the color a little.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Two views of Trump vs Clinton share: a white midpoint, and a Purple America
+    version.](../Images/5a8f3b4c873f04e7a842cc0d670914c6.png)![Two views of Trump
+    vs Clinton share: a white midpoint, and a Purple America version.](../Images/24ca50be3c0e06e458c318aa5d404727.png)
+    Figure 7.9: Two views of Trump vs Clinton share: a white midpoint, and a Purple
+    America version.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you take a look at the gradient scale for this first “purple America” map,
+    in Figure [7.9](maps.html#fig:ch-07-purple1st), you’ll see that it extends very
+    high on the Blue side. This is because Washington DC is included in the data,
+    and hence the scale. Even though it is barely visible on the map, DC has by far
+    the highest points margin in favor of the Democrats of any unit of observation
+    in the data. If we omit it, we’ll see that our scale shifts in a way that does
+    not just affect the top of the blue end, but re-centers the whole gradient and
+    makes the red side more vivid as a result. Figure [7.10](maps.html#fig:ch-07-purple2nd)
+    shows the result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 7.10: A Purple America version of Trump vs Clinton that excludes results
+    from Washington, DC.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A Purple America version of Trump vs Clinton that excludes results from Washington,
+    DC.](../Images/4f8d8961e73231bd264b9fa571a330f0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This brings out the familiar choropleth problem of having geographical areas
+    that only partially represent the variable we are mapping. In this case, we’re
+    showing votes spatially, but what really matters is the number of people who voted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.2 America’s ur-choropleths
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the U.S. case, administrative areas vary widely in geographical area and
+    they also vary widely in population size. The problem is evident at the state
+    level, as we have seen, also arises even more at the county level. County-level
+    US maps can be aesthetically pleasing, because of the added detail they bring
+    to a national map. But they also make it easy to present a geographical distribution
+    to insinuate an explanation. The results can be tricky to work with. When producing
+    county maps, it is important to remember that the states of New Hampshire, Rhode
+    Island, Massachussetts, and Connecticut are all smaller in area than any of the
+    ten largest Western *counties*. Many of those counties have fewer than a hundred
+    thousand people living in them. Some have fewer than ten thousand inhabitants.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The result is that most choropleth maps of the U.S. for whatever variable in
+    effect show population density more than anything else. The other big variable,
+    in the U.S. case, is Percent Black. Let’s see how to draw these two maps in R.
+    The procedure is essentially the same as it was for the state-level map. We need
+    two data frames, one containing the map data, and the other containing the fill
+    variables we want plotted. Because there are more than three thousand counties
+    in the United States, these two data frames will be rather larger than they were
+    for the state-level maps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The datasets are included in the `socviz` library. The county map data frame
+    has already been processed a little in order to transform it to an Albers projection,
+    and also to relocate (and rescale) Alaska and Hawaii so that they fit into an
+    area in the bottom left of the figure. This is better than throwing away two states
+    from the data. The steps for this transformation and relocation are not shown
+    here. If you want to see how it’s done, consult the Supplementary Material for
+    details. Let’s take a look at our county map data first:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It looks the same as our State map data frame, but it is much larger, running
+    to almost 200,000 rows. The `id` field is the FIPS code for the county. Next,
+    we have a data frame with county-level demographic, geographic, and election data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: This data frame includes information for entities besides counties, though not
+    for all variables. If you look at the top of the object with `head()` you’ll notice
+    that the first row of has an `id` of `0`. Zero is the FIPS code for the entire
+    United States, and thus the data in this row are for the whole country. Similarly,
+    the second row has an `id` of 01000, which corresponds to the State FIPS of 01,
+    for the whole of Alabama. As we merge `county_data` in to `county_map`, these
+    state rows will be dropped, along with the national row, as `county_map` only
+    has county-level data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We merge the data frames using the shared FIPS `id` column:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: With the data merged, we can map the population density per square mile.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 7.11: US population density by county.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![US population density by county.](../Images/5878e805ae980e18438416dbc167051d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: If you try out the `p1` object you will see that ggplot produces a legible map,
+    but by default it chooses an unordered categorical layout. This is because the
+    `pop_dens` variable is not ordered. We could recode it so that R is aware of the
+    ordering. Alternatively, we can manually supply the right sort of scale using
+    the `scale_fill_brewer()` function, together with a nicer set of labels. We will
+    learn more about this scale function in the next chapter. We also tweak how the
+    legend is drawn using the `guides()` function to make sure each element of the
+    key appears on the same row. Again, we will see this use of `guides()` in more
+    detail in the next chapter. The use of `coord_equal()` makes sure that the relative
+    scale of our map does not change even if we alter the overall dimensions of the
+    plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can now do exactly the same thing for our map of percent Black population
+    by county. Once again, we specify a palette for the `fill` mapping using `scale_fill_brewer()`,
+    this time choosing a different range of hues for the map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Figure 7.12: Percent Black population by county.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Percent Black population by county.](../Images/b477ed9a2c1be43e478f72930491524a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figures [7.11](maps.html#fig:ch-07-urchoro1) and [7.12](maps.html#fig:ch-07-urchoro2)
+    are America’s “ur-choropleths”. Between the two of them, population density and
+    percent Black will do a lot to obliterate many a suggestively-patterned map of
+    the United States. These two variables aren’t *explanations* of anything in isolation,
+    but if it turns out that it is more useful to know one or both of them instead
+    of the thing you’re plotting, you probably want to reconsider your theory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As an example of the problem in action, let’s draw two new county-level choropleths.
+    The first is an effort to replicate a poorly-sourced but widely-circulated county
+    map of firearm-related suicide rates in the United States. The `su_gun6` variable
+    in `county_data` (and `county_full`) is a measure of the rate of all firearm-related
+    suicides between 1999 and 2015\. The rates are binned into six categories. We
+    have a `pop_dens6` variable that divides the population density into six categories,
+    too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We first draw a map with the `su_gun6` variable. We will match the color palettes
+    between the maps, but for the population map we will flip our color scale around
+    so that less populated areas are shown in a darker shade. We do this by using
+    a function from the RColorBrewer library to manually create two palettes. The
+    `rev()` function used here reverses the order of a vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `brewer.pal()` function produces evenly-spaced color schemes to order from
+    any one of several named palettes. The colors are specified in hexadecimal format.
+    Again, we will learn more about color specifications and how to manipulate palettes
+    for mapped variables in Chapter [8](refineplots.html#refineplots).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: Having drawn the gun plot, we use almost exactly the same code to draw the reverse-coded
+    population density map.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: It’s clear that the two maps are not identical. However, the visual impact of
+    the first has a lot in common with the second. The dark bands in the West (except
+    for California) stand out, and fade as we move toward the center of the country.
+    There are some strong similarities elsewhere on the map too, such as in the Northeast.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The gun-related suicide measure is already expressed as a rate. It is the number
+    of qualifying deaths in a county, divided by that county’s population. Normally,
+    we standardize in this way to “control for” the fact that larger populations will
+    tend to produce more gun-related suicides just because they have more people in
+    them. However, this sort of standardization has its limits. In particular, when
+    the event of interest is not very common, and there is very wide variation in
+    the base size of the units, then the denominator (e.g., the population size) starts
+    to be expressed more and more in the standardized measure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Gun-related suicides by county; Reverse-coded population density by county.
+    Before tweeting this picture, please read the text for discussion of what is wrong
+    with it.](../Images/2a742741590b78d74676dfecc884c5b2.png)![Gun-related suicides
+    by county; Reverse-coded population density by county. Before tweeting this picture,
+    please read the text for discussion of what is wrong with it.](../Images/1a4e08124d11e0309a71b43af45fc48e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.13: Gun-related suicides by county; Reverse-coded population density
+    by county. Before tweeting this picture, please read the text for discussion of
+    what is wrong with it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Third, and more subtly, the data is subject to reporting constraints connected
+    to population size. If there are fewer than ten events per year for a cause of
+    death, the Centers for Disease Control (CDC) will not report them at the county
+    level because it might be possible to identify particular deceased individuals.
+    Assigning data like this to bins creates a threshold problem for choropleth maps.
+    Look again Figure [7.13](maps.html#fig:ch-07-gunsu). The gun-related suicides
+    panel seems to show a north-south band of counties with the lowest rate of suicides
+    running from the Dakotas down through Nebraska, Kansas, and into West Texas. Oddly,
+    this band borders counties in the West with the very highest rates, from New Mexico
+    on up. But from the density map we can see that many counties in both these regions
+    have very low population densities. Are they really that different in their gun-related
+    suicide rates?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Probably not. More likely, we are seeing an artifact arising from how the data
+    is coded. For example, imagine a county with 100,000 inhabitants that experiences
+    nine gun-related suicides in a year. The CDC will not report this number. Instead
+    it will be coded as “suppressed”, accompanied by a note saying any standardized
+    estimates or rates will also be unreliable. But if we are determined to make a
+    map where all the counties are colored in, we might be tempted to put any suppressed
+    results into the lowest bin. After all, we know that the number is somewhere between
+    zero and ten. Why not just code it as zero?Do not do this. One standard alternative
+    is to estimate the suppressed observations using a count model. An approach like
+    this might naturally lead to more extensive, properly spatial modeling of the
+    data. Meanwhile, a county with 100,000 inhabitants that experiences twelve gun-related
+    suicides a year *will* be numerically reported. The CDC is a responsible organization,
+    and so although it provides the absolute number of deaths for all counties above
+    the threshold, the notes to the data file will still warn you that any rate calculated
+    with this number will be unreliable. If we push ahead and do it anyway, then 12
+    deaths in a small population might well put a sparsely-populated county in the
+    highest category of suicide rate. Meanwhile, a low-population counties just under
+    that threshold would be coded as being in the lowest (lightest) bin. But in reality
+    they might not be so different, and in any case efforts to quantify that difference
+    will be unreliable. If estimates for these counties cannot be obtained directly
+    or estimated with a good model, then it is better to drop those cases as missing,
+    even at the cost of your beautiful map, than have large areas of the country painted
+    with a color derived from an unreliable number.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Small differences in reporting, combined with miscoding, will produce spatially
+    misleading and substantively mistaken results. It might seem that focusing on
+    the details of variable coding in this particular case is a little too much in
+    the weeds for a general introduction. But it is exactly these details that can
+    dramatically alter the appearance of any graph, but especially maps, in a way
+    that can be hard to detect after the fact.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.3 Statebins
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As an alternative to state-level choropleths, we can consider *statebins*,
+    using a package developed by Bob Rudis. We will use it to look again at our state-level
+    election results. Statebins is similar to ggplot but has a slightly different
+    syntax from the one we’re used to. It needs several arguments including the basic
+    data frame (the `state_data` argument), a vector of state names (`state_col`),
+    and the value being shown (`value_col`). In addition, we can optionally tell it
+    the color palette we want to use and the color of the text to label the state
+    boxes. For a continuous variable we can use `statebins_continuous()`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Statebins of the election results. We omit DC from the Clinton map to prevent
+    the scale becoming unbalanced.](../Images/b0cc80f86d663953bb000c192b3c5ef0.png)![Statebins
+    of the election results. We omit DC from the Clinton map to prevent the scale
+    becoming unbalanced.](../Images/b3532df43e28c7c4536ec4e6831ed120.png) Figure 7.14:
+    Statebins of the election results. We omit DC from the Clinton map to prevent
+    the scale becoming unbalanced.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: Sometimes we will want to present categorical data. If our variable is already
+    cut into categories we can use `statebins_manual()` to represent it. Here add
+    a new variable to the `election` data called `color`, just mirroring party names
+    with two appropriate color names. We do this because we need to specify the colors
+    we are using by way of a variable in the data frame, not as a proper mapping.
+    We tell the `statebins_manual()` function that the colors are contained in column
+    named `color`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, we can have `statebins()` cut the data for us using the `breaks`
+    argument, as in the second plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Manually specifying colors for statebins.](../Images/75d1261dd857cf92c3802f2eca4bdd7f.png)![Manually
+    specifying colors for statebins.](../Images/5d771d400ed1ae057f1f2f1b733778c5.png)
+    Figure 7.15: Manually specifying colors for statebins.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: 7.4 Small-multiple maps
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Sometimes we have geographical data with repeated observations over time. A
+    common case is to have a country- or state-level measure observed over a period
+    of years. In these cases, we might want to make a small multiple map to show changes
+    over time. For example, the `opiates` data has state-level measures of the death
+    rate from opiate-related causes (such as heroin or fentanyl overdoses) between
+    1999 and 2014.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: As before, we can take our `us_states` object, the one with the state-level
+    map details, and merge it with our opiates dataset. As before, we convert the
+    `State` variable in the `opiates` data to lower-case first, to make the match
+    work properly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because the `opiates` data includes the `Year` variable, we are now in a position
+    to make a faceted small-multiple with one map for each year in the data. The following
+    chunk of code is similar to the single state-level maps we have drawn so far.
+    We specify the map data as usual, adding `geom_polygon()` and `coord_map()` to
+    it, with the arguments those functions need. Instead of cutting our data into
+    bins we will plot the continuous values for the adjusted death rate variable (`adjusted`)
+    directly.If you want to experiment with cutting the data in to groups on the fly,
+    take a look at the `cut_interval()` function. To help plot this variable effectively,
+    we will use a new scale function from the `viridis` library. The viridis colors
+    run in low-to-high sequences and do a very good job of combining perceptually
+    uniform colors with easy-to-see, easily-contrasted hues along their scales. The
+    `viridis` library provides continuous and discrete versions, both in several alternatives.
+    Some balanced palettes can be a little washed out at their lower end, especially,
+    but the viridis palettes avoid this. In this code, the `_c_` suffix in the `scale_fill_viridis_c()`
+    function signals that it is the scale for continuous data. There is a `scale_fill_viridis_d()`
+    equivalent for discrete data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We facet the maps just like any other small-multiple with `facet_wrap()`. We
+    use the `theme()` function to put the legend at the bottom and remove the default
+    shaded background from the year labels. We will learn more about this use of the
+    `theme()` function in Chapter [8](refineplots.html#refineplots). The final map
+    is shown in Figure [7.16](maps.html#fig:ch-07-opiatemap).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A small multiple map. States in grey reported too few deaths for a reliable
+    population estimate in that year. States in white reported no data.](../Images/bf2bb1d1d0aaef98040ceb454e3a68f0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.16: A small multiple map. States in grey reported too few deaths for
+    a reliable population estimate in that year. States in white reported no data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Is this a good way to visualize this data?Try revisiting your code for the ur-choropleths,
+    but use continuous rather than binned measures, as well as the `viridis` palette.
+    Instead of `pct_black` use the `black` variable. For the population density, divide
+    `pop` by `land_area`. You will need to adjust the `scale_` functions. How do the
+    maps compare to the binned versions? What happens to the population density map,
+    and why? As we discussed above, choropleth maps of the U.S. tend to track first
+    the size of the local population and secondarily the percent of the population
+    that is African-American. The differences in the geographical size of states makes
+    spotting changes more difficult again. And it is quite difficult to compare repeatedly
+    across spatial regions. The repeated measures do mean that some comparison is
+    possible, and the strong trends for this data make things a little easier to see.
+    In this case, a casual viewer might think, for example, that the opiod crisis
+    was worst in the desert southwest in comparison to many other parts of the country,
+    although it also seems that something serious is happening in the Appalachians.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.5 Is your data really spatial?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As we noted at the beginning of the Chapter, even if our data is collected via
+    or grouped into spatial units, it is always worth asking whether a map is the
+    best way to present it. Much county- state- and national data is not properly
+    spatial, insofar as it is really about individuals (or some other unit of interest)
+    rather than the geographical distribution of those units *per se*. Let’s take
+    our state-level opiates data and redraw it as a time-series plot. We will keep
+    the state-level focus (these are state-level rates, after all), but try to make
+    the trends more directly visible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We could just plot the trends for every state, as we did at the very beginning
+    with the `gapminder` data. But fifty states is too many lines to keep track of
+    at once.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![All the states at once.](../Images/d208d7f0edc933a531d4f9d35093bddf.png)
+    Figure 7.17: All the states at once.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: A more informative approach is to take advantage of the geographical structure
+    of the data by using the census regions to group the States. Imagine a faceted
+    plot showing state-level trends within each region of the country, perhaps with
+    a trend line for each region. To do this, we will take advantage of ggplot’s ability
+    to layer geoms one on top of another, using a different dataset in each case.
+    We begin by taking the `opiates` data (removing Washington DC, as it is not a
+    state), and plotting the adjusted death rate over time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `drop_na()` function deletes rows that have observations missing on the
+    specified variables, in this case just `division_name`, because Washington DC
+    is not part of any Census Division. We map the `group` aesthetic to `state` in
+    `geom_line()`, which gives us a line plot for every state. We use the `color`
+    argument in to set the lines to a light gray. Next, we add a smoother:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: For this geom we set the `group` aesthetic to `division_name`. (Division is
+    a smaller Census classification than Region.) If we set it to `state` we would
+    get fifty separate smoothers in addition to our fifty trend lines. Then, using
+    what we learned in Chapter [4](groupfacettx.html#groupfacettx), we add a `geom_text_repel()`
+    object that puts the label for each state at the end of the series. Because we
+    are labeling lines rather than points, we only want the state label to appear
+    at the end of the line. The trick is to subset the data so that only the points
+    the last year observed are used (and thus labeled). We also must remember to remove
+    Washington DC again here, as the new `data` argument supersedes the original one
+    in `p0`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: By default, `geom_text_repel` will at little line segments that indicate what
+    the labels refer to. But that is not helpful here, as we are already dealing with
+    the end point of a line. So we turn them off with the argument `segment.color
+    = NA`. We also bump the labels off to the right of the lines a little, using the
+    `nudge_x` argument, and use `coord_cartesian()` to set the axis limits so that
+    there is enough room for them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we facet the results by Census Division and add our labels. A useful
+    adjustment is to reorder the panels by the average death rate. We put a minus
+    in front of `adjusted` to that the divisions with the highest average rates appear
+    in the chart first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our new plot brings out much of the overall story that is in the maps, but also
+    shifts the emphasis a bit. It is easier to see more clearly what is happening
+    in some parts of the country. In particular you can see the climbing numbers in
+    New Hampshire, Rhode Island, Massachussetts, and Connecticut. You can more easily
+    see the state-level differences in the West, for instance between Arizona, on
+    the one hand, and New Mexico or Utah on the other. And as was also visible on
+    the maps, the astonishingly rapid rise in West Virginia’s death rate is also evident.
+    Finally, the time-series plots are better at conveying the diverging trajectories
+    of various states within regions. There is a lot more variance at the end of the
+    series than at the beginning, especially in the Northeast, Midwest, and South,
+    and while this can be inferred from the maps it is easier to see in the trend
+    plots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![The opiate data as a faceted time-series.](../Images/419e9fabf3a7a4c4d47b584db781464b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.18: The opiate data as a faceted time-series.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The unit of observation in this graph is still the state-year. The geographically-bound
+    nature of the data never goes away. The lines we draw still represent states.
+    Thus, the basic arbitrariness of the representation cannot be made to disappear.
+    In some sense, an ideal dataset here would be collected at some much more fine-grained
+    level of unit, time, and spatial specificity. Imagine individual-level data with
+    arbitrarily precise information on personal characteristics, times, and location
+    of death. In a case like that, we could then aggregate up to any categorical,
+    spatial, or temporal units we liked. But data like that is extremely rare, often
+    for very good reasons that range from practicality of collection to the privacy
+    of individuals. In practice we need to take care not to commit a kind of fallacy
+    of misplaced concreteness that mistakes the unit of observation for the thing
+    of real substantive or theoretical interest. This is a problem for most kinds
+    of social-scientific data. But their striking visual character makes maps perhaps
+    more vulnerable to this problem than other kinds of visualization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 7.6 Where to go next
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this chapter, we learned how to begin work with state-level and county-level
+    data organized by FIPS codes. But this barely scratches the surface of visualization
+    where spatial features and distributions are the main focus. The analysis and
+    visualization of spatial data is its own research area, with its own research
+    disciplines in Geography and Cartography. Concepts and methods for representing
+    spatial features are both well-developed and standardized. Until recently, most
+    of this functionality was accessible only through dedicated Geographical Information
+    Systems. Their mapping and spatial analysis features were not well connected.
+    Or at least, they were not conveniently connected to software oriented to the
+    analysis of tabular data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is changing fast. Brundson & Comber (2015) provide an introduction to some
+    of R’s mapping capabilities. Meanwhile, very recently these tools have become
+    much more easily accessible via the tidyverse. Of particular interest to social
+    scientists`r-spatial.github.io/sf/`. Also see news and updates at `r-spatial.org`.
+    is Edzer Pebesma’s ongoing development of the `sf` package, which implements the
+    standard Simple Features data model for spatial features in a tidyverse-friendly
+    way. Relatedly, Kyle Walker and Bob Rudis’s `tigris` package`github.com/walkerke/tigris`
+    allows for (sf-library combatible) access to the U.S. Census Bureau’s TIGER/Line
+    shapefiles, which allow you to map data for many different geographical, administrative,
+    and Census-related subdivisions of the United States, as well as things roads
+    and water features. Finally, Kyle Walker’s `tidycensus` package`walkerke.github.io/tidycensus`
+    (Walker, 2018) makes it much easier to tidily get both substantive and spatial
+    feature data from the U.S. Census and the American Community Survey.
+  prefs: []
+  type: TYPE_NORMAL
