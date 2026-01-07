@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Connection Lifecycle Observability: From Dial to Close¶</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Connection Lifecycle Observability: From Dial to Close¶</h1>
+<blockquote>原文：<a href="https://goperf.dev/02-networking/connection_observability/">https://goperf.dev/02-networking/connection_observability/</a></blockquote>
+                
+                  
+
+
+  
+  
+
+
+
+<p>Many observability systems expose only high-level HTTP metrics, but deeper insight comes from explicitly instrumenting each stage — DNS resolution, dialing, handshake, negotiation, reads/writes, and teardown. Observing the full lifecycle of a network connection provides the clarity needed to diagnose latency issues, identify failures, and relate resource usage to external behavior.</p>
+<h2 id="dns-resolution">DNS Resolution<a class="headerlink" href="#dns-resolution" title="Permanent link">¶</a></h2>
+<p>Every outbound connection begins with a name resolution step unless an IP is already known. DNS latency and failures often dominate connection setup time and can vary significantly depending on caching and resolver performance.</p>
+<p>Capturing DNS resolution duration, errors and resulting address provides visibility into one of the least predictable phases. At this stage, it is valuable to:</p>
+<ul>
+<li>measure the time from query issuance to receiving an answer</li>
+<li>log the resolved IP addresses</li>
+<li>surface transient and permanent failures distinctly</li>
+</ul>
+<p>In Go, this can be achieved by wrapping the <code>net.Resolver</code>.</p>
+<div class="highlight"><pre><code>import (
+    "context"
+    "log"
+    "net"
+    "time"
+)
+
+func resolveWithTracing(ctx context.Context, hostname string) ([]string, error) {
+    start := time.Now()
+    ips, err := net.DefaultResolver.LookupHost(ctx, hostname)
+    elapsed := time.Since(start)
+
+    log.Printf("dns: host=%s duration=%s ips=%v err=%v", hostname, elapsed, ips, err)
+    return ips, err
+}
+</code></pre></div>
+<p>This explicit measurement avoids relying on opaque metrics exposed by the OS resolver or libraries.</p>
+<h2 id="dialing">Dialing<a class="headerlink" href="#dialing" title="Permanent link">¶</a></h2>
+<p>After obtaining an address, the next phase is dialing — establishing a TCP (or other transport) connection. Here, round-trip latency to the target, route stability, and ephemeral port exhaustion can all surface.</p>
+<p>Observing the dial phase often involves intercepting <code>net.Dialer</code>.</p>
+<div class="highlight"><pre><code>func dialWithTracing(ctx context.Context, network, addr string) (net.Conn, error) {
+    var d net.Dialer
+    start := time.Now()
+    conn, err := d.DialContext(ctx, network, addr)
+    elapsed := time.Since(start)
+
+    log.Printf("dial: addr=%s duration=%s err=%v", addr, elapsed, err)
+    return conn, err
+}
+</code></pre></div>
+<p class="annotate">Why trace here? Dialing failures can indicate downstream unavailability, but also local issues like SYN flood protection(1) or bad routing. Without a per-dial timestamp and error trace, identifying the locus of failure is guesswork.</p>
+<ol>
+<li>When dialing fails, sometimes it’s not because of the network or the server being down, but because the local machine refuses to open more connections due to resource exhaustion or protective rate limiting.</li>
+</ol>
+<h2 id="handshake-and-negotiation">Handshake and Negotiation<a class="headerlink" href="#handshake-and-negotiation" title="Permanent link">¶</a></h2>
+<p>For secure connections, the next stage — cryptographic handshake — dominates. TLS negotiation can involve multiple round-trips, certificate validation, and cipher negotiation. Measuring this stage separately is necessary because it isolates pure network latency (dial) from cryptographic and policy enforcement costs (handshake).</p>
+<p>The <code>crypto/tls</code> library in Go allows instrumentation of the handshake explicitly.</p>
+<div class="highlight"><pre><code>import (
+    "crypto/tls"
+)
+
+func handshakeWithTracing(conn net.Conn, config *tls.Config) (*tls.Conn, error) {
+    tlsConn := tls.Client(conn, config)
+    start := time.Now()
+    err := tlsConn.Handshake()
+    elapsed := time.Since(start)
+
+    log.Printf("handshake: duration=%s err=%v", elapsed, err)
+    return tlsConn, err
+}
+</code></pre></div>
+<p>A common misconception is that slow TLS handshakes always reflect bad network conditions; in practice, slow certificate validation or <a href="https://en.wikipedia.org/wiki/Online_Certificate_Status_Protocol">OCSP</a>/<a href="https://en.wikipedia.org/wiki/Certificate_revocation_list">CRL</a> checks are frequently to blame. Separating these phases helps pinpoint the cause.</p>
+<h2 id="application-reads-and-writes">Application Reads and Writes<a class="headerlink" href="#application-reads-and-writes" title="Permanent link">¶</a></h2>
+<p>Once the connection is established and negotiated, application-level traffic proceeds as reads and writes. Observability at this stage is often the least precise yet most critical for correlating client-perceived latency to backend processing.</p>
+<p>Instrumenting reads and writes directly yields fine-grained latency and throughput metrics. Wrapping a connection is a common strategy.</p>
+<div class="highlight"><pre><code>type tracedConn struct {
+    net.Conn
+}
+
+func (c *tracedConn) Read(b []byte) (int, error) {
+    start := time.Now()
+    n, err := c.Conn.Read(b)
+    elapsed := time.Since(start)
+
+    log.Printf("read: bytes=%d duration=%s err=%v", n, elapsed, err)
+    return n, err
+}
+
+func (c *tracedConn) Write(b []byte) (int, error) {
+    start := time.Now()
+    n, err := c.Conn.Write(b)
+    elapsed := time.Since(start)
+
+    log.Printf("write: bytes=%d duration=%s err=%v", n, elapsed, err)
+    return n, err
+}
+</code></pre></div>
+<p>Why measure at this granularity? Reads and writes can block for reasons unrelated to connection establishment — buffer backpressure, TCP window exhaustion, or application pauses. Tracing them reveals whether observed slowness is due to I/O contention or upstream latency.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Such a granularity level can affect your system performance. See <a href="#why-reduce-logs">Why reduce logs?</a> for more details.</p>
+</div>
+<h2 id="teardown">Teardown<a class="headerlink" href="#teardown" title="Permanent link">¶</a></h2>
+<p class="annotate">Finally, connection closure often receives little attention, yet it can affect resource usage and connection pool behavior. Observing how long a connection takes to close and whether any errors surface during <code>Close()</code> is also useful. For TCP, the closure can be delayed by the OS until all <code>FIN</code>/<code>ACK</code> sequences complete, and sockets can linger in <code>TIME_WAIT</code>(1). Explicitly logging teardown metrics helps identify resource leaks.</p>
+<ol>
+<li>Waiting for enough time to pass to be sure that all remaining packets on the connection have expired.</li>
+</ol>
+<div class="highlight"><pre><code>func closeWithTracing(c net.Conn) error {
+    start := time.Now()
+    err := c.Close()
+    elapsed := time.Since(start)
+
+    log.Printf("close: duration=%s err=%v", elapsed, err)
+    return err
+}
+</code></pre></div>
+<h2 id="correlating-spans-and-errors">Correlating Spans and Errors<a class="headerlink" href="#correlating-spans-and-errors" title="Permanent link">¶</a></h2>
+<p>Capturing individual phase durations is not enough unless correlated into a coherent trace. Using a context-aware tracing library allows attaching phase spans to a single logical transaction.</p>
+<p>For example, with <a href="https://opentelemetry.io/">OpenTelemetry</a>:</p>
+<div class="highlight"><pre><code>import (
+    "go.opentelemetry.io/otel/trace"
+)
+
+func tracePhase(ctx context.Context, tracer trace.Tracer, phase string, fn func() error) error {
+    ctx, span := tracer.Start(ctx, phase)
+    defer span.End()
+    return fn()
+}
+</code></pre></div>
+<p>Wrapping each phase in a span enables stitching the timeline together and correlating specific errors with their originating stage. This level of detail is important when diagnosing production outages where symptoms often manifest far from their root cause.</p>
+<h2 id="detecting-and-explaining-hangs">Detecting and Explaining Hangs<a class="headerlink" href="#detecting-and-explaining-hangs" title="Permanent link">¶</a></h2>
+<p>One of the more insidious problems in distributed systems is a hung connection — no forward progress but no immediate failure. Granular observability can distinguish between a hang during DNS, an unresponsive handshake, a blocked write due to full buffers, or a delayed FIN. For example, if the dial phase logs complete but handshake never finishes, attention should focus on certificate validation, MTU black holes, or middlebox interference. By maintaining per-phase timeouts and alerts based on historical baselines, such conditions can be detected and explained rather than simply categorized as "slow." This explains not just what failed, but why it failed.</p>
+<h2 id="beyond-logs-metrics-and-structured-events">Beyond Logs: Metrics and Structured Events<a class="headerlink" href="#beyond-logs-metrics-and-structured-events" title="Permanent link">¶</a></h2>
+<p>Most likely you will need to reduce the volume of logs without losing essential information is critical for operating at scale. High-frequency, detailed logging of connection lifecycle events incurs I/O, CPU, and storage overhead. Without control mechanisms, it can overwhelm log aggregation systems, inflate costs, and even obscure the signal with noise. Log verbosity must therefore be managed carefully — keeping enough detail for diagnosis but avoiding excessive volume.</p>
+<p><a href="https://github.com/uber-go/zap">Zap</a> is used in these examples to demonstrate strategies for runtime configurability and structured logging, but the same principles apply to any capable logging library. The ability to change levels dynamically, emit structured data, and sample events makes it easier to implement these strategies.</p>
+<h3 id="why-reduce-logs">Why reduce logs?<a class="headerlink" href="#why-reduce-logs" title="Permanent link">¶</a></h3>
+<p>Logging at fine granularity across thousands of connections per second can quickly generate terabytes of data, with much of it being repetitive and low-value. High log throughput can also cause contention with the application’s main execution paths, affecting latency. Furthermore, unbounded log growth burdens operators, complicates incident triage, and increases retention costs.</p>
+<h3 id="techniques-to-control-log-volume">Techniques to control log volume<a class="headerlink" href="#techniques-to-control-log-volume" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Configurable log levels</strong>: adjust verbosity at runtime depending on the situation — keeping production at <code>INFO</code> or <code>WARN</code> by default, switching to <code>DEBUG</code> or <code>TRACE</code> during investigation.</li>
+<li><strong>Sampling</strong>: log only a subset of events under high load or log every Nth connection. Zap supports samplers that enforce rate limits and randomness.</li>
+<li><strong>Metrics-first, logs-for-anomalies</strong>: promote phase durations and counters to metrics (e.g., Prometheus) and emit logs only when thresholds or percentiles are breached.</li>
+<li><strong>Aggregate phase data</strong>: collect all phase timings and results per connection, then emit a single structured log event at the end instead of logging each phase as a separate line.</li>
+</ul>
+<p>By combining these approaches, it is possible to retain meaningful observability with manageable overhead. Zap’s API simply illustrates how to implement these patterns effectively — <strong>the key takeaway is that the design itself, not the library choice</strong>, determines observability quality and cost.</p>
+<p>Here are a few illustrative code snippets for these techniques:</p>
+<h4 id="configurable-log-level">Configurable log level<a class="headerlink" href="#configurable-log-level" title="Permanent link">¶</a></h4>
+<div class="highlight"><pre><code>atomicLevel := zap.NewAtomicLevel()
+logger := zap.New(zapcore.NewCore(
+    zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+    zapcore.AddSync(os.Stdout),
+    atomicLevel,
+))
+
+// Adjust at runtime
+atomicLevel.SetLevel(zap.WarnLevel)
+</code></pre></div>
+<h4 id="sampling-logs">Sampling logs<a class="headerlink" href="#sampling-logs" title="Permanent link">¶</a></h4>
+<div class="highlight"><pre><code>core := zapcore.NewSamplerWithOptions(
+    logger.Core(),
+    time.Second,
+    100, // first 100 per second
+    10,  // thereafter
+)
+logger := zap.New(core)
+</code></pre></div>
+<h4 id="aggregate-per-connection-log">Aggregate per-connection log<a class="headerlink" href="#aggregate-per-connection-log" title="Permanent link">¶</a></h4>
+<div class="highlight"><pre><code>phases := map[string]time.Duration{
+    "dns": 10 * time.Millisecond,
+    "dial": 40 * time.Millisecond,
+    "handshake": 50 * time.Millisecond,
+}
+logger.Info("connection completed", zap.Any("phases", phases))
+</code></pre></div>
+<p>While log statements and spans provide valuable information, a production-grade observability system benefits greatly from structured metrics collection and structured logging.</p>
+<p>Prometheus is well-suited for collecting and querying time-series metrics from each phase, exposing them to dashboards and alerting rules. Instead of embedding phase durations in unstructured logs, it is advisable to design and expose clearly named metrics like <code>connection_dns_duration_seconds</code>, <code>connection_dial_errors_total</code>, and similar counters. These names are proposed examples that follow Prometheus naming conventions and should be defined explicitly in the implementation to ensure clarity and consistency.</p>
+<p>For structured logging, libraries such as Uber’s <code>zap</code> offer fast, JSON-encoded logs that integrate cleanly with log aggregation systems like ELK or Splunk. Rather than free-form <code>Printf</code>, one can emit structured key-value pairs:</p>
+<div class="highlight"><pre><code>import (
+    "go.uber.org/zap"
+)
+
+var logger, _ = zap.NewProduction()
+
+logger.Info("dns",
+    zap.String("host", hostname),
+    zap.Duration("duration", elapsed),
+    zap.Strings("ips", ips),
+    zap.Error(err),
+)
+</code></pre></div>
+<p>Structured logs reduce the burden on downstream parsers and make correlating events between services more reliable. Combining these techniques — phase-level instrumentation, Prometheus metrics, and structured logs — transforms opaque failures into actionable insight. With this level of granularity and consistency, ambiguous symptoms become precise diagnoses, ensuring that both developers and operators can pinpoint not just that something is wrong, but exactly where and why.</p>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+                
+                  
+</body>
+</html>

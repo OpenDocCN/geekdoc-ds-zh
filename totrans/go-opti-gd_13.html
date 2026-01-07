@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Goroutine Worker Pools in Go¶</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Goroutine Worker Pools in Go¶</h1>
+<blockquote>原文：<a href="https://goperf.dev/01-common-patterns/worker-pool/">https://goperf.dev/01-common-patterns/worker-pool/</a></blockquote>
+                
+                  
+
+
+  
+  
+
+
+
+<p>Go’s concurrency model makes it deceptively easy to spin up thousands of goroutines—but that ease can come at a cost. Each goroutine starts small, but under load, unbounded concurrency can cause memory usage to spike, context switches to pile up, and overall performance to become unpredictable.</p>
+<p>A worker pool helps apply backpressure by limiting the number of active goroutines. Instead of spawning one per task, a fixed pool handles work in controlled parallelism—keeping memory usage predictable and avoiding overload. This makes it easier to maintain steady performance even as demand scales.</p>
+<h2 id="why-worker-pools-matter">Why Worker Pools Matter<a class="headerlink" href="#why-worker-pools-matter" title="Permanent link">¶</a></h2>
+<p>While launching a goroutine for every task is idiomatic and often effective, doing so at scale comes with trade-offs. Each goroutine requires stack space and introduces scheduling overhead. Performance can degrade sharply when the number of active goroutines grows, especially in systems handling unbounded input like HTTP requests, jobs from a queue, or tasks from a channel.</p>
+<p>A worker pool maintains a fixed number of goroutines that pull tasks from a shared job queue. This creates a backpressure mechanism, ensuring the system never processes more work concurrently than it can handle. Worker pools are particularly valuable when the cost of each task is predictable, and the overall system throughput needs to be stable.</p>
+<h2 id="basic-worker-pool-implementation">Basic Worker Pool Implementation<a class="headerlink" href="#basic-worker-pool-implementation" title="Permanent link">¶</a></h2>
+<p>Here’s a minimal implementation of a worker pool:</p>
+<div class="highlight"><pre><code>func worker(id int, jobs &lt;-chan int, results chan&lt;- [32]byte) {
+    for j := range jobs {
+        results &lt;- doWork(j)
+    }
+}
+
+func doWork(n int) [32]byte {
+    data := []byte(fmt.Sprintf("payload-%d", n))
+    return sha256.Sum256(data)                  // (1)
+}
+
+func main() {
+    jobs := make(chan int, 100)
+    results := make(chan [32]byte, 100)
+
+    for w := 1; w &lt;= 5; w++ {
+        go worker(w, jobs, results)
+    }
+
+    for j := 1; j &lt;= 10; j++ {
+        jobs &lt;- j
+    }
+    close(jobs)
+
+    for a := 1; a &lt;= 10; a++ {
+        &lt;-results
+    }
+}
+</code></pre></div>
+<ol>
+<li>Cryptography is for illustration purposes of CPU-bound code</li>
+</ol>
+<p>In this example, five workers pull from the <code>jobs</code> channel and push results to the <code>results</code> channel. The worker pool limits concurrency to five tasks at a time, regardless of how many tasks are sent.</p>
+<h3 id="worker-count-and-cpu-cores">Worker Count and CPU Cores<a class="headerlink" href="#worker-count-and-cpu-cores" title="Permanent link">¶</a></h3>
+<p>The optimal number of workers in a pool is closely tied to the number of CPU cores, which you can obtain in Go using <code>runtime.NumCPU()</code> or <code>runtime.GOMAXPROCS(0)</code>. For CPU-bound tasks—where each worker consumes substantial CPU time—you generally want the number of workers to be equal to or slightly less than the number of logical CPU cores. This ensures maximum core utilization without excessive overhead.</p>
+<p>If your tasks are I/O-bound (e.g., network calls, disk I/O, database queries), the pool size can be larger than the number of cores. This is because workers will spend much of their time blocked, allowing others to run. In contrast, CPU-heavy workloads benefit from a smaller, tightly bounded pool that avoids contention and context switching.</p>
+<h3 id="why-too-many-workers-hurts-performance">Why Too Many Workers Hurts Performance<a class="headerlink" href="#why-too-many-workers-hurts-performance" title="Permanent link">¶</a></h3>
+<p>Adding more workers can seem like a straightforward way to boost throughput, but the benefits taper off quickly past a certain point. Once you exceed the system’s optimal level of concurrency, performance often degrades instead of improving.</p>
+<ul>
+<li>Scheduler contention increases as the Go runtime juggles more runnable goroutines than it has logical CPUs to run them.</li>
+<li>Context switching grows more frequent, burning CPU cycles without doing real work.</li>
+<li>Memory pressure rises because each goroutine holds its own stack, even when idle.</li>
+<li>Cache thrashing becomes more likely as goroutines bounce across cores, disrupting locality and degrading CPU cache performance.</li>
+</ul>
+<p>The result: higher latency, increased GC activity, and reduced throughput—the exact opposite of what a properly tuned worker pool is supposed to deliver.</p>
+<h2 id="benchmarking-impact">Benchmarking Impact<a class="headerlink" href="#benchmarking-impact" title="Permanent link">¶</a></h2>
+<p>Worker pools shine in scenarios where the workload is CPU-bound or where concurrency must be capped to avoid saturating a shared resource (e.g., database connections or file descriptors). Benchmarks comparing unbounded goroutine launches vs. worker pools typically show:</p>
+<ul>
+<li>Lower peak memory usage</li>
+<li>More stable response times under load</li>
+<li>Improved CPU cache locality</li>
+</ul>
+<details class="example">
+<summary>Show the benchmark file</summary>
+<div class="highlight"><pre><code>package perf
+
+import (
+    // "log"
+    "fmt"
+    // "os"
+    "runtime"
+    "sync"
+    "testing"
+    "crypto/sha256"
+)
+
+const (
+    numJobs     = 10000
+    workerCount = 10
+)
+
+func doWork(n int) [32]byte {
+    data := []byte(fmt.Sprintf("payload-%d", n))
+    return sha256.Sum256(data)
+}
+
+func BenchmarkUnboundedGoroutines(b *testing.B) {
+    for b.Loop() {
+        var wg sync.WaitGroup
+        wg.Add(numJobs)
+
+        for j := 0; j &lt; numJobs; j++ {
+            go func(job int) {
+                _ = doWork(job)
+                wg.Done()
+            }(j)
+        }
+        wg.Wait()
+    }
+}
+
+func worker(jobs &lt;-chan int, wg *sync.WaitGroup) {
+    for job := range jobs {
+        _ = doWork(job)
+        wg.Done()
+    }
+}
+
+func BenchmarkWorkerPool(b *testing.B) {
+    for b.Loop() {
+        var wg sync.WaitGroup
+        wg.Add(numJobs)
+
+        jobs := make(chan int, numJobs)
+        for w := 0; w &lt; workerCount; w++ {
+            go worker(jobs, &amp;wg)
+        }
+
+        for j := 0; j &lt; numJobs; j++ {
+            jobs &lt;- j
+        }
+
+        close(jobs)
+        wg.Wait()
+    }
+}
+</code></pre></div>
+</details>
+<p>Results:</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>Iterations</th>
+<th>Time per op (ns)</th>
+<th>Bytes per op</th>
+<th>Allocs per op</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BenchmarkUnboundedGoroutines-14</td>
+<td>2,274</td>
+<td>2,499,213 ns</td>
+<td>639,350</td>
+<td>39,754</td>
+</tr>
+<tr>
+<td>BenchmarkWorkerPool-14</td>
+<td>3,325</td>
+<td>1,791,772 ns</td>
+<td>320,707</td>
+<td>19,762</td>
+</tr>
+</tbody>
+</table>
+<p>In our benchmark, each task performed a CPU-intensive operation (e.g., cryptographic hashing, math, or serialization). With <code>workerCount = 10</code> on an Apple M3 Max machine, the worker pool outperformed the unbounded goroutine model by a significant margin, using fewer resources and completing work faster. Increasing the worker count beyond the number of available cores led to worse performance due to contention.</p>
+<h2 id="when-to-use-worker-pools">When To Use Worker Pools<a class="headerlink" href="#when-to-use-worker-pools" title="Permanent link">¶</a></h2>
+<p><svg viewbox="0 0 24 24"><path d="M20 12a8 8 0 0 1-8 8 8 8 0 0 1-8-8 8 8 0 0 1 8-8c.76 0 1.5.11 2.2.31l1.57-1.57A9.8 9.8 0 0 0 12 2 10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10M7.91 10.08 6.5 11.5 11 16 21 6l-1.41-1.42L11 13.17z"/></svg> Use a goroutine worker pool when:</p>
+<ul>
+<li>The workload is unbounded or high volume. A pool prevents uncontrolled goroutine growth, which can lead to memory exhaustion, GC pressure, and unpredictable performance.</li>
+<li>Unbounded concurrency risks resource saturation. Capping the number of concurrent workers helps avoid overwhelming the CPU, network, database, or disk I/O—especially under load.</li>
+<li>You need predictable parallelism for stability. Limiting concurrency smooths out performance spikes and keeps system behavior consistent, even during traffic surges.</li>
+<li>Tasks are relatively uniform and queue-friendly. When task cost is consistent, a fixed pool size provides efficient scheduling with minimal overhead, ensuring good throughput without complex coordination.</li>
+</ul>
+<p><svg viewbox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M448 128H270.4c1 5.2 1.6 10.5 1.6 16v16h176c8.8 0 16-7.2 16-16s-7.2-16-16-16m-224 16c0-17.7-14.3-32-32-32h-24c-66.3 0-120 53.7-120 120v48c0 52.5 33.7 97.1 80.7 113.4-.5-3.1-.7-6.2-.7-9.4 0-20 9.2-37.9 23.6-49.7-4.9-9-7.6-19.4-7.6-30.3 0-15.1 5.3-29 14-40-8.8-11-14-24.9-14-40v-40c0-13.3 10.7-24 24-24s24 10.7 24 24v40c0 8.8 7.2 16 16 16s16-7.2 16-16zm-32-80c18 0 34.6 6 48 16h208c35.3 0 64 28.7 64 64s-28.7 64-64 64h-82c1.3 5.1 2 10.5 2 16 0 25.3-14.7 47.2-36 57.6 2.6 7 4 14.5 4 22.4 0 20-9.2 37.9-23.6 49.7 4.9 9 7.6 19.4 7.6 30.3 0 35.3-28.7 64-64 64h-88C75.2 448 0 372.8 0 280v-48C0 139.2 75.2 64 168 64zm64 336c8.8 0 16-7.2 16-16s-7.2-16-16-16h-64c-8.8 0-16 7.2-16 16s7.2 16 16 16zm16-176c0 5.5-.7 10.9-2 16h34c8.8 0 16-7.2 16-16s-7.2-16-16-16h-32zm-24 64h-40c-8.8 0-16 7.2-16 16s7.2 16 16 16h64c8.8 0 16-7.2 16-16s-7.2-16-16-16z"/></svg> Avoid a worker pool when:</p>
+<ul>
+<li>Each task must be processed immediately with minimal latency. Queuing in a worker pool introduces delay. For latency-critical tasks, direct goroutine spawning avoids the scheduling overhead.</li>
+<li>You can rely on Go's scheduler for natural load balancing in low-load scenarios. In light workloads, the overhead of managing a pool may outweigh its benefits. Go’s scheduler can often handle lightweight parallelism efficiently on its own.</li>
+<li>Workload volume is small and bounded. Spinning up goroutines directly keeps code simpler for limited, predictable workloads without risking uncontrolled growth.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+                
+                  
+</body>
+</html>

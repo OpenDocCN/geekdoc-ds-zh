@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Practical Example: Profiling Networked Go Applications with pprof¶</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Practical Example: Profiling Networked Go Applications with pprof¶</h1>
+<blockquote>原文：<a href="https://goperf.dev/02-networking/gc-endpoint-profiling/">https://goperf.dev/02-networking/gc-endpoint-profiling/</a></blockquote>
+                
+                  
+
+
+  
+  
+
+
+
+<p>This section walks through a demo application instrumented with benchmarking tools and runtime profiling to ground profiling concepts in a real-world context. It covers identifying performance bottlenecks, interpreting flame graphs, and analyzing system behavior under various simulated network conditions.</p>
+<h2 id="cpu-profiling-in-networked-apps">CPU Profiling in Networked Apps<a class="headerlink" href="#cpu-profiling-in-networked-apps" title="Permanent link">¶</a></h2>
+<p>The demo application is intentionally designed to be as simple as possible to highlight key profiling concepts without unnecessary complexity. While the code and patterns used in the demo are basic, the profiling insights gained here are highly applicable to more complex, production-grade applications.</p>
+<p>To enable continuous profiling under load, we expose <code>pprof</code> via a dedicated HTTP endpoint:</p>
+<div class="highlight"><pre><code>import (
+
+    _ "net/http/pprof"
+
+)
+
+// ...
+
+    // Start pprof in a separate goroutine.
+    go func() {
+        log.Println("pprof listening on :6060")
+        if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+            log.Fatalf("pprof server error: %v", err)
+        }
+    }()
+</code></pre></div>
+<details class="example">
+<summary>full <code>net-app</code>'s source code</summary>
+<div class="highlight"><pre><code>package main
+
+// pprof-start
+import (
+// pprof-end
+    "flag"
+    "fmt"
+    "log"
+    "math/rand/v2"
+    "net/http"
+// pprof-start
+    _ "net/http/pprof"
+// pprof-end
+    "os"
+    "os/signal"
+    "time"
+// pprof-start
+)
+// pprof-end
+
+var (
+    fastDelay   = flag.Duration("fast-delay", 0, "Fixed delay for fast handler (if any)")
+    slowMin     = flag.Duration("slow-min", 1*time.Millisecond, "Minimum delay for slow handler")
+    slowMax     = flag.Duration("slow-max", 300*time.Millisecond, "Maximum delay for slow handler")
+    gcMinAlloc  = flag.Int("gc-min-alloc", 50, "Minimum number of allocations in GC heavy handler")
+    gcMaxAlloc  = flag.Int("gc-max-alloc", 1000, "Maximum number of allocations in GC heavy handler")
+)
+
+func randRange(min, max int) int {
+    return rand.IntN(max-min) + min
+}
+
+func fastHandler(w http.ResponseWriter, r *http.Request) {
+    if *fastDelay &gt; 0 {
+        time.Sleep(*fastDelay)
+    }
+    fmt.Fprintln(w, "fast response")
+}
+
+func slowHandler(w http.ResponseWriter, r *http.Request) {
+    delayRange := int((*slowMax - *slowMin) / time.Millisecond)
+    delay := time.Duration(randRange(1, delayRange)) * time.Millisecond
+    time.Sleep(delay)
+    fmt.Fprintf(w, "slow response with delay %d ms\n", delay.Milliseconds())
+}
+
+// heavy-start
+var longLivedData [][]byte
+
+func gcHeavyHandler(w http.ResponseWriter, r *http.Request) {
+    numAllocs := randRange(*gcMinAlloc, *gcMaxAlloc)
+    var data [][]byte
+    for i := 0; i &lt; numAllocs; i++ {
+        // Allocate 10KB slices. Occasionally retain a reference to simulate long-lived objects.
+        b := make([]byte, 1024*10)
+        data = append(data, b)
+        if i%100 == 0 { // every 100 allocations, keep the data alive
+            longLivedData = append(longLivedData, b)
+        }
+    }
+    fmt.Fprintf(w, "allocated %d KB\n", len(data)*10)
+}
+// heavy-end
+
+func main() {
+    flag.Parse()
+
+    http.HandleFunc("/fast", fastHandler)
+    http.HandleFunc("/slow", slowHandler)
+    http.HandleFunc("/gc", gcHeavyHandler)
+
+// pprof-start
+// ...
+
+    // Start pprof in a separate goroutine.
+    go func() {
+        log.Println("pprof listening on :6060")
+        if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+            log.Fatalf("pprof server error: %v", err)
+        }
+    }()
+// pprof-end
+
+    // Create a server to allow for graceful shutdown.
+    server := &amp;http.Server{Addr: ":8080"}
+
+    go func() {
+        log.Println("HTTP server listening on :8080")
+        if err := server.ListenAndServe(); err != nil &amp;&amp; err != http.ErrServerClosed {
+            log.Fatalf("HTTP server error: %v", err)
+        }
+    }()
+
+    // Graceful shutdown on interrupt signal.
+    sigCh := make(chan os.Signal, 1)
+    signal.Notify(sigCh, os.Interrupt)
+    &lt;-sigCh
+    log.Println("Shutting down server...")
+    if err := server.Shutdown(nil); err != nil {
+        log.Fatalf("Server Shutdown Failed:%+v", err)
+    }
+    log.Println("Server exited")
+}
+</code></pre></div>
+</details>
+<p>The next step will be to establish a connection with the profiled app and collect samples:</p>
+<div class="highlight"><pre><code>go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+</code></pre></div>
+<p>View results interactively:</p>
+<div class="highlight"><pre><code>go tool pprof -http=:7070 cpu.prof # (1)
+</code></pre></div>
+<ol>
+<li>the actual <code>cpu.prof</code> path will be something like <code>$HOME/pprof/pprof.net-app.samples.cpu.004.pb.gz</code></li>
+</ol>
+<p>or you can save the profiling graph as an <code>svg</code> image.</p>
+<h2 id="cpu-profiling-walkthrough-load-on-the-gc-endpoint">CPU Profiling Walkthrough: Load on the <code>/gc</code> Endpoint<a class="headerlink" href="#cpu-profiling-walkthrough-load-on-the-gc-endpoint" title="Permanent link">¶</a></h2>
+<p>We profiled the application during a 30-second load test targeting the <code>/gc</code> endpoint to see what happens under memory pressure. This handler was intentionally designed to trigger allocations and force garbage collection, which makes it a great candidate for observing runtime behavior under stress.</p>
+<p>We used Go’s built-in profiler to capture a CPU trace:</p>
+<details class="example">
+<summary>CPU profiling trace for the <code>/gc</code> endpoint</summary>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../img/cpu.prof.png" data-desc-position="bottom"><img alt="" src="../Images/7a6a813e3f186af7e41a21bebb8a53e9.png" width="1602" data-original-src="https://goperf.dev/02-networking/img/cpu.prof.png"/></a></p>
+</details>
+<p>This gave us 3.02 seconds of sampled CPU activity out of 30 seconds of wall-clock time—a useful window into what the runtime and application were doing under pressure.</p>
+<h2 id="where-the-time-went">Where the Time Went<a class="headerlink" href="#where-the-time-went" title="Permanent link">¶</a></h2>
+<h3 id="http-stack-dominates-the-surface">HTTP Stack Dominates the Surface<a class="headerlink" href="#http-stack-dominates-the-surface" title="Permanent link">¶</a></h3>
+<p>As expected, the majority of CPU time was spent on request handling:</p>
+<ul>
+<li><code>http.(*conn).serve</code> accounted for nearly 58% of sampled time</li>
+<li><code>http.serverHandler.ServeHTTP</code> appeared prominently as well</li>
+</ul>
+<p>This aligns with the fact that we were sustaining constant traffic. The Go HTTP stack is doing the bulk of the work, managing connections and dispatching requests.</p>
+<h3 id="garbage-collection-overhead-is-clearly-visible">Garbage Collection Overhead is Clearly Visible<a class="headerlink" href="#garbage-collection-overhead-is-clearly-visible" title="Permanent link">¶</a></h3>
+<p>A large portion of CPU time was spent inside the garbage collector:</p>
+<ul>
+<li><code>runtime.gcDrain</code>, <code>runtime.scanobject</code>, and <code>runtime.gcBgMarkWorker</code> were all active</li>
+<li>Combined with memory-related functions like <code>runtime.mallocgc</code>, these accounted for roughly 20% of total CPU time</li>
+</ul>
+<p>This confirms that <code>gcHeavyHandler</code> is achieving its goal. What we care about is whether this kind of allocation pressure leaks into real-world handlers. If it does, we’re paying for it in latency and CPU churn.</p>
+<h3 id="io-and-syscalls-take-a-big-slice">I/O and Syscalls Take a Big Slice<a class="headerlink" href="#io-and-syscalls-take-a-big-slice" title="Permanent link">¶</a></h3>
+<p>We also saw high syscall activity—especially from:</p>
+<ul>
+<li><code>syscall.syscall</code> (linked to <code>poll</code>, <code>Read</code>, and <code>Write</code>)</li>
+<li><code>bufio.Writer.Flush</code> and <code>http.response.finishRequest</code></li>
+</ul>
+<p>These functions reflect the cost of writing responses back to clients. For simple handlers, this is expected. But if your handler logic is lightweight and most of the time is spent just flushing data over TCP, it’s worth asking whether the payloads or buffer strategies could be optimized.</p>
+<h3 id="scheduler-activity-is-non-trivial">Scheduler Activity Is Non-Trivial<a class="headerlink" href="#scheduler-activity-is-non-trivial" title="Permanent link">¶</a></h3>
+<p>Functions like <code>runtime.schedule</code>, <code>mcall</code>, and <code>findRunnable</code> were also on the board. These are Go runtime internals responsible for managing goroutines. Seeing them isn’t unusual during high-concurrency tests—but if they dominate, it often points to excessive goroutine churn or blocking behavior.</p>
+<h2 id="memory-profiling-retained-heap-from-the-gc-endpoint">Memory Profiling: Retained Heap from the <code>/gc</code> Endpoint<a class="headerlink" href="#memory-profiling-retained-heap-from-the-gc-endpoint" title="Permanent link">¶</a></h2>
+<p>We also captured a memory profile to complement the CPU view while hammering the <code>/gc</code> endpoint. This profile used the <code>inuse_space</code> metric, which shows how much heap memory is actively retained by each function at the time of capture.</p>
+<p>We triggered the profile with:</p>
+<div class="highlight"><pre><code>go tool pprof -http=:7070 http://localhost:6060/debug/pprof/heap
+</code></pre></div>
+<details class="example">
+<summary>Memory profiling for the <code>/gc</code> endpoint</summary>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../img/mem.prof.png" data-desc-position="bottom"><img alt="" src="../Images/8077552e3f37816c102f22210cddd49b.png" width="900" data-original-src="https://goperf.dev/02-networking/img/mem.prof.png"/></a></p>
+</details>
+<p>At the time of capture, the application retained 649MB of heap memory, and almost all of it—99.46%—was attributed to a single function: <code>gcHeavyHandler</code>. This was expected. The handler simulates allocation pressure by creating 10KB slices in a tight loop. Every 100th slice is added to a global variable to simulate long-lived memory.</p>
+<p>Here’s what the handler does:</p>
+<div class="highlight"><pre><code>var longLivedData [][]byte
+
+func gcHeavyHandler(w http.ResponseWriter, r *http.Request) {
+    numAllocs := randRange(*gcMinAlloc, *gcMaxAlloc)
+    var data [][]byte
+    for i := 0; i &lt; numAllocs; i++ {
+        // Allocate 10KB slices. Occasionally retain a reference to simulate long-lived objects.
+        b := make([]byte, 1024*10)
+        data = append(data, b)
+        if i%100 == 0 { // every 100 allocations, keep the data alive
+            longLivedData = append(longLivedData, b)
+        }
+    }
+    fmt.Fprintf(w, "allocated %d KB\n", len(data)*10)
+}
+</code></pre></div>
+<p>The flamegraph confirmed what we expected:</p>
+<ul>
+<li><code>gcHeavyHandler</code> accounted for nearly all memory in use.</li>
+<li>The path traced cleanly from the HTTP connection, through the Go router stack, into the handler logic.</li>
+<li>No significant allocations came from elsewhere—this was a focused, controlled memory pressure scenario.</li>
+</ul>
+<p>This type of profile is valuable because it reveals what is still being held in memory, not just what was allocated. This view is often the most revealing for diagnosing leaks, retained buffers, or forgotten references.</p>
+<h2 id="summary-cpu-and-memory-profiling-of-the-gc-endpoint">Summary: CPU and Memory Profiling of the <code>/gc</code> Endpoint<a class="headerlink" href="#summary-cpu-and-memory-profiling-of-the-gc-endpoint" title="Permanent link">¶</a></h2>
+<p>The <code>/gc</code> endpoint was intentionally built to simulate high allocation pressure and GC activity. Profiling this handler under load gave us a clean, focused view of how the Go runtime behaves when pushed to its memory limits.</p>
+<p>From the <strong>CPU profile</strong>, we saw that:</p>
+<ul>
+<li>As expected, most of the time was spent in the HTTP handler path during sustained load.</li>
+<li>Nearly 20% of CPU samples were attributed to memory allocation and garbage collection.</li>
+<li>Syscall activity was high, mostly from writing responses.</li>
+<li>The Go scheduler was moderately active, managing the concurrent goroutines handling traffic.</li>
+</ul>
+<p>From the <strong>memory profile</strong>, we captured 649MB of live heap usage, with <strong>99.46% of it retained by <code>gcHeavyHandler</code></strong>. This matched our expectations: the handler deliberately retains every 100th 10KB allocation to simulate long-lived data.</p>
+<p>Together, these profiles give us confidence that the <code>/gc</code> endpoint behaves as intended under synthetic pressure:</p>
+<ul>
+<li>It creates meaningful CPU and memory load.</li>
+<li>It exposes the cost of sustained allocations and GC cycles.</li>
+<li>It provides a predictable environment for testing optimizations or GC tuning strategies.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+                
+                  
+</body>
+</html>

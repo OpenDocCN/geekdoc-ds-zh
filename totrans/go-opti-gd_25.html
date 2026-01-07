@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Benchmarking and Load Testing for Networked Go Apps¶</title>
+<link href="../Styles/Style.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+<h1>Benchmarking and Load Testing for Networked Go Apps¶</h1>
+<blockquote>原文：<a href="https://goperf.dev/02-networking/bench-and-load/">https://goperf.dev/02-networking/bench-and-load/</a></blockquote>
+                
+                  
+
+
+  
+  
+
+
+
+<p>Before you reach for a mutex-free queue or tune your goroutine pool, step back. Optimization without a baseline is just guesswork. In Go applications, performance tuning starts with understanding how your system behaves under pressure, which means benchmarking it under load.</p>
+<p>Load testing isn't just about pushing requests until things break. It's about simulating realistic usage patterns to extract measurable, repeatable data. That data anchors every optimization that follows.</p>
+<h2 id="test-app-simulating-fastslow-paths-and-gc-pressure">Test App: Simulating Fast/Slow Paths and GC pressure<a class="headerlink" href="#test-app-simulating-fastslow-paths-and-gc-pressure" title="Permanent link">¶</a></h2>
+<p>To benchmark meaningfully, we need endpoints that reflect different workload characteristics.</p>
+<details class="example">
+<summary>Show the benchmarking app</summary>
+<div class="highlight"><pre><code>package main
+
+// pprof-start
+import (
+// pprof-end
+    "flag"
+    "fmt"
+    "log"
+    "math/rand/v2"
+    "net/http"
+// pprof-start
+    _ "net/http/pprof"
+// pprof-end
+    "os"
+    "os/signal"
+    "time"
+// pprof-start
+)
+// pprof-end
+
+var (
+    fastDelay   = flag.Duration("fast-delay", 0, "Fixed delay for fast handler (if any)")
+    slowMin     = flag.Duration("slow-min", 1*time.Millisecond, "Minimum delay for slow handler")
+    slowMax     = flag.Duration("slow-max", 300*time.Millisecond, "Maximum delay for slow handler")
+    gcMinAlloc  = flag.Int("gc-min-alloc", 50, "Minimum number of allocations in GC heavy handler")
+    gcMaxAlloc  = flag.Int("gc-max-alloc", 1000, "Maximum number of allocations in GC heavy handler")
+)
+
+func randRange(min, max int) int {
+    return rand.IntN(max-min) + min
+}
+
+func fastHandler(w http.ResponseWriter, r *http.Request) {
+    if *fastDelay &gt; 0 {
+        time.Sleep(*fastDelay)
+    }
+    fmt.Fprintln(w, "fast response")
+}
+
+func slowHandler(w http.ResponseWriter, r *http.Request) {
+    delayRange := int((*slowMax - *slowMin) / time.Millisecond)
+    delay := time.Duration(randRange(1, delayRange)) * time.Millisecond
+    time.Sleep(delay)
+    fmt.Fprintf(w, "slow response with delay %d ms\n", delay.Milliseconds())
+}
+
+// heavy-start
+var longLivedData [][]byte
+
+func gcHeavyHandler(w http.ResponseWriter, r *http.Request) {
+    numAllocs := randRange(*gcMinAlloc, *gcMaxAlloc)
+    var data [][]byte
+    for i := 0; i &lt; numAllocs; i++ {
+        // Allocate 10KB slices. Occasionally retain a reference to simulate long-lived objects.
+        b := make([]byte, 1024*10)
+        data = append(data, b)
+        if i%100 == 0 { // every 100 allocations, keep the data alive
+            longLivedData = append(longLivedData, b)
+        }
+    }
+    fmt.Fprintf(w, "allocated %d KB\n", len(data)*10)
+}
+// heavy-end
+
+func main() {
+    flag.Parse()
+
+    http.HandleFunc("/fast", fastHandler)
+    http.HandleFunc("/slow", slowHandler)
+    http.HandleFunc("/gc", gcHeavyHandler)
+
+// pprof-start
+// ...
+
+    // Start pprof in a separate goroutine.
+    go func() {
+        log.Println("pprof listening on :6060")
+        if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+            log.Fatalf("pprof server error: %v", err)
+        }
+    }()
+// pprof-end
+
+    // Create a server to allow for graceful shutdown.
+    server := &amp;http.Server{Addr: ":8080"}
+
+    go func() {
+        log.Println("HTTP server listening on :8080")
+        if err := server.ListenAndServe(); err != nil &amp;&amp; err != http.ErrServerClosed {
+            log.Fatalf("HTTP server error: %v", err)
+        }
+    }()
+
+    // Graceful shutdown on interrupt signal.
+    sigCh := make(chan os.Signal, 1)
+    signal.Notify(sigCh, os.Interrupt)
+    &lt;-sigCh
+    log.Println("Shutting down server...")
+    if err := server.Shutdown(nil); err != nil {
+        log.Fatalf("Server Shutdown Failed:%+v", err)
+    }
+    log.Println("Server exited")
+}
+</code></pre></div>
+</details>
+<ul>
+<li><code>/fast</code>: A quick response, ideal for throughput testing.</li>
+<li><code>/slow</code>: Simulates latency and contention.</li>
+<li><code>/gc</code>: Simulate GC heavy workflow.</li>
+<li><code>net/http/pprof</code>: Exposes runtime profiling on <code>localhost:6060</code>.</li>
+</ul>
+<p>Run it with:</p>
+<div class="highlight"><pre><code>go run main.go
+</code></pre></div>
+<h2 id="simulating-load-tools-that-reflect-reality">Simulating Load: Tools That Reflect Reality<a class="headerlink" href="#simulating-load-tools-that-reflect-reality" title="Permanent link">¶</a></h2>
+<h3 id="when-to-use-what">When to Use What<a class="headerlink" href="#when-to-use-what" title="Permanent link">¶</a></h3>
+<div class="admonition info">
+<p class="admonition-title">Info</p>
+<p>This is by no means an exhaustive list. The ecosystem of load-testing tools is broad and constantly evolving. Tools like Apache JMeter, Locust, Artillery, and Gatling each bring their own strengths—ranging from UI-driven test design to distributed execution or JVM-based scenarios. The right choice depends on your stack, test goals, and team workflow. The tools listed here are optimized for Go-based services and local-first benchmarking, but they’re just a starting point.</p>
+</div>
+<p>At a glance, <code>vegeta</code>, <code>wrk</code>, and <code>k6</code> all hammer HTTP endpoints. But they serve different roles depending on what you're testing, how much precision you need, and how complex your scenario is.</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Focus</th>
+<th>Scriptable</th>
+<th>Metrics Depth</th>
+<th>Ideal Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vegeta</code></td>
+<td>Constant rate load generation</td>
+<td>No (but composable)</td>
+<td>High (histogram, percentiles)</td>
+<td>Tracking latency percentiles over time; CI benchmarking</td>
+</tr>
+<tr>
+<td><code>wrk</code></td>
+<td>Max throughput stress tests</td>
+<td>Yes (Lua)</td>
+<td>Medium</td>
+<td>Measuring raw server capacity and concurrency limits</td>
+</tr>
+<tr>
+<td><code>k6</code></td>
+<td>Scenario-based simulation</td>
+<td>Yes (JavaScript)</td>
+<td>High (VU metrics, dashboards)</td>
+<td>Simulating real-world user workflows and pacing</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>vegeta</code> when:</p>
+<ul>
+<li>You need a consistent RPS load (e.g., 100 requests/sec for the 60s).</li>
+<li>You're observing latency degradation under controlled pressure.</li>
+<li>You want structured output (histograms, percentiles) for profiling.</li>
+<li>You want to verify local changes before deeper profiling.</li>
+</ul>
+<p>Use <code>wrk</code> when:</p>
+<ul>
+<li>You're exploring upper-bound throughput.</li>
+<li>You want raw, fast load with minimal setup.</li>
+<li>You’re profiling at high concurrency (e.g., 10k connections).</li>
+</ul>
+<p>Use <code>k6</code> when:</p>
+<ul>
+<li>You must model complex flows like login → API call → wait → logout.</li>
+<li>You’re integrating performance tests into CI/CD.</li>
+<li>You want thresholds, pacing, and visual feedback.</li>
+</ul>
+<p>Each of these tools has a place in your benchmarking toolkit. Picking the right one depends on whether you're validating performance, exploring scaling thresholds, or simulating end-user behavior.</p>
+<h3 id="vegeta">Vegeta<a class="headerlink" href="#vegeta" title="Permanent link">¶</a></h3>
+<p><a href="https://github.com/tsenart/vegeta">Vegeta</a> is a flexible HTTP load testing tool written in Go, built for generating constant request rates. This makes it well-suited for simulating steady, sustained traffic patterns instead of sudden spikes.</p>
+<p>We reach for Vegeta when precision matters. It maintains exact request rates and captures detailed latency distributions, which helps track how system behavior changes under load. It’s lightweight, easy to automate, and integrates cleanly into CI workflows—making it a reliable option for benchmarking Go services.</p>
+<p>Install:</p>
+<div class="highlight"><pre><code>go install github.com/tsenart/vegeta@latest
+</code></pre></div>
+<p>Which endpoint(s) we are going to test:</p>
+<div class="highlight"><pre><code>echo "GET http://localhost:8080/slow" &gt; targets.txt
+</code></pre></div>
+<p>Run:</p>
+<div class="highlight"><pre><code>vegeta attack -rate=100 -duration=30s -targets=targets.txt | tee results.bin | vegeta report
+</code></pre></div>
+<details class="example">
+<summary>Potential output</summary>
+<div class="highlight"><pre><code>&gt; vegeta attack -rate=100 -duration=30s -targets=targets.txt | tee results.bin | vegeta report
+Requests      [total, rate, throughput]  3000, 100.04, 100.03
+Duration      [total, attack, wait]      29.989635542s, 29.989108333s, 527.209µs
+Latencies     [mean, 50, 95, 99, max]    524.563µs, 504.802µs, 793.997µs, 1.47362ms, 7.351541ms
+Bytes In      [total, mean]              42000, 14.00
+Bytes Out     [total, mean]              0, 0.00
+Success       [ratio]                    100.00%
+Status Codes  [code:count]               200:3000
+Error Set:
+</code></pre></div>
+</details>
+<p>View percentiles:</p>
+<div class="highlight"><pre><code>vegeta report -type='hist[0,10ms,50ms,100ms,200ms,500ms,1s]' &lt; results.bin
+</code></pre></div>
+<p>Generate chart:</p>
+<div class="highlight"><pre><code>vegeta plot &lt; results.bin &gt; plot.html
+</code></pre></div>
+<details class="info">
+<summary>Testing Multiple Endpoints with Vegeta</summary>
+<p>Depending on your goals, there are two recommended approaches for testing both <code>/fast</code> and <code>/slow</code> endpoints in a single run.</p>
+<p><strong>Option 1: Round-Robin Between Endpoints</strong></p>
+<p>Create a <code>targets.txt</code> with both endpoints:</p>
+<div class="highlight"><pre><code>cat &gt; targets.txt &lt;&lt;EOF
+GET http://localhost:8080/fast
+GET http://localhost:8080/slow
+EOF
+</code></pre></div>
+<p>Run the test:</p>
+<div class="highlight"><pre><code>vegeta attack -rate=50 -duration=30s -targets=targets.txt | tee mixed-results.bin | vegeta report -type='hist[0,50ms,100ms,200ms,500ms,1s,2s]'
+</code></pre></div>
+<ul>
+<li>Requests are randomly distributed between the two endpoints.</li>
+<li>Useful for observing aggregate behavior of mixed traffic.</li>
+<li>Easy to set up and analyze combined performance.</li>
+</ul>
+<p><strong>Option 2: Weighted Mix Using Multiple Vegeta Runs</strong></p>
+<p>To simulate different traffic proportions (e.g., 80% fast, 20% slow):</p>
+<div class="highlight"><pre><code># Send 80% of requests to /fast
+vegeta attack -rate=40 -duration=30s -targets=&lt;(echo "GET http://localhost:8080/fast") &gt; fast.bin &amp;
+
+# Send 20% of requests to /slow
+vegeta attack -rate=10 -duration=30s -targets=&lt;(echo "GET http://localhost:8080/slow") &gt; slow.bin &amp;
+
+wait
+</code></pre></div>
+<p>Then merge the results and generate a report:</p>
+<div class="highlight"><pre><code>vegeta encode fast.bin slow.bin &gt; combined.bin
+vegeta report -type='hist[0,50ms,100ms,200ms,500ms,1s,2s]' &lt; combined.bin
+</code></pre></div>
+<ul>
+<li>Gives you precise control over traffic distribution.</li>
+<li>Better for simulating realistic traffic mixes.</li>
+<li>Enables per-endpoint benchmarking when analyzed separately.</li>
+</ul>
+<p>Both methods are valid—choose based on whether you need simplicity or control.</p>
+</details>
+<h3 id="wrk">wrk<a class="headerlink" href="#wrk" title="Permanent link">¶</a></h3>
+<p><a href="https://github.com/wg/wrk">wrk</a> is a high-performance HTTP benchmarking tool written in C. It's designed for raw speed and concurrency, making it ideal for stress testing your server’s throughput and connection handling capacity.</p>
+<p>We use <code>wrk</code> when we want to push the system to its upper limits. It excels at flooding endpoints with high request volumes using multiple threads and connections. While it doesn’t offer detailed percentiles like <code>vegeta</code>, it's perfect for quick saturation tests and measuring how much traffic your Go server can handle before it starts dropping requests or stalling.</p>
+<p>Install:</p>
+<div class="highlight"><pre><code>brew install wrk  # or build from source
+</code></pre></div>
+<p>Run test:</p>
+<div class="highlight"><pre><code>wrk -t4 -c100 -d30s http://localhost:8080/fast
+</code></pre></div>
+<details class="example">
+<summary>Potential output</summary>
+<div class="highlight"><pre><code>&gt; wrk -t4 -c100 -d30s http://localhost:8080/fast
+Running 30s test @ http://localhost:8080/fast
+  4 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.29ms  255.31us   5.24ms   84.86%
+    Req/Sec    19.30k   565.16    21.93k    77.92%
+  2304779 requests in 30.00s, 287.94MB read
+Requests/sec:  76823.88
+Transfer/sec:      9.60MB
+</code></pre></div>
+</details>
+<h3 id="k6">k6<a class="headerlink" href="#k6" title="Permanent link">¶</a></h3>
+<p><a href="https://k6.io">k6</a> is a modern load testing tool built around scripting realistic client behavior in JavaScript. It’s designed for simulating time-based load profiles—ramp-up, steady-state, ramp-down—and supports custom flows, pacing, and threshold-based validation.</p>
+<p>We use <code>k6</code> when raw throughput isn’t enough and we need to simulate how real users interact with the system. It handles chained requests, models session-like flows, and supports stage-based testing out of the box. With rich metrics and seamless CI/CD integration, <code>k6</code> helps surface regressions before they reach production.</p>
+<p>Install:</p>
+<div class="highlight"><pre><code>brew install k6
+</code></pre></div>
+<p>Script:</p>
+<div class="highlight"><pre><code>// script.js
+import http from 'k6/http';
+import { sleep } from 'k6';
+
+export const options = {
+  stages: [
+    { duration: '10s', target: 50 },
+    { duration: '30s', target: 50 },
+    { duration: '10s', target: 0 },
+  ],
+};
+
+export default function () {
+  http.get('http://localhost:8080/fast');
+  sleep(1);
+}
+</code></pre></div>
+<p>Run:</p>
+<div class="highlight"><pre><code>k6 run script.js
+</code></pre></div>
+<details class="example">
+<summary>Potential output</summary>
+<div class="highlight"><pre><code>&gt; k6 run script.js
+
+         /\      Grafana   /‾‾/
+    /\  /  \     |\  __   /  /
+   /  \/    \    | |/ /  /   ‾‾\
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/
+
+     execution: local
+        script: script.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 50 max VUs, 1m20s max duration (incl. graceful stop):
+              * default: Up to 50 looping VUs for 50s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+  █ TOTAL RESULTS
+
+    HTTP
+    http_req_duration.......................................................: avg=495.55µs min=116µs med=449µs max=5.49ms p(90)=705µs p(95)=820.39µs
+      { expected_response:true }............................................: avg=495.55µs min=116µs med=449µs max=5.49ms p(90)=705µs p(95)=820.39µs
+    http_req_failed.........................................................: 0.00%  0 out of 2027
+    http_reqs...............................................................: 2027   40.146806/s
+
+    EXECUTION
+    iteration_duration......................................................: avg=1s       min=1s    med=1s    max=1.01s  p(90)=1s    p(95)=1s
+    iterations..............................................................: 2027   40.146806/s
+    vus.....................................................................: 3      min=3         max=50
+    vus_max.................................................................: 50     min=50        max=50
+
+    NETWORK
+    data_received...........................................................: 266 kB 5.3 kB/s
+    data_sent...............................................................: 176 kB 3.5 kB/s
+
+
+
+
+running (0m50.5s), 00/50 VUs, 2027 complete and 0 interrupted iterations
+default ✓ [======================================] 00/50 VUs  50s
+</code></pre></div>
+</details>
+<h2 id="profiling-networked-go-applications-with-pprof">Profiling Networked Go Applications with <code>pprof</code><a class="headerlink" href="#profiling-networked-go-applications-with-pprof" title="Permanent link">¶</a></h2>
+<p>Profiling Go applications that heavily utilize networking is crucial to identifying and resolving bottlenecks that impact performance under high-traffic scenarios. Go's built-in <code>net/http/pprof</code> package provides insights specifically beneficial for network-heavy operations. Set up continuous profiling by enabling an HTTP endpoint:</p>
+<div class="highlight"><pre><code>import (
+
+    _ "net/http/pprof"
+
+)
+
+// ...
+
+    // Start pprof in a separate goroutine.
+    go func() {
+        log.Println("pprof listening on :6060")
+        if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+            log.Fatalf("pprof server error: %v", err)
+        }
+    }()
+</code></pre></div>
+<p>It's possible to inspect the application in real time, even under heavy load. To capture a CPU profile:</p>
+<div class="highlight"><pre><code>go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+</code></pre></div>
+<p>This grabs a 30-second snapshot of CPU usage. With the <code>pprof</code> HTTP server exposed, all runtime data—CPU, memory, goroutines, contention, flamegraphs—is available without pausing or restarting the application.</p>
+<div class="highlight"><pre><code>go tool pprof -http=:7070 cpu.prof #(1)
+</code></pre></div>
+<ol>
+<li>the actual <code>cpu.prof</code> path will be something like <code>$HOME/pprof/pprof.net-app.samples.cpu.004.pb.gz</code></li>
+</ol>
+<h3 id="cpu-profiling">CPU Profiling<a class="headerlink" href="#cpu-profiling" title="Permanent link">¶</a></h3>
+<p>Profiling a system at rest rarely tells the full story. Real bottlenecks show up under pressure—when requests stack up, threads compete, and memory churn increases. CPU profiling during load reveals where execution time concentrates, often exposing slow serialization, inefficient handler logic, or contention between goroutines. These are the paths that quietly limit throughput and inflate latency when traffic scales.</p>
+<h4 id="what-to-look-for">What to Look For<a class="headerlink" href="#what-to-look-for" title="Permanent link">¶</a></h4>
+<ul>
+<li>Network Serialization Hotspots: Frequent use of <code>json.Marshal</code> or similar serialization methods during network response generation.</li>
+<li>Syscall Overhead: Extensive syscall usage (e.g., <code>syscall.Read</code>) suggesting inefficient socket handling or excessive blocking I/O.</li>
+<li>GC Activity: High frequency of <code>runtime.gc</code> indicating inefficient memory management impacting response latency.</li>
+</ul>
+<p><strong>Why This Matters:</strong> Identifying and optimizing CPU-intensive operations in networking contexts reduces latency, boosts throughput, and improves reliability during traffic spikes.</p>
+<h3 id="flamegraphs">Flamegraphs<a class="headerlink" href="#flamegraphs" title="Permanent link">¶</a></h3>
+<p>Flamegraphs provide a visual summary of where CPU time is spent by aggregating and collapsing stack traces into a single view. They make it easy to identify performance hotspots without digging through raw profiling data. In server applications, this often highlights issues in request handling, serialization, or blocking I/O. Under load, flamegraphs are especially useful for catching subtle inefficiencies that scale into major performance problems.</p>
+<h4 id="what-to-look-for_1">What to Look For<a class="headerlink" href="#what-to-look-for_1" title="Permanent link">¶</a></h4>
+<ul>
+<li>Functions related to network I/O or data transfer that appear as wide blocks in a flamegraph often point to excessive time spent on serialization, buffering, or socket operations.</li>
+<li>Deep Call Chains Deep stacks could reveal inefficient middleware or unnecessary layers in network request handling.</li>
+<li>Unexpected Paths Look for unexpected serialization, reflection, or routing inefficiencies.</li>
+</ul>
+<p><strong>Why This Matters:</strong> Flamegraphs simplify diagnosing complex inefficiencies visually, leading to quicker optimization and reduced downtime.</p>
+<h3 id="managing-garbage-collection-gc-pressure">Managing Garbage Collection (GC) Pressure<a class="headerlink" href="#managing-garbage-collection-gc-pressure" title="Permanent link">¶</a></h3>
+<p>Memory profiling helps identify where your application is wasting heap space, especially in network-heavy code paths. Common issues include repeated allocation of response buffers, temporary objects, or excessive use of slices and maps. These patterns often go unnoticed until they trigger GC pressure or latency under load. Profiling with <code>pprof</code> follows the same basic steps as CPU profiling, making it easy to integrate into your existing workflow.</p>
+<div class="highlight"><pre><code>go tool pprof http://localhost:6060/debug/pprof/heap
+</code></pre></div>
+<p>Then, again, you can view results interactively.</p>
+<div class="highlight"><pre><code>go tool pprof -http=:7070 mem.prof #(1)
+</code></pre></div>
+<ol>
+<li>the actual <code>mem.prof</code> path will be something like <code>$HOME/pprof/pprof.net-app.alloc_objects.alloc_space.inuse_objects.inuse_space.003.pb.gz</code></li>
+</ol>
+<h4 id="what-to-look-for_2">What to Look For<a class="headerlink" href="#what-to-look-for_2" title="Permanent link">¶</a></h4>
+<ul>
+<li>Frequent Temporary Buffers: High frequency of allocations in network buffers, such as repeatedly creating byte slices for each request.</li>
+<li>Persistent Network Objects: Accumulation of long-lived network connections or sessions.</li>
+<li>Excessive Serialization Overhead: High object creation rate due to repeated encoding/decoding of network payloads.</li>
+</ul>
+<p>Example: Optimizing buffer reuse using <code>sync.Pool</code> greatly reduces GC pressure during high-volume network operations.</p>
+<p><strong>Why This Matters:</strong> Reducing memory churn from network activities improves response times and minimizes latency spikes caused by GC.</p>
+<h3 id="identifying-cpu-bottlenecks">Identifying CPU Bottlenecks<a class="headerlink" href="#identifying-cpu-bottlenecks" title="Permanent link">¶</a></h3>
+<p>Networked applications often hit CPU limits first when pushed under sustained load. Profiling helps surface where time is actually being spent and what’s getting in the way.</p>
+<h4 id="what-to-look-for_3">What to Look For<a class="headerlink" href="#what-to-look-for_3" title="Permanent link">¶</a></h4>
+<ul>
+<li>Latency Rising While Throughput Stalls: A sign the CPU is saturated, often from request processing or serialization overhead.</li>
+<li>Scheduler Overhead (runtime.schedule, mcall): Too many goroutines can overwhelm the scheduler, especially when each connection gets its own handler.</li>
+<li>Lock Contention: Repeated locking on shared network state or blocking channel operations slows down throughput and limits parallelism.</li>
+</ul>
+<p>For example, if profiling shows excessive time spent in TLS handshake routines, the fix might involve moving handshakes off the hot path or reducing handshake frequency with connection reuse.</p>
+<p><strong>Why it matters:</strong> CPU bottlenecks cap your ability to scale. Fixing them is often the difference between a system that handles 5K clients and one that handles 50K.</p>
+<h3 id="practicle-example-of-profiling-networked-go-applications-with-pprof">Practicle example of Profiling Networked Go Applications with <code>pprof</code><a class="headerlink" href="#practicle-example-of-profiling-networked-go-applications-with-pprof" title="Permanent link">¶</a></h3>
+<p>To illustrate these concepts practically, our demo application integrates profiling and benchmarking tools and provides comprehensive profiling and load testing scenarios. The demo covers identifying performance bottlenecks, analyzing flame graphs, and benchmarking under various simulated network conditions.</p>
+<p>Due to its significant size, <a href="../gc-endpoint-profiling/">Practicle example of Profiling Networked Go Applications with <code>prof</code></a> is a separate article.</p>
+<h2 id="benchmarking-as-a-feedback-loop">Benchmarking as a Feedback Loop<a class="headerlink" href="#benchmarking-as-a-feedback-loop" title="Permanent link">¶</a></h2>
+<p>A single load test run means little in isolation. But if you treat benchmarking as part of your development cycle—before and after changes—you start building a performance narrative. You can see exactly how a change impacted throughput or whether it traded latency for memory overhead.</p>
+<p>The Go standard library gives you <code>testing.B</code> for microbenchmarks. Combine profiling with robust integration testing as part of your CI/CD pipeline using tools like <code>Vegeta</code> and <code>k6</code>. This practice ensures early detection of regressions, continuous validation of performance enhancements, and reliable application performance maintenance under realistic production conditions.</p>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+                
+                  
+</body>
+</html>
