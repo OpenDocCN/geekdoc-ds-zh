@@ -1,0 +1,493 @@
+- en: Online Appendix G — Production
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://tellingstorieswithdata.com/26-deploy.html](https://tellingstorieswithdata.com/26-deploy.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[Appendices](./20-r_essentials.html)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[G  Production](./26-deploy.html)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Prerequisites**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Read *Science Storms the Cloud*, ([Gentemann et al. 2021](99-references.html#ref-Gentemann2021))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Describes the importance of being able to compute using the cloud.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Read *Machine learning is going real-time*, ([Huyen 2020](99-references.html#ref-chiphuyenone))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Discussion of the need to be able to make forecasts on the fly.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Watch *Democratizing R with Plumber APIs*, ([Blair 2019](99-references.html#ref-democratizingr))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Overview of using `plumber` to make an API.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Read *Operationalizing Machine Learning: An Interview Study*, ([Shankar et
+    al. 2022](99-references.html#ref-mleinterviews)).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Provides the results of interviews with machine learning engineers.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Key concepts and skills**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Putting a model into production - i.e. using it in a real-world setting - requires
+    an additional set of skills, including a familiarity with a cloud provider and
+    the ability to create an API.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Software and packages**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`analogsea` ([Chamberlain et al. 2022](99-references.html#ref-citeanalogsea))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`plumber` ([Schloerke and Allen 2022](99-references.html#ref-plumber))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`plumberDeploy` ([Allen 2021](99-references.html#ref-plumberdeploy))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`remotes` ([Csárdi et al. 2021](99-references.html#ref-remotes))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ssh` ([Ooms 2022](99-references.html#ref-ssh))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tidymodels` ([Kuhn and Wickham 2020](99-references.html#ref-citeTidymodels))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tidyverse` ([Wickham et al. 2019](99-references.html#ref-tidyverse))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*## G.1 Introduction'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Having done the work to develop a dataset and explore it with a model that
+    we are confident can be used, we may wish to enable this to be used more widely
+    than just our own computer. There are a variety of ways of doing this, including:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: using the cloud;
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: creating R packages;
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: making `shiny` applications; and
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: using `plumber` to create an API.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The general idea here is that we need to know, and allow others to come to trust,
+    the whole workflow. That is what our approach to this point brings. After this,
+    then we may like to use our model more broadly. Say we have been able to scrape
+    some data from a website, bring some order to that chaos, make some charts, appropriately
+    model it, and write this all up. In most academic settings that is more than enough.
+    But in many industry settings we would like to use the model to do something.
+    For instance, setting up a website that allows a model to be used to generate
+    an insurance quote given several inputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we begin by moving our compute from our local computer to the
+    cloud. We then describe the use of R packages and Shiny for sharing models. That
+    works well, but in some settings other users may like to interact with our model
+    in ways that we are not focused on. One way to allow this is to make our results
+    available to other computers, and for that we will want to make an API. Hence,
+    we introduce `plumber` ([Schloerke and Allen 2022](99-references.html#ref-plumber)),
+    which is a way of creating APIs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: G.2 Amazon Web Services
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Apocryphally the cloud is just another name for someone else’s computer. And
+    while that is true to various degrees, for our purposes that is enough. Learning
+    to use someone else’s computer can be great for a number of reasons including:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Scalability: It can be quite expensive to buy a new computer, especially if
+    we only need it to run something every now and then, but by using the cloud, we
+    can just rent for a few hours or days. This allows use to amortize this cost and
+    work out what we actually need before committing to a purchase. It also allows
+    us to easily increase or decrease the compute scale if we suddenly have a substantial
+    increase in demand.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Portability: If we can shift our analysis workflow from a local computer to
+    the cloud, then that suggests that we are likely doing good things in terms of
+    reproducibility and portability. At the very least, code can run both locally
+    and on the cloud, which is a big step in terms of reproducibility.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Set-and-forget: If we are doing something that will take a while, then it can
+    be great to not have to worry about our own computer needing to run overnight.
+    Additionally, on many cloud options, open-source statistical software, such as
+    R and Python, is either already available, or relatively easy to set up.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'That said, there are downsides, including:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Cost: While most cloud options are cheap, they are rarely free. To provide
+    an idea of cost, using a well-featured AWS instance for a few days may end up
+    being a few dollars. It is also easy to accidentally forget about something, and
+    generate unexpectedly large bills, especially initially.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Public: It can be easy to make mistakes and accidentally make everything public.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Time: It takes time to get set up and comfortable on the cloud.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When we use the cloud, we are typically running code on a “virtual machine”
+    (VM). This is an allocation that is part of a larger collection of computers that
+    has been designed to act like a computer with specific features. For instance,
+    we may specify that our virtual machine has, say, 8GB RAM, 128GB storage, and
+    4 CPUs. The VM would then act like a computer with those specifications. The cost
+    to use cloud options increases based on the VM specifications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In a sense, we started with a cloud option, through our initial recommendation
+    in [Chapter 2](02-drinking_from_a_fire_hose.html) of using Posit Cloud, before
+    we moved to our local computer in [Appendix A](20-r_essentials.html). That cloud
+    option was specifically designed for beginners. We will now introduce a more general
+    cloud option: Amazon Web Services (AWS). Often a particular business will use
+    a particular cloud option, such as Google, AWS, or Azure, but developing familiarity
+    with one will make the use of the others easier.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Amazon Web Services is a cloud service from Amazon. To get started we need to
+    create an AWS Developer account [here](https://aws.amazon.com/developer/) ([Figure G.1
+    (a)](#fig-awsone)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/1a470b19cfb9f355b38aa5dbd5da243d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: (a) AWS Developer website
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/781084a20214ccc56fd89fc97cc8fa8a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: (b) AWS Developer console
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/0c9a0b7700c2eefdb47ea94e74a2cebd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: (c) Launching an AWSinstance
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](../Images/7cf68348d3b75c375301163ca90b04b9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: (d) Establishing a key pair
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure G.1: Overview of getting Amazon AWS set up'
+  prefs: []
+  type: TYPE_NORMAL
+- en: After we have created an account, we need to select a region where the computer
+    that we will access is located. After this, we want to “Launch a virtual machine”
+    with EC2 ([Figure G.1 (b)](#fig-awstwo)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first step is to choose an Amazon Machine Image (AMI). This provides the
+    details of the computer that you will be using. For instance, a local computer
+    may be a MacBook running Monterey. Louis Aslett provides AMIs that are already
+    set up with RStudio and much else [here](http://www.louisaslett.com/RStudio_AMI/).
+    We can either search for the AMI of the region that we registered for, or click
+    on the relevant link on Aslett’s website. For instance, to use the AMI set-up
+    for the Canadian central region we search for “ami-0bdd24fd36f07b638”. The benefit
+    of using these AMIs is that they are set up specifically for RStudio, but the
+    trade-off is that they are a little outdated, as they were compiled in August
+    2020.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next step we can choose how powerful the computer will be. The free tier
+    is a basic computer, but we can choose better ones when we need them. At this
+    point we can pretty much just launch the instance ([Figure G.1 (c)](#fig-awsthree)).
+    If we start using AWS more seriously, then we could go back and select different
+    options, especially around the security of the account. AWS relies on key pairs.
+    And so, we will need to create a Privacy Enhanced Mail (PEM) and save it locally
+    ([Figure G.1 (d)](#fig-awsfive)). We can then launch the instance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After a few minutes, the instance will be running. We can use it by pasting
+    the “public DNS” into a browser. The username is “rstudio” and the password is
+    the instance ID.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We should have RStudio running, which is exciting. The first thing to do is
+    probably to change the default password using the instructions in the instance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We do not need to install, say, the `tidyverse`, instead we can just call the
+    library and keep going. This is because this AMI comes with many packages already
+    installed. We can see the list of packages that are installed with `installed.packages()`.
+    For instance, `rstan` is already installed, and we could set up an instance with
+    GPUs if we needed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Perhaps as important as being able to start a AWS instance is being able to
+    stop it (so that we do not get billed). The free tier is useful, but we do need
+    to turn it off. To stop an instance, in the AWS instances page, select it, then
+    “Actions -> Instance State -> Terminate”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: G.3 Plumber and model APIs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The general idea behind the `plumber` package ([Schloerke and Allen 2022](99-references.html#ref-plumber))
+    is that we can train a model and make it available via an API that we can call
+    when we want a forecast. Recall in [Chapter 7](07-gather.html) that we informally
+    defined an API in the context of data gathering as a website that was set-up for
+    another computer to access it, rather than a person. Here, we broaden that to
+    enable data to encompass a model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just to get something working, let us make a function that returns “Hello Toronto”
+    regardless of the output. Open a new R file, add the following, and then save
+    it as “plumber.R” (you may need to install the `plumber` package if you have not
+    done that yet).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*After that is saved, in the top right of the editor you should get a button
+    to “Run API”. Click that, and your API should load. It will be a “Swagger” application,
+    which provides a GUI around our API. Expand the GET method, and then click “Try
+    it out” and “Execute”. In the response body, you should get “Hello Toronto”.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To more closely reflect the fact that this is an API designed for computers,
+    you can copy/paste the “Request URL” into a browser and it should return “Hello
+    Toronto”.
+  prefs: []
+  type: TYPE_NORMAL
+- en: G.3.0.1 Local model
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: Now, we are going to update the API so that it serves a model output, given
+    some input. This follows Buhr ([2017](99-references.html#ref-buhrplumber)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, we should start a new R Project. To get started, let us simulate
+    some data and then train a model on it. In this case we are interested in forecasting
+    how long a baby may sleep overnight, given we know how long they slept during
+    their afternoon nap.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*![](../Images/7db611f3ff1e56e8f8e8b849905978e6.png)*  *Let us now use `tidymodels`
+    to quickly make a model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*At this point, we have a model. One difference from what you might be used
+    to is that we have saved the model as an “.rds” file. We are going to read that
+    in.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have our model we want to put that into a file that we will use
+    the API to access, again called “plumber.R”. And we also want a file that sets
+    up the API, called “server.R”. Make an R script called “server.R” and add the
+    following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Then in “plumber.R” add the following content:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Again, after we save the “plumber.R” file we should have an option to “Run
+    API”. Click that and you can try out the API locally in the same way as before.
+    In this case, click “Try It Out” and then input an afternoon nap length in minutes.
+    The response body will contain the prediction based on the data and model we set
+    up.****  ***#### G.3.0.2 Cloud model'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To this point, we have got an API working on our own machine, but what we really
+    want to do is to get it working on a computer such that the API can be accessed
+    by anyone. To do this we are going to use [DigitalOcean](https://www.digitalocean.com).
+    It is a charged service, but when you create an account, it will come with $200
+    in credit, which will be enough to get started.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This set-up process will take some time, but we only need to do it once. Two
+    additional packages that will assist here are `plumberDeploy` ([Allen 2021](99-references.html#ref-plumberdeploy))
+    and `analogsea` ([Chamberlain et al. 2022](99-references.html#ref-citeanalogsea))
+    (which will need to be installed from GitHub: `install_github("sckott/analogsea")`).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we need to connect the local computer with the DigitalOcean account.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Now we need to authenticate the connection, and this is done using a SSH public
+    key.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*What you want is to have a “.pub” file on our computer. Then copy the public
+    key aspect in that file, and add it to the SSH keys section in the account security
+    settings. When we have the key on our local computer, then we can check this using
+    `ssh`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Again, this will all take a while to validate. DigitalOcean calls every computer
+    that we start a “droplet”. If we start three computers, then we will have started
+    three droplets. We can check the droplets that are running.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*If everything is set up properly, then this will print the information about
+    all droplets that you have associated with the account (which at this point, is
+    probably none). We must first create a droplet.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Then we get asked for the SSH passphrase and then it will set up a bunch of
+    things. After this we are going to need to install a whole bunch of things onto
+    our droplet.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*And then when that is finally set up (it will take 30 minutes or so) we can
+    deploy our API.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]**********  ***## G.4 Exercises'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scales
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '*(Plan)*'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Simulate)*'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Acquire)*'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Explore)*'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Communicate)*'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Tutorial
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Allen, Jeff. 2021\. *plumberDeploy: Plumber Deployment*. [https://CRAN.R-project.org/package=plumberDeploy](https://CRAN.R-project.org/package=plumberDeploy).Blair,
+    James. 2019\. *Democratizing R with Plumber APIs*. [https://posit.co/resources/videos/democratizing-r-with-plumber-apis/](https://posit.co/resources/videos/democratizing-r-with-plumber-apis/).Buhr,
+    Ray. 2017\. *Using R as a Production Machine Learning Language (Part I)*. [https://raybuhr.github.io/blog/posts/making-predictions-over-http/](https://raybuhr.github.io/blog/posts/making-predictions-over-http/).Chamberlain,
+    Scott, Hadley Wickham, Winston Chang, and Mauricio Vargas. 2022\. *Analogsea:
+    Interface to “Digital Ocean”*. [https://CRAN.R-project.org/package=analogsea](https://CRAN.R-project.org/package=analogsea).Csárdi,
+    Gábor, Jim Hester, Hadley Wickham, Winston Chang, Martin Morgan, and Dan Tenenbaum.
+    2021\. *remotes: R Package Installation from Remote Repositories, Including “GitHub”*.
+    [https://CRAN.R-project.org/package=remotes](https://CRAN.R-project.org/package=remotes).Gentemann,
+    Chelle Leigh, Chris Holdgraf, Ryan Abernathey, Daniel Crichton, James Colliander,
+    Edward Joseph Kearns, Yuvi Panda, and Richard Signell. 2021\. “Science Storms
+    the Cloud.” *AGU Advances* 2 (2). [https://doi.org/10.1029/2020av000354](https://doi.org/10.1029/2020av000354).Huyen,
+    Chip. 2020\. “Machine Learning Is Going Real-Time,” December. [https://huyenchip.com/2020/12/27/real-time-machine-learning.html](https://huyenchip.com/2020/12/27/real-time-machine-learning.html).Kuhn,
+    Max, and Hadley Wickham. 2020\. *tidymodels: a collection of packages for modeling
+    and machine learning using tidyverse principles*. [https://www.tidymodels.org](https://www.tidymodels.org).Ooms,
+    Jeroen. 2022\. *ssh: Secure Shell (SSH) Client for R*. [https://CRAN.R-project.org/package=ssh](https://CRAN.R-project.org/package=ssh).Schloerke,
+    Barret, and Jeff Allen. 2022\. *plumber: An API Generator for R*. [https://CRAN.R-project.org/package=plumber](https://CRAN.R-project.org/package=plumber).Shankar,
+    Shreya, Rolando Garcia, Joseph Hellerstein, and Aditya Parameswaran. 2022\. “Operationalizing
+    Machine Learning: An Interview Study.” arXiv. [https://doi.org/10.48550/ARXIV.2209.09125](https://doi.org/10.48550/ARXIV.2209.09125).Wickham,
+    Hadley, Mara Averick, Jenny Bryan, Winston Chang, Lucy D’Agostino McGowan, Romain
+    François, Garrett Grolemund, et al. 2019\. “Welcome to the Tidyverse.” *Journal
+    of Open Source Software* 4 (43): 1686\. [https://doi.org/10.21105/joss.01686](https://doi.org/10.21105/joss.01686).****'
+  prefs: []
+  type: TYPE_NORMAL

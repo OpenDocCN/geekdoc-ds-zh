@@ -1,0 +1,635 @@
+- en: 14  Prediction
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://tellingstorieswithdata.com/13-prediction.html](https://tellingstorieswithdata.com/13-prediction.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[Modeling](./12-ijalm.html)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[14  Prediction](./13-prediction.html)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Prerequisites**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Read *An Introduction to Statistical Learning with Applications in R*, ([James
+    et al. [2013] 2021](99-references.html#ref-islr))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Focus on Chapter 6 “Linear Model Selection and Regularization”, which provides
+    an overview of ridge and lasso regression.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Read *Python for Data Analysis*, ([McKinney [2011] 2022](99-references.html#ref-pythonfordataanalysis))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Focus on Chapter 13 which provides worked examples of data analysis in Python.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Read *Introduction to NFL Analytics with R*, ([Congelio 2024](99-references.html#ref-congelio2024))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Focus on Chapter 3 “NFL Analytics with the `nflverse` Family of Packages” and
+    Chapter 5 “Advanced Model Creation with NFL Data”.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Key concepts and skills**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Software and packages**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`arrow` ([Richardson et al. 2023](99-references.html#ref-arrow))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`nflverse` ([Carl et al. 2023](99-references.html#ref-nflverse))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`poissonreg` ([Kuhn and Frick 2022](99-references.html#ref-poissonreg))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tidymodels` ([Kuhn and Wickham 2020](99-references.html#ref-citeTidymodels))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`parsnip` ([Kuhn and Vaughan 2022](99-references.html#ref-parsnip))'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`recipes` ([Kuhn and Wickham 2022](99-references.html#ref-recipes))'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`rsample` ([Frick et al. 2022](99-references.html#ref-rsample))'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tune` ([Kuhn 2022](99-references.html#ref-tune))'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`yarkdstick` ([Kuhn, Vaughan, and Hvitfeldt 2022](99-references.html#ref-yardstick))'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tidyverse` ([Wickham et al. 2019](99-references.html#ref-tidyverse))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tinytable` ([Arel-Bundock 2024](99-references.html#ref-tinytable))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*## 14.1 Introduction'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As discussed in [Chapter 12](12-ijalm.html), models tend to be focused on either
+    inference or prediction. There are, in general, different cultures depending on
+    your focus. One reason for this is a different emphasis of causality, which will
+    be introduced in [Chapter 15](14-causality_from_obs.html). I am talking very generally
+    here, but often with inference we will be very concerned about causality, and
+    with prediction we will be less so. That means the quality of our predictions
+    will break-down when conditions are quite different from what our model was expecting—but
+    how do we know when conditions are sufficiently different for us to be worried?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another way for this cultural difference is because the rise of data science
+    and machine learning in particular, has been substantially driven by the development
+    of models in Python by people with a computer science or engineering background.
+    This means there is an additional vocabulary difference because much of inference
+    came out of statistics. Again, this is all speaking very broadly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, I begin with a focus on prediction using the R approach of
+    `tidymodels`. I then introduce one of those grey areas—and the reason that I have
+    been trying to speak broadly—lasso regression. That was developed by statisticians,
+    but is mostly used for prediction. Finally, I introduce all of this in Python.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 14.2 Prediction with `tidymodels`
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 14.2.1 Linear models
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'When we are focused on prediction, we will often want to fit many models. One
+    way to do this is to copy and paste code many times. This is okay, and it is the
+    way that most people get started but it is prone to making errors that are hard
+    to find. A better approach will:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: scale more easily;
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: enable us to think carefully about over-fitting; and
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: add model evaluation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The use of `tidymodels` ([Kuhn and Wickham 2020](99-references.html#ref-citeTidymodels))
+    satisfies these criteria by providing a coherent grammar that allows us to easily
+    fit a variety of models. Like the `tidyverse`, it is a package of packages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By way of illustration, we want to estimate the following model for the simulated
+    running data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \begin{aligned} y_i | \mu_i &\sim \mbox{Normal}(\mu_i, \sigma) \\ \mu_i &=
+    \beta_0 +\beta_1x_i \end{aligned} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where \(y_i\) refers to the marathon time of some individual \(i\) and \(x_i\)
+    refers to their five-kilometer time. Here we say that the marathon time of some
+    individual \(i\) is normally distributed with a mean of \(\mu\) and a standard
+    deviation of \(\sigma\), where the mean depends on two parameters \(\beta_0\)
+    and \(\beta_1\) and their five-kilometer time. Here “~” means “is distributed
+    as”. We use this slightly different notation from earlier to be more explicit
+    about the distributions being used, but this model is equivalent to \(y_i=\beta_0+\beta_1
+    x_i + \epsilon_i\), where \(\epsilon\) is normally distributed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we are focused on prediction, we are worried about over-fitting our data,
+    which would limit our ability to make claims about other datasets. One way to
+    partially address this is to split our dataset in two using `initial_split()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE2]*  *Having split the data, we then create training and test datasets
+    with `training()` and `testing()`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*We have placed 80 per cent of our dataset into the training dataset. We will
+    use that to estimate the parameters of our model. We have kept the remaining 20
+    per cent of it back, and we will use that to evaluate our model. Why might we
+    do this? Our concern is the bias-variance trade-off, which haunts all aspects
+    of modeling. We are concerned that our results may be too particular to the dataset
+    that we have, such that they are not applicable to other datasets. To take an
+    extreme example, consider a dataset with ten observations. We could come up with
+    a model that perfectly hits those observations. But when we took that model to
+    other datasets, even those generated by the same underlying process, it would
+    not be accurate.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One way to deal with this concern is to split the data in this way. We use the
+    training data to inform our estimates of the coefficients, and then use the test
+    data to evaluate the model. A model that too closely matched the data in the training
+    data would not do well in the test data, because it would be too specific to the
+    training data. The use of this test-training split enables us the opportunity
+    to build an appropriate model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is more difficult to do this separation appropriately than one might initially
+    think. We want to avoid the situation where aspects of the test dataset are present
+    in the training dataset because this inappropriately telegraphs what is about
+    to happen. This is called data leakage. But if we consider data cleaning and preparation,
+    which likely involves the entire dataset, it may be that some features of each
+    are influencing each other. Kapoor and Narayanan ([2023](99-references.html#ref-kapoornarayanan2022))
+    find extensive data leakage in applications of machine learning that could invalidate
+    much research.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To use `tidymodels` we first specify that we are interested in linear regression
+    with `linear_reg()`. We then specify the type of linear regression, in this case
+    multiple linear regression, with `set_engine()`. Finally, we specify the model
+    with `fit()`. While this requires considerably more infrastructure than the base
+    R approach detailed above, the advantage of this approach is that it can be used
+    to fit many models; we have created a model factory, as it were.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*The estimated coefficients are summarized in the first column of [Table 12.4](12-ijalm.html#tbl-modelsummarybayesbetter).
+    For instance, we find that on average in our dataset, five-kilometer run times
+    that are one minute longer are associated with marathon times that are about eight
+    minutes longer.***  ***### 14.2.2 Logistic regression'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also use `tidymodels` for logistic regression problems. To accomplish
+    this, we first need to change the class of our dependent variable into a factor
+    because this is required for classification models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*As before, we can make a graph of the actual results compared with our estimates.
+    But one nice aspect of this is that we could use our test dataset to evaluate
+    our model’s prediction ability more thoroughly, for instance through a confusion
+    matrix, which specifies the count of each prediction by what the truth was. We
+    find that the model does well on the held-out dataset. There were 90 observations
+    where the model predicted it was a weekday, and it was actually a weekday, and
+    95 where the model predicted it was a weekend, and it was a weekend. It was wrong
+    for 15 observations, and these were split across seven where it predicted a weekday,
+    but it was a weekend, and eight where it was the opposite case.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE7]*  *#### 14.2.2.1 US political support'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One approach is to use `tidymodels` to build a prediction-focused logistic regression
+    model in the same way as before, i.e. a validation set approach ([James et al.
+    [2013] 2021, 176](99-references.html#ref-islr)). In this case, the probability
+    will be that of voting for Biden.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE9]*  *And then evaluate it on the test set. It appears as though the model
+    is having difficulty identifying Trump supporters.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE11]*  *When we introduced `tidymodels`, we discussed the importance of
+    randomly constructing training and test sets. We use the training dataset to estimate
+    parameters, and then evaluate the model on the test set. It is natural to ask
+    why we should be subject to the whims of randomness and whether we are making
+    the most of our data. For instance, what if a good model is poorly evaluated because
+    of some random inclusion in the test set? Further, what if we do not have a large
+    test set?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: One commonly used resampling method that goes some way to addressing this is
+    \(k\)-fold cross-validation. In this approach we create \(k\) different samples,
+    or “folds”, from the dataset without replacement. We then fit the model to the
+    first \(k-1\) folds, and evaluate it on the last fold. We do this \(k\) times,
+    once for every fold, such that every observation will be used for training \(k-1\)
+    times and for testing once. The \(k\)-fold cross-validation estimate is then the
+    average mean squared error ([James et al. [2013] 2021, 181](99-references.html#ref-islr)).
+    For instance, `vfold_cv()` from `tidymodels` can be used to create, say, ten folds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*The model can then be fit across the different combinations of folds with
+    `fit_resamples()`. In this case, the model will be fit ten times.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*We might be interested to understand the performance of our model and we can
+    use `collect_metrics()` to aggregate them across the folds (?tbl-metricsvoters-1).
+    These types of details would typically be mentioned in passing in the main content
+    of the paper, but included in great detail in an appendix. The average accuracy
+    of our model across the folds is 0.61, while the average sensitivity is 0.19 and
+    the average specificity is 0.90.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Table 14.1: Average metrics across the ten folds of a logistic regression
+    to predict voter preference'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Metric | Mean |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| accuracy | 0.61 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| sens | 0.19 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Prediction | Truth | Freq | Proportion |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Trump | Trump | 327.5 | 0.08 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Trump | Biden | 267.7 | 0.06 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Biden | Trump | 1,428.3 | 0.33 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Biden | Biden | 2,331.9 | 0.54 |'
+  prefs: []
+  type: TYPE_TB
+- en: What does this mean? Accuracy is the proportion of observations that were correctly
+    classified. The result of 0.61 suggests the model is doing better than a coin
+    toss, but not much more. Sensitivity is the proportion of true observations that
+    are identified as true ([James et al. [2013] 2021, 145](99-references.html#ref-islr)).
+    In this case that would mean the model predicted a respondent voted for Trump
+    and they did. Specificity is the proportion of false observations that are identified
+    as false ([James et al. [2013] 2021, 145](99-references.html#ref-islr)). In this
+    case it is the proportion of voters that voted for Biden, that were predicted
+    to vote for Biden. This confirms our initial thought that the model is having
+    trouble identifying Trump supporters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see this in more detail by looking at the confusion matrix (?tbl-metricsvoters-2).
+    When used with resampling approaches, such as cross-validation, the confusion
+    matrix is computed for each fold and then averaged. The model is predicting Biden
+    much more than we might expect from our knowledge of how close the 2020 election
+    was. It suggests that our model may need additional variables to do a better job.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, it may be the case that we are interested in individual-level results,
+    and we can add these to our dataset with `collect_predictions()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*For instance, we can see that the model is essentially predicting support
+    for Biden for all individuals apart from males with no high school, high school
+    graduates, or two years of college ([Table 14.2](#tbl-omgthismodelishorriblelol)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Table 14.2: The model is predicting support for Biden for all females, and
+    for many males, regardless of education'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Gender | Education | Voted for | Predicted vote | Number |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | No HS | Trump | Biden | 206 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | No HS | Biden | Biden | 228 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | High school graduate | Trump | Biden | 3,204 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | High school graduate | Biden | Biden | 3,028 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | Some college | Trump | Biden | 1,842 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | Some college | Biden | Biden | 3,325 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | 2-year | Trump | Biden | 1,117 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | 2-year | Biden | Biden | 1,739 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | 4-year | Trump | Biden | 1,721 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | 4-year | Biden | Biden | 4,295 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | Post-grad | Trump | Biden | 745 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Female | Post-grad | Biden | Biden | 2,853 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | No HS | Trump | Trump | 132 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | No HS | Biden | Trump | 123 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | High school graduate | Trump | Trump | 2,054 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | High school graduate | Biden | Trump | 1,528 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | Some college | Trump | Biden | 1,992 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | Some college | Biden | Biden | 2,131 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | 2-year | Trump | Trump | 1,089 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | 2-year | Biden | Trump | 1,026 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | 4-year | Trump | Biden | 2,208 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | 4-year | Biden | Biden | 3,294 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | Post-grad | Trump | Biden | 1,248 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Male | Post-grad | Biden | Biden | 2,426 |*********  ***### 14.2.3 Poisson
+    regression'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can use `tidymodels` to estimate Poisson models with `poissonreg` ([Kuhn
+    and Frick 2022](99-references.html#ref-poissonreg)) ([Table 13.4](13-ijaglm.html#tbl-modelsummarypoisson)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*The results of this estimation are in the second column of [Table 13.4](13-ijaglm.html#tbl-modelsummarypoisson).
+    They are similar to the estimates from `glm()`, but the number of observations
+    is less because of the split.*******  ***## 14.3 Lasso regression'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Shoulders of giants* *Dr Robert Tibshirani is Professor in the Departments
+    of Statistics and Biomedical Data Science at Stanford University. After earning
+    a PhD in Statistics from Stanford University in 1981, he joined the University
+    of Toronto as an assistant professor. He was promoted to full professor in 1994
+    and moved to Stanford in 1998\. He made fundamental contributions including GAMs,
+    mentioned above, and lasso regression, which is a way of automated variable selection.
+    He is an author of James et al. ([[2013] 2021](99-references.html#ref-islr)).
+    He was awarded the COPSS Presidents’ Award in 1996 and was appointed a Fellow
+    of the Royal Society in 2019.*  *## 14.4 Prediction with Python'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 14.4.1 Setup
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will use Python within VSCode, which is a free IDE from Microsoft that you
+    can download [here](https://code.visualstudio.com). You then install the Quarto
+    and Python extensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 14.4.2 Data
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '*Read in data using parquet.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Manipulate using pandas*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 14.4.3 Model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 14.4.3.1 scikit-learn
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 14.4.3.2 TensorFlow
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 14.5 Exercises
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Practice
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '*(Plan)* Consider the following scenario: *Each day for a year your uncle and
+    you play darts. Each round consists of throwing three darts each. At the end of
+    each round you add the points that your three darts hit. So if you hit 3, 5, and
+    10, then your total score for that round is 18\. Your uncle is somewhat benevolent,
+    and if you hit a number less than 5, he pretends not to see that, allowing you
+    the chance to re-throw that dart. Pretend that each day you play 15 rounds.* Please
+    sketch out what that dataset could look like and then sketch a graph that you
+    could build to show all observations.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Simulate)* Please further consider the scenario described and simulate the
+    situation. Compare your uncle’s total with your total if you didn’t get the chance
+    to re-throw, and the total that actually end up with. Please include at least
+    ten tests based on the simulated data.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Acquire)* Please describe one possible source of such a dataset (or an equivalent
+    sport or situation of interest to you).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Explore)* Please use `ggplot2` to build the graph that you sketched. Then
+    use `tidymodels` to build a forecasting model of who wins.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Communicate)* Please write two paragraphs about what you did.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quiz
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Class activities
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Task
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Please use `nflverse` to load some statistics for NFL quarterbacks during the
+    regular season. The [data dictionary](https://nflreadr.nflverse.com/articles/dictionary_player_stats.html)
+    will be useful to make sense of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Pretend that you are an NFL analyst and that it is half way through the 2023
+    regular season, i.e. Week 9 has just finished. I am interested in the best forecasting
+    model of `passing_epa` that you can generate for each team in the remainder of
+    the season, i.e. Weeks 10-18.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use Quarto, and include an appropriate title, author, date, link to a GitHub
+    repo, sections, and citations, and write a 2-3 page report for management. The
+    best performance will likely require creative feature engineering. You are welcome
+    to use R or Python, any model, but you should be careful to specify the model
+    and explain, at a high-level, how it works. Be careful about leakage!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Arel-Bundock, Vincent. 2024\. *tinytable: Simple and Configurable Tables in
+    “HTML,” “LaTeX,” “Markdown,” “Word,” “PNG,” “PDF,” and “Typst” Formats*. [https://vincentarelbundock.github.io/tinytable/](https://vincentarelbundock.github.io/tinytable/).Carl,
+    Sebastian, Ben Baldwin, Lee Sharpe, Tan Ho, and John Edwards. 2023\. *Nflverse:
+    Easily Install and Load the ’Nflverse’*. [https://CRAN.R-project.org/package=nflverse](https://CRAN.R-project.org/package=nflverse).Congelio,
+    Bradley. 2024\. *Introduction to NFL Analytics with R*. 1st ed. Chapman; Hall/CRC.
+    [https://bradcongelio.com/nfl-analytics-with-r-book/](https://bradcongelio.com/nfl-analytics-with-r-book/).Frick,
+    Hannah, Fanny Chow, Max Kuhn, Michael Mahoney, Julia Silge, and Hadley Wickham.
+    2022\. *rsample: General Resampling Infrastructure*. [https://CRAN.R-project.org/package=rsample](https://CRAN.R-project.org/package=rsample).James,
+    Gareth, Daniela Witten, Trevor Hastie, and Robert Tibshirani. (2013) 2021\. *An
+    Introduction to Statistical Learning with Applications in R*. 2nd ed. Springer.
+    [https://www.statlearning.com](https://www.statlearning.com).Kapoor, Sayash, and
+    Arvind Narayanan. 2023\. “Leakage and the Reproducibility Crisis in Machine-Learning-Based
+    Science.” *Patterns* 4 (9): 1–12\. [https://doi.org/10.1016/j.patter.2023.100804](https://doi.org/10.1016/j.patter.2023.100804).Kuhn,
+    Max. 2022\. *tune: Tidy Tuning Tools*. [https://CRAN.R-project.org/package=tune](https://CRAN.R-project.org/package=tune).Kuhn,
+    Max, and Hannah Frick. 2022\. *poissonreg: Model Wrappers for Poisson Regression*.
+    [https://CRAN.R-project.org/package=poissonreg](https://CRAN.R-project.org/package=poissonreg).Kuhn,
+    Max, and Davis Vaughan. 2022\. *parsnip: A Common API to Modeling and Analysis
+    Functions*. [https://CRAN.R-project.org/package=parsnip](https://CRAN.R-project.org/package=parsnip).Kuhn,
+    Max, Davis Vaughan, and Emil Hvitfeldt. 2022\. *yardstick: Tidy Characterizations
+    of Model Performance*. [https://CRAN.R-project.org/package=yardstick](https://CRAN.R-project.org/package=yardstick).Kuhn,
+    Max, and Hadley Wickham. 2020\. *tidymodels: a collection of packages for modeling
+    and machine learning using tidyverse principles*. [https://www.tidymodels.org](https://www.tidymodels.org).———.
+    2022\. *recipes: Preprocessing and Feature Engineering Steps for Modeling*. [https://CRAN.R-project.org/package=recipes](https://CRAN.R-project.org/package=recipes).McKinney,
+    Wes. (2011) 2022\. *Python for Data Analysis*. 3rd ed. [https://wesmckinney.com/book/](https://wesmckinney.com/book/).Richardson,
+    Neal, Ian Cook, Nic Crane, Dewey Dunnington, Romain François, Jonathan Keane,
+    Dragoș Moldovan-Grünfeld, Jeroen Ooms, and Apache Arrow. 2023\. *arrow: Integration
+    to Apache Arrow*. [https://CRAN.R-project.org/package=arrow](https://CRAN.R-project.org/package=arrow).Wickham,
+    Hadley, Mara Averick, Jenny Bryan, Winston Chang, Lucy D’Agostino McGowan, Romain
+    François, Garrett Grolemund, et al. 2019\. “Welcome to the Tidyverse.” *Journal
+    of Open Source Software* 4 (43): 1686\. [https://doi.org/10.21105/joss.01686](https://doi.org/10.21105/joss.01686).******'
+  prefs: []
+  type: TYPE_NORMAL

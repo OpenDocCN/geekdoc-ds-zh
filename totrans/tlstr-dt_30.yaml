@@ -1,0 +1,1058 @@
+- en: 16  Multilevel regression with post-stratification
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 原文：[https://tellingstorieswithdata.com/15-mrp.html](https://tellingstorieswithdata.com/15-mrp.html)
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: '[Applications](./14-causality_from_obs.html)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[16  Multilevel regression with post-stratification](./15-mrp.html)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Prerequisites**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Read *Forecasting elections with non-representative polls*, ([Wang et al. 2015](99-references.html#ref-wang2015forecasting))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Discusses the use of MRP on a biased sample drawn from the XBox platform.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Read *Analyzing name changes after marriage using a non-representative survey*,
+    ([Alexander 2019](99-references.html#ref-monicanamechanges))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implements MRP on a survey and provides detailed code and data.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Read *Mister P helps us understand vaccine hesitancy*, ([Green 2020](99-references.html#ref-green2020mister))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Another worked example of MRP with available code and data.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Watch *Statistical Models of Election Outcomes*, ([Gelman 2020](99-references.html#ref-gelmantalks))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Discussion of building models for elections.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Listen to *Episode 248: Are Democrats being irrational? (David Shor)*, ([Galef
+    2020](99-references.html#ref-galefandshor))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Focus on the first half which discusses the use of data in politics, with lessons
+    that are broadly applicable.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Key concepts and skills**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multilevel regression with post-stratification (MRP) takes a sample, usually
+    a large poll, and uses that to train a model. Then that trained model is applied
+    to a post-stratification dataset, typically a census or other larger sample.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We use models because we are interested in answering questions that our data
+    alone cannot answer. For instance, we may want to know what is going on in every
+    political district, but it would be too expensive to appropriately poll every
+    district. If we had perfect data, we would not need a model.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Models allow us to answer some questions, but the trade-off is that we answer
+    them with uncertainty. In the MRP set-up, our model borrows information from areas
+    where we know a lot and uses that in areas where we know little. The degree to
+    which this is appropriate is one aspect we would always like to know more about.
+    One of the main difficulties with MRP is obtaining access to the required datasets.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The fundamental assumption of MRP is that the relationship between predictors,
+    like gender, age-group, district, etc, and the outcome, for instance, “who are
+    you going to vote for?”, are steady between the sample and the post-stratification
+    dataset. One key question when considering MRP estimates is: “To what extent does
+    that assumption hold?”'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As always, transparency is critical and there should be little reason that data
+    preparation and modeling code cannot be made public alongside the model results
+    even if the survey data cannot. This enables scrutiny from independent experts
+    and enhances the credibility of MRP estimates.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Software and packages**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Base R ([R Core Team 2024](99-references.html#ref-citeR))
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`arrow` ([Richardson et al. 2023](99-references.html#ref-arrow))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`broom.mixed` ([Bolker and Robinson 2022](99-references.html#ref-mixedbroom))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`gutenbergr` ([Johnston and Robinson 2022](99-references.html#ref-gutenbergr))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`haven` ([Wickham, Miller, and Smith 2023](99-references.html#ref-citehaven))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`labelled` ([Larmarange 2023](99-references.html#ref-citelabelled))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`modelsummary` ([Arel-Bundock 2022](99-references.html#ref-citemodelsummary))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`rstanarm` ([Goodrich et al. 2023](99-references.html#ref-citerstanarm))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tidybayes` ([Kay 2022](99-references.html#ref-citetidybayes))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tidyverse` ([Wickham et al. 2019](99-references.html#ref-tidyverse))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`tinytable` ([Arel-Bundock 2024](99-references.html#ref-tinytable))'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*## 16.1 Introduction'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[The Presidential election of] 2016 was the largest analytics failure in US
+    political history.'
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: David Shor, 13 August 2020
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: Multilevel regression with post-stratification (MRP) is a popular way to adjust
+    non-representative surveys to analyze opinion and other responses. It uses a regression
+    model to relate individual-level survey responses to various characteristics and
+    then rebuilds the sample to better match the population. In this way MRP can not
+    only allow a better understanding of responses, but also allow us to analyze data
+    that may otherwise be unusable. However, it can be a challenge to get started
+    with MRP as the terminology may be unfamiliar, and the data requirements can be
+    onerous.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider a biased survey. For instance, perhaps we conducted a survey about
+    computer preferences at an academic conference, so people with post-graduate degrees
+    are likely over-represented. We are nonetheless interested in making claims about
+    the broader population. Let us say that we found 37.5 per cent of respondents
+    prefer Macs. One way forward is to just ignore the bias and conclude that “37.5
+    per cent of people prefer Macs”. Another way is to adjust using information that
+    we know. For instance, say 50 per cent of our respondents with a post-graduate
+    degree prefer Macs, and of those without a post-graduate degree, 25 per cent prefer
+    Macs. Then if we knew what proportion of the broader population had a post-graduate
+    degree, say 10 per cent, then we could conduct re-weighting, or post-stratification,
+    to create an estimate: \(0.5 \times 0.1 + 0.25 \times 0.9 = 0.275\). Our estimate
+    would be that 27.5 per cent of people prefer Macs. MRP is a third approach and
+    uses a model to help do that re-weighting. Here we could use logistic regression
+    to estimate the relationship between computer preferences and highest educational
+    attainment in our survey. We then apply that relationship to a dataset that is
+    representative, in terms of education, of our population. One advantage of this
+    is that we can better account for uncertainty. In terms of a real-world example,
+    Clinton, Lapinski, and Trussler ([2022](99-references.html#ref-Clinton2022)) find
+    a substantial difference in telephone response rates between Democrats and Republicans
+    in the 2020 US Presidential election and that when corrected this reduces average
+    polling error.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'MRP is a handy approach when dealing with survey data. Hanretty ([2020](99-references.html#ref-hanretty2020))
+    describes how we use MRP because the alternatives either do badly or are expensive.
+    Essentially, MRP trains a model based on the survey, and then applies that trained
+    model to another dataset. There are two main, related, advantages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It can allow us to “re-weight” in a way that brings uncertainty front-of-mind
+    and is not as hamstrung by small samples. The alternative way to deal with having
+    a small sample is to either gather more data or throw it away.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It can allow us to use broad surveys to speak to subsets in a way that remains
+    representative in certain aspects. For instance, say we gathered a sample that
+    was representative of age, gender, and education across the country. If we were
+    interested in state/provincial-specific estimates there is no guarantee that representativeness
+    would hold at that disaggregated level.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: From a practical perspective, it tends to be less expensive to collect non-probability
+    samples and so there are benefits of being able to use these types of data. That
+    said, MRP is not a magic bullet and the laws of statistics still apply. We will
+    have larger uncertainty around our estimates than when using probability samples
+    and they will still be subject to all the usual biases. It is an exciting area
+    of research in both academia and industry.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The workflow that we need for MRP is straight forward, but the details and
+    decisions that have to be made at each step can become overwhelming. The point
+    to keep in mind is that we are trying to create a relationship between two datasets
+    using a statistical model, and so we need to establish similarity between the
+    two datasets in terms of their variables and levels. The steps are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: gather and prepare the survey dataset, thinking about what is needed for coherence
+    with the post-stratification dataset;
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: gather and prepare the post-stratification dataset thinking about what is needed
+    for coherence with the survey dataset;
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: model the variable of interest from the survey using predictors and levels that
+    are available in both the survey and the post-stratification datasets;
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: apply the model to the post-stratification data.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'One famous MRP example is Wang et al. ([2015](99-references.html#ref-wang2015forecasting)).
+    They used data from the Xbox gaming platform to forecast the 2012 US Presidential
+    Election. Wang et al. ([2015](99-references.html#ref-wang2015forecasting)) were
+    able to implement an opt-in poll through the Xbox gaming platform during the 45
+    days leading up to the 2012 US presidential election, which was between Barack
+    Obama and Mitt Romney. Each day there were three to five questions, including
+    voter intention: “If the election were held today, who would you vote for?”. Respondents
+    were allowed to answer at most once per day. And first-time respondents were asked
+    to provide information about themselves, including their sex, race, age, education,
+    state, party ID, political ideology, and who they voted for in the 2008 presidential
+    election.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Shoulders of giants* *Dr Andrew Gelman is Higgins Professor of Statistics
+    and Political Science at Columbia University. After earning a PhD in Statistics
+    from Harvard University in 1990, he was appointed as an assistant professor at
+    the University of California, Berkeley, and then moved to Columbia in 1996, where
+    he was promoted to full professor in 2000\. His research focuses on statistics,
+    social sciences, and their intersection. For instance, Wang et al. ([2015](99-references.html#ref-wang2015forecasting))
+    showed that biased surveys can still have value. He was the principal investigator
+    for Stan, a probabilistic programming language, that is widely used for Bayesian
+    modeling. And he has written many books, with *Data Analysis Using Regression
+    and Multilevel/Hierarchical Models* ([Gelman and Hill 2007](99-references.html#ref-gelmanandhill))
+    and *Bayesian Data Analysis* ([Gelman et al. [1995] 2014](99-references.html#ref-bda))
+    having been especially influential on a generation of researchers. He was appointed
+    a Fellow of the American Statistical Association in 1998 and awarded the COPSS
+    Presidents’ Award in 2003.*  *In total, 750,148 interviews were conducted, with
+    345,858 unique respondents, over 30,000 of whom completed five or more polls.
+    As may be expected, young men dominate the Xbox population: 18-to-29-year-olds
+    comprise 65 per cent of the Xbox dataset, compared to 19 per cent in the exit
+    poll; and men make up 93 per cent of the Xbox sample but only 47 per cent of the
+    electorate.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The details do not matter, but essentially they model how likely a respondent
+    is to vote for Obama, given various information such as state, education, sex,
+    etc. Having a trained model that considers the effect of these various predictors
+    on support for the candidates, they now post-stratify, where each of these “cell-level
+    estimates are weighted by the proportion of the electorate in each cell and aggregated
+    to the appropriate level (i.e., state or national).”
+  prefs: []
+  type: TYPE_NORMAL
+- en: They need cross-tabulated population data which counts the number of people
+    in each combination of variables. In general, the census would have worked, or
+    one of the other large surveys available in the US, such as the ACS, which we
+    introduced in [Chapter 6](06-farm.html). The difficulty is that the variables
+    need to be available on a cross-tabulated basis. As such, they use exit polls,
+    although these are not as widely available in other countries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: They make state-specific estimates by post-stratifying to the features of each
+    state. And they similarly examine demographic-differences. Finally, they convert
+    their estimates into electoral college estimates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In general, MRP is a good way to accomplish specific aims, but it is not without
+    trade-offs. If we have a good quality survey, then it may be a way to speak to
+    disaggregated aspects of it. Or if we are concerned about uncertainty then it
+    is a good way to think about that. If we have a biased survey, then it is a great
+    place to start, but it is not a panacea. There is plenty of scope for exciting
+    work from a variety of approaches. For instance, from a more statistical perspective,
+    there is a lot of work to do in terms of thinking through how survey design and
+    modeling approaches interact and the extent to which we are underestimating uncertainty.
+    It is also interesting to think through the implications of small samples and
+    uncertainty in the post-stratification dataset. There is an awful lot to do in
+    terms of thinking through what the appropriate model is to use, and how do we
+    even evaluate what “appropriate” means here, for instance, based on Si ([2020](99-references.html#ref-si2020use)).
+    More generally, we have little idea of the conditions under which we will have
+    the stable preferences and relationships that are required for MRP to be accurate.
+    A great deal of work is needed to understand how this relates to uncertainty in
+    survey design, for instance, based on Lauderdale et al. ([2020](99-references.html#ref-lauderdale2020model))
+    or Ghitza and Gelman ([2020](99-references.html#ref-ghitza2020voter)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we begin with simulating a situation in which we pretend that
+    we know the features of the population. We then consider the US 2020 presidential
+    election.*  *## 16.2 Simulated example: coffee or tea?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 16.2.1 Construct a population and biased sample
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: To get started we will harken back to the tea-tasting experiment in [Chapter
+    8](08-hunt.html) and simulate a population about whether someone prefers coffee
+    or tea. We will then take a biased sample in favor of tea, and use MRP get those
+    population-level preferences back. We will have two explanatory variables. Age-group
+    will be either “young” or “old”, and nationality will be either “United States”
+    or “England”. The simulation will impose an increased chance of preferring tea
+    of the individual is English and/or old. Everything in our population will be
+    roughly balanced, (that is half and half between each of the variables). But our
+    survey will skew older and English. To be clear, in this example we will “know”
+    the “true” features of the population, but this is not something that occurs when
+    we use real data—it is just to help you understand what is happening in MRP.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE2]*  *We can see that the counts, by group, are fairly similar ([Table 16.1](#tbl-teapreferencecounts)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Table 16.1: Preference for tea, by age and nationality'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Age | Nationality | Prefers tea | Number |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 0 | 0 | 238,568 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 0 | 1 | 11,319 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 1 | 0 | 125,371 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 1 | 1 | 124,730 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 0 | 0 | 125,438 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 0 | 1 | 124,723 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 1 | 0 | 11,421 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 1 | 1 | 238,430 |*  *On average, 50 per cent of the population prefers
+    tea, but this preference depends on the population sub-groups.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we want to pretend that we have some survey that has a biased sample. We
+    will allow that it over-samples older respondents and English respondents. We
+    are interested in looking at what proportion of our biased sample prefers tea
+    to coffee, and expect, by construction, that it will lean toward tea.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE5]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Table 16.2: Biased sample of preferences for tea, by age and nationality,
+    oversampling those who like tea'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Age | Nationality | Prefers tea | Number |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 0 | 0 | 18 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 0 | 1 | 3 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 1 | 0 | 119 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 0 | 1 | 1 | 128 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 0 | 0 | 133 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 0 | 1 | 126 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 1 | 0 | 25 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 1 | 1 | 448 |*  *It is clear that our sample has a different average
+    tea preference than the overall population ([Table 16.2](#tbl-teapreferencesamplecounts)).****  ***###
+    16.2.2 Model the sample'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now train a model based on the biased survey. We explain tea preferences
+    based on age and national origin. There is nothing that says you have to use a
+    multilevel model, but a lot of situations will have circumstances such that it
+    is not likely to do any worse. To be clear, this means that although we have individual-level
+    data, there is some grouping of the individuals that we will take advantage of.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \begin{aligned} y_i|\pi_i & \sim \mbox{Bern}(\pi_i) \\ \mbox{logit}(\pi_i)
+    & = \beta_0 + \alpha_{a[i]}^{\mbox{age}} + \alpha_{n[i]}^{\mbox{nat}} \\ \alpha_0
+    & \sim \mbox{Normal}(0, 2.5)\\ \alpha_{a}^{\mbox{age}} & \sim \mbox{Normal}\left(0,
+    \sigma^2_{\mbox{age}}\right)\mbox{ for }a = 1, 2, \dots, A\\ \alpha_{n}^{\mbox{nat}}
+    & \sim \mbox{Normal}\left(0, \sigma^2_{\mbox{nat}}\right)\mbox{ for }n = 1, 2,
+    \dots, N\\ \sigma_{\mbox{age}} & \sim \mbox{Exponential}(1)\\ \sigma_{\mbox{nat}}
+    & \sim \mbox{Exponential}(1) \end{aligned} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where \(y_i\) is the tea preference of the respondent, \(\pi_i = \mbox{Pr}(y_i=1)\),
+    and \(\alpha^{\mbox{age}}\) and \(\alpha^{\mbox{nat}}\) are the effect of age
+    and national origin, respectively. The \(a[i]\) and \(n[i]\) refer to which age-group
+    and nationality, respectively, the respondent belongs to. \(A\) and \(N\) are
+    the total number of age-groups and nationalities, respectively. We will estimate
+    the model with `stan_glm()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE7]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*[PRE8]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Table 16.3: Model trained on biased sample that oversamples a preference for
+    tea'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  | Tea preferences |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| (Intercept) | 0.001 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Sigma[age × (Intercept),(Intercept)] | 2.171 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Sigma[nationality × (Intercept),(Intercept)] | 2.337 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Num.Obs. | 1000 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| R2 | 0.261 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| R2 Marg. | 0.000 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| ICC | 0.7 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Log.Lik. | -457.970 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| ELPD | -461.0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| ELPD s.e. | 16.2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| LOOIC | 921.9 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| LOOIC s.e. | 32.4 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| WAIC | 921.9 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| RMSE | 0.39 |*  *[Figure 16.1](#fig-teamodelresultsplots) shows the distribution
+    of draws for each of the different groups.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*![](../Images/3f7b929017af2a22dbb1ddd46351d7e0.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 16.1: Examining the distribution of draws for each of the groups****  ***###
+    16.2.3 Post-stratification dataset'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now we will use a post-stratification dataset to get some estimates of the number
+    in each cell. We typically use a larger dataset that may more closely reflect
+    the population. In the US a popular choice is the American Community Survey (ACS)
+    which we covered in [Chapter 6](06-farm.html), while in other countries we typically
+    use the census.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this simulated example, we could use the population as our post-stratification
+    dataset. The issue is that at one million observations it is unwieldy, so we take
+    a 10,000 person sample from it. We also remove the tea preferences variable because
+    that is what we are pretending we do not know.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE11]*  *This is an idealized example where we assume individual-level data
+    in our post-stratification dataset. In that world we can apply our model to each
+    individual.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE13]*  *[Table 16.4](#tbl-mrpteammodelcompare) compares the MRP estimates,
+    with the raw estimates from the biased sample. In this case, because we know the
+    truth, we can also compare them to the known truth, but that is not something
+    we can do normally.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Table 16.4: MRP estimates compared with the truth and the biased sample'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Type | Estimate |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Truth | 0.5 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Biased sample | 0.7 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| MRP estimate | 0.51 |*  *In this case, the MRP approach has done a good job
+    of taking a biased sample and resulting in an estimate of tea preferences that
+    did reflect the truth.*********  ***## 16.3 Forecasting the 2020 United States
+    election'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Presidential elections in the United States have many features that are unique
+    to the United States, but the model that we are going to build here will be generalizable
+    to a variety of settings. We will use survey data from the Democracy Fund Voter
+    Study Group introduced in [Chapter 8](08-hunt.html). They conducted polling in
+    the lead-up to the US election and make this publicly available after registration.
+    We will use IPUMS, introduced in [Chapter 6](06-farm.html), to access the 2019
+    American Community Survey (ACS) as a post-stratification dataset. We will use
+    state, age-group, gender, and education as explanatory variables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 16.3.1 Survey data
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We will use the Democracy Fund Voter Study Group Nationscape survey dataset.
+    One tricky aspect of MRP is ensuring consistency between the survey dataset and
+    the post-stratification dataset. In this case, after reading in the dataset that
+    we cleaned up in [Chapter 8](08-hunt.html) we need to do some work to make the
+    variables consistent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE16]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*[PRE17]*  *[PRE18]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Finally, we save the prepared dataset as a parquet file.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]***  ***### 16.3.2 Post-stratification data'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have many options for a dataset to post-stratify by and there are various
+    considerations. We are after a dataset that is good quality (however that is to
+    be defined), and likely larger. From a strictly data perspective, the best choice
+    would probably be something like the Cooperative Election Study (CES), as used
+    in [Chapter 12](12-ijalm.html), but it is only publicly released after the election,
+    which limits the reasonableness of using it for forecasting the election. Wang
+    et al. ([2015](99-references.html#ref-wang2015forecasting)) use exit poll data,
+    but again that is only available after the election.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will use the 2019 American Community Survey (ACS) dataset that we gathered
+    in [Chapter 6](06-farm.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE21]*  *This dataset is on an individual level. We will create counts of
+    each sub-cell, and then proportions by state.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*And finally we add proportions for each of these cells.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE24]***  ***### 16.3.3 Model the sample'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are going to use logistic regression to estimate a model where the binary
+    of support for Biden versus Trump is explained by gender, age-group, education,
+    and state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: \[ \begin{aligned} y_i|\pi_i & \sim \mbox{Bern}(\pi_i) \\ \mbox{logit}(\pi_i)
+    & = \beta_0+ \alpha_{g[i]}^{\mbox{gender}} + \alpha_{a[i]}^{\mbox{age}} + \alpha_{s[i]}^{\mbox{state}}
+    + \alpha_{e[i]}^{\mbox{edu}} \\ \beta_0 & \sim \mbox{Normal}(0, 2.5)\\ \alpha_{g}^{\mbox{gender}}
+    & \sim \mbox{Normal}(0, 2.5)\mbox{ for }g=1, 2\\ \alpha_{a}^{\mbox{age}} & \sim
+    \mbox{Normal}\left(0, \sigma^2_{\mbox{age}}\right)\mbox{ for }a = 1, 2, \dots,
+    A\\ \alpha_{s}^{\mbox{state}} & \sim \mbox{Normal}\left(0, \sigma^2_{\mbox{state}}\right)\mbox{
+    for }s = 1, 2, \dots, S\\ \alpha_{e}^{\mbox{edu}} & \sim \mbox{Normal}\left(0,
+    \sigma^2_{\mbox{edu}}\right)\mbox{ for }e = 1, 2, \dots, E\\ \sigma_{\mbox{gender}}
+    & \sim \mbox{Exponential}(1)\\ \sigma_{\mbox{state}} & \sim \mbox{Exponential}(1)\\
+    \sigma_{\mbox{edu}} & \sim \mbox{Exponential}(1) \end{aligned} \]
+  prefs: []
+  type: TYPE_NORMAL
+- en: where \(y_i\) is whether a respondent supports Biden and \(\pi_i = \mbox{Pr}(y
+    = 1)\). Then \(\alpha^{\mbox{gender}}\), \(\alpha^{\mbox{age}}\), \(\alpha^{\mbox{state}}\),
+    and \(\alpha^{\mbox{edu}}\) are the effect of gender, age, state, and education,
+    respectively. The \(g[i]\), \(a[i]\), \(s[i]\), and \(e[i]\) refer to which gender,
+    age-group, state, and education level, respectively, the respondent belongs to.
+    \(A\), \(S\), and \(E\) are the total number of age-groups, states, and education
+    levels, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After reading in the data that we cleaned earlier, following Kennedy and Gabry
+    ([2020](99-references.html#ref-kennedygabry2020)) we use `stan_glmer()` from `rstanarm`
+    to estimate the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE26]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*[PRE27]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*This model will take about 15 minutes to run, so you should be careful to
+    save it afterwards with `saveRDS()`. And you can load it with `readRDS()`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*We might be interested to look at the coefficient estimates ([Table 16.5](#tbl-modelsummaryusamrp)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Table 16.5: Estimating a model of choice between Biden and Trump in the 2020
+    US election'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|  | (1) |'
+  prefs: []
+  type: TYPE_TB
+- en: '| --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '| (Intercept) | 0.373 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| gendermale | -0.542 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Sigma[stateicp × (Intercept),(Intercept)] | 0.081 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Sigma[education_level × (Intercept),(Intercept)] | 0.036 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Sigma[age_group × (Intercept),(Intercept)] | 0.241 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Num.Obs. | 5200 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| R2 | 0.056 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| R2 Marg. | 0.017 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| ICC | 0.2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Log.Lik. | -3434.075 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| ELPD | -3468.0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| ELPD s.e. | 16.2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| LOOIC | 6936.1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| LOOIC s.e. | 32.4 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| WAIC | 6936.0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| RMSE | 0.48 |*  *[Figure 16.2](#fig-politicsmodelresultsplots) shows the
+    distribution of draws for age groups, and education. We plot some selected states
+    separately for reasons of space ([Figure 16.3](#fig-politicsmodelresultsplotsstates)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*![](../Images/df304b4628461be810431bf60867cf88.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 16.2: Examining the distribution of draws for each of the groups*  *[PRE31]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*![](../Images/cb1834e25957422fa69b459a54f71655.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 16.3: Examining the distribution of draws for selected states*******  ***###
+    16.3.4 Post-stratify'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now post-stratify according to the population proportions calculated previously,
+    and calculate credible intervals for each state as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*[PRE33]*  *And we can have a look at our estimates graphically ([Figure 16.4](#fig-estimatyusamrp)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*![](../Images/d117876fa9a8a56e7191995e8e842013.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 16.4: Comparing the MRP estimates with the Nationscape raw data*  *The
+    Nationscape dataset is a high-quality survey. But it was weighted to major census
+    region—the West, the Midwest, the Northeast, and the South—rather than state,
+    which could be one reason we see a difference between the MRP estimates and the
+    raw data.***********  ***## 16.4 Exercises'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Practice
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '*(Plan)* Consider the following scenario: *Support for a political party is
+    a binary (yes/no), and is related to age-group, gender, income group, and highest
+    education.* Please sketch out what that dataset could look like and then sketch
+    a graph that you could build to show all observations.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Simulate)* Please further consider the scenario described and simulate the
+    situation. Please include at least ten tests based on the simulated data.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Acquire)* Please describe one possible source of such a dataset.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Explore)* Please use `ggplot2` to build the graph that you sketched. Use
+    `rstanarm` to estimate a model.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '*(Communicate)* Please write two paragraphs about what you did.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Quiz
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Please explain what MRP is, and the strengths and weaknesses, being sure to
+    explain any technical terms that you use (write at least three paragraphs).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are three aspects that you like about Wang et al. ([2015](99-references.html#ref-wang2015forecasting))?
+    What are three aspects that do you not? To what extent is it possible to reproduce
+    the paper?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: With respect to Wang et al. ([2015](99-references.html#ref-wang2015forecasting)),
+    what is a weakness of MRP (pick one)?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Detailed data requirement.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Allows use of biased data.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Expensive to conduct.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: With respect to Wang et al. ([2015](99-references.html#ref-wang2015forecasting)),
+    what is concerning about the Xbox sample (pick one)?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Non-representative.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Small sample size.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Multiple responses from the same respondent.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We are interested in studying how voting intentions in the upcoming US presidential
+    election vary by an individual’s income. We set up a logistic regression model
+    to study this relationship. In this study, what are some possible predictors (select
+    all that apply)?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Whether the respondent is registered to vote (yes/no).
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Whether the respondent is going to vote for the Democratic candidate (yes/no).
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The race of the respondent (white/not white).
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The respondent’s marital status (married/not).
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Please think about Cohn ([2016](99-references.html#ref-cohn2016)). Why is this
+    type of exercise not carried out more? Why do you think that different groups,
+    even with the same background and level of quantitative sophistication, could
+    have such different estimates even when they use the same data?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We train a model based on a survey, and then post-stratify it using the ACS
+    dataset. What are some of the practical considerations that we may have to contend
+    with when doing this?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Consider a situation in which you have a survey dataset with these age-groups:
+    18-29; 30-44; 45-60; and 60+. And a post-stratification dataset with these age-groups:
+    18-34; 35-49; 50-64; and 65+. Please write about the approach you would take to
+    bringing these together.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Class activities
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: '*Paper review:* Please read and review Wang et al. ([2015](99-references.html#ref-wang2015forecasting)).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Task
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In a similar manner to Ghitza and Gelman ([2020](99-references.html#ref-ghitza2020voter))
+    pretend you have access to a US voter file record from a private company. You
+    train a model on the 2020 US Cooperative Election Study, and post-stratify it,
+    on an individual basis, based on that voter file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Put together a datasheet for the voter file dataset following Gebru et al. ([2021](99-references.html#ref-gebru2021datasheets))?
+    As a reminder, datasheets accompany datasets and document “motivation, composition,
+    collection process, recommended uses,” among other aspects.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Create a model card for your model, following Mitchell et al. ([2019](99-references.html#ref-Mitchell_2019))?
+    As a reminder, model cards are deliberately straight forward one- or two-page
+    documents that report aspects such as: model details; intended use; metrics; training
+    data; ethical considerations; as well as caveats and recommendations ([Mitchell
+    et al. 2019](99-references.html#ref-Mitchell_2019)).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Discuss three ethical aspects around the features that you are using in your
+    model? [Please write a paragraph or two for each point.]
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Detail the tests that you would put in place in terms of the dataset, the model,
+    and the predictions?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Paper
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: At about this point the *Spofforth* Paper from [Online Appendix F](25-papers.html)
+    would be appropriate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Alexander, Monica. 2019\. “Analyzing Name Changes After Marriage Using a Non-Representative
+    Survey,” August. [https://www.monicaalexander.com/posts/2019-08-07-mrp/](https://www.monicaalexander.com/posts/2019-08-07-mrp/).Arel-Bundock,
+    Vincent. 2022\. “modelsummary: Data and Model Summaries in R.” *Journal of Statistical
+    Software* 103 (1): 1–23\. [https://doi.org/10.18637/jss.v103.i01](https://doi.org/10.18637/jss.v103.i01).———.
+    2024\. *tinytable: Simple and Configurable Tables in “HTML,” “LaTeX,” “Markdown,”
+    “Word,” “PNG,” “PDF,” and “Typst” Formats*. [https://vincentarelbundock.github.io/tinytable/](https://vincentarelbundock.github.io/tinytable/).Bolker,
+    Ben, and David Robinson. 2022\. *broom.mixed: Tidying Methods for Mixed Models*.
+    [https://CRAN.R-project.org/package=broom.mixed](https://CRAN.R-project.org/package=broom.mixed).Clinton,
+    Joshua, John Lapinski, and Marc Trussler. 2022\. “Reluctant Republicans, Eager
+    Democrats?” *Public Opinion Quarterly* 86 (2): 247–69\. [https://doi.org/10.1093/poq/nfac011](https://doi.org/10.1093/poq/nfac011).Cohn,
+    Nate. 2016\. “We Gave Four Good Pollsters the Same Raw Data. They Had Four Different
+    Results.” *The New York Times*, September. [https://www.nytimes.com/interactive/2016/09/20/upshot/the-error-the-polling-world-rarely-talks-about.html](https://www.nytimes.com/interactive/2016/09/20/upshot/the-error-the-polling-world-rarely-talks-about.html).Galef,
+    Julia. 2020\. “Episode 248: Are Democrats Being Irrational? (David Shor).” *Rationally
+    Speaking*, December. [http://rationallyspeakingpodcast.org/248-are-democrats-being-irrational-david-shor/](http://rationallyspeakingpodcast.org/248-are-democrats-being-irrational-david-shor/).Gebru,
+    Timnit, Jamie Morgenstern, Briana Vecchione, Jennifer Wortman Vaughan, Hanna Wallach,
+    Hal Daumé III, and Kate Crawford. 2021\. “Datasheets for Datasets.” *Communications
+    of the ACM* 64 (12): 86–92\. [https://doi.org/10.1145/3458723](https://doi.org/10.1145/3458723).Gelman,
+    Andrew. 2020\. “Statistical Models of Election Outcomes.” *YouTube*, August. [https://youtu.be/7gjDnrbLQ4k](https://youtu.be/7gjDnrbLQ4k).Gelman,
+    Andrew, John Carlin, Hal Stern, David Dunson, Aki Vehtari, and Donald Rubin. (1995)
+    2014\. *Bayesian Data Analysis*. 3rd ed. Chapman; Hall/CRC.Gelman, Andrew, and
+    Jennifer Hill. 2007\. *Data Analysis Using Regression and Multilevel/Hierarchical
+    Models*. 1st ed. Cambridge University Press.Ghitza, Yair, and Andrew Gelman. 2020\.
+    “Voter Registration Databases and MRP: Toward the Use of Large-Scale Databases
+    in Public Opinion Research.” *Political Analysis* 28 (4): 507–31\. [https://doi.org/10.1017/pan.2020.3](https://doi.org/10.1017/pan.2020.3).Goodrich,
+    Ben, Jonah Gabry, Imad Ali, and Sam Brilleman. 2023\. “rstanarm: Bayesian applied
+    regression modeling via Stan.” [https://mc-stan.org/rstanarm](https://mc-stan.org/rstanarm).Green,
+    Eric. 2020\. “Nivi Research: Mister P helps us understand vaccine hesitancy,”
+    December. [https://research.nivi.io/posts/2020-12-08-mister-p-helps-us-understand-vaccine-hesitancy/](https://research.nivi.io/posts/2020-12-08-mister-p-helps-us-understand-vaccine-hesitancy/).Hanretty,
+    Chris. 2020\. “An Introduction to Multilevel Regression and Post-Stratification
+    for Estimating Constituency Opinion.” *Political Studies Review* 18 (4): 630–45\.
+    [https://doi.org/10.1177/1478929919864773](https://doi.org/10.1177/1478929919864773).Johnston,
+    Myfanwy, and David Robinson. 2022\. *gutenbergr: Download and Process Public Domain
+    Works from Project Gutenberg*. [https://CRAN.R-project.org/package=gutenbergr](https://CRAN.R-project.org/package=gutenbergr).Kay,
+    Matthew. 2022\. *tidybayes: Tidy Data and Geoms for Bayesian Models*. [https://doi.org/10.5281/zenodo.1308151](https://doi.org/10.5281/zenodo.1308151).Kennedy,
+    Lauren, and Jonah Gabry. 2020\. “MRP with rstanarm,” July. [https://mc-stan.org/rstanarm/articles/mrp.html](https://mc-stan.org/rstanarm/articles/mrp.html).Larmarange,
+    Joseph. 2023\. *labelled: Manipulating Labelled Data*. [https://CRAN.R-project.org/package=labelled](https://CRAN.R-project.org/package=labelled).Lauderdale,
+    Benjamin, Delia Bailey, Jack Blumenau, and Douglas Rivers. 2020\. “Model-Based
+    Pre-Election Polling for National and Sub-National Outcomes in the US and UK.”
+    *International Journal of Forecasting* 36 (2): 399–413\. [https://doi.org/10.1016/j.ijforecast.2019.05.012](https://doi.org/10.1016/j.ijforecast.2019.05.012).Mitchell,
+    Margaret, Simone Wu, Andrew Zaldivar, Parker Barnes, Lucy Vasserman, Ben Hutchinson,
+    Elena Spitzer, Inioluwa Deborah Raji, and Timnit Gebru. 2019\. “Model Cards for
+    Model Reporting.” *Proceedings of the Conference on Fairness, Accountability,
+    and Transparency*, January. [https://doi.org/10.1145/3287560.3287596](https://doi.org/10.1145/3287560.3287596).R
+    Core Team. 2024\. *R: A Language and Environment for Statistical Computing*. Vienna,
+    Austria: R Foundation for Statistical Computing. [https://www.R-project.org/](https://www.R-project.org/).Richardson,
+    Neal, Ian Cook, Nic Crane, Dewey Dunnington, Romain François, Jonathan Keane,
+    Dragoș Moldovan-Grünfeld, Jeroen Ooms, and Apache Arrow. 2023\. *arrow: Integration
+    to Apache Arrow*. [https://CRAN.R-project.org/package=arrow](https://CRAN.R-project.org/package=arrow).Si,
+    Yajuan. 2020\. “On the Use of Auxiliary Variables in Multilevel Regression and
+    Poststratification.” [https://arxiv.org/abs/2011.00360](https://arxiv.org/abs/2011.00360).Wang,
+    Wei, David Rothschild, Sharad Goel, and Andrew Gelman. 2015\. “Forecasting Elections
+    with Non-Representative Polls.” *International Journal of Forecasting* 31 (3):
+    980–91\. [https://doi.org/10.1016/j.ijforecast.2014.06.001](https://doi.org/10.1016/j.ijforecast.2014.06.001).Wickham,
+    Hadley, Mara Averick, Jenny Bryan, Winston Chang, Lucy D’Agostino McGowan, Romain
+    François, Garrett Grolemund, et al. 2019\. “Welcome to the Tidyverse.” *Journal
+    of Open Source Software* 4 (43): 1686\. [https://doi.org/10.21105/joss.01686](https://doi.org/10.21105/joss.01686).Wickham,
+    Hadley, Evan Miller, and Danny Smith. 2023\. *haven: Import and Export “SPSS”
+    “Stata” and “SAS” Files*. [https://CRAN.R-project.org/package=haven](https://CRAN.R-project.org/package=haven).********'
+  prefs: []
+  type: TYPE_NORMAL
