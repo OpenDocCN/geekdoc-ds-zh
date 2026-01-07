@@ -7,6 +7,7 @@
 +   [CUDA 编程指南](docs/cuda-prog/README.md)
 +   [DataQuest 博客中文翻译](docs/dataquest-blog/README.md)
 +   [Domino 博客中文翻译](docs/domino-blog/README.md)
++   [数据科学初步导论](docs/ds-1st-intd/README.md)
 +   [数据科学和人工智能技术笔记](docs/ds-ai-tech-notes/README.md)
 +   [数据中心化的计算导论](docs/dtcntr-intd-cmpt/README.md)
 +   [FirstRound 博客中文翻译](docs/firstround-blog/README.md)
