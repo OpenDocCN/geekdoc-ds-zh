@@ -6,11 +6,11 @@
 
 1.  B Python 精要
 
-**先决条件**
+先决条件**
 
-**关键概念和技能**
+关键概念和技能**
 
-**软件和包**
+软件和包**
 
 +   `Python` (Python 软件基金会 2024)
 
@@ -62,26 +62,26 @@
 
 一旦你确定好创建新文件夹的位置，我们就可以在终端中使用`uv init`来完成这个操作，之后按“return/enter”键（然后`cd`命令将移动到新的文件夹“shelter_usage”）。
 
-```py
+```r
 uv init shelter_usage
 cd shelter_usage
 ```
 
-*默认情况下，示例文件夹中会有一个脚本。我们希望使用`uv run`来运行该脚本，这将为我们创建一个项目环境。
+默认情况下，示例文件夹中会有一个脚本。我们希望使用`uv run`来运行该脚本，这将为我们创建一个项目环境。
 
-```py
+```r
 uv run hello.py
 ```
 
-*项目环境是特定于该项目的。我们将使用`numpy`包来模拟数据。我们需要使用`uv add`将此包添加到我们的环境中。
+项目环境是特定于该项目的。我们将使用`numpy`包来模拟数据。我们需要使用`uv add`将此包添加到我们的环境中。
 
-```py
+```r
 uv add numpy
 ```
 
-*我们可以修改`hello.py`以使用`numpy`从正态分布中进行模拟。
+我们可以修改`hello.py`以使用`numpy`从正态分布中进行模拟。
 
-```py
+```r
 import numpy as np
 
 def main():
@@ -103,7 +103,7 @@ if __name__ == "__main__":
  main()
 ```
 
-*在修改并保存`hello.py`之后，我们可以用`uv run`以与之前相同的方式运行它。
+在修改并保存`hello.py`之后，我们可以用`uv run`以与之前相同的方式运行它。
 
 在这一点上，我们应该关闭 VS Code。我们想要重新打开它以确保我们的项目环境按需工作。在 VS Code 中，项目是一个自包含的文件夹。你可以通过“文件”->“打开文件夹...”来打开一个文件夹，然后选择相关的文件夹，在这种情况下是“shelter_usage”。然后你应该能够重新运行`uv run hello.py`，并且它应该可以工作。
 
@@ -123,13 +123,13 @@ if __name__ == "__main__":
 
 我们希望更彻底地模拟我们感兴趣的数据集。我们将使用`polars`提供一个 dataframe 来存储我们的模拟结果，因此我们应该使用`uv add`将其添加到我们的环境中。
 
-```py
+```r
 uv add polars
 ```
 
-*创建一个名为`00-simulate_data.py`的新 Python 文件。
+创建一个名为`00-simulate_data.py`的新 Python 文件。
 
-```py
+```r
 #### Preamble ####
 # Purpose: Simulates a dataset of daily shelter usage
 # Author: Rohan Alexander
@@ -177,15 +177,15 @@ data = data.with_columns([pl.Series("Usage", usage)])
 data.write_parquet("simulated_data.parquet")
 ```
 
-*我们希望基于这个模拟数据编写测试，然后将这些测试应用到我们的真实数据上。我们使用`pydantic`来完成这个任务，因此我们应该使用`uv add`将其添加到我们的环境中。
+我们希望基于这个模拟数据编写测试，然后将这些测试应用到我们的真实数据上。我们使用`pydantic`来完成这个任务，因此我们应该使用`uv add`将其添加到我们的环境中。
 
-```py
+```r
 uv add pydantic
 ```
 
-*创建一个名为`00-test_simulated_data.py`的新 Python 文件。第一步是定义一个名为`ShelterData`的子类，它来自`pydantic`的`BaseModel`。
+创建一个名为`00-test_simulated_data.py`的新 Python 文件。第一步是定义一个名为`ShelterData`的子类，它来自`pydantic`的`BaseModel`。
 
-```py
+```r
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from datetime import date
 
@@ -205,11 +205,11 @@ class ShelterData(BaseModel):
  return usage
 ```
 
-*我们感兴趣的是测试日期是否有效，庇护所的类型是否正确，以及容量和利用率都是非负整数。还有一个额外的细节是，利用率不应超过容量。为了编写这样的测试，我们使用`field_validator`。
+我们感兴趣的是测试日期是否有效，庇护所的类型是否正确，以及容量和利用率都是非负整数。还有一个额外的细节是，利用率不应超过容量。为了编写这样的测试，我们使用`field_validator`。
 
 然后，我们可以导入我们的模拟数据集并进行测试。
 
-```py
+```r
 import polars as pl
 
 df = pl.read_parquet("simulated_data.parquet")
@@ -242,9 +242,9 @@ if errors:
  print(f"Row {i}: {error}")
 ```
 
-*为了了解如果出现错误会发生什么，我们可以考虑一个包含两个错误的小数据集：一个格式错误的日期和一个利用率超过容量的情况。
+为了了解如果出现错误会发生什么，我们可以考虑一个包含两个错误的小数据集：一个格式错误的日期和一个利用率超过容量的情况。
 
-```py
+```r
 import polars as pl
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from datetime import date
@@ -298,9 +298,9 @@ if errors:
  print(f"Row {i}: {error}")
 ```
 
-*我们得到以下信息：
+我们得到以下信息：
 
-```py
+```r
 Errors:
 Row 1: 1 validation error for ShelterData
 Dates
@@ -310,11 +310,13 @@ Row 3: 1 validation error for ShelterData
 Usage
   Value error, Usage (55) cannot exceed Capacity (50). [type=value_error, input_value=55, input_type=int]
     For further information visit https://errors.pydantic.dev/2.9/v/value_error
-```******  ***### B.3.4 获取
+```
+  
+### B.3.4 获取
 
 使用之前相同的来源：https://open.toronto.ca/dataset/daily-shelter-overnight-service-occupancy-capacity/
 
-```py
+```r
 import polars as pl
 
 # URL of the CSV file
@@ -327,9 +329,9 @@ df = pl.read_csv(url)
 df.write_parquet("shelter_usage.parquet")
 ```
 
-*我们可能只对少数几列和有数据的行感兴趣。
+我们可能只对少数几列和有数据的行感兴趣。
 
-```py
+```r
 import polars as pl
 
 df = pl.read_parquet("shelter_usage.parquet")
@@ -355,9 +357,9 @@ print(renamed_df.head())
 renamed_df.write_parquet("cleaned_shelter_usage.parquet")
 ```
 
-*我们可能还想将测试应用到实际数据集上
+我们可能还想将测试应用到实际数据集上
 
-```py
+```r
 import polars as pl
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from datetime import date
@@ -405,11 +407,13 @@ if errors:
  print("\nErrors:")
  for i, error in errors:
  print(f"Row {i}: {error}")
-```**  ***### B.3.5 探索
+```
+
+### B.3.5 探索
 
 操作数据
 
-```py
+```r
 import polars as pl
 
 df = pl.read_parquet("cleaned_shelter_usage.parquet")
@@ -431,9 +435,9 @@ aggregated_df = (
 print(aggregated_df)
 ```
 
-*制作图表
+制作图表
 
-```py
+```r
 import polars as pl
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -491,11 +495,14 @@ plt.tight_layout()
 
 # Display the plot
 plt.show()
-```*  **### B.3.6 分享
+```
+### B.3.6 分享
 
 一个很好的方面是，我们可以在 Quarto 文档中使用 Python。为此，我们需要通过安装来自[这里](https://marketplace.visualstudio.com/items?itemName=quarto.quarto)的 Quarto 扩展将其添加到 VS Code 中。您可以通过在终端中运行`quarto preview`来渲染文档。
 
-VS Code 由微软构建，微软也拥有 GitHub。因此，我们可以通过转到“账户”并登录来将我们的账户添加到 VS Code 中。***********  ***## B.4 Python
+VS Code 由微软构建，微软也拥有 GitHub。因此，我们可以通过转到“账户”并登录来将我们的账户添加到 VS Code 中。
+  
+## B.4 Python
 
 循环
 
@@ -527,4 +534,5 @@ seaborn
 
 Free Replit “100 Days of Code” Python [课程](https://replit.com/learn/100-days-of-python)。
 
-Python 软件基金会。2024\. *Python 语言参考，版本 3.13.0*。[`docs.python.org/3/index.html`](https://docs.python.org/3/index.html)。***
+Python 软件基金会。2024\. *Python 语言参考，版本 3.13.0*。[`docs.python.org/3/index.html`](https://docs.python.org/3/index.html)。
+

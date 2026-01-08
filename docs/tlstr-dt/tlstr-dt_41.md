@@ -6,7 +6,7 @@
 
 1.  G 生产
 
-**先决条件**
+先决条件**
 
 +   阅读文章 *科学风暴云* (Gentemann 等人 2021)
 
@@ -24,11 +24,11 @@
 
     +   提供了对机器学习工程师的访谈结果。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   将模型投入生产 - 即在现实世界环境中使用 - 需要额外的技能集，包括熟悉云提供商和创建 API 的能力。
 
-**软件和包**
+软件和包**
 
 +   `analogsea` (Chamberlain 等人 2022)
 
@@ -44,7 +44,7 @@
 
 +   `tidyverse` (Wickham 等人 2019)
 
-```py
+```r
 library(analogsea)
 library(plumber)
 library(plumberDeploy)
@@ -54,7 +54,7 @@ library(tidymodels)
 library(tidyverse)
 ```
 
-*## G.1 简介
+## G.1 简介
 
 在开发数据集并使用我们确信可以使用的模型进行探索之后，我们可能希望使这一功能能够在我们自己的计算机之外更广泛地使用。有各种方法可以实现这一点，包括：
 
@@ -132,7 +132,7 @@ library(tidyverse)
 
 为了让事情运转起来，让我们创建一个函数，无论输出如何都返回“Hello Toronto”。打开一个新的 R 文件，添加以下内容，然后将其保存为“plumber.R”（如果您还没有这样做，可能需要安装 `plumber` 包）。
 
-```py
+```r
 #* @get /print_toronto
 print_toronto <- function() {
  result <- "Hello Toronto"
@@ -140,7 +140,7 @@ print_toronto <- function() {
 }
 ```
 
-*保存之后，在编辑器的右上角，您应该会看到一个“运行 API”按钮。点击它，您的 API 应该会加载。它将是一个“Swagger”应用程序，它为我们提供了 API 的图形用户界面。展开 GET 方法，然后点击“尝试”和“执行”。在响应体中，您应该得到“Hello Toronto”。
+保存之后，在编辑器的右上角，您应该会看到一个“运行 API”按钮。点击它，您的 API 应该会加载。它将是一个“Swagger”应用程序，它为我们提供了 API 的图形用户界面。展开 GET 方法，然后点击“尝试”和“执行”。在响应体中，您应该得到“Hello Toronto”。
 
 为了更紧密地反映这是一个为计算机设计的 API，您可以将“请求 URL”复制/粘贴到浏览器中，它应该返回“Hello Toronto”。
 
@@ -150,7 +150,7 @@ print_toronto <- function() {
 
 在这个阶段，我们应该开始一个新的 R 项目。为了开始，让我们模拟一些数据，然后在上面训练一个模型。在这种情况下，我们感兴趣的是预测一个婴儿在夜间可能睡多久，前提是我们知道他们在下午小憩时睡了多少时间。
 
-```py
+```r
 set.seed(853)
 
 number_of_observations <- 1000
@@ -172,9 +172,9 @@ baby_sleep |>
  theme_classic()
 ```
 
-*![](img/7db611f3ff1e56e8f8e8b849905978e6.png)*  *现在让我们使用 `tidymodels` 快速构建一个模型。
+![](img/7db611f3ff1e56e8f8e8b849905978e6.png)*  *现在让我们使用 `tidymodels` 快速构建一个模型。
 
-```py
+```r
 set.seed(853)
 
 baby_sleep_split <- initial_split(baby_sleep, prop = 0.80)
@@ -192,20 +192,20 @@ model <-
 write_rds(x = model, file = "baby_sleep.rds")
 ```
 
-*在这个阶段，我们已经有一个模型。与您可能习惯的不同之处在于，我们将模型保存为“ .rds”文件。我们将读取该文件。
+在这个阶段，我们已经有一个模型。与您可能习惯的不同之处在于，我们将模型保存为“ .rds”文件。我们将读取该文件。
 
 现在我们有了我们的模型，我们希望将其放入一个文件中，我们将使用 API 来访问它，再次命名为“plumber.R”。我们还希望有一个设置 API 的文件，命名为“server.R”。创建一个名为“server.R”的 R 脚本，并添加以下内容：
 
-```py
+```r
 library(plumber)
 
 serve_model <- plumb("plumber.R")
 serve_model$run(port = 8000)
 ```
 
-*然后在“plumber.R”中添加以下内容：
+然后在“plumber.R”中添加以下内容：
 
-```py
+```r
 library(plumber)
 library(tidyverse)
 
@@ -239,7 +239,9 @@ predict_sleep <- function(afternoon_nap_length = 0) {
 }
 ```
 
-*同样，在我们保存“plumber.R”文件后，我们应该有一个“运行 API”的选项。点击它，你可以在本地以与之前相同的方式尝试 API。在这种情况下，点击“尝试一下”，然后输入分钟数的午睡长度。响应体将包含基于我们设置的数据和模型的预测。****  ***#### G.3.0.2 云模型
+同样，在我们保存“plumber.R”文件后，我们应该有一个“运行 API”的选项。点击它，你可以在本地以与之前相同的方式尝试 API。在这种情况下，点击“尝试一下”，然后输入分钟数的午睡长度。响应体将包含基于我们设置的数据和模型的预测。
+  
+#### G.3.0.2 云模型
 
 到目前为止，我们在自己的机器上已经有一个 API 在运行，但我们真正想要做的是让 API 在任何电脑上都能访问。为此，我们将使用[DigitalOcean](https://www.digitalocean.com)。这是一个收费服务，但当你创建账户时，会附带 200 美元的信用额度，这足以开始使用。
 
@@ -247,37 +249,37 @@ predict_sleep <- function(afternoon_nap_length = 0) {
 
 现在我们需要将本地电脑与 DigitalOcean 账户连接起来。
 
-```py
+```r
 account()
 ```
 
-*现在我们需要验证连接，这通过 SSH 公钥来完成。
+现在我们需要验证连接，这通过 SSH 公钥来完成。
 
-```py
+```r
 key_create()
 ```
 
-*你需要在我们的电脑上有一个“.pub”文件。然后复制该文件中的公钥部分，并将其添加到账户安全设置中的 SSH 密钥部分。当我们在本地电脑上有了这个密钥，我们就可以使用`ssh`来检查。
+你需要在我们的电脑上有一个“.pub”文件。然后复制该文件中的公钥部分，并将其添加到账户安全设置中的 SSH 密钥部分。当我们在本地电脑上有了这个密钥，我们就可以使用`ssh`来检查。
 
-```py
+```r
 ssh_key_info()
 ```
 
-*同样，这需要一段时间来验证。DigitalOcean 将我们启动的每一台电脑称为“droplet”。如果我们启动三台电脑，那么我们将启动三个 droplets。我们可以检查正在运行的 droplets。
+同样，这需要一段时间来验证。DigitalOcean 将我们启动的每一台电脑称为“droplet”。如果我们启动三台电脑，那么我们将启动三个 droplets。我们可以检查正在运行的 droplets。
 
-```py
+```r
 droplets()
 ```
 
-*如果一切设置正确，这将打印出与账户关联的所有 droplets 的信息（目前可能没有）。我们首先必须创建一个 droplet。
+如果一切设置正确，这将打印出与账户关联的所有 droplets 的信息（目前可能没有）。我们首先必须创建一个 droplet。
 
-```py
+```r
 id <- do_provision(example = FALSE)
 ```
 
-*然后我们会要求输入 SSH 密码短语，然后它会设置一堆东西。之后，我们将在我们的 droplet 上安装很多东西。
+然后我们会要求输入 SSH 密码短语，然后它会设置一堆东西。之后，我们将在我们的 droplet 上安装很多东西。
 
-```py
+```r
 install_r_package(
  droplet = id,
  c(
@@ -314,9 +316,9 @@ install_r_package(id, c("tidyverse"))
 install_r_package(id, c("tidymodels"))
 ```
 
-*一旦最终设置完成（大约需要 30 分钟），我们就可以部署我们的 API。
+一旦最终设置完成（大约需要 30 分钟），我们就可以部署我们的 API。
 
-```py
+```r
 do_deploy_api(
  droplet = id,
  path = "example",
@@ -325,7 +327,9 @@ do_deploy_api(
  docs = TRUE,
  overwrite = TRUE
 )
-```**********  ***## G.4 练习
+```
+  
+## G.4 练习
 
 ### 规模
 

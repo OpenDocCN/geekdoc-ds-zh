@@ -6,7 +6,7 @@
 
 1.  17  文本作为数据
 
-**先决条件**
+先决条件**
 
 +   阅读 *文本作为数据：概述*，(Benoit 2020)
 
@@ -20,7 +20,7 @@
 
     +   对化妆品产品的文本分析。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   理解文本作为我们可以分析的数据源，这使我们能够考虑许多有趣的问题。
 
@@ -30,7 +30,7 @@
 
 +   另一种考虑方式是确定文档中包含哪些主题。
 
-**软件和包**
+软件和包**
 
 +   Base R (R Core Team 2024)
 
@@ -52,7 +52,7 @@
 
 +   `tinytable` (Arel-Bundock 2024)
 
-```py
+```r
 library(astrologer)
 library(beepr)
 library(fs)
@@ -64,7 +64,7 @@ library(tidyverse)
 library(tinytable)
 ```
 
-*## 17.1 引言
+## 17.1 引言
 
 文本无处不在。在许多情况下，文本是我们最早接触到的数据类型。计算能力的提升、新方法的开发以及文本的巨大可用性，意味着人们对使用文本作为数据产生了极大的兴趣。使用文本作为数据提供了独特的分析机会。例如：
 
@@ -84,7 +84,9 @@ library(tinytable)
 
 文本数据集的较大规模意味着在分析它们时模拟和从小处开始尤为重要。使用文本作为数据之所以令人兴奋，是因为我们有大量和多样的文本可用。但总的来说，处理文本数据集是混乱的。通常需要进行大量的清洗和准备。通常，文本数据集很大。因此，建立可重复的工作流程并清楚地传达你的发现变得至关重要。尽管如此，这仍然是一个令人兴奋的领域。
 
-*巨人的肩膀* *肯尼斯·贝诺特教授是伦敦政治经济学院（LSE）计算社会科学教授和数据科学学院院长。1998 年，他在哈佛大学获得政府学博士学位，导师是加里·金和肯尼斯·谢普斯勒，之后他在都柏林的三一学院任职。2007 年，他被晋升为教授。2020 年，他搬到了 LSE。他是使用定量方法分析文本数据，特别是政治文本和社交媒体的专家。他的一些重要论文包括 Laver, Benoit, and Garry (2003)，该论文从政治文本中提取政策立场，并帮助政治科学中的“文本作为数据”子领域开始。他还广泛参与了其他估计政策立场的方法，如 Benoit and Laver (2006)，它提供了几十个国家的原始专家调查立场，以及 Benoit and Laver (2007)，其中他比较了专家调查与手动编码的政党政策立场分析。一个核心贡献是名为`quanteda`的 R 包系列，用于“文本数据的定量分析”(Benoit et al. 2018)，这使得分析文本数据变得容易。*  *在这一章中，我们首先考虑准备文本数据集。然后我们考虑词频-逆文档频率（TF-IDF）和主题模型。*  *## 17.2 文本清洗和准备
+巨人的肩膀* *肯尼斯·贝诺特教授是伦敦政治经济学院（LSE）计算社会科学教授和数据科学学院院长。1998 年，他在哈佛大学获得政府学博士学位，导师是加里·金和肯尼斯·谢普斯勒，之后他在都柏林的三一学院任职。2007 年，他被晋升为教授。2020 年，他搬到了 LSE。他是使用定量方法分析文本数据，特别是政治文本和社交媒体的专家。他的一些重要论文包括 Laver, Benoit, and Garry (2003)，该论文从政治文本中提取政策立场，并帮助政治科学中的“文本作为数据”子领域开始。他还广泛参与了其他估计政策立场的方法，如 Benoit and Laver (2006)，它提供了几十个国家的原始专家调查立场，以及 Benoit and Laver (2007)，其中他比较了专家调查与手动编码的政党政策立场分析。一个核心贡献是名为`quanteda`的 R 包系列，用于“文本数据的定量分析”(Benoit et al. 2018)，这使得分析文本数据变得容易。*  *在这一章中，我们首先考虑准备文本数据集。然后我们考虑词频-逆文档频率（TF-IDF）和主题模型。
+
+## 17.2 文本清洗和准备
 
 文本建模是一个令人兴奋的研究领域。但，更普遍地说，清洗和准备方面通常至少与建模一样困难。我们将介绍一些基本知识，并提供一个可以在此基础上构建的基础。
 
@@ -100,7 +102,7 @@ library(tinytable)
 
 为了说明目的，我们构建了一个来自三本书的第一句或两句话的语料库：托妮·莫里森的《宠儿》，海伦·德维特的《最后的武士》，以及夏洛蒂·勃朗特的《简·爱》。
 
-```py
+```r
 last_samurai <-"My father's father was a Methodist minister."
 
 beloved <- "124 was spiteful. Full of Baby's venom."
@@ -116,16 +118,17 @@ bookshelf <-
 bookshelf
 ```
 
-*```py
+```r
 # A tibble: 3 × 2
   book         first_sentence                                     
   <chr>        <chr>                                              
 1 Last Samurai My father's father was a Methodist minister.       
 2 Beloved      124 was spiteful. Full of Baby's venom.            
 3 Jane Eyre    There was no possibility of taking a walk that day.
-```*  *我们通常希望构建一个文档特征矩阵，其中每个观测值包含文档，每个列包含单词，每个组合包含计数，以及相关的元数据。例如，如果我们的语料库是 Airbnb 评论的文本，那么每个文档可能是一篇评论，典型的特征可能包括：“The”，“Airbnb”，“was”，“great”。注意，这里的句子已经被分割成不同的单词。我们通常谈论“tokens”来泛指单词，因为我们对可能感兴趣的各种方面，但单词通常被广泛使用。
+```
+我们通常希望构建一个文档特征矩阵，其中每个观测值包含文档，每个列包含单词，每个组合包含计数，以及相关的元数据。例如，如果我们的语料库是 Airbnb 评论的文本，那么每个文档可能是一篇评论，典型的特征可能包括：“The”，“Airbnb”，“was”，“great”。注意，这里的句子已经被分割成不同的单词。我们通常谈论“tokens”来泛指单词，因为我们对可能感兴趣的各种方面，但单词通常被广泛使用。
 
-```py
+```r
 books_corpus <-
  corpus(bookshelf, 
  docid_field = "book", 
@@ -134,7 +137,7 @@ books_corpus <-
 books_corpus
 ```
 
-*```py
+```r
 Corpus consisting of 3 documents.
 Last Samurai :
 "My father's father was a Methodist minister."
@@ -144,9 +147,10 @@ Beloved :
 
 Jane Eyre :
 "There was no possibility of taking a walk that day."
-```*  *我们使用语料库中的标记来构建一个文档特征矩阵（DFM），这通过`quanteda`中的`dfm()`函数实现(Benoit et al. 2018)。
+```
+我们使用语料库中的标记来构建一个文档特征矩阵（DFM），这通过`quanteda`中的`dfm()`函数实现(Benoit et al. 2018)。
 
-```py
+```r
 books_dfm <-
  books_corpus |>
  tokens() |>
@@ -155,7 +159,7 @@ books_dfm <-
 books_dfm
 ```
 
-*```py
+```r
 Document-feature matrix of: 3 documents, 21 features (57.14% sparse) and 0 docvars.
               features
 docs           my father's father was a methodist minister . 124 spiteful
@@ -163,7 +167,8 @@ docs           my father's father was a methodist minister . 124 spiteful
   Beloved       0        0      0   1 0         0        0 2   1        1
   Jane Eyre     0        0      0   1 1         0        0 1   0        0
 [ reached max_nfeat ... 11 more features ]
-```*  *我们现在考虑在这个过程中需要做出的许多决定。没有绝对的对或错。相反，我们根据我们将要使用的数据集来做出这些决定。
+```
+我们现在考虑在这个过程中需要做出的许多决定。没有绝对的对或错。相反，我们根据我们将要使用的数据集来做出这些决定。
 
 ### 17.2.1 停用词
 
@@ -171,16 +176,17 @@ docs           my father's father was a methodist minister . 124 spiteful
 
 我们可以使用`quanteda`中的`stopwords()`函数获取停用词列表。
 
-```py
+```r
 stopwords(source = "snowball")[1:10]
 ```
 
-*```py
+```r
  [1] "i"         "me"        "my"        "myself"    "we"        "our"      
  [7] "ours"      "ourselves" "you"       "your" 
-```*  *然后我们可以查找该列表中所有单词的实例，并使用`str_replace_all()`函数粗略地移除它们。
+```
+然后我们可以查找该列表中所有单词的实例，并使用`str_replace_all()`函数粗略地移除它们。
 
-```py
+```r
 stop_word_list <-
  paste(stopwords(source = "snowball"), collapse = " | ")
 
@@ -193,16 +199,17 @@ bookshelf |>
  select(no_stops, first_sentence)
 ```
 
-*```py
+```r
 # A tibble: 3 × 2
   no_stops                                 first_sentence                       
   <chr>                                    <chr>                                
 1 My father's father a Methodist minister. My father's father was a Methodist m…
 2 124 spiteful. Full Baby's venom.         124 was spiteful. Full of Baby's ven…
 3 There no possibility taking walk day.    There was no possibility of taking a…
-```*  *其他人已经编制了许多不同的停用词列表。例如，`stopwords()`可以使用包括“snowball”、“stopwords-iso”、“smart”、“marimo”、“ancient”和“nltk”在内的列表。更普遍地说，如果我们决定使用停用词，那么我们通常需要根据项目特定的单词来扩充这些列表。我们可以通过在语料库中创建单个单词的计数，然后按最常见排序，并将这些单词添加到停用词列表中来实现这一点。
+```
+其他人已经编制了许多不同的停用词列表。例如，`stopwords()`可以使用包括“snowball”、“stopwords-iso”、“smart”、“marimo”、“ancient”和“nltk”在内的列表。更普遍地说，如果我们决定使用停用词，那么我们通常需要根据项目特定的单词来扩充这些列表。我们可以通过在语料库中创建单个单词的计数，然后按最常见排序，并将这些单词添加到停用词列表中来实现这一点。
 
-```py
+```r
 stop_word_list_updated <-
  paste(
  "Methodist |",
@@ -221,21 +228,22 @@ bookshelf |>
  select(no_stops)
 ```
 
-*```py
+```r
 # A tibble: 3 × 1
   no_stops                        
   <chr>                           
 1 My father's father a  minister. 
 2 124 spiteful. Full Baby's venom.
 3 There no of taking walk day. 
-```*  *我们可以通过`quanteda`中的`dfm_remove()`函数将停用词的移除整合到我们的 DFM 构建过程中。
+```
+我们可以通过`quanteda`中的`dfm_remove()`函数将停用词的移除整合到我们的 DFM 构建过程中。
 
-```py
+```r
 books_dfm |>
  dfm_remove(stopwords(source = "snowball"))
 ```
 
-*```py
+```r
 Document-feature matrix of: 3 documents, 14 features (61.90% sparse) and 0 docvars.
               features
 docs           father's father methodist minister . 124 spiteful full baby's
@@ -248,24 +256,30 @@ docs           venom
   Beloved          1
   Jane Eyre        0
 [ reached max_nfeat ... 4 more features ]
-```*  当我们移除停用词时，我们人为地调整了我们的数据集。有时这样做可能有很好的理由。但绝不能不加思考地这样做。例如，在第六章 06-farm.html 和第十章 10-store_and_share.html 中，我们讨论了有时数据集可能需要被审查、截断或以其他类似方式处理，以保护受访者的隐私。可能是因为在开发这些方法时计算能力有限，所以将停用词的移除作为自然语言处理中的默认步骤整合进去。无论如何，Jurafsky 和 Martin([[2000] 2023, 62](99-references.html#ref-jurafskymartin))得出结论，移除停用词并不会提高文本分类的性能。相关地，Schofield、Magnusson 和 Mimno(2017)发现，移除除了最频繁的词之外的其他任何词都不会提高主题模型的推理能力。如果需要移除停用词，他们建议在构建主题之后进行这一操作。****  ***### 17.2.2 大小写、数字和标点符号
+
+
+当我们移除停用词时，我们人为地调整了我们的数据集。有时这样做可能有很好的理由。但绝不能不加思考地这样做。例如，在第六章 06-farm.html 和第十章 10-store_and_share.html 中，我们讨论了有时数据集可能需要被审查、截断或以其他类似方式处理，以保护受访者的隐私。可能是因为在开发这些方法时计算能力有限，所以将停用词的移除作为自然语言处理中的默认步骤整合进去。无论如何，Jurafsky 和 Martin([[2000] 2023, 62](99-references.html#ref-jurafskymartin))得出结论，移除停用词并不会提高文本分类的性能。相关地，Schofield、Magnusson 和 Mimno(2017)发现，移除除了最频繁的词之外的其他任何词都不会提高主题模型的推理能力。如果需要移除停用词，他们建议在构建主题之后进行这一操作。
+  
+### 17.2.2 大小写、数字和标点符号
 
 有时候，我们只关心单词，而不是大小写或标点符号。例如，如果文本语料库特别混乱，或者某些单词的存在具有信息性。我们权衡信息损失的好处，以简化事物。我们可以使用`str_to_lower()`将文本转换为小写，并使用`str_replace_all()`通过“[:punct:]”移除标点符号，以及通过“[:digit:]”移除数字。
 
-```py
+```r
 bookshelf |>
  mutate(lower_sentence = str_to_lower(string = first_sentence)) |>
  select(lower_sentence)
 ```
 
-*```py
+```r
 # A tibble: 3 × 1
   lower_sentence                                     
   <chr>                                              
 1 my father's father was a methodist minister.       
 2 124 was spiteful. full of baby's venom.            
 3 there was no possibility of taking a walk that day.
-```*  *```py
+
+
+```r
 bookshelf |>
  mutate(no_punctuation_numbers = str_replace_all(
  string = first_sentence,
@@ -275,23 +289,25 @@ bookshelf |>
  select(no_punctuation_numbers)
 ```
 
-*```py
+```r
 # A tibble: 3 × 1
   no_punctuation_numbers                               
   <chr>                                                
 1 "My father s father was a Methodist minister "       
 2 "    was spiteful  Full of Baby s venom "            
 3 "There was no possibility of taking a walk that day "
-```*  作为一个插曲，我们可以使用`str_replace_all()`中的“[:graph:]”来移除字母、数字和标点符号。虽然这在教科书示例中很少需要，但在真实数据集中特别有用，因为它们通常只有少数意外的符号需要我们识别并移除。我们用它来移除我们习惯上的所有内容，只留下我们不习惯的内容。
+
+
+作为一个插曲，我们可以使用`str_replace_all()`中的“[:graph:]”来移除字母、数字和标点符号。虽然这在教科书示例中很少需要，但在真实数据集中特别有用，因为它们通常只有少数意外的符号需要我们识别并移除。我们用它来移除我们习惯上的所有内容，只留下我们不习惯的内容。
 
 更普遍地，我们可以使用`quanteda()`中的`tokens()`函数的参数来进行这项操作。
 
-```py
+```r
 books_corpus |>
  tokens(remove_numbers = TRUE, remove_punct = TRUE)
 ```
 
-*```py
+```r
 Tokens consisting of 3 documents.
 Last Samurai :
 [1] "My"        "father's"  "father"    "was"       "a"         "Methodist"
@@ -303,33 +319,36 @@ Beloved :
 Jane Eyre :
  [1] "There"       "was"         "no"          "possibility" "of"         
  [6] "taking"      "a"           "walk"        "that"        "day" 
-```***  ***### 17.2.3 错别字和罕见词
+```
+  
+### 17.2.3 错别字和罕见词
 
 然后，我们需要决定如何处理错别字和其他小问题。每个现实世界的文本都存在错别字。有时这些错别字应该被明确地纠正。但如果它们是以系统性的方式出现的，例如，某个作者总是犯同样的错误，那么如果我们对按作者分组感兴趣，它们可能具有价值。OCR 的使用也会引入一些常见问题，正如在第七章 07-gather.html 中看到的。例如，“the”通常被错误地识别为“thc”。
 
 我们可以用与修正停用词相同的方式修正拼写错误，即使用修正列表。对于不常见的单词，我们可以在创建文档特征矩阵时将其纳入，使用 `dfm_trim()`。例如，我们可以使用“min_termfreq = 2”来删除任何至少不出现两次的单词，或者使用“min_docfreq = 0.05”来删除任何至少不在五分之五的文档中的单词，“max_docfreq = 0.90”来删除在任何至少百分之九十的文档中出现的单词。
 
-```py
+```r
 books_corpus |>
  tokens(remove_numbers = TRUE, remove_punct = TRUE) |>
  dfm(tolower = TRUE) |>
  dfm_trim(min_termfreq = 2)
 ```
 
-*```py
+```r
 Document-feature matrix of: 3 documents, 3 features (22.22% sparse) and 0 docvars.
               features
 docs           was a of
   Last Samurai   1 1  0
   Beloved        1 0  1
   Jane Eyre      1 1  1
-```*  *### 17.2.4 元组
+```
+### 17.2.4 元组
 
 元组是有序元素列表。在文本的上下文中，它是一系列单词。如果元组包含两个单词，那么我们称之为“二元组”，三个单词是“三元组”，等等。在文本清理和准备过程中，这些问题会出现，因为我们通常根据空格来分隔术语。这会导致不适当的分隔。
 
 在处理地名时，这是一个明显的问题。例如，考虑“British Columbia”、“New Hampshire”、“United Kingdom”和“Port Hedland”。一种前进的方式是创建一个此类地点的列表，然后使用 `str_replace_all()` 添加下划线，例如，“British_Columbia”、“New_Hampshire”、“United_Kingdom”和“Port_Hedland”。另一种选择是使用 `quanteda` 的 `tokens_compound()`。
 
-```py
+```r
 some_places <- c("British Columbia", 
  "New Hampshire", 
  "United Kingdom", 
@@ -341,14 +360,15 @@ tokens(a_sentence) |>
  tokens_compound(pattern = phrase(some_places))
 ```
 
-*```py
+```r
 Tokens consisting of 1 document.
 text1 :
 [1] "Vancouver"        "is"               "in"               "British_Columbia"
 [5] "and"              "New_Hampshire"    "is"               "not" 
-```*  *在这种情况下，我们知道元组是什么。但可能我们不确定语料库中常见的元组是什么。我们可以使用 `tokens_ngrams()` 来识别它们。我们可以要求，例如，从《简·爱》的摘录中获取所有二元组。我们在第十三章中展示了如何从 Project Gutenberg 下载这本书的文本第十三章，因此这里我们加载我们之前保存的本地版本。
+```
+在这种情况下，我们知道元组是什么。但可能我们不确定语料库中常见的元组是什么。我们可以使用 `tokens_ngrams()` 来识别它们。我们可以要求，例如，从《简·爱》的摘录中获取所有二元组。我们在第十三章中展示了如何从 Project Gutenberg 下载这本书的文本第十三章，因此这里我们加载我们之前保存的本地版本。
 
-```py
+```r
 jane_eyre <- read_csv(
  "jane_eyre.csv",
  col_types = cols(
@@ -360,7 +380,7 @@ jane_eyre <- read_csv(
 jane_eyre
 ```
 
-*```py
+```r
 # A tibble: 21,001 × 2
    gutenberg_id text                           
           <int> <chr>                          
@@ -379,13 +399,13 @@ jane_eyre
 
 由于有很多空白行，我们将删除它们。
 
-```py
+```r
 jane_eyre <- 
  jane_eyre |> 
  filter(!is.na(text))
 ```
 
-*```py
+```r
 jane_eyre_text <- tibble(
  book = "Jane Eyre",
  text = paste(jane_eyre$text, collapse = " ") |>
@@ -405,7 +425,7 @@ ngram_counts <-
 head(ngram_counts)
 ```
 
-*```py
+```r
 # A tibble: 6 × 2
   ngrams           n
   <chr>        <int>
@@ -415,28 +435,31 @@ head(ngram_counts)
 4 St_John        132
 5 don_t          126
 6 I_saw          122
-```*  *在识别了一些常见的二元组后，我们可以将它们添加到待更改的列表中。这个例子包括像“Mr Rochester”和“St John”这样的名字，它们在分析时需要保持在一起。****  ***### 17.2.5 词干提取和词形还原
+```
+在识别了一些常见的二元组后，我们可以将它们添加到待更改的列表中。这个例子包括像“Mr Rochester”和“St John”这样的名字，它们在分析时需要保持在一起。
+  
+### 17.2.5 词干提取和词形还原
 
 词干提取和词形还原是减少文本数据集维度的另一种常见方法。词干提取意味着移除单词的最后一部分，期望这会产生更通用的单词。例如，“Canadians”、“Canadian”和“Canada”都词干提取为“Canad”。词形还原与此类似，但更为复杂。它意味着改变单词，不仅是在拼写上，而且在它们的规范形式上(Grimmer, Roberts, and Stewart 2022, 54)。例如，“Canadians”、“Canadian”、“Canucks”和“Canuck”都可能被更改为“Canada”。
 
 我们可以使用 `dfm_wordstem()` 来实现这一点。我们注意到，例如，“minister” 已经被更改为 “minist”。
 
-```py
+```r
 char_wordstem(c("Canadians", "Canadian", "Canada"))
 ```
 
-*```py
+```r
 [1] "Canadian" "Canadian" "Canada" 
 ```
 
-```py
+```r
 books_corpus |>
  tokens(remove_numbers = TRUE, remove_punct = TRUE) |>
  dfm(tolower = TRUE) |>
  dfm_wordstem()
 ```
 
-*```py
+```r
 Document-feature matrix of: 3 documents, 18 features (59.26% sparse) and 0 docvars.
               features
 docs           my father was a methodist minist spite full of babi
@@ -444,9 +467,14 @@ docs           my father was a methodist minist spite full of babi
   Beloved       0      0   1 0         0      0     1    1  1    1
   Jane Eyre     0      0   1 1         0      0     0    0  1    0
 [ reached max_nfeat ... 8 more features ]
-```**  **虽然这是使用文本作为数据的一个常见步骤，但 Schofield 等人(2017)发现，在后续讨论的主题建模的背景下，词干提取的影响很小，几乎没有必要进行这一步骤。**  **### 17.2.6 重复
+```
+虽然这是使用文本作为数据的一个常见步骤，但 Schofield 等人(2017)发现，在后续讨论的主题建模的背景下，词干提取的影响很小，几乎没有必要进行这一步骤。
 
-由于文本数据集的规模，重复是文本数据集的一个主要问题。例如，Bandy 和 Vincent(2021)表明，在 BookCorpus 数据集中，大约 30%的数据是不适当重复的，Schofield，Thompson 和 Mimno(2017)表明这是一个主要问题，可能会严重影响结果。然而，这可能是一个微妙且难以诊断的问题。例如，在第十三章中，当我们考虑在泊松回归背景下各种作者的页数计数时，我们很容易不小心将每个莎士比亚条目重复计算两次，因为不仅每个剧本都有条目，而且还有许多包含所有剧本的选集。仔细考虑我们的数据集确定了这个问题，但在大规模上这将很困难。***************  ***## 17.3 词频-逆文档频率 (TF-IDF)
+### 17.2.6 重复
+
+由于文本数据集的规模，重复是文本数据集的一个主要问题。例如，Bandy 和 Vincent(2021)表明，在 BookCorpus 数据集中，大约 30%的数据是不适当重复的，Schofield，Thompson 和 Mimno(2017)表明这是一个主要问题，可能会严重影响结果。然而，这可能是一个微妙且难以诊断的问题。例如，在第十三章中，当我们考虑在泊松回归背景下各种作者的页数计数时，我们很容易不小心将每个莎士比亚条目重复计算两次，因为不仅每个剧本都有条目，而且还有许多包含所有剧本的选集。仔细考虑我们的数据集确定了这个问题，但在大规模上这将很困难。
+  
+## 17.3 词频-逆文档频率 (TF-IDF)
 
 ### 17.3.1 区分运势
 
@@ -454,11 +482,11 @@ docs           my father was a methodist minist spite full of babi
 
 然后，我们可以访问“horoscopes”数据集。
 
-```py
+```r
 horoscopes
 ```
 
-*```py
+```r
 # A tibble: 1,272 × 4
    startdate  zodiacsign  horoscope                                        url  
    <date>     <fct>       <chr>                                            <chr>
@@ -473,14 +501,15 @@ horoscopes
  9 2015-01-05 Sagittarius Everything right now is about how you say it, h… http…
 10 2015-01-05 Capricorn   The full moon on January 4th/5th was a healthy … http…
 # ℹ 1,262 more rows
-```*  *有四个变量：“startdate”，“zodiacsign”，“horoscope”和“url”（注意，URL 已过时，因为网站已经更新，例如，第一个链接指向[这里](https://chaninicholas.com/horoscopes-week-january-5th/))。我们感兴趣的是用于区分每个星座运势的词汇。
+```
+有四个变量：“startdate”，“zodiacsign”，“horoscope”和“url”（注意，URL 已过时，因为网站已经更新，例如，第一个链接指向[这里](https://chaninicholas.com/horoscopes-week-january-5th/))。我们感兴趣的是用于区分每个星座运势的词汇。
 
-```py
+```r
 horoscopes |>
  count(zodiacsign)
 ```
 
-*```py
+```r
 # A tibble: 12 × 2
    zodiacsign      n
    <fct>       <int>
@@ -496,9 +525,10 @@ horoscopes |>
 10 Capricorn     106
 11 Aquarius      106
 12 Pisces        106
-```*  *每个星座有 106 个运势。在这个例子中，我们首先按单词进行分词，然后仅基于星座创建计数，而不是日期。我们使用`tidytext`，因为它在 Hvitfeldt 和 Silge(2021)的书中被广泛使用。
+```
+每个星座有 106 个运势。在这个例子中，我们首先按单词进行分词，然后仅基于星座创建计数，而不是日期。我们使用`tidytext`，因为它在 Hvitfeldt 和 Silge(2021)的书中被广泛使用。
 
-```py
+```r
 horoscopes_by_word <-
  horoscopes |>
  select(-startdate,-url) |>
@@ -513,7 +543,7 @@ horoscopes_counts_by_word <-
 horoscopes_counts_by_word
 ```
 
-*```py
+```r
 # A tibble: 41,850 × 3
    zodiacsign  word      n
    <fct>       <chr> <int>
@@ -528,13 +558,14 @@ horoscopes_counts_by_word
  9 Virgo       to     1262
 10 Scorpio     to     1260
 # ℹ 41,840 more rows
-```*  *我们可以看到，对于不同的星座，最受欢迎的词汇似乎很相似。在这个阶段，我们可以用各种方式使用这些数据。
+```
+我们可以看到，对于不同的星座，最受欢迎的词汇似乎很相似。在这个阶段，我们可以用各种方式使用这些数据。
 
 我们可能想知道哪些词汇能表征每个群体——也就是说，哪些词汇在每个群体中是常用且仅在该群体中使用的。我们可以通过首先查看一个词的词频（TF），即每个星座运势中一个词被使用的次数来实现。问题是，有很多词在无论什么语境下都常用。因此，我们可能还想查看逆文档频率（IDF），其中我们对在许多星座运势中出现的词进行“惩罚”。在许多星座运势中出现的词会有比仅在某个星座运势中出现的词更低的 IDF。因此，词频-逆文档频率（tf-idf）是这两个值的乘积。
 
 我们可以使用`tidytext`中的`bind_tf_idf()`来创建这个值。它将为这些度量中的每一个创建新的变量。
 
-```py
+```r
 horoscopes_counts_by_word_tf_idf <-
  horoscopes_counts_by_word |>
  bind_tf_idf(
@@ -547,7 +578,7 @@ horoscopes_counts_by_word_tf_idf <-
 horoscopes_counts_by_word_tf_idf
 ```
 
-*```py
+```r
 # A tibble: 41,850 × 6
    zodiacsign  word            n       tf   idf   tf_idf
    <fct>       <chr>       <int>    <dbl> <dbl>    <dbl>
@@ -562,9 +593,10 @@ horoscopes_counts_by_word_tf_idf
  9 Cancer      overwork        5 0.000174  2.48 0.000433
 10 Taurus      let's          10 0.000376  1.10 0.000413
 # ℹ 41,840 more rows
-```*  *在表 17.1 中，我们查看区分每个星座占星术的单词。首先要注意的是，其中一些有它们自己的星座。一方面，有理由去除它们，但另一方面，它们并非对所有星座都发生的事实可能有助于了解每个星座占星术的性质。
+```
+在表 17.1 中，我们查看区分每个星座占星术的单词。首先要注意的是，其中一些有它们自己的星座。一方面，有理由去除它们，但另一方面，它们并非对所有星座都发生的事实可能有助于了解每个星座占星术的性质。
 
-```py
+```r
 horoscopes_counts_by_word_tf_idf |>
  slice(1:5,
  .by = zodiacsign) |>
@@ -576,7 +608,7 @@ horoscopes_counts_by_word_tf_idf |>
  setNames(c("Zodiac sign", "Most common words unique to that sign"))
 ```
 
-*表 17.1：占星术中独特的星座特有的最常见单词
+表 17.1：占星术中独特的星座特有的最常见单词
 
 | 星座 | 该星座特有的最常见单词 |
 | --- | --- |
@@ -592,7 +624,9 @@ horoscopes_counts_by_word_tf_idf |>
 | 天蝎座 | skate; advocate; knots; bottle; meditating |
 | 水瓶座 | saves; consult; yearnings; sexy; athene |
 
-| 利奥 | trines; blessed; regrets; leo; agree |*****  ***## 17.4 主题模型
+| 利奥 | trines; blessed; regrets; leo; agree |
+  
+## 17.4 主题模型
 
 当我们有许多陈述并且想要根据使用相似单词的句子创建组时，主题模型很有用。我们将这些相似单词的组视为定义主题。获取每个陈述主题的一致估计的一种方法是用主题模型。虽然有许多变体，但一种方法是用 Blei、Ng 和 Jordan 的潜在狄利克雷分配（LDA）方法（2003），如`stm`实现。为了清晰起见，在本章的上下文中，LDA 指的是潜在狄利克雷分配，而不是线性判别分析，尽管这也是与 LDA 缩写相关的一个常见主题。
 
@@ -644,7 +678,7 @@ LDA 方法的一个弱点是它考虑了一个“词袋”模型，其中那些�
 
 我们对 2018 年加拿大议会的讨论内容感兴趣。为了开始，我们可以从[这里](https://www.lipad.ca/data/)下载整个语料库，然后丢弃除 2018 年之外的所有年份。如果数据集在一个名为“2018”的文件夹中，我们可以使用 `read_csv()` 来读取和合并所有的 CSV 文件。
 
-```py
+```r
 files_of_interest <-
  dir_ls(path = "2018/", glob = "*.csv", recurse = 2)
 
@@ -667,7 +701,7 @@ hansard_canada_2018 <-
 hansard_canada_2018
 ```
 
-*```py
+```r
 # A tibble: 33,105 × 6
     basepk speechdate speechtext          speakername speakerparty speakerriding
      <int> <date>     <chr>               <chr>       <chr>        <chr>        
@@ -686,22 +720,22 @@ hansard_canada_2018
 
 在最后使用 `filter()` 是必要的，因为有时“directions”和类似的非语音方面会被包含在汉萨德（Hansard）中。例如，如果我们不包括那个 `filter()`，那么第一行将是“The House resumed from November 9, 2017, consideration of the motion.” 然后，我们可以构建一个语料库。
 
-```py
+```r
 hansard_canada_2018_corpus <-
  corpus(hansard_canada_2018, 
  docid_field = "basepk", 
  text_field = "speechtext")
 ```
 
-*```py
+```r
 Warning: NA is replaced by empty string
 ```
 
-```py
+```r
 hansard_canada_2018_corpus
 ```
 
-*```py
+```r
 Corpus consisting of 33,105 documents and 4 docvars.
 4732776 :
 "Mr. Speaker, I would like to wish everyone in this place a h..."
@@ -722,9 +756,10 @@ Corpus consisting of 33,105 documents and 4 docvars.
 "The question is on the motion. Is the pleasure of the House ..."
 
 [ reached max_ndoc ... 33,099 more documents ]
-```**  **我们使用语料库中的标记来构建一个文档-特征矩阵。为了使我们的计算工作稍微容易一些，我们移除了至少没有出现两次的任何单词，以及至少没有出现在至少两个文档中的任何单词。
+```
+我们使用语料库中的标记来构建一个文档-特征矩阵。为了使我们的计算工作稍微容易一些，我们移除了至少没有出现两次的任何单词，以及至少没有出现在至少两个文档中的任何单词。
 
-```py
+```r
 hansard_dfm <-
  hansard_canada_2018_corpus |>
  tokens(
@@ -738,7 +773,7 @@ hansard_dfm <-
 hansard_dfm
 ```
 
-*```py
+```r
 Document-feature matrix of: 33,105 documents, 29,432 features (99.77% sparse) and 4 docvars.
          features
 docs      mr speaker like wish everyone place happy new year great
@@ -749,9 +784,10 @@ docs      mr speaker like wish everyone place happy new year great
   4732780  1       1    4    0        1     1     0   0    2     0
   4732781  0       0    0    0        0     0     0   0    0     0
 [ reached max_ndoc ... 33,099 more documents, reached max_nfeat ... 29,422 more features ]
-```*  *在这个时候，我们可以使用 `stm` 中的 `stm()` 来实现 LDA 模型。我们需要指定一个文档-特征矩阵和主题的数量。主题模型本质上只是摘要。与文档成为单词的集合不同，它们成为具有与每个主题相关概率的主题的集合。但是，因为它只是提供了一组在相似时间使用的单词，而不是实际的下层含义，所以我们需要指定我们感兴趣的主题数量。这个决定将产生重大影响，我们应该考虑几个不同的数字。
+```
+在这个时候，我们可以使用 `stm` 中的 `stm()` 来实现 LDA 模型。我们需要指定一个文档-特征矩阵和主题的数量。主题模型本质上只是摘要。与文档成为单词的集合不同，它们成为具有与每个主题相关概率的主题的集合。但是，因为它只是提供了一组在相似时间使用的单词，而不是实际的下层含义，所以我们需要指定我们感兴趣的主题数量。这个决定将产生重大影响，我们应该考虑几个不同的数字。
 
-```py
+```r
 hansard_topics <- stm(documents = hansard_dfm, K = 10)
 
 beepr::beep()
@@ -762,21 +798,21 @@ write_rds(
 )
 ```
 
-*这将需要一些时间，可能 15-30 分钟，所以当模型完成时使用 `write_rds()` 保存模型是有用的，并且使用 `beep` 来获取完成的提醒。然后我们可以使用 `read_rds()` 读取结果。
+这将需要一些时间，可能 15-30 分钟，所以当模型完成时使用 `write_rds()` 保存模型是有用的，并且使用 `beep` 来获取完成的提醒。然后我们可以使用 `read_rds()` 读取结果。
 
-```py
+```r
 hansard_topics <- read_rds(
  file = "hansard_topics.rda"
 )
 ```
 
-*我们可以使用 `labelTopics()` 来查看每个主题中的单词。
+我们可以使用 `labelTopics()` 来查看每个主题中的单词。
 
-```py
+```r
 labelTopics(hansard_topics)
 ```
 
-*```py
+```r
 Topic 1 Top Words:
      Highest Prob: indigenous, government, communities, bill, first, development, nations 
      FREX: fisheries, fish, oceans, marine, habitat, coastal, plastic 
@@ -827,7 +863,9 @@ Topic 10 Top Words:
      FREX: things, think, lot, something, see, really, look 
      Lift: 22-year-old, 980,000, backtracking, balloting, carolina, disenfranchise, enfranchisement 
      Score: people, going, forward, legislation, things, voter, think 
-```*******  ***## 17.5 练习
+```
+  
+## 17.5 练习
 
 ### 练习
 

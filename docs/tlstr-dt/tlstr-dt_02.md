@@ -2,7 +2,7 @@
 
 > 原文：[`tellingstorieswithdata.com/00-errata.html`](https://tellingstorieswithdata.com/00-errata.html)
 
-*Chapman and Hall/CRC 于 2023 年 7 月出版了本书。您可以在[此处](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。
+Chapman and Hall/CRC 于 2023 年 7 月出版了本书。您可以在[此处](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。
 
 本在线版本对印刷版有所更新。与印刷版相匹配的在线版本可在[此处](https://rohanalexander.github.io/telling_stories-published/)找到。*  **最后更新：2024 年 11 月 21 日.*
 
@@ -24,7 +24,7 @@
 
 +   p. 34: 将第一个代码块替换为第二个：
 
-```py
+```r
 toronto_shelters_clean <-
  clean_names(toronto_shelters) |>
  select(occupancy_date, id, occupied_beds)
@@ -32,7 +32,7 @@ toronto_shelters_clean <-
 head(toronto_shelters_clean)
 ```
 
-*```py
+```r
 toronto_shelters_clean <-
  clean_names(toronto_shelters) |>
  mutate(occupancy_date = ymd(occupancy_date)) |> 
@@ -41,7 +41,7 @@ toronto_shelters_clean <-
 head(toronto_shelters_clean)
 ```
 
-**   p. 38: “At this point we can make a nice graph of the number of ridings won by each party in the 2019 Canadian Federal Election.” 应指代 2021 年的选举。
+p. 38: “At this point we can make a nice graph of the number of ridings won by each party in the 2019 Canadian Federal Election.” 应指代 2021 年的选举。
 
 +   p. 41: 删除多余的 “:::”。
 
@@ -69,4 +69,5 @@ head(toronto_shelters_clean)
 
 +   p. 587: 链接应为：https://fivethirtyeight.com/features/police-misconduct-costs-cities-millions-every-year-but-thats-where-the-accountability-ends/
 
-Fryzlewicz, Piotr. 2024. “用数据讲故事：R 语言应用。” *《美国统计学家》*，四月，1–5 页。[`doi.org/10.1080/00031305.2024.2339562`](https://doi.org/10.1080/00031305.2024.2339562).***
+Fryzlewicz, Piotr. 2024. “用数据讲故事：R 语言应用。” *《美国统计学家》*，四月，1–5 页。[`doi.org/10.1080/00031305.2024.2339562`](https://doi.org/10.1080/00031305.2024.2339562).
+

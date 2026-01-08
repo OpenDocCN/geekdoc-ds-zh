@@ -6,7 +6,8 @@
 
 1.  7  API、爬虫与解析
 
-*Chapman and Hall/CRC 于 2023 年 7 月出版了本书。您可以[在此处](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。此在线版本对印刷版内容进行了一些更新。*  ***先决条件**
+Chapman and Hall/CRC 于 2023 年 7 月出版了本书。您可以[在此处](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。此在线版本对印刷版内容进行了一些更新。*  
+先决条件**
 
 +   阅读《将历史转化为数据：HPE 中的数据收集、测量与推断》，(Cirone and Spirling 2021)
 
@@ -20,7 +21,7 @@
 
     +   重点关注第三章“数据”，该章讨论了理解数据来源的重要性。
 
-**核心概念与技能**
+核心概念与技能**
 
 +   有时数据是可用的，但它们不一定是为了构成一个数据集而被整合在一起的。我们必须去收集这些数据。
 
@@ -28,7 +29,7 @@
 
 +   我们可以从多种来源收集数据。这包括直接通过 API（可能涉及半结构化数据）以及间接通过`R`包。我们也可以通过合理且符合伦理的网络爬虫来收集数据。最后，我们可能希望从 PDF 文件中收集数据。
 
-**软件与包**
+软件与包**
 
 +   基础`R` (R Core Team 2024)
 
@@ -64,7 +65,7 @@
 
 +   `xml2` (Wickham, Hester, and Ooms 2021)
 
-```py
+```r
 library(babynames)
 library(gh)
 library(here)
@@ -83,7 +84,7 @@ library(usethis)
 library(xml2)
 ```
 
-*## 7.1 引言
+## 7.1 引言
 
 本章我们讨论的是必须由我们自己收集的数据。这意味着尽管观测数据已经存在，但我们必须对其进行解析、提取、清理和准备，才能得到我们将要使用的数据集。与第六章讨论的“耕作数据”不同，这些观测数据通常并非为分析目的而提供。这意味着我们需要特别关注文档记录、纳入与排除决策、缺失数据以及伦理行为。
 
@@ -121,23 +122,23 @@ library(xml2)
 
 在本案例研究中，我们将使用[arXiv 提供的 API](https://arxiv.org/help/api/)。arXiv 是一个在线存储库，用于存放经过同行评审之前的学术论文。这些论文通常被称为“预印本”。我们通过提供 URL，使用`GET()`请求 arXiv 获取关于某个预印本的一些信息。
 
-```py
+```r
 arxiv <- GET("http://export.arxiv.org/api/query?id_list=2310.01402")
 
 status_code(arxiv)
 ```
 
-*我们可以使用`status_code()`来检查我们的响应。例如，200 表示成功，而 400 表示我们从服务器收到了错误。假设我们从服务器收到了某些内容，我们可以使用`content()`来显示它。在这种情况下，我们收到了 XML 格式的数据。XML 是一种标记语言，其中的条目由标签标识，这些标签可以嵌套在其他标签内。安装并加载`xml2`后，我们可以使用`read_xml()`读取 XML。XML 是一种半格式化结构，使用`html_structure()`初步查看它可能会很有用。
+我们可以使用`status_code()`来检查我们的响应。例如，200 表示成功，而 400 表示我们从服务器收到了错误。假设我们从服务器收到了某些内容，我们可以使用`content()`来显示它。在这种情况下，我们收到了 XML 格式的数据。XML 是一种标记语言，其中的条目由标签标识，这些标签可以嵌套在其他标签内。安装并加载`xml2`后，我们可以使用`read_xml()`读取 XML。XML 是一种半格式化结构，使用`html_structure()`初步查看它可能会很有用。
 
-```py
+```r
 content(arxiv) |>
  read_xml() |>
  html_structure()
 ```
 
-*我们可能希望基于提取此 XML 树的各种方面来创建一个数据集。例如，我们可以查看“entry”，即第八项，并特别获取“title”和“URL”，它们分别是“entry”内的第四和第九项。
+我们可能希望基于提取此 XML 树的各种方面来创建一个数据集。例如，我们可以查看“entry”，即第八项，并特别获取“title”和“URL”，它们分别是“entry”内的第四和第九项。
 
-```py
+```r
 data_from_arxiv <-
  tibble(
  title = content(arxiv) |>
@@ -152,59 +153,65 @@ data_from_arxiv <-
  xml_attr("href")
  )
 data_from_arxiv
-```**  ***#### 7.2.1.2 NASA 每日天文图
+```
+
+#### 7.2.1.2 NASA 每日天文图
 
 再考虑另一个例子，美国国家航空航天局（NASA）每天通过其[APOD API](https://api.nasa.gov)提供“每日天文图”。我们可以使用`GET()`获取特定日期的照片 URL，然后显示它。
 
-```py
+```r
 NASA_APOD_20190719 <-
  GET("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=2019-07-19")
 ```
 
-*使用`content()`检查返回的数据，我们可以看到我们获得了各种字段，如日期、标题、解释和一个 URL。
+使用`content()`检查返回的数据，我们可以看到我们获得了各种字段，如日期、标题、解释和一个 URL。
 
-```py
+```r
 # APOD July 19, 2019
 content(NASA_APOD_20190719)$date
 ```
 
-*```py
+```r
 [1] "2019-07-19"
 ```
 
-```py
+```r
 content(NASA_APOD_20190719)$title
 ```
 
-*```py
+```r
 [1] "Tranquility Base Panorama"
 ```
 
-```py
+```r
 content(NASA_APOD_20190719)$explanation
 ```
 
-*```py
+```r
 [1] "On July 20, 1969 the Apollo 11 lunar module Eagle safely touched down on the Moon. It landed near the southwestern corner of the Moon's Mare Tranquillitatis at a landing site dubbed Tranquility Base. This panoramic view of Tranquility Base was constructed from the historic photos taken from the lunar surface. On the far left astronaut Neil Armstrong casts a long shadow with Sun is at his back and the Eagle resting about 60 meters away ( AS11-40-5961). He stands near the rim of 30 meter-diameter Little West crater seen here to the right ( AS11-40-5954). Also visible in the foreground is the top of the camera intended for taking stereo close-ups of the lunar surface."
 ```
 
-```py
+```r
 content(NASA_APOD_20190719)$url
 ```
 
-*```py
+```r
 [1] "https://apod.nasa.gov/apod/image/1907/apollo11TranquilitybasePan600h.jpg"
-```****  ***我们可以将该 URL 提供给`knitr`的`include_graphics()`来显示它（图 7.2）。
+```
+  
+我们可以将该 URL 提供给`knitr`的`include_graphics()`来显示它（图 7.2）。
 
 ![](img/ec8efbfe286dd94d07ab7813ed0e21cf.png)
 
 (a) 宁静基地全景图（图片来源：尼尔·阿姆斯特朗，阿波罗 11 号，NASA）
 
-图 7.2：从 NASA APOD API 获取的图像****  ***#### 7.2.1.3 Dataverse
+图 7.2：从 NASA APOD API 获取的图像
+  
+#### 7.2.1.3 Dataverse
 
 最后，另一种常见的半结构化 API 响应格式是 JSON。JSON 是一种人类可读的、机器可解析的数据存储方式。与我们已经习惯的行列结构的 CSV 不同，JSON 使用键值对。
 
-```py
+```r
 {
  "firstName": "Rohan",
  "lastName": "Alexander",
@@ -217,16 +224,16 @@ content(NASA_APOD_20190719)$url
 }
 ```
 
-*我们可以使用 `jsonlite` 解析 JSON。考虑一个具体例子，我们使用“Dataverse”——一个便于共享数据集的 Web 应用程序。我们可以使用 API 查询一个演示用的 Dataverse。例如，我们可能对与政治相关的数据集感兴趣。
+我们可以使用 `jsonlite` 解析 JSON。考虑一个具体例子，我们使用“Dataverse”——一个便于共享数据集的 Web 应用程序。我们可以使用 API 查询一个演示用的 Dataverse。例如，我们可能对与政治相关的数据集感兴趣。
 
-```py
+```r
 politics_datasets <-
  fromJSON("https://demo.dataverse.org/api/search?q=politics")
 
 politics_datasets
 ```
 
-*```py
+```r
 $status
 [1] "OK"
 
@@ -380,7 +387,8 @@ $data$items
 
 $data$count_in_response
 [1] 6
-```*  *我们可以使用 `View(politics_datasets)` 查看数据集，这允许我们根据兴趣展开树状结构。我们甚至可以通过悬停在项目上，然后点击带有绿色箭头的图标来获取关注不同方面所需的代码（图 7.3）。
+```
+我们可以使用 `View(politics_datasets)` 查看数据集，这允许我们根据兴趣展开树状结构。我们甚至可以通过悬停在项目上，然后点击带有绿色箭头的图标来获取关注不同方面所需的代码（图 7.3）。
 
 ![](img/c6093076a61736f04b6362ce66c2c468.png)
 
@@ -388,9 +396,11 @@ $data$count_in_response
 
 这告诉我们如何获取感兴趣的数据集。
 
-```py
+```r
 as_tibble(politics_datasets[["data"]][["items"]])
-```********  ***### 7.2.2 Spotify
+```
+  
+### 7.2.2 Spotify
 
 有时会有一个围绕 API 构建的 `R` 包，允许我们以类似之前见过的方式与之交互。例如，`spotifyr` 就是 Spotify API 的一个封装包。在使用 API 时，即使它们被封装在 `R` 包中（本例中是 `spotifyr`），阅读访问条款也非常重要。
 
@@ -402,33 +412,33 @@ as_tibble(politics_datasets[["data"]][["items"]])
 
 继续注册流程，在我们的案例中，我们“不知道”要构建什么，因此 Spotify 要求我们使用非商业协议，这没有问题。要使用 Spotify API，我们需要一个“客户端 ID”和一个“客户端密钥”。这些信息我们需要保密，否则任何知道这些信息的人都可以像我们一样使用我们的开发者账户。一种省事且能保密这些信息的方法是将它们保存在我们的“系统环境变量”中。这样，当我们推送到 GitHub 时，它们就不会被包含进去。为此，我们将加载并使用 `usethis` 来修改我们的系统环境变量。具体来说，有一个名为“.Renviron”的文件，我们将打开它并添加我们的“客户端 ID”和“客户端密钥”。
 
-```py
+```r
 edit_r_environ()
 ```
 
-*当我们运行 `edit_r_environ()` 时，会打开一个“.Renviron”文件，我们可以在此添加我们的“Spotify 客户端 ID”和“客户端密钥”。请使用相同的名称，因为 `spotifyr` 会在我们的环境中查找具有这些特定名称的密钥。这里小心使用单引号很重要，尽管我们在本书中通常使用双引号。
+当我们运行 `edit_r_environ()` 时，会打开一个“.Renviron”文件，我们可以在此添加我们的“Spotify 客户端 ID”和“客户端密钥”。请使用相同的名称，因为 `spotifyr` 会在我们的环境中查找具有这些特定名称的密钥。这里小心使用单引号很重要，尽管我们在本书中通常使用双引号。
 
-```py
+```r
 SPOTIFY_CLIENT_ID = 'PUT_YOUR_CLIENT_ID_HERE'
 SPOTIFY_CLIENT_SECRET = 'PUT_YOUR_SECRET_HERE'
 ```
 
-*保存“.Renviron”文件，然后重启 R：“会话” → “重启 R”。现在我们可以根据需要来使用我们的“Spotify 客户端 ID”和“客户端密钥”。那些需要这些信息作为参数的函数将无需再次显式指定即可工作。
+保存“.Renviron”文件，然后重启 R：“会话” → “重启 R”。现在我们可以根据需要来使用我们的“Spotify 客户端 ID”和“客户端密钥”。那些需要这些信息作为参数的函数将无需再次显式指定即可工作。
 
 为了尝试这一点，我们安装并加载 `spotifyr`。我们将使用 `get_artist_audio_features()` 获取并保存关于英国摇滚乐队电台司令的一些信息。其中一个必需的参数是 `authorization`，但由于该参数默认设置为查看“.Renviron”文件，我们在此无需指定它。
 
-```py
+```r
 radiohead <- get_artist_audio_features("radiohead")
 saveRDS(radiohead, "radiohead.rds")
 ```
 
-*```py
+```r
 radiohead <- readRDS("radiohead.rds")
 ```
 
-*基于歌曲有各种各样的信息可用。我们可能感兴趣的是看看他们的歌曲是否随着时间的推移变得更长（图 7.5）。遵循第五章的指导，这是一个很好的机会，可以同时使用箱线图来传达按专辑汇总的统计数据。
+基于歌曲有各种各样的信息可用。我们可能感兴趣的是看看他们的歌曲是否随着时间的推移变得更长（图 7.5）。遵循第五章的指导，这是一个很好的机会，可以同时使用箱线图来传达按专辑汇总的统计数据。
 
-```py
+```r
 radiohead <- as_tibble(radiohead)
 
 radiohead |>
@@ -447,13 +457,13 @@ radiohead |>
  )
 ```
 
-*![](img/0afb82a03ce84939f1677b823cb68b8f.png)
+![](img/0afb82a03ce84939f1677b823cb68b8f.png)
 
 图 7.5：从 Spotify 收集的电台司令每首歌曲的长度随时间变化图*  *Spotify 为每首歌曲提供的一个有趣变量是“效价”。Spotify[文档](https://developer.spotify.com/documentation/web-api/reference/#/operations/get-audio-features)将其描述为一个介于 0 到 1 之间的度量值，表示曲目的“音乐积极性”，数值越高表示越积极。我们可能感兴趣的是比较几位艺术家（例如电台司令、美国摇滚乐队国民乐队和美国歌手泰勒·斯威夫特）的效价随时间的变化。
 
 首先，我们需要收集数据。
 
-```py
+```r
 taylor_swift <- get_artist_audio_features("taylor swift")
 the_national <- get_artist_audio_features("the national")
 
@@ -461,9 +471,9 @@ saveRDS(taylor_swift, "taylor_swift.rds")
 saveRDS(the_national, "the_national.rds")
 ```
 
-*接着，我们可以将它们整合在一起并绘制图表（图 7.6）。这似乎表明，虽然泰勒·斯威夫特和电台司令的“效价”水平总体上随时间推移保持稳定，但国民乐队的效价水平有所下降。
+接着，我们可以将它们整合在一起并绘制图表（图 7.6）。这似乎表明，虽然泰勒·斯威夫特和电台司令的“效价”水平总体上随时间推移保持稳定，但国民乐队的效价水平有所下降。
 
-```py
+```r
 rbind(taylor_swift, the_national, radiohead) |>
  select(artist_name, album_release_date, valence) |>
  mutate(album_release_date = ymd(album_release_date)) |> 
@@ -481,11 +491,13 @@ rbind(taylor_swift, the_national, radiohead) |>
  theme(legend.position = "bottom")
 ```
 
-*![](img/81547c5eba6fd1fa6f2121d817444d4c.png)
+![](img/81547c5eba6fd1fa6f2121d817444d4c.png)
 
 图 7.6：比较 Radiohead、Taylor Swift 和 The National 随时间变化的效价*  *我们生活在一个只需极少努力或成本就能获取所有这些信息的世界，多么令人惊叹！收集到数据后，还有很多事情可以做。例如，Pavlik (2019) 使用扩展的数据集对音乐流派进行分类，而《经济学人》(2022) 则研究了语言如何与 Spotify 上的音乐流媒体相关联。我们收集此类数据的能力使我们能够回答过去必须通过实验才能考虑的问题。例如，Salganik、Dodds 和 Watts (2006) 不得不使用实验数据来分析一首热门歌曲的社会因素，而不是我们现在可以获取的观察数据。
 
-话虽如此，值得思考的是，效价声称要衡量的究竟是什么。Spotify 文档中关于其创建方式的信息很少。一个数字能否完全代表一首歌曲的积极程度是值得怀疑的。那么，这些艺术家未在 Spotify 上架、甚至未公开发行的歌曲呢？这是一个很好的例子，说明了测量和抽样如何渗透到用数据讲述故事的方方面面。**********  ***## 7.3 网络爬取
+话虽如此，值得思考的是，效价声称要衡量的究竟是什么。Spotify 文档中关于其创建方式的信息很少。一个数字能否完全代表一首歌曲的积极程度是值得怀疑的。那么，这些艺术家未在 Spotify 上架、甚至未公开发行的歌曲呢？这是一个很好的例子，说明了测量和抽样如何渗透到用数据讲述故事的方方面面。
+  
+## 7.3 网络爬取
 
 ### 7.3.1 原则
 
@@ -493,7 +505,7 @@ rbind(taylor_swift, the_national, radiohead) |>
 
 隐私常常优先于可复现性。数据在网站上公开可用与被抓取、清理、准备成数据集然后公开发布之间也存在相当大的差异。例如，Kirkegaard 和 Bjerrekær（2016）抓取了公开可用的 OKCupid 个人资料，然后使生成的数据集易于获取（Hackett 2016）。Zimmer（2018）详细阐述了一些被忽视的重要考量，包括“最小化伤害”、“知情同意”，以及确保数据集中的个人保持“隐私和保密性”。虽然可以说 OKCupid 公开了数据，但他们是在特定背景下这样做的，而当他们的数据被抓取时，这个背景就改变了。
 
-*哦，你以为我们在这方面有很好的数据吗！* *警察暴力尤其令人担忧，因为警察与社会之间需要信任。没有良好的数据，就很难追究警察部门的责任，或者知道是否存在问题，但获取数据很困难（Thomson-DeVeaux, Bronner, and Sharma 2021）。根本问题在于，无法轻易将导致暴力的遭遇简化为数据集。两个流行的数据集依赖于网络抓取：*
+哦，你以为我们在这方面有很好的数据吗！* *警察暴力尤其令人担忧，因为警察与社会之间需要信任。没有良好的数据，就很难追究警察部门的责任，或者知道是否存在问题，但获取数据很困难（Thomson-DeVeaux, Bronner, and Sharma 2021）。根本问题在于，无法轻易将导致暴力的遭遇简化为数据集。两个流行的数据集依赖于网络抓取：*
 
 1.  “警察暴力地图”；以及
 
@@ -517,7 +529,9 @@ Bor 等人（2018）使用“Mapping Police Violence”来研究警察杀害美�
 
 1.  不要重新发布被爬取的页面（这与您从中创建的数据集形成对比）。
 
-1.  尽可能承担责任并请求许可。至少所有脚本中应包含联系方式。根据情况，在爬取前请求许可可能是值得的。*  *### 7.3.2 HTML/CSS 基础
+1.  尽可能承担责任并请求许可。至少所有脚本中应包含联系方式。根据情况，在爬取前请求许可可能是值得的。
+
+### 7.3.2 HTML/CSS 基础
 
 网页爬取是通过利用网页的底层结构实现的。我们利用 HTML/CSS 中的模式来获取所需的数据。要查看底层的 HTML/CSS，我们可以：
 
@@ -527,13 +541,13 @@ Bor 等人（2018）使用“Mapping Police Violence”来研究警察杀害美�
 
 HTML/CSS 是一种基于匹配标签的标记语言。如果我们希望文本加粗，我们会使用类似这样的代码：
 
-```py
+```r
 <b>My bold text</b>
 ```
 
 同样，如果我们想要一个列表，那么我们会开始和结束列表，并标明每个项目。
 
-```py
+```r
 <ul>
   <li>Learn webscraping</li>
   <li>Do data science</li>
@@ -545,72 +559,77 @@ HTML/CSS 是一种基于匹配标签的标记语言。如果我们希望文本�
 
 首先，我们可以假设我们从某个网站获取了一些 HTML，并且我们想从中提取名称。我们可以看到名称是加粗的，因此我们希望专注于该特征并将其提取出来。
 
-```py
+```r
 website_extract <- "<p>Hi, I'm <b>Rohan</b> Alexander.</p>"
 ```
 
-*`rvest` 是 `tidyverse` 的一部分，因此无需单独安装，但它不属于核心组件，所以需要手动加载。之后，使用 `read_html()` 来读取数据。
+`rvest` 是 `tidyverse` 的一部分，因此无需单独安装，但它不属于核心组件，所以需要手动加载。之后，使用 `read_html()` 来读取数据。
 
-```py
+```r
 rohans_data <- read_html(website_extract)
 
 rohans_data
 ```
 
-*```py
+```r
 {html_document}
 <html>
 [1] <body><p>Hi, I'm <b>Rohan</b> Alexander.</p></body>
-```*  *`rvest` 用于查找标签的语言是“节点”，因此我们专注于加粗节点。默认情况下，`html_elements()` 会同时返回标签。我们使用 `html_text()` 来提取文本。
+```
+`rvest` 用于查找标签的语言是“节点”，因此我们专注于加粗节点。默认情况下，`html_elements()` 会同时返回标签。我们使用 `html_text()` 来提取文本。
 
-```py
+```r
 rohans_data |>
  html_elements("b")
 ```
 
-*```py
+```r
 {xml_nodeset (1)}
 [1] <b>Rohan</b>
 ```
 
-```py
+```r
 rohans_data |>
  html_elements("b") |>
  html_text()
 ```
 
-*```py
+```r
 [1] "Rohan"
-```**  **网络抓取是一种令人兴奋的数据来源，我们现在将通过一些示例进行说明。但与这些示例不同，信息通常并不全部集中在一个页面上。网络抓取很快会变成一门需要练习的困难艺术。例如，我们区分索引抓取和内容抓取。前者是抓取以构建包含所需内容的 URL 列表，而后者是从这些 URL 中获取内容。Luscombe、Duncan 和 Walby (2022) 提供了一个示例。如果你最终需要进行大量网络抓取，那么 `polite` (Perepolkin 2022) 可能有助于更好地优化你的工作流程。并且可以使用 GitHub Actions 来支持随时间推移进行更大、更慢的抓取。****  ***### 7.3.3 书籍信息
+```
+网络抓取是一种令人兴奋的数据来源，我们现在将通过一些示例进行说明。但与这些示例不同，信息通常并不全部集中在一个页面上。网络抓取很快会变成一门需要练习的困难艺术。例如，我们区分索引抓取和内容抓取。前者是抓取以构建包含所需内容的 URL 列表，而后者是从这些 URL 中获取内容。Luscombe、Duncan 和 Walby (2022) 提供了一个示例。如果你最终需要进行大量网络抓取，那么 `polite` (Perepolkin 2022) 可能有助于更好地优化你的工作流程。并且可以使用 GitHub Actions 来支持随时间推移进行更大、更慢的抓取。
+  
+### 7.3.3 书籍信息
 
 在本案例研究中，我们将抓取[此处](https://rohansbooks.com)提供的书籍列表。然后我们将清理数据并查看作者姓氏首字母的分布。这比上面的示例稍微复杂一些，但基本工作流程是相同的：下载网站，寻找感兴趣的节点，提取信息，并进行清理。
 
 我们使用 `rvest` 来下载网站，然后导航 HTML 以找到我们感兴趣的方面。我们使用 `tidyverse` 来清理数据集。我们首先需要访问网站，然后保存一个本地副本。
 
-```py
+```r
 books_data <- read_html("https://rohansbooks.com")
 
 write_html(books_data, "raw_data.html")
 ```
 
-*我们需要导航 HTML 以获取我们想要的方面。然后尝试尽快将数据放入 tibble 中，因为这将使我们更容易使用 `dplyr` 动词和 `tidyverse` 中的其他函数。
+我们需要导航 HTML 以获取我们想要的方面。然后尝试尽快将数据放入 tibble 中，因为这将使我们更容易使用 `dplyr` 动词和 `tidyverse` 中的其他函数。
 
 如果你对此不熟悉，请参阅在线附录 A。
 
-```py
+```r
 books_data <- read_html("raw_data.html")
 ```
 
-*```py
+```r
 books_data
 ```
 
-*```py
+```r
 {html_document}
 <html>
 [1] <head>\n<meta http-equiv="Content-Type" content="text/html; charset=UTF-8 ...
 [2] <body>\n    <h1>Books</h1>\n\n    <p>\n      This is a list of books that ...
-```*  *为了将数据放入 tibble 中，我们首先需要使用 HTML 标签来识别我们感兴趣的数据。如果我们查看网站，就会知道需要关注列表项（图 7.7 (a)）。我们可以查看源代码，特别关注寻找列表（图 7.7 (b)）。
+```
+为了将数据放入 tibble 中，我们首先需要使用 HTML 标签来识别我们感兴趣的数据。如果我们查看网站，就会知道需要关注列表项（图 7.7 (a)）。我们可以查看源代码，特别关注寻找列表（图 7.7 (b)）。
 
 ![](img/f65ffef9474575c08d02f1f82ddd6d4f.png)
 
@@ -624,7 +643,7 @@ books_data
 
 列表项的标签是“li”，因此我们可以用它来定位列表。
 
-```py
+```r
 text_data <-
  books_data |>
  html_elements("li") |>
@@ -636,7 +655,7 @@ all_books <-
 head(all_books)
 ```
 
-*```py
+```r
 # A tibble: 6 × 1
   books                                                                         
   <chr>                                                                         
@@ -646,9 +665,10 @@ head(all_books)
 4 "\n        Gelman, Andrew and Jennifer Hill, 2007, Data Analysis Using Regres…
 5 "\n        Halberstam, David, 1972, The Best and the Brightest\n      "       
 6 "\n        Ignatieff, Michael, 2013, Fire and Ashes: Success and Failure in P…
-```*  *我们现在需要清理数据。首先，我们想使用 `separate()` 将标题和作者分开，然后清理作者和标题列。我们可以利用年份存在这一事实，并基于此进行分离。
+```
+我们现在需要清理数据。首先，我们想使用 `separate()` 将标题和作者分开，然后清理作者和标题列。我们可以利用年份存在这一事实，并基于此进行分离。
 
-```py
+```r
 all_books <-
  all_books |>
  mutate(books = str_squish(books)) |>
@@ -657,7 +677,7 @@ all_books <-
 head(all_books)
 ```
 
-*```py
+```r
 # A tibble: 6 × 2
   author                           title                                        
   <chr>                            <chr>                                        
@@ -667,9 +687,10 @@ head(all_books)
 4 Gelman, Andrew and Jennifer Hill Data Analysis Using Regression and Multileve…
 5 Halberstam, David                The Best and the Brightest                   
 6 Ignatieff, Michael               Fire and Ashes: Success and Failure in Polit…
-```*  *最后，我们可以制作一个名字首字母分布表（表 7.1）。
+```
+最后，我们可以制作一个名字首字母分布表（表 7.1）。
 
-```py
+```r
 all_books |>
  mutate(
  first_letter = str_sub(author, 1, 1)
@@ -680,7 +701,7 @@ all_books |>
  setNames(c("First letter", "Number of times"))
 ```
 
-*表 7.1：书籍收藏中作者姓氏首字母的分布
+表 7.1：书籍收藏中作者姓氏首字母的分布
 
 | 首字母 | 出现次数 |
 | --- | --- |
@@ -697,13 +718,15 @@ all_books |>
 | V | 2 |
 | W | 4 |
 
-| Y | 1 |******  ***### 7.3.4 英国首相
+| Y | 1 |
+  
+### 7.3.4 英国首相
 
 在本案例研究中，我们关注的是英国首相根据其出生年份计算的寿命。我们将使用 `rvest` 从维基百科抓取数据，进行清理，然后制作图表。网站时常会发生变化。这使得许多抓取工作在很大程度上是定制化的，即使我们可以借鉴早期项目的一些代码。有时感到沮丧是正常的。在开始时心中有一个最终目标会有所帮助。
 
 为此，我们可以从生成一些模拟数据开始。理想情况下，我们希望得到一个表格，其中每一行代表一位首相，一列是他们的姓名，另外两列分别是出生年份和死亡年份。如果他们仍然在世，那么死亡年份可以为空。我们知道出生和死亡年份应该在 1700 到 1990 年之间，并且死亡年份应大于出生年份。最后，我们还知道年份应该是整数，姓名应该是字符类型。我们希望得到大致如下所示的内容：
 
-```py
+```r
 set.seed(853)
 
 simulated_dataset <-
@@ -723,7 +746,7 @@ simulated_dataset <-
 simulated_dataset
 ```
 
-*```py
+```r
 # A tibble: 10 × 4
    prime_minister birth_year death_year years_lived
    <chr>               <int>      <int>       <int>
@@ -737,7 +760,8 @@ simulated_dataset
  8 Emma                 1957       2031          74
  9 Ryan                 1959       2053          94
 10 Tyler                1990       2062          72
-```*  *生成模拟数据集的一个优点是，如果我们分组工作，那么一个人可以使用模拟数据集开始制作图表，而另一个人则收集数据。就图表而言，我们的目标是类似于图 7.8 的内容。
+```
+生成模拟数据集的一个优点是，如果我们分组工作，那么一个人可以使用模拟数据集开始制作图表，而另一个人则收集数据。就图表而言，我们的目标是类似于图 7.8 的内容。
 
 ![](img/0af0cc21150e3b575aa9173b733dd030.png)
 
@@ -747,7 +771,7 @@ simulated_dataset
 
 我们加载 `rvest`，然后使用 `read_html()` 下载页面。将其本地保存为我们提供了一份副本，以便在网站发生变化时保证可复现性，并且意味着我们不必持续访问该网站。但这并非我们的数据，因此通常不应公开重新分发。
 
-```py
+```r
 raw_data <-
  read_html(
  "https://en.wikipedia.org/wiki/List_of_prime_ministers_of_the_United_Kingdom"
@@ -755,7 +779,7 @@ raw_data <-
 write_html(raw_data, "pms.html")
 ```
 
-*与之前的案例研究一样，我们正在寻找 HTML 中的模式，以帮助我们更接近所需的数据。这是一个迭代过程，涉及反复试验。即使是简单的例子也需要时间。
+与之前的案例研究一样，我们正在寻找 HTML 中的模式，以帮助我们更接近所需的数据。这是一个迭代过程，涉及反复试验。即使是简单的例子也需要时间。
 
 一个可能有帮助的工具是[选择器小工具](https://rvest.tidyverse.org/articles/articles/selectorgadget.html)。它允许我们挑选所需的元素，然后为我们提供 `html_element()` 的输入（图 7.9）。默认情况下，选择器小工具使用 CSS 选择器。这不是指定所需信息位置的唯一方法，考虑使用替代方案（如 XPath）可能是一个有用的选择。
 
@@ -763,11 +787,11 @@ write_html(raw_data, "pms.html")
 
 图 7.9：使用选择器小工具识别标签，截至 2023 年 2 月 12 日
 
-```py
+```r
 raw_data <- read_html("pms.html")
 ```
 
-*```py
+```r
 parse_data_selector_gadget <-
  raw_data |>
  html_element(".wikitable") |>
@@ -776,7 +800,7 @@ parse_data_selector_gadget <-
 head(parse_data_selector_gadget)
 ```
 
-*```py
+```r
 # A tibble: 6 × 11
   Portrait Portrait   Prime ministerOffice(L…¹ `Term of office` `Term of office`
   <chr>    <chr>      <chr>                    <chr>            <chr>           
@@ -790,9 +814,10 @@ head(parse_data_selector_gadget)
 # ℹ 6 more variables: `Term of office` <chr>, `Mandate[a]` <chr>,
 #   `Ministerial offices held as prime minister` <chr>, Party <chr>,
 #   Government <chr>, MonarchReign <chr>
-```*  *在这种情况下，有许多我们不需要的列，以及一些重复的行。
+```
+在这种情况下，有许多我们不需要的列，以及一些重复的行。
 
-```py
+```r
 parsed_data <-
  parse_data_selector_gadget |> 
  clean_names() |> 
@@ -804,7 +829,7 @@ parsed_data <-
 head(parsed_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 1
   raw_text                                                
   <chr>                                                   
@@ -814,9 +839,10 @@ head(parsed_data)
 4 Thomas Pelham-Holles[30]1st Duke of Newcastle(1693–1768)
 5 William Cavendish[31]4th Duke of Devonshire(1720–1764)  
 6 Thomas Pelham-Holles[32]1st Duke of Newcastle(1693–1768)
-```*  *现在我们有了解析后的数据，需要对其进行清理以匹配我们的需求。我们需要一个姓名列，以及出生年份和去世年份列。我们利用姓名和日期似乎由括号区分的这一事实，使用 `separate()` 函数。`str_extract()` 中的参数是一个正则表达式。它查找连续四个数字，后跟一个破折号，再后跟另外四个连续数字。对于那些仍在世的部长，我们使用一个略有不同的正则表达式。
+```
+现在我们有了解析后的数据，需要对其进行清理以匹配我们的需求。我们需要一个姓名列，以及出生年份和去世年份列。我们利用姓名和日期似乎由括号区分的这一事实，使用 `separate()` 函数。`str_extract()` 中的参数是一个正则表达式。它查找连续四个数字，后跟一个破折号，再后跟另外四个连续数字。对于那些仍在世的部长，我们使用一个略有不同的正则表达式。
 
-```py
+```r
 initial_clean <-
  parsed_data |>
  separate(
@@ -830,7 +856,7 @@ initial_clean <-
 head(initial_clean)
 ```
 
-*```py
+```r
 # A tibble: 6 × 3
   name                 date      born 
   <chr>                <chr>     <chr>
@@ -840,9 +866,10 @@ head(initial_clean)
 4 Thomas Pelham-Holles 1693–1768 <NA> 
 5 William Cavendish    1720–1764 <NA> 
 6 Thomas Pelham-Holles 1693–1768 <NA> 
-```*  *最后，我们需要清理这些列。
+```
+最后，我们需要清理这些列。
 
-```py
+```r
 cleaned_data <-
  initial_clean |>
  separate(date, into = c("birth", "died"), 
@@ -862,7 +889,7 @@ cleaned_data <-
 head(cleaned_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 4
   name                  born  died Age_at_Death
   <chr>                <int> <int>        <int>
@@ -872,9 +899,10 @@ head(cleaned_data)
 4 Thomas Pelham-Holles  1693  1768           75
 5 William Cavendish     1720  1764           44
 6 John Stuart           1713  1792           79
-```*  *我们的数据集看起来与开始时我们想要的那个相似（表 7.2）。
+```
+我们的数据集看起来与开始时我们想要的那个相似（表 7.2）。
 
-```py
+```r
 cleaned_data |>
  head() |>
  tt() |> 
@@ -882,7 +910,7 @@ cleaned_data |>
  setNames(c("Prime Minister", "Birth year", "Death year", "Age at death"))
 ```
 
-*表 7.2：按去世年龄排列的英国首相
+表 7.2：按去世年龄排列的英国首相
 
 | 首相 | 出生年份 | 去世年份 | 去世年龄 |
 | --- | --- | --- | --- |
@@ -894,7 +922,7 @@ cleaned_data |>
 
 | 约翰·斯图亚特 | 1713 | 1792 | 79 |*  *此时，我们希望制作一个图表来说明每位首相的寿命（图 7.10）。如果他们仍然在世，我们希望他们的数据线延伸到图表末尾，但希望用不同的颜色来区分。
 
-```py
+```r
 cleaned_data |>
  mutate(
  still_alive = if_else(is.na(died), "Yes", "No"),
@@ -913,9 +941,11 @@ cleaned_data |>
  theme(legend.position = "bottom")
 ```
 
-*![](img/1e641b6b14a8ccac6488fe42707a87b3.png)
+![](img/1e641b6b14a8ccac6488fe42707a87b3.png)
 
-图 7.10：每位英国首相的寿命*********  ***### 7.3.5 迭代
+图 7.10：每位英国首相的寿命
+  
+### 7.3.5 迭代
 
 将文本视为数据令人兴奋，并允许我们探索许多不同的研究问题。我们将在第十七章中借鉴这一点。许多指南假设我们已经拥有一个格式良好的文本数据集，但这在实际中很少见。在本案例研究中，我们将从几个不同的页面下载文件。虽然我们已经看到了两个网络抓取的例子，但那些都只专注于一个页面，而我们通常需要多个页面。这里我们将专注于这种迭代。我们将使用 `download.file()` 进行下载，并使用 `purrr` 将此函数应用于多个站点。您不需要安装或加载该包，因为它是核心 `tidyverse` 的一部分，所以在加载 `tidyverse` 时会自动加载它。
 
@@ -923,7 +953,7 @@ cleaned_data |>
 
 首先，我们建立一个包含所需信息的 tibble。我们将利用 URL 结构中的共性。我们需要为每个状态指定 URL 和本地文件名。
 
-```py
+```r
 first_bit <- "https://www.rba.gov.au/publications/smp/2023/"
 last_bit <- "/pdf/overview.pdf"
 
@@ -938,19 +968,20 @@ statements_of_interest <-
  )
 ```
 
-*```py
+```r
 statements_of_interest
 ```
 
-*```py
+```r
 # A tibble: 2 × 2
   address                                                        local_save_name
   <chr>                                                          <chr>          
 1 https://www.rba.gov.au/publications/smp/2023/feb/pdf/overview… 2023-02.pdf    
 2 https://www.rba.gov.au/publications/smp/2023/may/pdf/overview… 2023-05.pdf 
-```*  *我们希望将函数 `download.files()` 应用于这两个语句。为此，我们编写一个函数来下载文件，通知我们文件已下载，等待一段适当的时间，然后继续获取下一个文件。
+```
+我们希望将函数 `download.files()` 应用于这两个语句。为此，我们编写一个函数来下载文件，通知我们文件已下载，等待一段适当的时间，然后继续获取下一个文件。
 
-```py
+```r
 visit_download_and_wait <-
  function(address_to_visit,
  where_to_save_it_locally) {
@@ -963,9 +994,9 @@ visit_download_and_wait <-
  }
 ```
 
-*现在，我们使用函数 `walk2()` 将该函数应用于我们的 URL tibble 并保存名称。
+现在，我们使用函数 `walk2()` 将该函数应用于我们的 URL tibble 并保存名称。
 
-```py
+```r
 walk2(
  statements_of_interest$address,
  statements_of_interest$local_save_name,
@@ -973,7 +1004,9 @@ walk2(
 )
 ```
 
-*结果是我们已经下载了这些 PDF 文件并将其保存到计算机上。除了自己编写这些函数外，另一种选择是使用 `heapsofpapers` (Alexander and Mahfouz 2021)。该工具包含多种有用的选项，用于下载文件列表，特别是 PDF、CSV 和 txt 文件。例如，Collins 和 Alexander (2022) 使用该工具获取了数千份 PDF 文件，并评估了 COVID-19 研究的可重复性程度。在下一节中，我们将在此基础上讨论如何从 PDF 中获取信息。**************  ****## 7.4 PDF 文件
+结果是我们已经下载了这些 PDF 文件并将其保存到计算机上。除了自己编写这些函数外，另一种选择是使用 `heapsofpapers` (Alexander and Mahfouz 2021)。该工具包含多种有用的选项，用于下载文件列表，特别是 PDF、CSV 和 txt 文件。例如，Collins 和 Alexander (2022) 使用该工具获取了数千份 PDF 文件，并评估了 COVID-19 研究的可重复性程度。在下一节中，我们将在此基础上讨论如何从 PDF 中获取信息。
+  
+## 7.4 PDF 文件
 
 PDF 文件由科技公司 Adobe 在 20 世纪 90 年代开发。它们对于文档非常有用，因为其设计目的是在不同的创建环境或查看环境中都能以一致的方式显示。在 iPhone 上查看的 PDF 应该与在 Android 手机或 Linux 桌面上查看的看起来相同。PDF 的一个特点是它可以包含多种对象，例如文本、照片、图表等。然而，这种多样性可能会限制 PDF 直接用作数据的能力。数据首先需要从 PDF 中提取出来。
 
@@ -1003,7 +1036,7 @@ PDF 文件由科技公司 Adobe 在 20 世纪 90 年代开发。它们对于文�
 
 图 7.11：《简·爱》的第一句话
 
-```py
+```r
 first_example <- pdf_text("first_example.pdf")
 
 first_example
@@ -1011,11 +1044,11 @@ first_example
 class(first_example)
 ```
 
-*```py
+```r
 [1] "There was no possibility of taking a walk that day.\n"
 ```
 
-```py
+```r
 [1] "character"
 ```
 
@@ -1029,33 +1062,33 @@ class(first_example)
 
 我们使用与之前相同的函数。
 
-```py
+```r
 second_example <- pdf_text("second_example.pdf")
 class(second_example)
 second_example
 ```
 
-*```py
+```r
 [1] "character"
 ```
 
-```py
+```r
 [1] "CHAPTER I\nThere was no possibility of taking a walk that day. We had been wandering, indeed, in the\nleafless shrubbery an hour in the morning; but since dinner (Mrs. Reed, when there was no\ncompany, dined early) the cold winter wind had brought with it clouds so sombre, and a rain so\npenetrating, that further out-door exercise was now out of the question.\n\nI was glad of it: I never liked long walks, especially on chilly afternoons: dreadful to me was the\ncoming home in the raw twilight, with nipped fingers and toes, and a heart saddened by the\nchidings of Bessie, the nurse, and humbled by the consciousness of my physical inferiority to\nEliza, John, and Georgiana Reed.\n\nThe said Eliza, John, and Georgiana were now clustered round their mama in the drawing-room:\nshe lay reclined on a sofa by the fireside, and with her darlings about her (for the time neither\nquarrelling nor crying) looked perfectly happy. Me, she had dispensed from joining the group;\nsaying, “She regretted to be under the necessity of keeping me at a distance; but that until she\nheard from Bessie, and could discover by her own observation, that I was endeavouring in good\nearnest to acquire a more sociable and childlike disposition, a more attractive and sprightly\nmanner—something lighter, franker, more natural, as it were—she really must exclude me from\nprivileges intended only for contented, happy, little children.”\n\n“What does Bessie say I have done?” I asked.\n\n“Jane, I don’t like cavillers or questioners; besides, there is something truly forbidding in a child\ntaking up her elders in that manner. Be seated somewhere; and until you can speak pleasantly,\nremain silent.”\n\nA breakfast-room adjoined the drawing-room, I slipped in there. It contained a bookcase: I soon\npossessed myself of a volume, taking care that it should be one stored with pictures. I mounted\ninto the window-seat: gathering up my feet, I sat cross-legged, like a Turk; and, having drawn the\nred moreen curtain nearly close, I was shrined in double retirement.\n\nFolds of scarlet drapery shut in my view to the right hand; to the left were the clear panes of\nglass, protecting, but not separating me from the drear November day. At intervals, while\nturning over the leaves of my book, I studied the aspect of that winter afternoon. Afar, it offered\na pale blank of mist and cloud; near a scene of wet lawn and storm-beat shrub, with ceaseless\nrain sweeping away wildly before a long and lamentable blast.\n"
 ```
 
 同样，我们有一个字符向量。每行的结尾由“\n”表示，除此之外看起来相当不错。最后，我们考虑前两页。
 
-```py
+```r
 third_example <- pdf_text("third_example.pdf")
 class(third_example)
 third_example
 ```
 
-*```py
+```r
 [1] "character"
 ```
 
-```py
+```r
 [1] "CHAPTER I\nThere was no possibility of taking a walk that day. We had been wandering, indeed, in the\nleafless shrubbery an hour in the morning; but since dinner (Mrs. Reed, when there was no\ncompany, dined early) the cold winter wind had brought with it clouds so sombre, and a rain so\npenetrating, that further out-door exercise was now out of the question.\n\nI was glad of it: I never liked long walks, especially on chilly afternoons: dreadful to me was the\ncoming home in the raw twilight, with nipped fingers and toes, and a heart saddened by the\nchidings of Bessie, the nurse, and humbled by the consciousness of my physical inferiority to\nEliza, John, and Georgiana Reed.\n\nThe said Eliza, John, and Georgiana were now clustered round their mama in the drawing-room:\nshe lay reclined on a sofa by the fireside, and with her darlings about her (for the time neither\nquarrelling nor crying) looked perfectly happy. Me, she had dispensed from joining the group;\nsaying, “She regretted to be under the necessity of keeping me at a distance; but that until she\nheard from Bessie, and could discover by her own observation, that I was endeavouring in good\nearnest to acquire a more sociable and childlike disposition, a more attractive and sprightly\nmanner—something lighter, franker, more natural, as it were—she really must exclude me from\nprivileges intended only for contented, happy, little children.”\n\n“What does Bessie say I have done?” I asked.\n\n“Jane, I don’t like cavillers or questioners; besides, there is something truly forbidding in a child\ntaking up her elders in that manner. Be seated somewhere; and until you can speak pleasantly,\nremain silent.”\n\nA breakfast-room adjoined the drawing-room, I slipped in there. It contained a bookcase: I soon\npossessed myself of a volume, taking care that it should be one stored with pictures. I mounted\ninto the window-seat: gathering up my feet, I sat cross-legged, like a Turk; and, having drawn the\nred moreen curtain nearly close, I was shrined in double retirement.\n\nFolds of scarlet drapery shut in my view to the right hand; to the left were the clear panes of\nglass, protecting, but not separating me from the drear November day. At intervals, while\nturning over the leaves of my book, I studied the aspect of that winter afternoon. Afar, it offered\na pale blank of mist and cloud; near a scene of wet lawn and storm-beat shrub, with ceaseless\nrain sweeping away wildly before a long and lamentable blast.\n\nI returned to my book—Bewick’s History of British Birds: the letterpress thereof I cared little\nfor, generally speaking; and yet there were certain introductory pages that, child as I was, I could\nnot pass quite as a blank. They were those which treat of the haunts of sea-fowl; of “the solitary\nrocks and promontories” by them only inhabited; of the coast of Norway, studded with isles from\nits southern extremity, the Lindeness, or Naze, to the North Cape—\n\n“Where the Northern Ocean, in vast whirls,\nBoils round the naked, melancholy isles\n"
 [2] "Of farthest Thule; and the Atlantic surge\nPours in among the stormy Hebrides.”\n\nNor could I pass unnoticed the suggestion of the bleak shores of Lapland, Siberia, Spitzbergen,\nNova Zembla, Iceland, Greenland, with “the vast sweep of the Arctic Zone, and those forlorn\nregions of dreary space,—that reservoir of frost and snow, where firm fields of ice, the\naccumulation of centuries of winters, glazed in Alpine heights above heights, surround the pole,\nand concentre the multiplied rigours of extreme cold.” Of these death-white realms I formed an\nidea of my own: shadowy, like all the half-comprehended notions that float dim through\nchildren’s brains, but strangely impressive. The words in these introductory pages connected\nthemselves with the succeeding vignettes, and gave significance to the rock standing up alone in\na sea of billow and spray; to the broken boat stranded on a desolate coast; to the cold and ghastly\nmoon glancing through bars of cloud at a wreck just sinking.\n\nI cannot tell what sentiment haunted the quite solitary churchyard, with its inscribed headstone;\nits gate, its two trees, its low horizon, girdled by a broken wall, and its newly-risen crescent,\nattesting the hour of eventide.\n\nThe two ships becalmed on a torpid sea, I believed to be marine phantoms.\n\nThe fiend pinning down the thief’s pack behind him, I passed over quickly: it was an object of\nterror.\n\nSo was the black horned thing seated aloof on a rock, surveying a distant crowd surrounding a\ngallows.\n\nEach picture told a story; mysterious often to my undeveloped understanding and imperfect\nfeelings, yet ever profoundly interesting: as interesting as the tales Bessie sometimes narrated on\nwinter evenings, when she chanced to be in good humour; and when, having brought her ironing-\ntable to the nursery hearth, she allowed us to sit about it, and while she got up Mrs. Reed’s lace\nfrills, and crimped her nightcap borders, fed our eager attention with passages of love and\nadventure taken from old fairy tales and other ballads; or (as at a later period I discovered) from\nthe pages of Pamela, and Henry, Earl of Moreland.\n\nWith Bewick on my knee, I was then happy: happy at least in my way. I feared nothing but\ninterruption, and that came too soon. The breakfast-room door opened.\n\n“Boh! Madam Mope!” cried the voice of John Reed; then he paused: he found the room\napparently empty.\n\n“Where the dickens is she!” he continued. “Lizzy! Georgy! (calling to his sisters) Joan is not\nhere: tell mama she is run out into the rain—bad animal!”\n\n“It is well I drew the curtain,” thought I; and I wished fervently he might not discover my hiding-\nplace: nor would John Reed have found it out himself; he was not quick either of vision or\nconception; but Eliza just put her head in at the door, and said at once—\n" 
 ```
@@ -1064,23 +1097,23 @@ third_example
 
 首先，我们希望将字符向量转换为 tibble。此时，我们可能还想添加页码。
 
-```py
+```r
 jane_eyre <- tibble(
  raw_text = third_example,
  page_number = c(1:2)
 )
 ```
 
-*然后，我们希望将行分开，使每一行成为一个观测值。我们可以通过查找“\n”来实现，记住我们需要转义反斜杠，因为它是一个特殊字符。
+然后，我们希望将行分开，使每一行成为一个观测值。我们可以通过查找“\n”来实现，记住我们需要转义反斜杠，因为它是一个特殊字符。
 
-```py
+```r
 jane_eyre <-
  separate_rows(jane_eyre, raw_text, sep = "\\n", convert = FALSE)
 
 jane_eyre
 ```
 
-*```py
+```r
 # A tibble: 93 × 2
    raw_text                                                          page_number
    <chr>                                                                   <int>
@@ -1095,7 +1128,9 @@ jane_eyre
  9 "chidings of Bessie, the nurse, and humbled by the consciousness…           1
 10 "Eliza, John, and Georgiana Reed."                                          1
 # ℹ 83 more rows
-```*****  ***### 7.4.2 美国的总生育率
+```
+  
+### 7.4.2 美国的总生育率
 
 美国卫生与公众服务部生命统计报告提供了各州的总和生育率信息。总和生育率是指如果女性在整个育龄期内都经历当前特定年龄的生育率，平均每位女性生育的子女数。数据以 PDF 格式提供。我们可以使用上述方法将数据提取到数据集中。
 
@@ -1113,14 +1148,14 @@ jane_eyre
 
 我们对此 PDF 文件中特定表格的特定列感兴趣。遗憾的是，接下来的步骤并无神奇之处。第一步需要在线找到 PDF 文件，确定每个文件的链接，并搜索感兴趣的页面和列名。我们已经构建了一个包含所需详细信息的 CSV 文件，可以将其读入。
 
-```py
+```r
 summary_tfr_dataset <- read_csv(
  paste0("https://raw.githubusercontent.com/RohanAlexander/",
  "telling_stories/main/inputs/tfr_tables_info.csv")
  )
 ```
 
-*表 7.3：总和生育率表的年份及相关数据*
+表 7.3：总和生育率表的年份及相关数据*
 
 | 年份 | 页码 | 表格 | 列名 | URL |
 | --- | --- | --- | --- | --- |
@@ -1128,26 +1163,28 @@ summary_tfr_dataset <- read_csv(
 
 我们首先使用 `download.file()` 下载并保存 PDF 文件。
 
-```py
+```r
 download.file(
  url = summary_tfr_dataset$url[1],
  destfile = "year_2000.pdf"
 )
 ```
 
-*然后，我们使用 `pdftools` 包中的 `pdf_text()` 函数将 PDF 作为字符向量读入。接着将其转换为 tibble，以便我们可以使用熟悉的动词对其进行操作。
+然后，我们使用 `pdftools` 包中的 `pdf_text()` 函数将 PDF 作为字符向量读入。接着将其转换为 tibble，以便我们可以使用熟悉的动词对其进行操作。
 
-```py
+```r
 dhs_2000 <- pdf_text("year_2000.pdf")
 ```
 
-*```py
+```r
 dhs_2000_tibble <- tibble(raw_data = dhs_2000)
 
 head(dhs_2000_tibble)
-```*
 
-*```py
+
+
+
+```r
 # A tibble: 6 × 1
   raw_data                                                                      
   <chr>                                                                         
@@ -1157,9 +1194,10 @@ head(dhs_2000_tibble)
 4 "4   National Vital Statistics Report, Vol. 50, No. 5, February 12, 2002\n\n\…
 5 "                                                                            …
 6 "6   National Vital Statistics Report, Vol. 50, No. 5, February 12, 2002\n\n …
-```*  *提取感兴趣的页面（请记住，每个页面都是字符向量的一个元素，因此也是 tibble 中的一行）。*
+```
+提取感兴趣的页面（请记住，每个页面都是字符向量的一个元素，因此也是 tibble 中的一行）。*
 
-```py
+```r
 dhs_2000_relevant_page <-
  dhs_2000_tibble |>
  slice(summary_tfr_dataset$page[1])
@@ -1167,14 +1205,15 @@ dhs_2000_relevant_page <-
 head(dhs_2000_relevant_page)
 ```
 
-*```py
+```r
 # A tibble: 1 × 1
   raw_data                                                                      
   <chr>                                                                         
 1 "40 National Vital Statistics Report, Vol. 50, No. 5, Revised May 15, 20022\n…
-```*  *我们希望拆分这些行，并使用 `tidyr` 包（核心 tidyverse 的一部分）中的 `separate_rows()` 函数。*
+```
+我们希望拆分这些行，并使用 `tidyr` 包（核心 tidyverse 的一部分）中的 `separate_rows()` 函数。*
 
-```py
+```r
 dhs_2000_separate_rows <-
  dhs_2000_relevant_page |>
  separate_rows(raw_data, sep = "\\n", convert = FALSE)
@@ -1182,7 +1221,7 @@ dhs_2000_separate_rows <-
 head(dhs_2000_separate_rows)
 ```
 
-*```py
+```r
 # A tibble: 6 × 1
   raw_data                                                                      
   <chr>                                                                         
@@ -1192,14 +1231,15 @@ head(dhs_2000_separate_rows)
 4 "United States, each State and territory, 2000"                               
 5 "[By place of residence. Birth rates are live births per 1,000 estimated popu…
 6 "estimated in each area; total fertility rates are sums of birth rates for 5-…
-```*  *我们正在寻找可以使用的模式。让我们查看内容的前十行（忽略页面顶部的标题和页码等元素）。*
+```
+我们正在寻找可以使用的模式。让我们查看内容的前十行（忽略页面顶部的标题和页码等元素）。*
 
-```py
+```r
 dhs_2000_separate_rows[13:22, ] |>
  mutate(raw_data = str_remove(raw_data, "\\.{40}"))
 ```
 
-*```py
+```r
 # A tibble: 10 × 1
    raw_data                                                                     
    <chr>                                                                        
@@ -1213,19 +1253,21 @@ dhs_2000_separate_rows[13:22, ] |>
  8 "Alabama .......................           63,299    14.4      65.0      2,0…
  9 "Alaska ...........................         9,974    16.0      74.6      2,4…
 10 "Arizona .........................         85,273    17.5      84.4      2,6…
-```*  *现在只需一行代码。*
+```
+现在只需一行代码。*
 
-```py
+```r
 dhs_2000_separate_rows[20, ] |>
  mutate(raw_data = str_remove(raw_data, "\\.{40}"))
 ```
 
-*```py
+```r
 # A tibble: 1 × 1
   raw_data                                                                      
   <chr>                                                                         
 1 Alabama .......................           63,299    14.4      65.0      2,021…
-```*  *这已经非常理想了：*
+```
+这已经非常理想了：*
 
 1.  我们使用点号将州名与数据分隔开。
 
@@ -1233,7 +1275,7 @@ dhs_2000_separate_rows[20, ] |>
 
 我们现在可以将其分成列。首先，我们希望匹配至少有两个点的情况（记住点是一个特殊字符，因此需要转义）。
 
-```py
+```r
 dhs_2000_separate_columns <-
  dhs_2000_separate_rows |>
  separate(
@@ -1248,7 +1290,7 @@ dhs_2000_separate_columns[18:28, ] |>
  select(state, data)
 ```
 
-*```py
+```r
 # A tibble: 11 × 2
    state                   data                                                 
    <chr>                   <chr>                                                
@@ -1263,9 +1305,10 @@ dhs_2000_separate_columns[18:28, ] |>
  9 "Connecticut "          "           43,026    13.0      61.2      1,931.5   …
 10 "Delaware "             "           11,051    14.5      63.5      2,014.0   …
 11 "District of Columbia " "                7,666    14.8      63.0      1,975.…
-```*  *然后我们基于空格分隔数据。空格数量不一致，因此我们首先使用 `stringr` 包中的 `str_squish()` 函数将多个连续空格压缩为一个。
+```
+然后我们基于空格分隔数据。空格数量不一致，因此我们首先使用 `stringr` 包中的 `str_squish()` 函数将多个连续空格压缩为一个。
 
-```py
+```r
 dhs_2000_separate_data <-
  dhs_2000_separate_columns |>
  mutate(data = str_squish(data)) |>
@@ -1288,7 +1331,7 @@ dhs_2000_separate_data[18:28, ] |>
  select(-raw_data, -data)
 ```
 
-*```py
+```r
 # A tibble: 11 × 8
    state        number_of_births birth_rate fertility_rate TFR   teen_births_all
    <chr>        <chr>            <chr>      <chr>          <chr> <chr>          
@@ -1304,9 +1347,10 @@ dhs_2000_separate_data[18:28, ] |>
 10 "Delaware "  11,051           14.5       63.5           2,01… 51.6           
 11 "District o… 7,666            14.8       63.0           1,97… 80.7           
 # ℹ 2 more variables: teen_births_15_17 <chr>, teen_births_18_19 <chr>
-```*  *这一切看起来相当不错。剩下的唯一事情就是清理一下。
+```
+这一切看起来相当不错。剩下的唯一事情就是清理一下。
 
-```py
+```r
 dhs_2000_cleaned <-
  dhs_2000_separate_data |>
  select(state, TFR) |>
@@ -1320,17 +1364,18 @@ dhs_2000_cleaned <-
  )
 ```
 
-*并运行一些检查，例如确保我们包含了所有州。
+并运行一些检查，例如确保我们包含了所有州。
 
-```py
+```r
 all(state.name %in% dhs_2000_cleaned$state)
 ```
 
-*```py
+```r
 [1] TRUE
-```*  *这样我们就完成了（表 7.4）。我们可以看到美国各州的总和生育率分布相当广泛（图 7.15）。犹他州最高，佛蒙特州最低。
+```
+这样我们就完成了（表 7.4）。我们可以看到美国各州的总和生育率分布相当广泛（图 7.15）。犹他州最高，佛蒙特州最低。
 
-```py
+```r
 dhs_2000_cleaned |>
  slice(1:10) |>
  tt() |> 
@@ -1339,7 +1384,7 @@ dhs_2000_cleaned |>
  setNames(c("State", "TFR"))
 ```
 
-*表 7.4：2000-2019 年美国各州总和生育率数据集的前十行
+表 7.4：2000-2019 年美国各州总和生育率数据集的前十行
 
 | 州 | 总和生育率 |
 | --- | --- |
@@ -1353,7 +1398,7 @@ dhs_2000_cleaned |>
 | 康涅狄格州 | 1,932 |
 | 特拉华州 | 2,014 |
 
-| 哥伦比亚特区 | 1,976 |*  *```py
+| 哥伦比亚特区 | 1,976 |*  ```r
 dhs_2000_cleaned |> 
  filter(state != "Total") |> 
  ggplot(aes(x = TFR, y = fct_reorder(state, TFR))) +
@@ -1362,9 +1407,11 @@ dhs_2000_cleaned |>
  labs(y = "State", x = "Total Fertility Rate")
 ```
 
-*![](img/e43a07d60868afd17f856a21c14ea53c.png)
+![](img/e43a07d60868afd17f856a21c14ea53c.png)
 
-图 7.15：2000 年美国各州总和生育率分布*  *Healy (2022) 在另一个上下文中提供了使用此方法的另一个例子。**************  ***### 7.4.3 光学字符识别
+图 7.15：2000 年美国各州总和生育率分布*  *Healy (2022) 在另一个上下文中提供了使用此方法的另一个例子。
+  
+### 7.4.3 光学字符识别
 
 以上所有操作都基于一个前提，即我们拥有一个已经“数字化”的 PDF 文件。但如果它是由图像组成的呢，比如扫描的结果。这类 PDF 通常包含非结构化数据，意味着数据既没有标签，也没有以规则的方式组织。光学字符识别（OCR）是一个将文本图像转换为实际文本的过程。尽管对人类读者来说，OCR 前后的 PDF 可能没有太大区别，但 PDF 会因此变得机器可读，从而允许我们使用脚本（Cheriet et al. 2007）。自 20 世纪 50 年代以来，OCR 就被用于解析字符图像，最初采用手动方法。虽然手动方法仍然是黄金标准，但由于成本效益的原因，它已基本被统计模型所取代。
 
@@ -1376,7 +1423,7 @@ dhs_2000_cleaned |>
 
 图 7.16：《简·爱》第一页扫描件
 
-```py
+```r
 text <- ocr(
  here("jane_scan.png"),
  engine = tesseract("eng")
@@ -1384,7 +1431,7 @@ text <- ocr(
 cat(text)
 ```
 
-*```py
+```r
 1 THERE was no possibility of taking a walk that day. We had
 been wandering, indeed, in the leafless shrubbery an hour in
 the morning; but since dinner (Mrs Reed, when there was no com-
@@ -1436,7 +1483,9 @@ SEEN ed — =
 15
 ```
 
-总体而言，结果不算太差。OCR 是一个有用的工具，但并不完美，生成的数据在清洗方面可能需要额外关注。例如，在图 7.16 的 OCR 结果中，我们看到了一些需要修正的不规则之处。各种选项，例如专注于特定的目标数据和增加对比度，可能会有所帮助。其他流行的 OCR 引擎包括 Amazon Textract、Google Vision API 和 ABBYY。*******  ***## 7.5 练习
+总体而言，结果不算太差。OCR 是一个有用的工具，但并不完美，生成的数据在清洗方面可能需要额外关注。例如，在图 7.16 的 OCR 结果中，我们看到了一些需要修正的不规则之处。各种选项，例如专注于特定的目标数据和增加对比度，可能会有所帮助。其他流行的 OCR 引擎包括 Amazon Textract、Google Vision API 和 ABBYY。
+  
+## 7.5 练习
 
 ### 练习
 
@@ -1482,7 +1531,7 @@ SEEN ed — =
 
     1.  2021-04-27
 
-```py
+```r
 # Based on Tyler Bradley and Monica Alexander
 repos <- gh("/users/RohanAlexander/repos", per_page = 100)
 repo_info <- tibble(
@@ -1492,7 +1541,7 @@ repo_info <- tibble(
 )
 ```
 
-*4.  请参考联合国的[数据 API](https://population.un.org/dataportal/about/dataapi) 以及 Schmertmann (2022) 关于如何使用它的介绍性说明。阿根廷的位置代码是 32。修改以下代码，以确定阿根廷 1995 年 20 岁人群的单年生育率是多少（单选）？
+4.  请参考联合国的[数据 API](https://population.un.org/dataportal/about/dataapi) 以及 Schmertmann (2022) 关于如何使用它的介绍性说明。阿根廷的位置代码是 32。修改以下代码，以确定阿根廷 1995 年 20 岁人群的单年生育率是多少（单选）？
 
     1.  147.679
 
@@ -1502,7 +1551,7 @@ repo_info <- tibble(
 
     1.  128.665
 
-```py
+```r
 my_indicator <- 68
 my_location <- 50
 my_startyr <- 1996
@@ -1522,7 +1571,7 @@ un_data |>
  select(Value)
 ```
 
-*5.  `httr` 包中 `GET()` 函数的主要参数是什么（单选）？
+5.  `httr` 包中 `GET()` 函数的主要参数是什么（单选）？
 
     1.  “网址”
 
@@ -1718,7 +1767,9 @@ un_data |>
 
     1.  “经济因素如何影响监狱管理？”
 
-    1.  “这些数据是否被用于制定公共政策？”.**  **### 课堂活动
+    1.  “这些数据是否被用于制定公共政策？”.
+
+### 课堂活动
 
 +   使用[起始文件夹](https://github.com/RohanAlexander/starter_folder)并创建一个新仓库。通过 API 获取今日的 NASA 每日天文图，然后将其添加到仓库中的 Quarto 文档里。
 
@@ -1726,16 +1777,18 @@ un_data |>
 
 +   请制作一个图表来回答卡米拉·卡贝洛在 2016 年 12 月离开五美组合是否影响了她们录音室专辑中歌曲的效价。¹下面是一些有用的清理代码。
 
-```py
+```r
 fifth_harmony |>
  filter(album_name %in% c("Reflection", "7/27 (Deluxe)", "Fifth Harmony")) |> 
  mutate(album_release_date = ymd(album_release_date)) |>
  filter(album_release_date != "2017-10-29") # There is a essentially duplicate album
 ```
 
-**   构建一个与图 7.10 等效的图表，但针对加拿大。
+构建一个与图 7.10 等效的图表，但针对加拿大。
 
-+   *论文评述：* 请阅读 Kish (1959)，并撰写至少一页的评述，结合你熟悉的一个例子。*  *### 任务
++   *论文评述：* 请阅读 Kish (1959)，并撰写至少一页的评述，结合你熟悉的一个例子。
+
+### 任务
 
 请重做网页抓取示例，但针对以下国家之一：[澳大利亚](https://en.wikipedia.org/wiki/List_of_prime_ministers_of_Australia)、[加拿大](https://en.wikipedia.org/wiki/List_of_prime_ministers_of_Canada)、[印度](https://en.wikipedia.org/wiki/List_of_prime_ministers_of_India)或[新西兰](https://en.wikipedia.org/wiki/List_of_prime_ministers_of_New_Zealand)。
 

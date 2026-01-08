@@ -6,19 +6,19 @@
 
 1.  C SQL 基础
 
-**先决条件**
+先决条件**
 
 +   阅读 *SQL 的早期历史*，(Chamberlin 2012)
 
     +   对 SQL 发展历程的一个有趣概述。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   虽然我们可以使用各种 R 包，或者在 RStudio 中编写 SQL，但行业对 SQL 的需求使得独立于 R 学习 SQL 变得值得，至少最初是这样。
 
 +   SQLite 是 SQL 的一种风味，我们可以使用 DB Browser for SQLite 作为 SQL 的 IDE。
 
-**关键包和函数**
+关键包和函数**
 
 +   `BETWEEN`
 
@@ -68,16 +68,16 @@ SQL 是在 20 世纪 70 年代在 IBM 开发的。SQL 是与数据交互的一�
 
 我们现在将介绍三个关键的 SQL 命令：`SELECT`，`FROM`和`WHERE`。`SELECT`允许我们指定数据表中的特定列，我们可以将`SELECT`视为与`select()`类似。就像我们需要使用`select()`指定数据集并使用管道操作符那样，我们使用`FROM`来指定数据集。例如，我们可以打开“执行 SQL”，然后输入以下内容，并点击“执行”。
 
-```py
+```r
 SELECT
  surname 
 FROM
  politicians;
 ```
 
-*结果是我们可以获取姓氏列。我们可以通过逗号分隔来选择多个列，或者使用星号选择所有列，尽管这不是最佳实践，因为如果数据集在我们不知情的情况下发生变化，那么我们的结果也会不同。
+结果是我们可以获取姓氏列。我们可以通过逗号分隔来选择多个列，或者使用星号选择所有列，尽管这不是最佳实践，因为如果数据集在我们不知情的情况下发生变化，那么我们的结果也会不同。
 
-```py
+```r
 SELECT
  uniqueID,
  surname 
@@ -85,25 +85,25 @@ FROM
  politicians;
 ```
 
-*```py
+```r
 SELECT
  *
 FROM
  politicians;
 ```
 
-*最后，如果有重复的行，我们可以使用`DISTINCT`来查看唯一的行，这与`distinct()`类似。
+最后，如果有重复的行，我们可以使用`DISTINCT`来查看唯一的行，这与`distinct()`类似。
 
-```py
+```r
 SELECT
  DISTINCT surname 
 FROM
  politicians;
 ```
 
-*到目前为止，我们已经使用了`SELECT`和`FROM`。常用的第三个命令是`WHERE`，这将允许我们关注特定的行，类似于`filter()`。
+到目前为止，我们已经使用了`SELECT`和`FROM`。常用的第三个命令是`WHERE`，这将允许我们关注特定的行，类似于`filter()`。
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -114,9 +114,9 @@ WHERE
  firstName = "Myles";
 ```
 
-*所有常用的逻辑运算符在`WHERE`子句中都是可行的，例如“=”，“!=”，“>”，“<”，“>=”和“<=”。我们可以使用`AND`和`OR`来组合条件。
+所有常用的逻辑运算符在`WHERE`子句中都是可行的，例如“=”，“!=”，“>”，“<”，“>=”和“<=”。我们可以使用`AND`和`OR`来组合条件。
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -128,9 +128,9 @@ WHERE
  OR firstName = "Ruth";
 ```
 
-*如果我们有一个返回大量结果集的查询，那么我们可以使用`LIMIT`来限制它们的数量。
+如果我们有一个返回大量结果集的查询，那么我们可以使用`LIMIT`来限制它们的数量。
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -141,9 +141,9 @@ WHERE
  firstName = "Robert"       LIMIT 5;
 ```
 
-*我们还可以使用`ORDER`来指定结果集的顺序。
+我们还可以使用`ORDER`来指定结果集的顺序。
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -156,9 +156,9 @@ ORDER BY
  surname DESC;
 ```
 
-*查看符合特定标准的行：
+查看符合特定标准的行：
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -169,11 +169,11 @@ WHERE
  firstName LIKE "Ma__";
 ```
 
-*上方的“_”是一个通配符，可以匹配任何字符。这提供了包括“Mary”和“Mark”在内的结果。`LIKE` 不区分大小写：“Ma__”和“ma__”都返回相同的结果。
+上方的“_”是一个通配符，可以匹配任何字符。这提供了包括“Mary”和“Mark”在内的结果。`LIKE` 不区分大小写：“Ma__”和“ma__”都返回相同的结果。
 
 使用“NULL”或“NOT NULL”可以关注缺失数据。
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -185,9 +185,9 @@ WHERE
  comment     IS NULL;
 ```
 
-*对数字、日期和文本字段应用了排序，这意味着我们可以在所有这些字段上使用 `BETWEEN`，而不仅仅是数字。例如，我们可以查找所有以 X 和 Z 之间的字母开头的姓氏（不包括 Z）。
+对数字、日期和文本字段应用了排序，这意味着我们可以在所有这些字段上使用 `BETWEEN`，而不仅仅是数字。例如，我们可以查找所有以 X 和 Z 之间的字母开头的姓氏（不包括 Z）。
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -198,9 +198,9 @@ WHERE
  surname     BETWEEN "X" AND "Z";
 ```
 
-*使用 `WHERE` 与数值变量结合意味着 `BETWEEN` 是包含的，与字母示例不同，后者不是。
+使用 `WHERE` 与数值变量结合意味着 `BETWEEN` 是包含的，与字母示例不同，后者不是。
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -212,9 +212,9 @@ WHERE
  birthYear     BETWEEN 1980 AND 1990;
 ```
 
-*除了提供与我们请求匹配的数据集观察结果外，我们还可以修改数据集。例如，我们可以使用 `UPDATE` 和 `SET` 修改一个值。
+除了提供与我们请求匹配的数据集观察结果外，我们还可以修改数据集。例如，我们可以使用 `UPDATE` 和 `SET` 修改一个值。
 
-```py
+```r
 UPDATE
  politicians 
 SET
@@ -223,9 +223,9 @@ WHERE
  uniqueID = "Alexander1951";
 ```
 
-*我们可以使用 `CASE` 和 `ELSE` 集成 if-else 逻辑。例如，我们可以添加一个名为“wasTreasurer”的列，对于“Josh Frydenberg”的情况，该列值为“是”，对于“Kevin Rudd”的情况，该列值为“否”，对于所有其他情况，该列值为“不确定”。
+我们可以使用 `CASE` 和 `ELSE` 集成 if-else 逻辑。例如，我们可以添加一个名为“wasTreasurer”的列，对于“Josh Frydenberg”的情况，该列值为“是”，对于“Kevin Rudd”的情况，该列值为“否”，对于所有其他情况，该列值为“不确定”。
 
-```py
+```r
 SELECT
  uniqueID,
  surname,
@@ -240,25 +240,25 @@ FROM
  politicians;
 ```
 
-*我们可以使用 `COUNT`、`SUM`、`MAX`、`MIN`、`AVG` 和 `ROUND` 等命令创建汇总统计，代替 `summarize()`。`COUNT` 通过传递列名来计算某些列不为空的行数，`MIN` 等类似地工作。
+我们可以使用 `COUNT`、`SUM`、`MAX`、`MIN`、`AVG` 和 `ROUND` 等命令创建汇总统计，代替 `summarize()`。`COUNT` 通过传递列名来计算某些列不为空的行数，`MIN` 等类似地工作。
 
-```py
+```r
 SELECT
  COUNT(uniqueID) 
 FROM
  politicians;
 ```
 
-*```py
+```r
 SELECT
  MIN(birthYear) 
 FROM
  politicians;
 ```
 
-*我们可以使用 `GROUP BY` 根据数据集中的不同组获取结果，这与 R 中的 `group_by` 类似。
+我们可以使用 `GROUP BY` 根据数据集中的不同组获取结果，这与 R 中的 `group_by` 类似。
 
-```py
+```r
 SELECT
  COUNT(uniqueID) 
 FROM
@@ -267,9 +267,9 @@ GROUP BY
  gender;
 ```
 
-*最后，我们可以使用 `LEFT JOIN` 将两个表组合起来。我们需要小心地使用点符号指定匹配的列。
+最后，我们可以使用 `LEFT JOIN` 将两个表组合起来。我们需要小心地使用点符号指定匹配的列。
 
-```py
+```r
 SELECT
  politicians.uniqueID,
  politicians.firstName,
@@ -282,7 +282,9 @@ LEFT JOIN
  ON politicians.uniqueID = party.uniqueID;
 ```
 
-*由于 SQL 不是我们的重点，我们只提供了关于一些基本命令的简要概述。从职业角度来看，你应该对 SQL 感到舒适。它已经深深融入数据科学中，没有它“很难走得太远” (Robinson and Nolis 2020, 8)，并且“几乎任何”数据科学面试都会包括关于 SQL 的问题 (Robinson and Nolis 2020, 110)。******************  ***## C.3 练习
+由于 SQL 不是我们的重点，我们只提供了关于一些基本命令的简要概述。从职业角度来看，你应该对 SQL 感到舒适。它已经深深融入数据科学中，没有它“很难走得太远” (Robinson and Nolis 2020, 8)，并且“几乎任何”数据科学面试都会包括关于 SQL 的问题 (Robinson and Nolis 2020, 110)。
+  
+## C.3 练习
 
 ### 练习
 
@@ -460,4 +462,5 @@ LEFT JOIN
 
 与评审标准相关的组成部分包括：“R/Python 被引用”，“数据被引用”，“课程论文”，“LLM 使用有记录”，“标题”，“作者、日期和仓库”，“摘要”，“引言”，“数据”，“测量”，“结果”，“讨论”，“散文”，“交叉引用”，“图注”，“图表/表格等”，“引用”，“提交”，“草图”，“模拟”，“测试”和“可重复的工作流程”。
 
-Chamberlin, Donald. 2012\. “SQL 的早期历史.” *IEEE 计算机历史年鉴* 34 (4): 78–82\. [`doi.org/10.1109/mahc.2012.61`](https://doi.org/10.1109/mahc.2012.61).R 特殊兴趣小组数据库 (R-SIG-DB), Hadley Wickham, 和 Kirill Müller. 2022\. *DBI: R 数据库接口*. [`CRAN.R-project.org/package=DBI`](https://CRAN.R-project.org/package=DBI).Robinson, Emily, 和 Jacqueline Nolis. 2020\. *建立数据科学职业*. Shelter Island: Manning Publications. [`livebook.manning.com/book/build-a-career-in-data-science`](https://livebook.manning.com/book/build-a-career-in-data-science).Wickham, Hadley, Maximilian Girlich, 和 Edgar Ruiz. 2022\. *dbplyr: 数据库的“dplyr”后端*. [`CRAN.R-project.org/package/dbplyr`](https://CRAN.R-project.org/package/dbplyr).***
+Chamberlin, Donald. 2012\. “SQL 的早期历史.” *IEEE 计算机历史年鉴* 34 (4): 78–82\. [`doi.org/10.1109/mahc.2012.61`](https://doi.org/10.1109/mahc.2012.61).R 特殊兴趣小组数据库 (R-SIG-DB), Hadley Wickham, 和 Kirill Müller. 2022\. *DBI: R 数据库接口*. [`CRAN.R-project.org/package=DBI`](https://CRAN.R-project.org/package=DBI).Robinson, Emily, 和 Jacqueline Nolis. 2020\. *建立数据科学职业*. Shelter Island: Manning Publications. [`livebook.manning.com/book/build-a-career-in-data-science`](https://livebook.manning.com/book/build-a-career-in-data-science).Wickham, Hadley, Maximilian Girlich, 和 Edgar Ruiz. 2022\. *dbplyr: 数据库的“dplyr”后端*. [`CRAN.R-project.org/package/dbplyr`](https://CRAN.R-project.org/package/dbplyr).
+

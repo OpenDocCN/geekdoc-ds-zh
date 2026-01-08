@@ -14,7 +14,7 @@
 
 ![](img/44132fd78e79289c516575314cae8b14.png "用数据讲故事")
 
-*Chapman and Hall/CRC 于 2023 年 7 月出版了这本书。您可以在[这里](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。*
+Chapman and Hall/CRC 于 2023 年 7 月出版了这本书。您可以在[这里](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。*
 
 这个在线版本对印刷版进行了一些更新。匹配印刷版的在线版本可在[这里](https://rohanalexander.github.io/telling_stories-published/)找到。
 

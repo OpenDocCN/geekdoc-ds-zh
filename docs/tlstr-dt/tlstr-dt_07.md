@@ -6,7 +6,7 @@
 
 1.  3  可重复性工作流程
 
-*Chapman and Hall/CRC 在 2023 年 7 月出版了这本书。您可以在 [这里](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772) 购买。这个在线版本对印刷版有所更新。*  **先决条件**
+Chapman and Hall/CRC 在 2023 年 7 月出版了这本书。您可以在 [这里](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772) 购买。这个在线版本对印刷版有所更新。*  **先决条件**
 
 +   阅读 *What has happened down here is the winds have changed*，(Gelman 2016)
 
@@ -36,7 +36,7 @@
 
     +   一段详细说明在编码时应避免尝试的事情的视频。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   可重复性通常开始于某人强加给你的东西。这可能很繁琐且令人烦恼。这通常持续到你需要在小憩后重新访问项目时。在那个时刻，你通常会意识到可重复性不仅仅是数据科学的要求，因为它是我们取得真正进步的唯一方式，而且它有助于我们帮助自己。
 
@@ -46,7 +46,7 @@
 
 +   总是会发生错误，认识到调试是一项随着实践而提高的技能是很重要的。但能够得到帮助的一个关键方面是能够制作出其他人可以使用的可重复示例。
 
-**软件和包**
+软件和包**
 
 +   基础 R (R Core Team 2024)
 
@@ -72,7 +72,7 @@
 
 +   `usethis` (Wickham, Bryan, and Barrett 2022)
 
-```py
+```r
 library(AER)
 library(future)
 library(gitcreds)
@@ -86,7 +86,7 @@ library(tinytex)
 library(usethis)
 ```
 
-*## 3.1 引言
+## 3.1 引言
 
 > 关于机器学习，需要记住的第一件事是，性能是在一个数据集的样本上评估的，但在生产中使用模型时，样本可能不一定具有相同的特征$\dots$ 所以当问“你更愿意使用一个评估为 90%准确的模型，还是一个评估为 80%准确的人类”时，答案取决于你的数据是否按照评估过程是典型的。人类是可适应的，而模型则不是。如果涉及重大不确定性，选择人类。他们可能在模式识别能力上不如基于大量数据训练的模型，但他们理解自己正在做什么，他们可以对此进行推理，并且当面对新情况时可以即兴发挥。
 > 
@@ -150,15 +150,17 @@ Quarto 以被称为“文档编程”的方式集成代码和自然语言。它�
 
 虽然使用 Quarto 是合理的，但仍有许多资源是为 R Markdown 编写的。因此，我们提供了在线附录 E 中的 R Markdown 等效版本。
 
-*巨人的肩膀* *费尔南多·佩雷斯是加州大学伯克利分校的统计学副教授，同时也是劳伦斯伯克利国家实验室数据科学与技术分部的资深科学家。他在科罗拉多大学博尔德分校获得了粒子物理学的博士学位。在他的博士期间，他创建了 iPython，这使得 Python 能够以交互式的方式使用，现在它支撑着 Jupyter 项目，该项目启发了类似的笔记本方法，如 R Markdown 和现在的 Quarto。索默斯(2018)描述了开源笔记本方法如何创造良性反馈循环，从而显著提高了科学计算。罗默(2018)将开源方法（如 Jupyter）的特征与促进科学共识和进步的特征相一致。2017 年，佩雷斯获得了计算机协会（ACM）软件系统奖。*   文档编程的一个优点是，我们得到一个“活”的文档，其中代码执行后成为文档的一部分。Quarto 的另一个优点是，类似的代码可以编译成各种文档，包括 HTML 和 PDF。Quarto 还提供了默认选项，包括标题、作者和日期。一个缺点是，由于代码需要运行，文档的编译可能需要一段时间。
+巨人的肩膀* *费尔南多·佩雷斯是加州大学伯克利分校的统计学副教授，同时也是劳伦斯伯克利国家实验室数据科学与技术分部的资深科学家。他在科罗拉多大学博尔德分校获得了粒子物理学的博士学位。在他的博士期间，他创建了 iPython，这使得 Python 能够以交互式的方式使用，现在它支撑着 Jupyter 项目，该项目启发了类似的笔记本方法，如 R Markdown 和现在的 Quarto。索默斯(2018)描述了开源笔记本方法如何创造良性反馈循环，从而显著提高了科学计算。罗默(2018)将开源方法（如 Jupyter）的特征与促进科学共识和进步的特征相一致。2017 年，佩雷斯获得了计算机协会（ACM）软件系统奖。*   文档编程的一个优点是，我们得到一个“活”的文档，其中代码执行后成为文档的一部分。Quarto 的另一个优点是，类似的代码可以编译成各种文档，包括 HTML 和 PDF。Quarto 还提供了默认选项，包括标题、作者和日期。一个缺点是，由于代码需要运行，文档的编译可能需要一段时间。
 
 我们需要从[这里](https://quarto.org/docs/get-started/)下载 Quarto。（如果你使用 Posit Cloud，请跳过此步骤，因为它已经安装了。）然后我们可以在 RStudio 中创建一个新的 Quarto 文档：“文件” $\rightarrow$ “新建文件” $\rightarrow$ “Quarto 文档$\dots$”。
 
-在打开一个新的 Quarto 文档并选择“源”视图后，您将看到默认的顶部内容，它包含在一对三个破折号内，以及一些显示几个 Markdown 基本命令 和 R 块 的文本示例，这些内容将在以下章节中进一步讨论。*  *### 3.2.2 顶部内容
+在打开一个新的 Quarto 文档并选择“源”视图后，您将看到默认的顶部内容，它包含在一对三个破折号内，以及一些显示几个 Markdown 基本命令 和 R 块 的文本示例，这些内容将在以下章节中进一步讨论。
+
+### 3.2.2 顶部内容
 
 顶部内容包括定义标题、作者和日期等属性。它位于 Quarto 文档的顶部三个破折号内。例如，以下内容将指定一个标题、一个自动更新为文档渲染日期的日期和一个作者。
 
-```py
+```r
 ---
 title: "My document"
 author: "Rohan Alexander"
@@ -169,7 +171,7 @@ format: html
 
 摘要是对论文的简要总结，我们可以将其添加到顶部内容中。
 
-```py
+```r
 ---
 title: "My document"
 author: "Rohan Alexander"
@@ -181,7 +183,7 @@ format: html
 
 默认情况下，Quarto 将创建一个 HTML 文档，但我们可以更改输出格式以生成 PDF。这使用 LaTeX 作为后台，需要安装支持包。为此，安装 `tinytex`。但由于它在后台使用，我们可能不需要加载它。
 
-```py
+```r
 ---
 title: "My document"
 author: "Rohan Alexander"
@@ -195,7 +197,7 @@ format: pdf
 
 我们可以通过在顶部内容中指定一个 BibTeX 文件并在需要时在文本中调用它来包含参考文献。 
 
-```py
+```r
 ---
 title: "My document"
 author: "Rohan Alexander"
@@ -210,7 +212,7 @@ bibliography: bibliography.bib
 
 我们需要创建一个独特的键，我们将在文本中用它来引用此项目。这可以是任何东西，只要它是唯一的，但有意义的内容更容易记住，例如“citeR”。
 
-```py
+```r
 @Manual{citeR,
     title = {R: A Language and Environment for Statistical Computing},
     author = {{R Core Team}},
@@ -242,7 +244,7 @@ Quarto 使用 Markdown 的变体作为其底层语法。基本 Markdown 命令�
 
 +   标题（这些标题单独一行，前后都有空白行）：
 
-```py
+```r
  # First level header
 
          ## Second level header
@@ -252,7 +254,7 @@ Quarto 使用 Markdown 的变体作为其底层语法。基本 Markdown 命令�
 
 +   无序列表，带有子列表：
 
-```py
+```r
  * Item 1
     * Item 2
         + Item 2a
@@ -261,7 +263,7 @@ Quarto 使用 Markdown 的变体作为其底层语法。基本 Markdown 命令�
 
 +   有序列表，带有子列表：
 
-```py
+```r
  1\. Item 1
     2\. Item 2
     3\. Item 3
@@ -273,7 +275,7 @@ Quarto 使用 Markdown 的变体作为其底层语法。基本 Markdown 命令�
 
 +   通过留出空白行来创建段落。
 
-```py
+```r
 A paragraph about an idea, nicely spaced from the following paragraph.
 
 A paragraph about another idea, again spaced from the earlier paragraph.
@@ -287,7 +289,7 @@ A paragraph about another idea, again spaced from the earlier paragraph.
 
 要创建一个 R 代码块，我们首先使用三个反引号，然后在花括号内告诉 Quarto 这是一个 R 代码块。这个代码块内的任何内容都将被视为 R 代码并按此运行。我们使用 Kleiber 和 Zeileis（2008）提供的数据，他们提供了 R 包`AER`来伴随他们的书籍《使用 R 的计量经济学应用》。我们可以加载`tidyverse`，安装并加载`AER`，并绘制过去两周内调查受访者看医生次数的图表。
 
-```py
+```r
 ```{r}
 
 library(tidyverse)
@@ -302,10 +304,10 @@ ggplot(aes(x = illness)) +
 
 geom_histogram(stat = "count")
 
-```py
+```r
 ```
 
-*该代码的输出是图 3.1。
+该代码的输出是图 3.1。
 
 ![](img/87ac05892282a2dfb4a48f93a0190845.png)
 
@@ -325,7 +327,7 @@ geom_histogram(stat = "count")
 
 例如，我们可以包含输出，但不包含代码，并抑制任何警告。
 
-```py
+```r
 ```{r}
 
 #| echo: false
@@ -344,12 +346,12 @@ ggplot(aes(x = visits)) +
 
 geom_histogram(stat = "count")
 
-```py
+```r
 ```
 
-*在 R 代码块两侧留一个空白行，否则它可能无法正确运行。并且使用小写逻辑值，即“false”而不是“FALSE”。
+在 R 代码块两侧留一个空白行，否则它可能无法正确运行。并且使用小写逻辑值，即“false”而不是“FALSE”。
 
-```py
+```r
 Most people did not visit a doctor in the past week.
 
 ```{r}
@@ -370,18 +372,20 @@ ggplot(aes(x = visits)) +
 
 geom_histogram(stat = "count")
 
-```py
+```r
 
 There were some people that visited a doctor once, and then...
 ```
 
-*Quarto 文档本身必须加载所需的任何数据集。仅仅它们存在于环境中是不够的。这是因为 Quarto 文档在渲染时评估文档中的代码，而不一定是环境。
+Quarto 文档本身必须加载所需的任何数据集。仅仅它们存在于环境中是不够的。这是因为 Quarto 文档在渲染时评估文档中的代码，而不一定是环境。
 
-在编写代码时，我们可能想要在多行中进行相同的更改或更改特定事物的所有实例。我们通过使用多个光标来实现这一点。如果我们想要在多行中拖动光标，那么在 Mac 上按住“option”，在 PC 上按住“Alt”，然后拖动光标到相关行。如果我们想要选择某个事物的所有实例，那么突出显示一个实例，比如一个变量名，然后使用查找/替换（Mac 上的 Command + F 或 PC 上的 CTRL + F）并选择“所有”。这样就会在所有其他实例上启用光标。***  ***### 3.2.6 方程
+在编写代码时，我们可能想要在多行中进行相同的更改或更改特定事物的所有实例。我们通过使用多个光标来实现这一点。如果我们想要在多行中拖动光标，那么在 Mac 上按住“option”，在 PC 上按住“Alt”，然后拖动光标到相关行。如果我们想要选择某个事物的所有实例，那么突出显示一个实例，比如一个变量名，然后使用查找/替换（Mac 上的 Command + F 或 PC 上的 CTRL + F）并选择“所有”。这样就会在所有其他实例上启用光标。
+  
+### 3.2.6 方程
 
 我们可以通过使用基于编程语言 TeX 的 LaTeX 来包含方程。我们在 LaTeX 中使用两个美元符号作为开启和关闭标签来调用数学模式。然后，其中的内容被评估为 LaTeX 标记。例如，我们可以使用以下方法生成复利公式：
 
-```py
+```r
 $$
 A = P\left(1+\frac{r}{n}\right)^{nt}
 $$
@@ -391,7 +395,7 @@ $$ A = P\left(1+\frac{r}{n}\right)^{nt} $$
 
 LaTeX 是一种全面的标记语言，但我们将主要用它来指定感兴趣的模型。我们在这里包含了一些包含我们将从第十二章开始使用的关键方面的示例。
 
-```py
+```r
 $$
 y_i|\mu_i, \sigma \sim \mbox{Normal}(\mu_i, \sigma)
 $$
@@ -407,7 +411,7 @@ LaTeX 数学模式假设字母是变量，因此使它们变为斜体，但有�
 
 我们使用 `\begin{aligned}` 和 `\end{aligned}` 在多行中排列方程。要排列的项通过一个和号（&）标记。以下是我们将在第十六章中估计的模型。
 
-```py
+```r
 $$
 \begin{aligned}
 y_i|\pi_i & \sim \mbox{Bern}(\pi_i) \\
@@ -424,13 +428,15 @@ y_i|\pi_i & \sim \mbox{Bern}(\pi_i) \\
 $$
 ```
 
-*$$ \begin{aligned} y_i|\pi_i & \sim \mbox{Bern}(\pi_i) \\ \mbox{logit}(\pi_i) & = \beta_0+ \alpha_{g[i]}^{\mbox{gender}} + \alpha_{a[i]}^{\mbox{age}} + \alpha_{s[i]}^{\mbox{state}} + \alpha_{e[i]}^{\mbox{edu}} \\ \beta_0 & \sim \mbox{Normal}(0, 2.5)\\ \alpha_{g}^{\mbox{gender}} & \sim \mbox{Normal}(0, 2.5)\mbox{ for }g=1, 2\\ \alpha_{a}^{\mbox{age}} & \sim \mbox{Normal}\left(0, \sigma²_{\mbox{age}}\right)\mbox{ for }a = 1, 2, \dots, A\\ \alpha_{s}^{\mbox{state}} & \sim \mbox{Normal}\left(0, \sigma²_{\mbox{state}}\right)\mbox{ for }s = 1, 2, \dots, S\\ \alpha_{e}^{\mbox{edu}} & \sim \mbox{Normal}\left(0, \sigma²_{\mbox{edu}}\right)\mbox{ for }e = 1, 2, \dots, E\\ \sigma_{\mbox{gender}} & \sim \mbox{Exponential}(1)\\ \sigma_{\mbox{state}} & \sim \mbox{Exponential}(1)\\ \sigma_{\mbox{edu}} & \sim \mbox{Exponential}(1) \end{aligned} $$
+$$ \begin{aligned} y_i|\pi_i & \sim \mbox{Bern}(\pi_i) \\ \mbox{logit}(\pi_i) & = \beta_0+ \alpha_{g[i]}^{\mbox{gender}} + \alpha_{a[i]}^{\mbox{age}} + \alpha_{s[i]}^{\mbox{state}} + \alpha_{e[i]}^{\mbox{edu}} \\ \beta_0 & \sim \mbox{Normal}(0, 2.5)\\ \alpha_{g}^{\mbox{gender}} & \sim \mbox{Normal}(0, 2.5)\mbox{ for }g=1, 2\\ \alpha_{a}^{\mbox{age}} & \sim \mbox{Normal}\left(0, \sigma²_{\mbox{age}}\right)\mbox{ for }a = 1, 2, \dots, A\\ \alpha_{s}^{\mbox{state}} & \sim \mbox{Normal}\left(0, \sigma²_{\mbox{state}}\right)\mbox{ for }s = 1, 2, \dots, S\\ \alpha_{e}^{\mbox{edu}} & \sim \mbox{Normal}\left(0, \sigma²_{\mbox{edu}}\right)\mbox{ for }e = 1, 2, \dots, E\\ \sigma_{\mbox{gender}} & \sim \mbox{Exponential}(1)\\ \sigma_{\mbox{state}} & \sim \mbox{Exponential}(1)\\ \sigma_{\mbox{edu}} & \sim \mbox{Exponential}(1) \end{aligned} $$
 
-最后，某些函数是内置到 LaTeX 中的。例如，我们可以使用`\log`适当地排版“log”。***  ***### 3.2.7 跨引用
+最后，某些函数是内置到 LaTeX 中的。例如，我们可以使用`\log`适当地排版“log”。
+  
+### 3.2.7 跨引用
 
 引用图表和方程式可能很有用。这使得在文本中引用它们变得更容易。为了对一个图表进行引用，我们引用创建或包含该图表的 R 代码块名称。例如，考虑以下代码。
 
-```py
+```r
 ```{r}
 
 #| 标签：fig-uniquename
@@ -447,16 +453,16 @@ ggplot(aes(x = illness)) +
 
 geom_histogram(stat = "count")
 
-```py
+```r
 ```
 
-*![](img/62a812da07d9c1833a1417a5ccddd431.png)
+![](img/62a812da07d9c1833a1417a5ccddd431.png)
 
 图 3.2：过去两周的疾病数量，基于 1977–1978 年澳大利亚健康调查*  *然后 `(@fig-uniquename)` 会生成：(图 3.2) 作为 R 代码块名称的名称为 `fig-uniquename`。我们需要在代码块名称的开头添加“fig”，这样 Quarto 就能知道这是一个图像。然后我们在 R 代码块中包含一个“fig-cap:”，以指定标题。
 
 我们可以在 Quarto 文档中的 R 代码块中添加 `#| layout-ncol: 2` 以使两个图表并排显示(图 3.3)。这里图 3.3 (a)使用最小主题，而图 3.3 (b)使用经典主题。这两个都引用了 R 代码块中的相同标签 `#| label: fig-doctorgraphsidebyside`，并在 R 代码块中添加了一个额外的选项 `#| fig-subcap: ["Number of illnesses","Number of visits to the doctor"]`，这提供了子标题。通过在文本中使用时在标签末尾添加“-1”和“-2”，实现了在文本中添加字母：`(@fig-doctorgraphsidebyside)`，`@fig-doctorgraphsidebyside-1`，和`@fig-doctorgraphsidebyside-2`分别对应(图 3.3)，图 3.3 (a)，和图 3.3 (b)。
 
-```py
+```r
 ```{r}
 
 #| 评估：true
@@ -487,10 +493,10 @@ geom_histogram(stat = "count") +
 
 主题经典()
 
-```py
+```r
 ```
 
-*![](img/738baed7a8a0c04549402378d6acb9df.png)
+![](img/738baed7a8a0c04549402378d6acb9df.png)
 
 (a) 疾病
 
@@ -502,7 +508,7 @@ geom_histogram(stat = "count") +
 
 我们可以采取类似的方法来交叉引用表格。例如，`(@tbl-docvisittable)` 将生成：(表 3.1)。在这种情况下，我们在标签的开头指定“tbl”，以便 Quarto 知道它是一个表格。并且我们使用“tbl-cap:”指定表格的标题。
 
-```py
+```r
 ```{r}
 
 #| label: tbl-docvisittable
@@ -519,10 +525,10 @@ style_tt(j = 2, align = "r") |>
 
 setNames(c("就诊次数", "出现次数"))
 
-```py
+```r
 ```
 
-*表 3.1：医生就诊次数分布
+表 3.1：医生就诊次数分布
 
 | 就诊次数 | 出现次数 |
 | --- | --- |
@@ -538,17 +544,19 @@ setNames(c("就诊次数", "出现次数"))
 
 | 9 | 1 |*  *最后，我们还可以交叉引用方程式。为此，我们需要添加一个标签，如 `{#eq-macroidentity}`，然后进行引用。
 
-```py
+```r
 $$
 Y = C + I + G + (X - M)
 $$ {#eq-gdpidentity}
 ```
 
-*例如，我们随后使用 `@eq-gdpidentity` 来生成 方程式 3.1
+例如，我们随后使用 `@eq-gdpidentity` 来生成 方程式 3.1
 
 $$ Y = C + I + G + (X - M) \tag{3.1}$$
 
-使用交叉引用时，标签应相对简单。通常，尽量保持名称简单但独特，避免使用标点符号，并坚持使用字母和连字符。尽量不要使用下划线，因为它们可能会引起错误。***********  ****## 3.3 R 项目和文件结构
+使用交叉引用时，标签应相对简单。通常，尽量保持名称简单但独特，避免使用标点符号，并坚持使用字母和连字符。尽量不要使用下划线，因为它们可能会引起错误。
+  
+## 3.3 R 项目和文件结构
 
 项目在软件开发中被广泛使用，其目的是将特定项目相关的所有文件（数据、分析、报告等）集中在一起并相互关联。（在软件开发中使用的“项目”与项目管理中的“项目”是不同的。）可以在 RStudio 中创建 R 项目。点击“文件” $\rightarrow$ “新建项目”，然后选择“空项目”，命名 R 项目并决定将其保存的位置。例如，一个关注孕产妇死亡率的 R 项目可能被称为“maternalmortality”。使用 R 项目可以实现“在不同计算机或用户以及不同时间跨度的可靠、礼貌的行为” (Bryan and Hester 2020)。这是因为它们从更广泛的背景中移除了该文件夹的上下文；文件存在于 R 项目的基中，而不是计算机的基中。
 
@@ -560,7 +568,7 @@ $$ Y = C + I + G + (X - M) \tag{3.1}$$
 
 设置文件夹有多种方法。在示例文件结构中链接的 Wilson 等人（2017）的变体在您开始时通常很有用。
 
-```py
+```r
 example_project/
 ├── .gitignore
 ├── LICENSE.md
@@ -631,11 +639,11 @@ GitHub、GitLab 以及许多其他公司提供了基于 Git 的更易于使用�
 
 我们首先需要检查 Git 是否已安装。打开 RStudio，转到终端，输入以下内容，然后按回车。
 
-```py
+```r
 git --version
 ```
 
-*如果你得到了版本号，那么你就完成了（图 3.4 (a))。
+如果你得到了版本号，那么你就完成了（图 3.4 (a))。
 
 ![](img/405e378b699b2c331ef2639d5099ebda.png)
 
@@ -653,15 +661,17 @@ Git 在 Posit Cloud 中预先安装，它应该在 Mac 上预先安装，并且�
 
 再次，在终端中输入以下内容，用您的详细信息替换，并在每行后按“enter/return”。
 
-```py
+```r
 git config --global user.name "Rohan Alexander"
 git config --global user.email "rohan.alexander@utoronto.ca"
 git config --global --list
 ```
 
-*当这个设置完成正确后，你为“user.name”和“user.email”输入的值将在最后一行后返回（图 3.4 (b))。
+当这个设置完成正确后，你为“user.name”和“user.email”输入的值将在最后一行后返回（图 3.4 (b))。
 
-这些细节——用户名和电子邮件地址——将是公开的。如果需要，有各种方法可以隐藏电子邮件地址，GitHub 提供了相关的说明。Bryan (2020, 第七章) 提供了关于这一步的更详细说明和故障排除指南。**  **### 3.4.2 GitHub
+这些细节——用户名和电子邮件地址——将是公开的。如果需要，有各种方法可以隐藏电子邮件地址，GitHub 提供了相关的说明。Bryan (2020, 第七章) 提供了关于这一步的更详细说明和故障排除指南。
+
+### 3.4.2 GitHub
 
 现在 Git 已经设置好了，我们需要设置 GitHub。我们在 第二章 中创建了一个 GitHub 账户，我们在这里再次使用它。在 `github.com` 登录后，我们首先需要创建一个新的文件夹，在 Git 中这被称为“repo”。在右上角寻找一个“+”，然后选择“新建仓库” (图 3.5 (a))。
 
@@ -711,13 +721,13 @@ git config --global --list
 
 在 Git 和 GitHub 方面，有一些常见的痛点。我们建议定期提交和推送，尤其是在您刚开始版本控制时。这增加了您在需要时可以返回的快照数量。所有提交都应包含说明性提交信息。如果您是版本控制的新手，那么对良好提交信息的期望是它包含更改的简短摘要，后跟一个空行，然后是对更改的解释，包括更改的内容以及为什么进行更改。例如，如果您的提交向论文添加了图表，则提交信息可以是：
 
-```py
+```r
 Add graphs
 
 Graphs of unemployment and inflation added into Data section.
 ```
 
-*有一些证据表明整体质量与提交行为之间存在关系(Sprint 和 Conci 2019)。随着您获得更多经验，理想情况下，提交信息将充当项目的一种日志。但最重要的是要定期提交。
+有一些证据表明整体质量与提交行为之间存在关系(Sprint 和 Conci 2019)。随着您获得更多经验，理想情况下，提交信息将充当项目的一种日志。但最重要的是要定期提交。
 
 Git 和 GitHub 是为软件开发者设计的，而不是为数据科学家设计的。GitHub 限制它将考虑的文件大小为 100MB，甚至 50MB 也会触发警告。数据科学项目通常涉及比这更大的数据集。在 第十章 中，我们讨论了数据存档的使用，这在项目完成后特别有用，但在我们积极进行项目工作时，忽略大型数据文件可能也很有用，至少从 Git 和 GitHub 的角度来看是这样。我们通过一个“`.gitignore`”文件来实现这一点，其中列出了我们不想使用 Git 跟踪的所有文件。[示例文件夹](https://github.com/RohanAlexander/starter_folder) 包含一个“`.gitignore`”文件。运行 `usethis` 的 `git_vaccinate()` 可能会有所帮助，它将向全局的“`.gitignore`”文件添加各种文件，以防你在项目层面上忘记这样做。对于 Mac 用户来说，这会导致“`.DS_Store`”文件被忽略。
 
@@ -725,18 +735,20 @@ Git 和 GitHub 是为软件开发者设计的，而不是为数据科学家设�
 
 首先检查 Git 是否已通过 `usethis` 的 `git_sitrep()` 设置。这应该会打印出用户名和电子邮件的信息。如果需要，我们可以使用 `use_git_config()` 来更新这些细节。
 
-```py
+```r
 use_git_config(
  user.name = "Rohan Alexander",
  user.email = "rohan.alexander@utoronto.ca"
 )
 ```
 
-*与其在 GitHub 上启动一个新项目然后本地添加，我们现在可以使用 `use_git()` 来启动它并提交文件。提交后，我们可以使用 `use_github()` 将其推送到 GitHub，这样在 GitHub 上也会创建相应的文件夹。
+与其在 GitHub 上启动一个新项目然后本地添加，我们现在可以使用 `use_git()` 来启动它并提交文件。提交后，我们可以使用 `use_github()` 将其推送到 GitHub，这样在 GitHub 上也会创建相应的文件夹。
 
-对 Git 和 GitHub 感到害怕是很正常的。许多数据科学家只知道如何使用它的一些基本知识，这很正常。尽量定期推送，以便在需要时有一个最新的快照。**  **### 3.4.3 Git 冲突
+对 Git 和 GitHub 感到害怕是很正常的。许多数据科学家只知道如何使用它的一些基本知识，这很正常。尽量定期推送，以便在需要时有一个最新的快照。
 
-*克里斯托弗·马洛的《浮士德博士》是 16 世纪的一部戏剧。有趣的是，它有两个版本，没有人知道马洛实际上打算哪个版本是“那个”版本。根据你具体计算的方式，马洛有大约 2,048 行(1604)，而马洛有大约 2,852 行(1616)。甚至行内也有变化(图 3.6)。由于作者已经去世很久了，人类就处于一个奇怪的情况，就是只有两个版本。如果马洛有 Git，这种情况就不会发生！
+### 3.4.3 Git 冲突
+
+克里斯托弗·马洛的《浮士德博士》是 16 世纪的一部戏剧。有趣的是，它有两个版本，没有人知道马洛实际上打算哪个版本是“那个”版本。根据你具体计算的方式，马洛有大约 2,048 行(1604)，而马洛有大约 2,852 行(1616)。甚至行内也有变化(图 3.6)。由于作者已经去世很久了，人类就处于一个奇怪的情况，就是只有两个版本。如果马洛有 Git，这种情况就不会发生！
 
 ![图片](img/98e32e77902463934294a85ab2822b55.png)
 
@@ -752,7 +764,7 @@ use_git_config(
 
 Git 将通过在文件中显示它们，并在开头添加标识标记`<<<<<<< HEAD`，在区分冲突更改时使用`=======`，以及使用`>>>>>>> new_branch`来显示结束和哪个分支正在创建冲突，来识别存在冲突的行。
 
-```py
+```r
 <<<<<<< HEAD
 Some content
 =======
@@ -760,7 +772,9 @@ Some conflicted content
 >>>>>>> new_branch
 ```
 
-*解决冲突的人的任务是选择保留哪些内容。编辑文件，保存它，然后以正常方式添加和提交。*****  ***## 3.5 在实践中使用 R
+解决冲突的人的任务是选择保留哪些内容。编辑文件，保存它，然后以正常方式添加和提交。
+  
+## 3.5 在实践中使用 R
 
 ### 3.5.1 处理错误
 
@@ -860,7 +874,7 @@ R 脚本中的注释可以通过包含#符号来添加。（在 Quarto 文档中
 
 你的 R 脚本应该有一个前言和清晰的章节划分。
 
-```py
+```r
 #### Preamble ####
 # Purpose: Brief sentence about what this script does
 # Author: Your name
@@ -936,7 +950,7 @@ raw_data <- read_csv("inputs/data/unedited_data.csv")
 
 我们使用`lintr`中的`lint()`进行代码检查。例如，考虑以下 R 代码（保存为“linting_example.R”）。
 
-```py
+```r
 SIMULATED_DATA <-
  tibble(
  division = c(1:150, 151),
@@ -948,11 +962,11 @@ SIMULATED_DATA <-
  )
 ```
 
-*```py
+```r
 lint(filename = "linting_example.R")
 ```
 
-*结果是，“linting_example.R”文件被打开，`lint()`找到的问题在“标记”中打印出来（图 3.7）。然后，处理这些问题就取决于你了。
+结果是，“linting_example.R”文件被打开，`lint()`找到的问题在“标记”中打印出来（图 3.7）。然后，处理这些问题就取决于你了。
 
 ![图片](img/671f5a02adc40be9d03e4695d900c6e5.png)
 
@@ -960,7 +974,7 @@ lint(filename = "linting_example.R")
 
 实施推荐更改可以使代码更易于阅读，并与 Wickham (2021)定义的最佳实践保持一致。
 
-```py
+```r
 simulated_data <-
  tibble(
  division = c(1:150, 151),
@@ -972,15 +986,17 @@ simulated_data <-
  )
 ```
 
-*一开始，检查器识别的一些方面，如尾随空格和仅使用双引号，可能看起来很小，无关紧要。但它们会分散我们修复更大问题的注意力。此外，如果我们不能正确处理小事情，那么谁会相信我们能够正确处理大事情呢？因此，处理检查器识别的所有小方面非常重要。
+一开始，检查器识别的一些方面，如尾随空格和仅使用双引号，可能看起来很小，无关紧要。但它们会分散我们修复更大问题的注意力。此外，如果我们不能正确处理小事情，那么谁会相信我们能够正确处理大事情呢？因此，处理检查器识别的所有小方面非常重要。
 
 除了`lintr`之外，我们还使用`styler`。这将自动调整样式问题，与 linter 不同，后者提供了一列需要查看的问题。要运行此操作，我们使用`style_file()`。
 
-```py
+```r
 style_file(path = "linting_example.R")
 ```
 
-*这将自动进行更改，例如空格和缩进。因此，这应该定期进行，而不仅仅是项目结束时进行一次，以便能够审查更改并确保没有引入错误。****  ***### 3.6.3 代码审查
+这将自动进行更改，例如空格和缩进。因此，这应该定期进行，而不仅仅是项目结束时进行一次，以便能够审查更改并确保没有引入错误。
+  
+### 3.6.3 代码审查
 
 在处理了所有这些风格方面的问题后，我们可以转向代码审查。这是让另一个人审查并批评代码的过程。许多专业作家都有编辑，而在数据科学中，代码审查是我们最接近的那种。代码审查是编写代码的关键部分，Irving 等人（2021 年，465）将其描述为“找到错误最有效的方法”。当学习编码时，它特别有帮助，尽管有些令人畏惧，因为获得反馈是提高技能的绝佳方式。
 
@@ -1030,7 +1046,7 @@ style_file(path = "linting_example.R")
 
 例如，考虑以下代码：
 
-```py
+```r
 setwd("/Users/rohanalexander/Documents/telling_stories")
 
 library(tidyverse)
@@ -1046,9 +1062,9 @@ library(datasauRus)
 datasaurus_dozen
 ```
 
-*我们可以改变这一点，首先创建一个 R 项目，使我们能够移除`setwd()`，将所有`library()`调用放在顶部，使用“`<-`”而不是“`=`”，并保持变量名的一致性：
+我们可以改变这一点，首先创建一个 R 项目，使我们能够移除`setwd()`，将所有`library()`调用放在顶部，使用“`<-`”而不是“`=`”，并保持变量名的一致性：
 
-```py
+```r
 library(tidyverse)
 library(datasauRus)
 
@@ -1059,7 +1075,9 @@ mpg_to_kpl_conversion_factor <- 2.352
 mtcars <-
  mtcars |> 
  mutate(kpl = mpg / mpg_to_kpl_conversion_factor)
-```****  ***## 3.7 结论
+```
+  
+## 3.7 结论
 
 在本章中，我们考虑了很多，感到不知所措是正常的。需要时请回到 Quarto 部分。许多人被 Git 和 GitHub 搞糊涂了，只是知道足够多的知识来应付。虽然有很多关于效率的材料，但高效代码最重要的方面是使其更容易被另一个人阅读，即使那个人只是休息后回来的人。
 
@@ -1071,7 +1089,7 @@ mtcars <-
 
 1.  *(模拟)* 请进一步考虑所描述的场景，并模拟这种情况。使用以下代码仔细指定一个适当的情况。然后根据模拟数据编写五个测试。
 
-```py
+```r
 library(tidyverse)
 
 election_results <-
@@ -1082,11 +1100,11 @@ election_results <-
  )
 ```
 
-*3.  *(获取)* 请指定一个关于您感兴趣的国家投票的实际数据来源。
+3.  *(获取)* 请指定一个关于您感兴趣的国家投票的实际数据来源。
 
 1.  *(探索)* 从以下代码开始，创建一个显示每个政党赢得席位的表格。
 
-```py
+```r
 library(tidyverse)
 
 election_results |> 
@@ -1095,7 +1113,9 @@ election_results |>
  tt()
 ```
 
-*5.  *(分享)* 请像从您确定的来源（而不是模拟）收集数据一样，写两段话，并确保您使用模拟数据构建的表格反映了实际情况。段落中包含的详细内容不必是事实性的，但应该是合理的（即，您实际上不必获取数据或创建图表）。适当地将代码分离到 R 文件和 Quarto 文档中。提交一个包含 README 的 GitHub 仓库链接。**  **### 测验
+5.  *(分享)* 请像从您确定的来源（而不是模拟）收集数据一样，写两段话，并确保您使用模拟数据构建的表格反映了实际情况。段落中包含的详细内容不必是事实性的，但应该是合理的（即，您实际上不必获取数据或创建图表）。适当地将代码分离到 R 文件和 Quarto 文档中。提交一个包含 README 的 GitHub 仓库链接。
+
+### 测验
 
 1.  从 Gelman (2016)，以下哪个统计概念指的是研究人员利用数据分析中的灵活性来找到显著结果（选择一个）？
 
@@ -1575,38 +1595,40 @@ election_results |>
 
 +   以下代码产生错误。请遵循第 3.5.1 节中的策略来修复它。
 
-```py
+```r
 tibble(year = 1875:1972,
  level = as.numeric(datasets::LakeHuron)) |>
  ggplot(aes(x = year, y = level)) |>
  geom_point()
 ```
 
-**   以下代码产生错误。请遵循第 3.5.1 节中的策略来修复它。
+以下代码产生错误。请遵循第 3.5.1 节中的策略来修复它。
 
-```py
+```r
 tibble(year = 1871:1970,
  annual_nile_flow = as.character(datasets::Nile)) |>
  ggplot(aes(x = annual_nile_flow)) +
  geom_histogram()
 ```
 
-**   以下代码产生错误。根据第 3.5.2 节创建一个 reprex（将示例更改为使用更常见的数据集，如`mtcars`），将其添加到 GitHub Gist，并发送给导师。
+以下代码产生错误。根据第 3.5.2 节创建一个 reprex（将示例更改为使用更常见的数据集，如`mtcars`），将其添加到 GitHub Gist，并发送给导师。
 
-```py
+```r
 tibble(year = 1875:1972,
  level = as.numeric(datasets::LakeHuron)) |>
  ggplot(aes(x = year, y = level)) |>
  geom_point()
 ```
 
-**   以下代码产生错误。请使用 ChatGPT 或等效的 LLM 来纠正它。讨论：1) 提示，2) 纠正后的代码。
+以下代码产生错误。请使用 ChatGPT 或等效的 LLM 来纠正它。讨论：1) 提示，2) 纠正后的代码。
 
-```py
+```r
 penguins |> 
  ggplot(aes(x = bill_length_mm, y = bill_depth_mm, color = species)) |> 
  geom_point()
-```***  ***### 任务 I
+```
+  
+### 任务 I
 
 本任务的目的是进行和接收同行评审。同行评审，尤其是代码评审（Sadowski 等人 2018），是作为专业人士工作的重要组成部分。
 
@@ -1678,32 +1700,34 @@ penguins |>
 
 在详细资料个性化并且我们对网站满意后，可以将网站推送到 GitHub，然后使用 GitHub Pages 进行托管。为了利用这一点，我们首先需要做两件事。首先，我们应该稍微修改“_quarto.yml”以指定我们应该构建到“docs”文件夹而不是“_site”文件夹（图 4.1 (d))。
 
-```py
+```r
 project:
  type: website 
  output-dir: docs
 ```
 
-*另一个需要了解的方面是，当我们使用这项服务时，默认情况下，GitHub 会尝试构建网站，而我们不希望这样，因此我们需要首先在控制台中运行以下命令来添加一个隐藏文件以关闭该功能：
+另一个需要了解的方面是，当我们使用这项服务时，默认情况下，GitHub 会尝试构建网站，而我们不希望这样，因此我们需要首先在控制台中运行以下命令来添加一个隐藏文件以关闭该功能：
 
-```py
+```r
 file.create(".nojekyll")
 ```
 
-*然后，假设 GitHub 已经设置好，我们可以使用`usethis`将新创建的项目上传到 GitHub。我们使用`use_git()`初始化 Git 仓库，然后使用`use_github()`将其推送到 GitHub。
+然后，假设 GitHub 已经设置好，我们可以使用`usethis`将新创建的项目上传到 GitHub。我们使用`use_git()`初始化 Git 仓库，然后使用`use_github()`将其推送到 GitHub。
 
-```py
+```r
 use_git()
 use_github()
 ```
 
-*项目随后将位于 GitHub 上。我们可以使用 GitHub Pages 来托管它：“设置 -> 页面”然后根据您的设置将源更改为“main”或“master”，最后是“docs”。经过几分钟的检查后，GitHub 会通知您可以分享的地址以访问您的网站。
+项目随后将位于 GitHub 上。我们可以使用 GitHub Pages 来托管它：“设置 -> 页面”然后根据您的设置将源更改为“main”或“master”，最后是“docs”。经过几分钟的检查后，GitHub 会通知您可以分享的地址以访问您的网站。
 
 要更新网站，请本地工作。首先拉取，以确保 GitHub 所做的任何更改都存在于本地，然后编辑网站，重新渲染它，并以通常的方式将其推送到 GitHub。检查完成后，实时网站将更新。
 
 请确保您的网站有一些正常的文本段落、章节标题、项目符号。一切都应该有良好的文档记录，格式美观，总体质量高。
 
-与之相关的评分标准组件包括：“课堂论文”，“LLM 使用已记录”，“散文”，“提交”，“可重复的工作流程”。提交您网站的链接。***  ***### 论文
+与之相关的评分标准组件包括：“课堂论文”，“LLM 使用已记录”，“散文”，“提交”，“可重复的工作流程”。提交您网站的链接。
+  
+### 论文
 
 大概在这个时候，在线附录 F 中的*Donaldson*论文是合适的。
 
@@ -1713,4 +1737,5 @@ Alexander, Monica. 2019. “人口研究中的可重复性。” [`www.monicaale
 
 1.  如果你已经隐藏了 GitHub 邮箱，那么在本地添加邮箱地址时，请确保使用别名。↩︎
 
-1.  总会有一些学生无法在本地使 git 工作。我发现最好的方法是，在你演示的同时，将他们与一个高级学生配对进行分类，如果有剩余的问题，则在办公时间单独处理。↩︎***************
+1.  总会有一些学生无法在本地使 git 工作。我发现最好的方法是，在你演示的同时，将他们与一个高级学生配对进行分类，如果有剩余的问题，则在办公时间单独处理。↩︎
+

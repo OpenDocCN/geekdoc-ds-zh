@@ -6,7 +6,7 @@
 
 1.  9 清洁、准备和测试
 
-**先决条件**
+先决条件**
 
 +   阅读《数据女性主义》，(D’Ignazio 和 Klein 2020)
 
@@ -32,7 +32,7 @@
 
     +   详细说明了从不同船只在不同时间进行的观测中创建温度数据集的难度。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   清洗和准备数据集是一项困难的工作，涉及做出许多决策。规划一个终点并模拟我们希望最终得到的数据集是清洗和准备数据的关键要素。
 
@@ -42,7 +42,7 @@
 
 +   我们应该特别关注变量的类别，确保变量名称清晰，并且考虑到所有这些因素，每个变量的唯一值都符合预期。
 
-**软件和包**
+软件和包**
 
 +   基础 R (R 核心团队 2024)
 
@@ -72,7 +72,7 @@
 
 +   `validate` (验证)
 
-```py
+```r
 library(janitor)
 library(lubridate)
 library(modelsummary)
@@ -88,7 +88,7 @@ library(tinytable)
 library(validate)
 ```
 
-*## 9.1 简介
+## 9.1 简介
 
 > “嗯，林登，你可能是对的，他们可能和你说的那样聪明，”雷伯恩说，“但如果其中之一曾经竞选过警长，我会感觉好得多。”
 > 
@@ -158,7 +158,7 @@ SpaceX，美国火箭公司，使用 10 或 50 赫兹（分别相当于 0.1 和 
 
 我们随后使用代码来模拟数据。同样，这个过程迫使我们思考在数据集中合理的值看起来是什么样子，因为我们必须决定使用哪些函数。我们需要仔细思考每个变量的唯一值。例如，如果变量意味着是“性别”，那么可能期望的唯一值如“男性”、“女性”、“其他”和“未知”，但像“1,000”这样的数字可能是不正确的。这也迫使我们明确名称，因为我们必须将这些函数的输出分配给变量。例如，我们可以模拟美国各州的人口数据。
 
-```py
+```r
 set.seed(853)
 
 simulated_population <-
@@ -171,7 +171,7 @@ simulated_population <-
 simulated_population
 ```
 
-*```py
+```r
 # A tibble: 50 × 2
    state       population
    <chr>            <dbl>
@@ -186,7 +186,8 @@ simulated_population
  9 Florida           7.9 
 10 Georgia           9.44
 # ℹ 40 more rows
-```*  *我们的目的是在数据清洗和准备过程中，将我们的原始、未编辑的数据尽可能接近该计划。理想情况下，我们会制定计划，使得我们数据集的期望终点是“整洁数据”。这在在线附录 A 中有所介绍，但简要来说，这意味着([Wickham, Çetinkaya-Rundel, and Grolemund [2016] 2023](99-references.html#ref-r4ds); Wickham 2014, 4)：
+```
+我们的目的是在数据清洗和准备过程中，将我们的原始、未编辑的数据尽可能接近该计划。理想情况下，我们会制定计划，使得我们数据集的期望终点是“整洁数据”。这在在线附录 A 中有所介绍，但简要来说，这意味着([Wickham, Çetinkaya-Rundel, and Grolemund [2016] 2023](99-references.html#ref-r4ds); Wickham 2014, 4)：
 
 1.  每个变量都在自己的列中；
 
@@ -194,13 +195,15 @@ simulated_population
 
 1.  每个值都在自己的单元格中。
 
-在这个阶段开始思考有效性和内部一致性。这些数据应该具备哪些特征？在模拟数据集的过程中将这些特征记录下来，因为我们将在编写测试时参考它们。*  *### 9.2.3 从小开始
+在这个阶段开始思考有效性和内部一致性。这些数据应该具备哪些特征？在模拟数据集的过程中将这些特征记录下来，因为我们将在编写测试时参考它们。
+
+### 9.2.3 从小开始
 
 经过周密规划后，我们可以转向处理原始、未经编辑的数据。通常，我们希望尽可能快地将原始、未经编辑的数据转换成一个矩形数据集。这使我们能够使用来自`tidyverse`的熟悉函数。例如，让我们假设我们从一个`.txt`文件开始。
 
 第一步是寻找数据集中的规律性。我们希望最终得到表格数据，这意味着我们需要某种类型的分隔符来区分不同的列。理想情况下，这可能是一些特征，如逗号、分号、制表符、双空格或换行符。在以下情况下，我们可以利用逗号。
 
-```py
+```r
 Alabama, 5
 Alaska, 0.7
 Arizona, 7
@@ -210,7 +213,7 @@ California, 40
 
 在更具挑战性的情况下，我们可能可以利用数据集的一些规律性特征。有时各种文本会重复出现，如下例所示。
 
-```py
+```r
 State is Alabama and population is 5 million.
 State is Alaska and population is 0.7 million.
 State is Arizona and population is 7 million.
@@ -220,7 +223,7 @@ State is California and population is 40 million.
 
 在这种情况下，尽管我们没有传统的分隔符，但我们可以利用“状态是”，“人口是”，以及“百万”的规律来获取所需信息。一个更复杂的情况是当我们没有行断的情况下。这个最终案例就是这种情况的说明。
 
-```py
+```r
 Alabama 5 Alaska 0.7 Arizona 7 Arkansas 3 California 40
 ```
 
@@ -228,7 +231,7 @@ Alabama 5 Alaska 0.7 Arizona 7 Arkansas 3 California 40
 
 我们现在将这个最终案例转换为整洁数据。
 
-```py
+```r
 unedited_data <-
  c("Alabama 5 Alaska 0.7 Arizona 7 Arkansas 3 California 40")
 
@@ -254,7 +257,7 @@ tidy_data <-
 tidy_data
 ```
 
-*```py
+```r
 # A tibble: 5 × 2
   state      population
   <chr>      <chr>     
@@ -263,7 +266,8 @@ tidy_data
 3 Arizona    7         
 4 Arkansas   3         
 5 California 40 
-```*  *### 9.2.4 编写测试和文档
+```
+### 9.2.4 编写测试和文档
 
 虽然我们建立了一个矩形数据集，尽管有些杂乱，但我们应该开始查看我们拥有的类别。在这个阶段，我们不一定想固定类别，因为这可能会导致数据丢失。但我们查看类别以了解其内容，将其与我们的模拟数据集进行比较，并注意不同的列以了解需要做出哪些更改。关于`class()`的背景信息可在在线附录 A 中找到。
 
@@ -279,9 +283,9 @@ tidy_data
 
 当通过成员资格测试——我们最初基于模拟和经验来建立这些测试——然后我们可以更改类别，并再次运行所有测试。我们从单元测试的软件开发方法中借鉴了这个想法。测试至关重要，因为它们使我们能够了解软件（或在这种情况下数据）是否适合我们的目的（Irving 等人 2021）。在数据科学中，测试不是我们只写一次然后忘记的静态事物。相反，它们应根据需要更新和演变。
 
-*哦，你以为我们对这方面的数据很好吗!* *现实简化的情况在体育记录中尤为明显，因为体育记录必然需要选择记录什么。体育记录适合某些目的，但不适合其他目的。例如，国际象棋是在一个交替着黑白方格的 8 x 8 棋盘上进行的。方格由一个独特的字母（A-G）和数字（1-8）的组合来表示。大多数棋子都有一个独特的缩写，例如骑士是 N，主教是 B。每个游戏都是通过每个玩家使用这种“代数记法”独立记录的。这些记录使我们能够重现游戏的走法。2021 年国际象棋世界锦标赛由马格努斯·卡尔森和伊恩·内波姆尼亚奇进行。这场比赛之所以特别引人注目，有多种原因——包括这是最长的世界锦标赛游戏——但其中之一是卡尔森和内波姆尼亚奇都犯了一些不寻常的错误。例如，在第 33 步，卡尔森没有利用一个机会；在第 36 步，一个不同的走法本可以为内波姆尼亚奇提供一个有希望的残局(Doggers 2021)。这些错误可能的原因之一是，在游戏的那个阶段，两位选手剩余的时间非常少——他们必须非常快速地决定他们的走法。但在游戏记录表提供的表示中，并没有这种感觉，因为它没有记录剩余时间。记录适合作为“正确”地表示游戏中发生的事情；但不一定是为什么发生。让我们通过一组字符串的例子来运行一个示例，其中一些字符串略有错误。这种类型的输出是[第七章中介绍的 OCR 的典型输出，它通常已经完成了大部分工作，但还不够。*
+哦，你以为我们对这方面的数据很好吗!* *现实简化的情况在体育记录中尤为明显，因为体育记录必然需要选择记录什么。体育记录适合某些目的，但不适合其他目的。例如，国际象棋是在一个交替着黑白方格的 8 x 8 棋盘上进行的。方格由一个独特的字母（A-G）和数字（1-8）的组合来表示。大多数棋子都有一个独特的缩写，例如骑士是 N，主教是 B。每个游戏都是通过每个玩家使用这种“代数记法”独立记录的。这些记录使我们能够重现游戏的走法。2021 年国际象棋世界锦标赛由马格努斯·卡尔森和伊恩·内波姆尼亚奇进行。这场比赛之所以特别引人注目，有多种原因——包括这是最长的世界锦标赛游戏——但其中之一是卡尔森和内波姆尼亚奇都犯了一些不寻常的错误。例如，在第 33 步，卡尔森没有利用一个机会；在第 36 步，一个不同的走法本可以为内波姆尼亚奇提供一个有希望的残局(Doggers 2021)。这些错误可能的原因之一是，在游戏的那个阶段，两位选手剩余的时间非常少——他们必须非常快速地决定他们的走法。但在游戏记录表提供的表示中，并没有这种感觉，因为它没有记录剩余时间。记录适合作为“正确”地表示游戏中发生的事情；但不一定是为什么发生。让我们通过一组字符串的例子来运行一个示例，其中一些字符串略有错误。这种类型的输出是[第七章中介绍的 OCR 的典型输出，它通常已经完成了大部分工作，但还不够。*
 
-```py
+```r
 messy_string <- paste(
  c("Patricia, Ptricia, PatricIa, Patric1a, PatricIa"),
  c("PatrIcia, Patricia, Patricia, Patricia , 8atricia"),
@@ -289,9 +293,9 @@ messy_string <- paste(
 )
 ```
 
-*与之前一样，我们首先将数据集整理成矩形格式。
+与之前一样，我们首先将数据集整理成矩形格式。
 
-```py
+```r
 messy_dataset <-
  tibble(names = messy_string) |>
  separate_rows(names, sep = ", ")
@@ -299,7 +303,7 @@ messy_dataset <-
 messy_dataset
 ```
 
-*```py
+```r
 # A tibble: 10 × 1
    names      
    <chr>      
@@ -313,14 +317,15 @@ messy_dataset
  8 "Patricia" 
  9 "Patricia "
 10 "8atricia" 
-```*  *我们现在需要决定我们将要修复哪些错误。为了帮助我们决定哪些是最重要的，我们创建了一个计数。
+```
+我们现在需要决定我们将要修复哪些错误。为了帮助我们决定哪些是最重要的，我们创建了一个计数。
 
-```py
+```r
 messy_dataset |>
  count(names, sort = TRUE)
 ```
 
-*```py
+```r
 # A tibble: 7 × 2
   names           n
   <chr>       <int>
@@ -331,11 +336,12 @@ messy_dataset |>
 5 "Patric1a"      1
 6 "Patricia "     1
 7 "Ptricia"       1
-```*  *最常见的独特观察结果是正确的。下一个——“PatricIa”——看起来像是“i”被错误地大写了。对于“PatrIcia”也是如此。我们可以使用`str_to_title()`函数来修复大小写问题，该函数将字符串中每个单词的首字母转换为大写，其余部分转换为小写，然后重新进行计数。
+```
+最常见的独特观察结果是正确的。下一个——“PatricIa”——看起来像是“i”被错误地大写了。对于“PatrIcia”也是如此。我们可以使用`str_to_title()`函数来修复大小写问题，该函数将字符串中每个单词的首字母转换为大写，其余部分转换为小写，然后重新进行计数。
 
 弦论背景信息可在在线附录 A 中找到。
 
-```py
+```r
 messy_dataset_fix_I_8 <-
  messy_dataset |>
  mutate(
@@ -346,7 +352,7 @@ messy_dataset_fix_I_8 |>
  count(names, sort = TRUE)
 ```
 
-*```py
+```r
 # A tibble: 5 × 2
   names           n
   <chr>       <int>
@@ -355,9 +361,10 @@ messy_dataset_fix_I_8 |>
 3 "Patric1a"      1
 4 "Patricia "     1
 5 "Ptricia"       1
-```*  *这已经比之前的 30%正确率要好多了，现在有 60%的值是正确的。还有两个明显的错误——“8tricia”和“Ptricia”——第一个错误在于用“8”代替了“P”，而第二个错误则缺少了一个“a”。我们可以使用`str_replace_all()`来修复这些问题。
+```
+这已经比之前的 30%正确率要好多了，现在有 60%的值是正确的。还有两个明显的错误——“8tricia”和“Ptricia”——第一个错误在于用“8”代替了“P”，而第二个错误则缺少了一个“a”。我们可以使用`str_replace_all()`来修复这些问题。
 
-```py
+```r
 messy_dataset_fix_a_n <-
  messy_dataset_fix_I_8 |>
  mutate(
@@ -369,16 +376,17 @@ messy_dataset_fix_a_n |>
  count(names, sort = TRUE)
 ```
 
-*```py
+```r
 # A tibble: 3 × 2
   names           n
   <chr>       <int>
 1 "Patricia"      8
 2 "Patric1a"      1
 3 "Patricia "     1
-```*  *我们以不太多的努力实现了 80%的成果。最后两个问题更为微妙。第一个问题发生是因为“i”被错误地编码为“1”。在某些字体中这会显示出来，但在其他字体中则更难看到。这是一个常见问题，尤其是在 OCR 中，需要引起注意。第二个问题是因为尾随空格。尾随和首部空格又是另一个常见问题，我们可以通过`str_trim()`来解决。在我们修复这两个剩余问题之后，所有条目都得到了纠正。*
+```
+我们以不太多的努力实现了 80%的成果。最后两个问题更为微妙。第一个问题发生是因为“i”被错误地编码为“1”。在某些字体中这会显示出来，但在其他字体中则更难看到。这是一个常见问题，尤其是在 OCR 中，需要引起注意。第二个问题是因为尾随空格。尾随和首部空格又是另一个常见问题，我们可以通过`str_trim()`来解决。在我们修复这两个剩余问题之后，所有条目都得到了纠正。*
 
-```py
+```r
 cleaned_data <-
  messy_dataset_fix_a_n |>
  mutate(
@@ -390,14 +398,15 @@ cleaned_data |>
  count(names, sort = TRUE)
 ```
 
-*```py
+```r
 # A tibble: 1 × 2
   names        n
   <chr>    <int>
 1 Patricia    10
-```*  *在这个例子中，我们已经在脑海中进行了测试。我们知道我们希望得到“Patricia”。但我们可以开始记录这个测试。一种方法是查看数据集中是否存在除了“Patricia”之外的其他值。*
+```
+在这个例子中，我们已经在脑海中进行了测试。我们知道我们希望得到“Patricia”。但我们可以开始记录这个测试。一种方法是查看数据集中是否存在除了“Patricia”之外的其他值。*
 
-```py
+```r
 check_me <-
  cleaned_data |>
  filter(names != "Patricia")
@@ -407,17 +416,17 @@ if (nrow(check_me) > 0) {
 }
 ```
 
-*我们可以通过使用`stopifnot()`函数在条件不满足时停止代码执行，使事情显得更加严格。要使用这个函数，我们需要定义一个期望满足的条件。我们可以在代码的任何地方实现这种检查。例如，如果我们期望数据集中有特定数量的观测值，或者某个变量具有各种属性，例如是一个整数或因子。*
+我们可以通过使用`stopifnot()`函数在条件不满足时停止代码执行，使事情显得更加严格。要使用这个函数，我们需要定义一个期望满足的条件。我们可以在代码的任何地方实现这种检查。例如，如果我们期望数据集中有特定数量的观测值，或者某个变量具有各种属性，例如是一个整数或因子。*
 
-```py
+```r
 stopifnot(nrow(check_me) == 0)
 ```
 
-*我们可以使用 `stopifnot()` 来确保我们的脚本在运行时按预期工作。
+我们可以使用 `stopifnot()` 来确保我们的脚本在运行时按预期工作。
 
 为我们的数据集编写测试的另一种方法是使用 `testthat`。尽管它是为测试软件包而开发的，但我们仍然可以利用其功能来测试我们的数据集。例如，我们可以使用 `expect_length()` 来检查数据集的长度，以及使用 `expect_equal()` 来检查内容。
 
-```py
+```r
 # Is the dataset of length one?
 expect_length(check_me, 1) 
 # Are the observations characters?
@@ -426,7 +435,7 @@ expect_equal(class(cleaned_data$names), "character")
 expect_equal(unique(cleaned_data$names), "Patricia") 
 ```
 
-*如果测试通过则不会发生任何事，但如果测试失败则脚本将停止。
+如果测试通过则不会发生任何事，但如果测试失败则脚本将停止。
 
 我们测试什么？这是一个难题，我们将在下一节详细描述一系列更具体的测试。但总体来说，我们测试的是我们所拥有的，与我们所期望的进行对比。20 世纪 60 年代参与阿波罗计划软件开发的工程师最初认为编写测试是“忙碌的工作”(Mindell 2008, 170)。但最终他们意识到，除非软件伴随着一套全面的测试，否则 NASA 不会相信软件能够用来将人类送上月球。数据科学也是如此。
 
@@ -440,9 +449,13 @@ expect_equal(unique(cleaned_data$names), "Patricia")
 
 1.  每种类型的观测数量正在被适当地传递。
 
-1.  数据集的维度没有出现意外变化。**********  ****### 9.2.5 迭代、归纳和更新
+1.  数据集的维度没有出现意外变化。
+  
+### 9.2.5 迭代、归纳和更新
 
-我们现在可以迭代这个计划。在这个最近的案例中，我们开始时有十个条目。我们没有理由不能增加到 100 个甚至 1,000 个。我们可能需要将清理程序和测试进行一般化。但最终，我们会开始将数据集整理成某种秩序。******  ****## 9.3 检查和测试
+我们现在可以迭代这个计划。在这个最近的案例中，我们开始时有十个条目。我们没有理由不能增加到 100 个甚至 1,000 个。我们可能需要将清理程序和测试进行一般化。但最终，我们会开始将数据集整理成某种秩序。
+  
+## 9.3 检查和测试
 
 罗伯特·卡罗，林登·约翰逊的传记作者，在第四章中介绍，花费多年时间追踪与美利坚合众国第 36 任总统相关联的每一个人。卡罗和他的妻子伊娜甚至搬到德克萨斯州的希尔乡村居住了三年，以便更好地了解约翰逊的出身。当卡罗听说约翰逊作为参议员将从他在华盛顿特区居住的地方参选参议院时，他自己多次跑那条路线，试图理解约翰逊为何要这么做。卡罗最终是在太阳升起时跑那条路线，就像约翰逊所做的那样，才理解了这一切；结果证明，太阳以特别鼓舞人心的方式照射着参议院圆顶(Caro 2019, 156)。这项背景工作使他能够揭露其他人不知道的方面。例如，约翰逊几乎肯定是在第一次选举中窃取了胜利(Caro 2019, 116)。我们需要像这样深入理解我们的数据。我们希望比喻性地翻阅每一页。
 
@@ -454,14 +467,14 @@ expect_equal(unique(cleaned_data$names), "Patricia")
 
 图表在数据清洗时是一个无价之宝，因为它们展示了数据集中的每个观测值，可能还与其他观测值相关。它们有助于识别哪些值不属于正常范围。例如，如果一个值预期是数值型的，但实际是字符型，那么它将无法绘制，并会显示警告。图表对于数值数据尤其有用，但对于文本和分类数据也同样有用。让我们假设我们有一个情况，我们对于一个青年调查中的人的年龄感兴趣。我们有以下数据：
 
-```py
+```r
 youth_survey_data <-
  tibble(ages = c(
  15.9, 14.9, 16.6, 15.8, 16.7, 17.9, 12.6, 11.5, 16.2, 19.5, 150
  ))
 ```
 
-*```py
+```r
 youth_survey_data |>
  ggplot(aes(x = ages)) +
  geom_histogram(binwidth = 1) +
@@ -481,7 +494,7 @@ youth_survey_data_fixed |>
  )
 ```
 
-*![图片](img/b05d9fcb26b3be254d854a37ed58303f.png)*
+![图片](img/b05d9fcb26b3be254d854a37ed58303f.png)*
 
 (a) 清洁前
 
@@ -491,13 +504,15 @@ youth_survey_data_fixed |>
 
 图 9.2：模拟青年调查数据集中的年龄识别出一个数据问题
 
-图 9.2 (a) 显示了一个意外的值 150。最可能的解释是数据输入错误，遗漏了小数点，应该是 15.0。我们可以修复这个问题，记录下来，然后重新绘制图表，这将显示一切看起来更加有效 (图 9.2 (b))。**  **### 9.3.2 计数
+图 9.2 (a) 显示了一个意外的值 150。最可能的解释是数据输入错误，遗漏了小数点，应该是 15.0。我们可以修复这个问题，记录下来，然后重新绘制图表，这将显示一切看起来更加有效 (图 9.2 (b))。
+
+### 9.3.2 计数
 
 我们希望专注于获取大部分数据的准确性，因此我们对唯一值的计数感兴趣。希望大部分数据都集中在最常见的计数中。但反过来查看特别不常见的数据也可能很有用。我们处理这些数据的程度取决于我们的需求。最终，每次我们修正一个数据点，我们只能获得非常少的额外观察结果，甚至可能只有一条。计数在处理文本或分类数据时特别有用，但在处理数值数据时也可能有所帮助。
 
 让我们来看一个文本数据的例子，每个都代表“澳大利亚”。
 
-```py
+```r
 australian_names_data <-
  tibble(
  country = c(
@@ -510,7 +525,7 @@ australian_names_data |>
  count(country, sort = TRUE)
 ```
 
-*```py
+```r
 # A tibble: 5 × 2
   country        n
   <chr>      <int>
@@ -519,7 +534,8 @@ australian_names_data |>
 3 Aeustralia     1
 4 Austraia       1
 5 Austrelia      1
-```*  *使用这个计数可以确定我们应该在哪里花费时间：将“Australie”改为“Australia”几乎可以使可用数据量翻倍。
+```
+使用这个计数可以确定我们应该在哪里花费时间：将“Australie”改为“Australia”几乎可以使可用数据量翻倍。
 
 简单地转向数值数据，Preece (1981) 建议绘制每个变量观测值的最后一位数字的计数图。例如，如果该变量的观测值为“41.2”，“80.3”，“20.7”，“1.2”，“46.5”，“96.2”，“32.7”，“44.3”，“5.1”，和“49.0”。那么我们注意到 0、1 和 5 各出现一次，3 和 7 各出现两次，而 2 出现了三次。我们可能会预期这些最后一位数字应该有一个均匀的分布。但出人意料的是，这往往不是情况，而且它差异的方式可能是有启发性的。例如，可能数据被四舍五入，或者由不同的收集者记录。
 
@@ -539,7 +555,9 @@ australian_names_data |>
 | 7 | 242,688 |
 | 8 | 207,739 |
 
-| 9 | 216,355 |*  *### 9.3.3 测试
+| 9 | 216,355 |
+
+### 9.3.3 测试
 
 正如我们在第三章中所述，如果你编写代码，那么你就是一名程序员，但仅仅是为了娱乐而编码的人和编写运行詹姆斯·韦伯望远镜代码的人之间是有区别的。遵循温伯格(1971, 122)的观点，我们可以根据后续用户的存在来区分业余爱好者和专业人士。当你刚开始编码时，你通常编写的是只有你自己会使用的代码。例如，你可能为课程论文编写一些代码。在你得到成绩后，在大多数情况下，代码将不再被运行。相比之下，专业人士编写代码是为了，并且经常与，其他人一起。
 
@@ -555,16 +573,16 @@ australian_names_data |>
 
 为了有一个具体的例子，让我们考虑如果我们正在对肯尼亚最大的五个县进行分析。通过查询，我们发现这些是：“内罗毕”、“基安布”、“纳库鲁”、“卡卡梅加”和“布隆迪马”。我们可以创建那个变量。
 
-```py
+```r
 correct_kenya_counties <-
  c(
  "Nairobi", "Kiambu", "Nakuru", "Kakamega", "Bungoma"
  )
 ```
 
-*然后假设我们有一个包含错误的以下数据集。
+然后假设我们有一个包含错误的以下数据集。
 
-```py
+```r
 top_five_kenya <-
  tibble(county = c(
  "Nairobi",  "Nairob1", "Nakuru", "Kakamega", "Nakuru",
@@ -575,7 +593,7 @@ top_five_kenya |>
  count(county, sort = TRUE)
 ```
 
-*```py
+```r
 # A tibble: 9 × 2
   county       n
   <chr>    <int>
@@ -588,9 +606,10 @@ top_five_kenya |>
 7 Kiambu       1
 8 Nairob1      1
 9 Nairobi      1
-```*  *根据计数，我们知道我们必须修复其中的一些。有两个名字中有数字。
+```
+根据计数，我们知道我们必须修复其中的一些。有两个名字中有数字。
 
-```py
+```r
 top_five_kenya_fixed_1_8 <-
  top_five_kenya |>
  mutate(
@@ -602,7 +621,7 @@ top_five_kenya_fixed_1_8 |>
  count(county, sort = TRUE)
 ```
 
-*```py
+```r
 # A tibble: 7 × 2
   county       n
   <chr>    <int>
@@ -613,9 +632,10 @@ top_five_kenya_fixed_1_8 |>
 5 Kakamega     1
 6 Kiambru      1
 7 Kiambu       1
-```*  *在这个阶段，我们可以将此与我们所知的正确变量进行比较。我们进行双向检查，即检查正确变量中是否有不在我们的数据集中，以及数据集中是否有不在我们的正确变量中的内容。我们使用检查条件来决定我们是否完成。
+```
+在这个阶段，我们可以将此与我们所知的正确变量进行比较。我们进行双向检查，即检查正确变量中是否有不在我们的数据集中，以及数据集中是否有不在我们的正确变量中的内容。我们使用检查条件来决定我们是否完成。
 
-```py
+```r
 if (all(top_five_kenya_fixed_1_8$county |>
  unique() %in% correct_kenya_counties)) {
  "The cleaned counties match the expected countries"
@@ -624,11 +644,11 @@ if (all(top_five_kenya_fixed_1_8$county |>
 }
 ```
 
-*```py
+```r
 [1] "Not all of the counties have been cleaned completely"
 ```
 
-```py
+```r
 if (all(correct_kenya_counties %in% top_five_kenya_fixed_1_8$county |>
  unique())) {
  "The expected countries are in the cleaned counties"
@@ -637,9 +657,10 @@ if (all(correct_kenya_counties %in% top_five_kenya_fixed_1_8$county |>
 }
 ```
 
-*```py
+```r
 [1] "The expected countries are in the cleaned counties"
-```**  **很明显，我们仍然需要进行清理，因为并非所有县都符合我们的预期。
+```
+很明显，我们仍然需要进行清理，因为并非所有县都符合我们的预期。
 
 #### 9.3.3.1 需要测试的方面
 
@@ -657,7 +678,7 @@ if (all(correct_kenya_counties %in% top_five_kenya_fixed_1_8$county |>
 
 我们可以使用`validate`来设置一系列测试。例如，这里我们将模拟一些存在明显问题的数据。
 
-```py
+```r
 set.seed(853)
 
 dataset_with_issues <-
@@ -681,7 +702,7 @@ dataset_with_issues <-
 dataset_with_issues
 ```
 
-*```py
+```r
 # A tibble: 10 × 3
      age gender                 income
    <dbl> <chr>                  <chr> 
@@ -695,9 +716,10 @@ dataset_with_issues
  8    24 female                 7     
  9    16 male                   3     
 10  1000 tasmania               2 
-```*  *在这种情况下，存在一个不可能的年龄，性别变量中有一个不应该存在的观测值，最后，收入是一个字符变量而不是数值变量。我们使用`validator()`来建立我们期望数据满足的规则，并使用`confront()`来确定它是否满足这些规则。
+```
+在这种情况下，存在一个不可能的年龄，性别变量中有一个不应该存在的观测值，最后，收入是一个字符变量而不是数值变量。我们使用`validator()`来建立我们期望数据满足的规则，并使用`confront()`来确定它是否满足这些规则。
 
-```py
+```r
 rules <- validator(
  is.numeric(age),
  is.character(gender),
@@ -712,7 +734,7 @@ out <-
 summary(out)
 ```
 
-*```py
+```r
  name items passes fails nNA error warning
 1   V1     1      1     0   0 FALSE   FALSE
 2   V2     1      1     0   0 FALSE   FALSE
@@ -725,9 +747,12 @@ summary(out)
 3                                                  is.numeric(income)
 4                                                           age < 120
 5 gender %vin% c("female", "male", "other", "prefer not to disclose")
-```*  *在这种情况下，我们可以看到我们确立的最后三条规则存在问题。更普遍地，van der Loo (2022) 提供了许多可以使用的示例测试。*
+```
+在这种情况下，我们可以看到我们确立的最后三条规则存在问题。更普遍地，van der Loo (2022) 提供了许多可以使用的示例测试。*
 
-如第六章所述，性别是我们需要特别小心对待的问题。我们通常只有少数既不是“男性”也不是“女性”的回答。正确处理这种情况的方式取决于上下文。但如果除了“男性”或“女性”之外的其他回答因为数量太少而被从数据集中移除并忽略，那么尊重受访者可能意味着包括一个简短的讨论，说明他们与数据集中其他部分相似或不同之处。然后可以在附录中包含图表和更广泛的讨论。**  **#### 9.3.3.2 类
+如第六章所述，性别是我们需要特别小心对待的问题。我们通常只有少数既不是“男性”也不是“女性”的回答。正确处理这种情况的方式取决于上下文。但如果除了“男性”或“女性”之外的其他回答因为数量太少而被从数据集中移除并忽略，那么尊重受访者可能意味着包括一个简短的讨论，说明他们与数据集中其他部分相似或不同之处。然后可以在附录中包含图表和更广泛的讨论。
+
+#### 9.3.3.2 类
 
 有时人们会说美国人沉迷于金钱，而英国人沉迷于阶级。在数据清洗和准备的情况下，我们需要表现得像英国人。阶级至关重要，值得特别注意。我们在在线附录 A 中介绍了阶级，在这里我们关注“数值”、“字符”和“因子”。对变量类别的明确检查是必不可少的。错误地将变量分配到错误的类别可能会对后续分析产生重大影响。重要的是：
 
@@ -737,7 +762,7 @@ summary(out)
 
 要理解为什么明确一个值是数字还是因素很重要，考虑以下情况：
 
-```py
+```r
 simulated_class_data <-
  tibble(
  response = c(1, 1, 0, 1, 0, 1, 1, 0, 0),
@@ -751,7 +776,7 @@ simulated_class_data <-
 
 我们使用逻辑回归，这在第十二章中进行了更详细的介绍，首先将“group”作为一个整数包含在内，然后将其作为一个因子包含。表 9.2 展示了不同结果之间的差异，并突出了正确选择用于回归的变量类别的重要性。在前者中，当 group 是一个整数时，我们要求观察的不同级别之间保持一致的关系，而在后者中，当它是一个因子时，我们允许更多的自由度。
 
-```py
+```r
 models <- list(
  "Group as integer" = glm(
  response ~ group_as_integer,
@@ -767,7 +792,7 @@ models <- list(
 modelsummary(models)
 ```
 
-*表 9.2：检验班级对回归结果的影响*
+表 9.2：检验班级对回归结果的影响*
 
 |  | 将组作为整数 | 将组作为因子 |
 | --- | --- | --- |
@@ -791,7 +816,7 @@ modelsummary(models)
 
 到目前为止，在这本书的这一部分，当我们使用 `read_csv()` 和其他导入数据的函数时，我们允许函数猜测变量的类型。从现在开始，我们将更加谨慎，并使用“col_types”自行指定它。例如，而不是：
 
-```py
+```r
 raw_igme_data <-
  read_csv(
  file = "https://childmortality.org/wp-content/uploads/2021/09/UNIGME-2021.csv",
@@ -801,7 +826,7 @@ raw_igme_data <-
 
 我们推荐使用：
 
-```py
+```r
 raw_igme_data <-
  read_csv(
  file = "https://childmortality.org/wp-content/uploads/2021/09/UNIGME-2021.csv",
@@ -814,7 +839,9 @@ raw_igme_data <-
  )
 ```
 
-这是一个典型的迭代过程，最初是读取数据集，快速了解其内容，然后只指定必要的列和类别，正确地读取它。虽然这会让我们多做一些额外的工作，但清楚类别是很重要的。****  ***#### 9.3.3.3 日期
+这是一个典型的迭代过程，最初是读取数据集，快速了解其内容，然后只指定必要的列和类别，正确地读取它。虽然这会让我们多做一些额外的工作，但清楚类别是很重要的。
+  
+#### 9.3.3.3 日期
 
 判断一个人是否处理过日期的一个标志是，当你告诉他们你将要处理日期时他们的反应。如果他们分享了一个恐怖故事，那么他们很可能之前处理过日期！
 
@@ -832,7 +859,7 @@ raw_igme_data <-
 
 在第二章中，我们使用`opendatatoronto`介绍了 2021 年多伦多庇护所使用的数据集。在这里，我们考察同一数据集，但针对 2017 年，以说明一些与日期相关的问题。我们首先需要下载这些数据。²
 
-```py
+```r
 toronto_shelters_2017 <-
  search_packages("Daily Shelter Occupancy") |>
  list_package_resources() |>
@@ -846,18 +873,18 @@ write_csv(
 )
 ```
 
-*我们需要使名称更容易输入，并且只保留相关列。
+我们需要使名称更容易输入，并且只保留相关列。
 
-```py
+```r
 toronto_shelters_2017 <-
  toronto_shelters_2017 |>
  clean_names() |>
  select(occupancy_date, sector, occupancy, capacity)
 ```
 
-*这个数据集的主要问题将是日期。我们会发现日期大多以年-月-日格式出现，但某些观测值可能是年-日-月格式。我们使用`lubridate`中的`ymd()`函数按此顺序解析日期。*
+这个数据集的主要问题将是日期。我们会发现日期大多以年-月-日格式出现，但某些观测值可能是年-日-月格式。我们使用`lubridate`中的`ymd()`函数按此顺序解析日期。*
 
-```py
+```r
 toronto_shelters_2017 <-
  toronto_shelters_2017 |>
  mutate(
@@ -872,7 +899,7 @@ toronto_shelters_2017 <-
 toronto_shelters_2017
 ```
 
-*```py
+```r
 # A tibble: 38,700 × 5
    occupancy_date sector   occupancy capacity generated_date
    <chr>          <chr>        <dbl>    <dbl> <date>        
@@ -887,9 +914,10 @@ toronto_shelters_2017
  9 2017-01-01     Families         8        0 2017-01-01    
 10 2017-01-01     Co-ed           14       40 2017-01-01    
 # ℹ 38,690 more rows
-```*  *该分布图展示了所谓日成分的分布情况，从中可以明显看出存在一些担忧（图 9.3 (a)）。特别是，我们担心这些天的分布并非大致均匀。
+```
+该分布图展示了所谓日成分的分布情况，从中可以明显看出存在一些担忧（图 9.3 (a)）。特别是，我们担心这些天的分布并非大致均匀。
 
-```py
+```r
 toronto_shelters_2017 |>
  separate(
  generated_date,
@@ -915,7 +943,7 @@ toronto_shelters_2017 |>
  )
 ```
 
-*![图片](img/0da30e0c5ecff04de4a2d2e4bf3dc316.png)*
+![图片](img/0da30e0c5ecff04de4a2d2e4bf3dc316.png)*
 
 (a) 按占用日期的第三分量计数
 
@@ -929,7 +957,7 @@ toronto_shelters_2017 |>
 
 虽然这只是个快速绘制的图表，但它说明了这个观点——有很多数据是有序的，但并非全部。如果它们是有序的，那么我们预期它们会沿着对角线排列。数据最初似乎存在某种系统性，但数据并不有序，这很奇怪。我们可以总结数据以获取按日占用的计数。
 
-```py
+```r
 # Idea from Lisa Lendway
 toronto_shelters_by_day <-
  toronto_shelters_2017 |>
@@ -942,9 +970,9 @@ toronto_shelters_by_day <-
  )
 ```
 
-*我们对多伦多每天可用的庇护所位置感兴趣 (图 9.4)。
+我们对多伦多每天可用的庇护所位置感兴趣 (图 9.4)。
 
-```py
+```r
 toronto_shelters_by_day |>
  ggplot(aes(x = day(generated_date), y = occupancy)) +
  geom_point(alpha = 0.3) +
@@ -962,11 +990,11 @@ toronto_shelters_by_day |>
  scale_color_brewer(palette = "Set1")
 ```
 
-*![图片](img/63b0b58c04175b2869079ab7cd1f1b91.png)*
+![图片](img/63b0b58c04175b2869079ab7cd1f1b91.png)*
 
 图 9.4：多伦多收容所每日占用情况*  *很明显，似乎这个月的前 12 天存在问题。我们注意到，当我们查看数据时，它似乎有些不按顺序，这有点奇怪。从图 9.3（b）来看，似乎有一些系统性问题影响了多个观察结果。总的来说，似乎可能是日期变量中的前 12 天顺序错误，即我们认为它是年-月-日，但实际上是年-日-月。但也有一些例外。作为初步尝试，我们可以将每个月的前 12 天颠倒过来，看看是否有所帮助。这将会相当直接，但希望这能让我们有所进展。
 
-```py
+```r
 # Code by Monica Alexander
 padded_1_to_12 <- sprintf("%02d", 1:12)
 
@@ -991,9 +1019,9 @@ toronto_shelters_2017_flip <-
  select(-year, -month, -day)
 ```
 
-*现在让我们来看一下 (图 9.5).
+现在让我们来看一下 (图 9.5).
 
-```py
+```r
 toronto_shelters_2017_flip |>
  mutate(counter = seq_len(nrow(toronto_shelters_2017_flip))) |>
  ggplot(aes(x = counter, y = changed_date)) +
@@ -1017,7 +1045,7 @@ toronto_shelters_2017_flip |>
  theme_minimal()
 ```
 
-*![图片](img/00b8638269285159ed25f38ff6201f48.png)*
+![图片](img/00b8638269285159ed25f38ff6201f48.png)*
 
 (a) 调整后每行的日期顺序
 
@@ -1027,13 +1055,15 @@ toronto_shelters_2017_flip |>
 
 图 9.5：调整后的日期，多伦多收容所的入住率
 
-它并没有解决所有问题。例如，请注意现在对角线以下没有条目(图 9.5 (a))。但我们可以看出，它几乎完全处理了系统差异(图 9.5 (b))。这就是我们将结束这个示例的地方。*********************  ***## 9.4 模拟示例：运行时间
+它并没有解决所有问题。例如，请注意现在对角线以下没有条目(图 9.5 (a))。但我们可以看出，它几乎完全处理了系统差异(图 9.5 (b))。这就是我们将结束这个示例的地方。
+  
+## 9.4 模拟示例：运行时间
 
 为了提供一个具体的例子，我们将在第十二章中再次提及，考虑某人跑五公里（略超过三英里）所需的时间，与跑马拉松所需的时间相比（图 12.2 (a))。
 
 在这里，我们考虑“模拟”和“获取”，重点关注测试。在模拟中，我们指定了一个 8.4 的关系，因为这是五公里跑和马拉松 42.2 公里距离（略超过 26 英里）的大致比例。
 
-```py
+```r
 set.seed(853)
 
 num_observations <- 200
@@ -1057,7 +1087,7 @@ sim_run_data <-
 sim_run_data
 ```
 
-*```py
+```r
 # A tibble: 200 × 2
    five_km_time marathon_time
           <dbl>         <dbl>
@@ -1072,9 +1102,10 @@ sim_run_data
  9         17.4          150.
 10         17.8          126.
 # ℹ 190 more rows
-```*  *我们可以使用我们的模拟来实施各种测试，我们希望实际数据能够满足这些测试。例如，我们希望 5 公里和马拉松跑步时间的类别是数值型的。并且我们希望有 200 个观测值。
+```
+我们可以使用我们的模拟来实施各种测试，我们希望实际数据能够满足这些测试。例如，我们希望 5 公里和马拉松跑步时间的类别是数值型的。并且我们希望有 200 个观测值。
 
-```py
+```r
 stopifnot(
  class(sim_run_data$marathon_time) == "numeric",
  class(sim_run_data$five_km_time) == "numeric",
@@ -1084,7 +1115,7 @@ stopifnot(
 
 我们知道，对于五公里跑步时间，任何少于 15 分钟或超过 30 分钟的价值都可能是需要跟进的事情。
 
-```py
+```r
 stopifnot(
  min(sim_run_data$five_km_time) >= 15,
  max(sim_run_data$five_km_time) <= 30
@@ -1093,16 +1124,16 @@ stopifnot(
 
 基于此最大值和模拟的 8.4 倍关系，如果我们发现任何马拉松时间显著超过$30\times8.4=252$分钟，即在考虑到一点漂移，比如 300 分钟之后，我们会感到惊讶。（为了明确，跑马拉松用时超过这个时间并没有什么不妥，但根据我们的模拟参数来看，这种情况不太可能）。而且，如果截至 2023 年开始的世界纪录马拉松时间，121 分钟，能比一分钟或两分钟更快，比如说，比 118 分钟更快，我们也会感到惊讶。（结果将表明，我们的模拟数据并不满足这一条件，导致了一个不切实际的 88 分钟马拉松时间，这表明需要改进模拟。）
 
-```py
+```r
 stopifnot(
  min(sim_run_data$marathon_time) >= 118,
  max(sim_run_data$marathon_time) <= 300
 )
 ```
 
-*然后我们可以将这些测试应用于实际数据。关于五公里跑和马拉松跑时间之间关系的实际调查数据，可以从 Vickers 和 Vertosick（2016）处获得）。下载这些数据后，Vickers 和 Vertosick（2016）将其作为“附加文件”提供，我们可以专注于感兴趣的变量，并且只关注那些既有五公里跑时间又有马拉松跑时间的个体。
+然后我们可以将这些测试应用于实际数据。关于五公里跑和马拉松跑时间之间关系的实际调查数据，可以从 Vickers 和 Vertosick（2016）处获得）。下载这些数据后，Vickers 和 Vertosick（2016）将其作为“附加文件”提供，我们可以专注于感兴趣的变量，并且只关注那些既有五公里跑时间又有马拉松跑时间的个体。
 
-```py
+```r
 vickers_data <- 
  read_excel("13102_2016_52_MOESM2_ESM.xlsx") |> 
  select(k5_ti, mf_ti) |> 
@@ -1111,7 +1142,7 @@ vickers_data <-
 vickers_data
 ```
 
-*```py
+```r
 # A tibble: 430 × 2
    k5_ti mf_ti
    <dbl> <dbl>
@@ -1132,7 +1163,7 @@ vickers_data
 
 在这种情况下，我们将除以六十并四舍五入，以便将我们的数据转换为分钟。
 
-```py
+```r
 vickers_data <- 
  vickers_data |> 
  mutate(five_km_time = round(k5_ti / 60, 1),
@@ -1143,7 +1174,7 @@ vickers_data <-
 vickers_data
 ```
 
-*```py
+```r
 # A tibble: 430 × 2
    five_km_time marathon_time
           <dbl>         <dbl>
@@ -1158,7 +1189,9 @@ vickers_data
  9         26.2          286.
 10         42.9          369 
 # ℹ 420 more rows
-```*  *```py
+
+
+```r
 stopifnot(
  class(vickers_data$marathon_time) == "numeric",
  class(vickers_data$five_km_time) == "numeric",
@@ -1169,7 +1202,9 @@ stopifnot(
 )
 ```
 
-*在这种情况下，我们为模拟数据编写的测试表明，我们有五公里的跑步时间，其速度超过 15 分钟且超过 30 分钟。它们还确定了马拉松时间超过 300 分钟。如果我们实际上使用这些数据进行分析，那么我们的下一步将是绘制数据图表，注意检查我们测试中确定的每一个这些点，然后调整测试或数据集。*******  ***## 9.5 名称
+在这种情况下，我们为模拟数据编写的测试表明，我们有五公里的跑步时间，其速度超过 15 分钟且超过 30 分钟。它们还确定了马拉松时间超过 300 分钟。如果我们实际上使用这些数据进行分析，那么我们的下一步将是绘制数据图表，注意检查我们测试中确定的每一个这些点，然后调整测试或数据集。
+  
+## 9.5 名称
 
 > 我们开发的一种改进型扫描软件在带有补充 Excel 基因列表的 30.9%（3,436/11,117）篇文章中识别出了基因名称错误；这个比例显著高于之前的估计。这是因为基因名称不仅被转换成了日期和浮点数，还被转换成了内部日期格式（五位数字）。
 > 
@@ -1203,7 +1238,7 @@ stopifnot(
 
 一个特别有用的函数，用于获取更接近机器可读名称的是来自`janitor`的`clean_names()`。这个函数处理了上述提到的问题以及一些其他问题。
 
-```py
+```r
 some_bad_names <-
  tibble(
  "Second Name has spaces" = c(1),
@@ -1218,23 +1253,24 @@ bad_names_made_better <-
 some_bad_names
 ```
 
-*```py
+```r
 # A tibble: 1 × 3
   `Second Name has spaces` `weird#symbol` InCoNsIsTaNtCaPs
                      <dbl>          <dbl>            <dbl>
 1                        1              1                1
 ```
 
-```py
+```r
 bad_names_made_better
 ```
 
-*```py
+```r
 # A tibble: 1 × 3
   second_name_has_spaces weird_number_symbol in_co_ns_is_ta_nt_ca_ps
                    <dbl>               <dbl>                   <dbl>
 1                      1                   1                       1
-```**  **### 9.5.2 可读性
+```
+### 9.5.2 可读性
 
 > 程序必须为人们阅读而编写，而只是偶然地为了机器执行
 > 
@@ -1248,7 +1284,7 @@ bad_names_made_better
 
 R 语言的一个有趣特性是，在某些情况下可以进行名称的部分匹配。例如：
 
-```py
+```r
 partial_matching_example <-
  data.frame(
  my_first_name = c(1, 2),
@@ -1258,17 +1294,18 @@ partial_matching_example <-
 partial_matching_example$my_first_name
 ```
 
-*```py
+```r
 [1] 1 2
 ```
 
-```py
+```r
 partial_matching_example$my
 ```
 
-*```py
+```r
 [1] 1 2
-```**  **这种行为在`tidyverse`中是不可能的（例如，如果在上面的代码中将`data.frame`替换为`tibble`）。部分匹配应很少使用。它使得在休息后理解代码变得更加困难，并且对于其他人来说，要全新地接触它也更加困难。
+```
+这种行为在`tidyverse`中是不可能的（例如，如果在上面的代码中将`data.frame`替换为`tibble`）。部分匹配应很少使用。它使得在休息后理解代码变得更加困难，并且对于其他人来说，要全新地接触它也更加困难。
 
 变量名应该有一个一致的格式。例如，强制执行命名模式 `verb_noun`，如 `read_csv()`，然后有一个函数是 `noun_verb`，可能 `csv_read()`，这将是不一致的。这种不一致性会带来显著的成本，因为它使得记住函数的名称变得更加困难。
 
@@ -1278,7 +1315,7 @@ Riederer (2020) 建议使用变量名作为契约。我们通过为它们建立�
 
 例如，我们可以考虑“年龄”和“性别”这样的列名。遵循 Riederer（2020）的做法，我们可能将这些列名改为更能反映类别和其他信息的名称。这个问题尚未解决，也没有最佳实践。例如，有人反对这种做法，认为它会影响可读性。
 
-```py
+```r
 some_names <-
  tibble(
  age = as.integer(c(1, 3, 35, 36)),
@@ -1295,7 +1332,7 @@ riederer_names <-
 some_names
 ```
 
-*```py
+```r
 # A tibble: 4 × 2
     age sex   
   <int> <fct> 
@@ -1305,11 +1342,11 @@ some_names
 4    36 male 
 ```
 
-```py
+```r
 riederer_names
 ```
 
-*```py
+```r
 # A tibble: 4 × 2
   integer_age_respondent factor_sex_respondent
                    <int> <fct>                
@@ -1317,7 +1354,10 @@ riederer_names
 2                      3 male                 
 3                     35 female               
 4                     36 male 
-```**  **甚至只是在项目中进行一点更明确和一致的命名通常在我们稍后回顾项目时能带来实质性的好处。玫瑰换个名字还会香吗？当然会。但我们称之为玫瑰——或者更好的是 *Rosa rubiginosa*——因为这样有助于他人了解我们在谈论什么，与“红色东西”、“五瓣香花”、“花”或“r_1”相比。这更清晰，有助于他人高效理解。******  ***## 9.6 1996 坦桑尼亚 DHS
+```
+甚至只是在项目中进行一点更明确和一致的命名通常在我们稍后回顾项目时能带来实质性的好处。玫瑰换个名字还会香吗？当然会。但我们称之为玫瑰——或者更好的是 *Rosa rubiginosa*——因为这样有助于他人了解我们在谈论什么，与“红色东西”、“五瓣香花”、“花”或“r_1”相比。这更清晰，有助于他人高效理解。
+  
+## 9.6 1996 坦桑尼亚 DHS
 
 我们现在将讨论两个例子中的第一个。人口与健康调查（DHS）在我们可能没有其他数据集的地区收集数据时发挥着重要作用。在这里，我们将清洗并准备一个关于 1996 年坦桑尼亚家庭人口的 DHS 表格。作为提醒，本书中我们倡导的工作流程是：
 
@@ -1331,7 +1371,7 @@ $$ 计划\rightarrow 模拟\rightarrow 获取\rightarrow 探索\rightarrow 分�
 
 我们可以随后模拟一个数据集。
 
-```py
+```r
 set.seed(853)
 
 age_group <- tibble(starter = 0:19) |>
@@ -1360,7 +1400,7 @@ simulated_tanzania_dataset <-
 simulated_tanzania_dataset
 ```
 
-*```py
+```r
 # A tibble: 20 × 10
    age_group urban_male urban_female rural_male rural_female total_male
    <chr>          <dbl>        <dbl>      <dbl>        <dbl>      <dbl>
@@ -1386,7 +1426,8 @@ simulated_tanzania_dataset
 20 95-99             10           10         10           11         11
 # ℹ 4 more variables: total_female <dbl>, urban_total <dbl>, rural_total <dbl>,
 #   total_total <dbl>
-```*  *基于这次模拟，我们感兴趣的是测试以下内容：
+```
+基于这次模拟，我们感兴趣的是测试以下内容：
 
 1.  是否只有数字。
 
@@ -1396,7 +1437,7 @@ simulated_tanzania_dataset
 
 我们首先开始下载数据。³
 
-```py
+```r
 download.file(
  url = "https://dhsprogram.com/pubs/pdf/FR83/FR83.pdf",
  destfile = "1996_Tanzania_DHS.pdf",
@@ -1404,16 +1445,16 @@ download.file(
 )
 ```
 
-*当我们有一个 PDF 文件并希望将其内容读入 R 时，`pdftools`中的`pdf_text()`函数很有用，如第七章中所述。它对许多近期生成的 PDF 文件效果良好，因为这些文件的内容是文本，它可以提取。但如果 PDF 是一个图像，那么`pdf_text()`将不起作用。相反，PDF 首先需要通过 OCR 处理，这也在第七章中介绍过。*
+当我们有一个 PDF 文件并希望将其内容读入 R 时，`pdftools`中的`pdf_text()`函数很有用，如第七章中所述。它对许多近期生成的 PDF 文件效果良好，因为这些文件的内容是文本，它可以提取。但如果 PDF 是一个图像，那么`pdf_text()`将不起作用。相反，PDF 首先需要通过 OCR 处理，这也在第七章中介绍过。*
 
-```py
+```r
 tanzania_dhs <-
  pdf_text(
  pdf = "1996_Tanzania_DHS.pdf"
  )
 ```
 
-*在这种情况下，我们关注的是表 2.1，它位于 PDF 的第 33 页(图 9.7))。
+在这种情况下，我们关注的是表 2.1，它位于 PDF 的第 33 页(图 9.7))。
 
 ![图片](img/2affbc72f28af9c9b7ec9edd5176807b.png)
 
@@ -1421,14 +1462,14 @@ tanzania_dhs <-
 
 我们使用 `stri_split_lines()` 函数从 `stringi` 库中，来专注于那一特定页面。
 
-```py
+```r
 # From Bob Rudis: https://stackoverflow.com/a/47793617
 tanzania_dhs_page_33 <- stri_split_lines(tanzania_dhs[[33]])[[1]]
 ```
 
 我们首先希望移除所有文字内容，专注于表格。然后我们希望将其转换为 tibble 格式，以便我们可以使用我们熟悉的`tidyverse`方法。
 
-```py
+```r
 tanzania_dhs_page_33_only_data <- tanzania_dhs_page_33[31:55]
 
 tanzania_dhs_raw <- tibble(all = tanzania_dhs_page_33_only_data)
@@ -1436,7 +1477,7 @@ tanzania_dhs_raw <- tibble(all = tanzania_dhs_page_33_only_data)
 tanzania_dhs_raw
 ```
 
-*```py
+```r
 # A tibble: 25 × 1
    all                                                                          
    <chr>                                                                        
@@ -1451,9 +1492,10 @@ tanzania_dhs_raw
  9 " 15-19                 10.8        11.3        11.1           9.8      8.8 …
 10 " 20-~                   9.4        12.2        10,8           5.9      8.2 …
 # ℹ 15 more rows
-```*  *所有列都已经被合并成了一列，因此我们需要将它们分开。我们将根据空格的存在来操作，这意味着我们首先需要将“Age group”改为“Age-group”，因为我们不希望它们被分开。*
+```
+所有列都已经被合并成了一列，因此我们需要将它们分开。我们将根据空格的存在来操作，这意味着我们首先需要将“Age group”改为“Age-group”，因为我们不希望它们被分开。*
 
-```py
+```r
 # Separate columns
 tanzania_dhs_separated <-
  tanzania_dhs_raw |>
@@ -1476,7 +1518,7 @@ tanzania_dhs_separated <-
 tanzania_dhs_separated
 ```
 
-*```py
+```r
 # A tibble: 25 × 10
    age_group   male_urban female_urban total_urban male_rural female_rural
    <chr>       <chr>      <chr>        <chr>       <chr>      <chr>       
@@ -1493,15 +1535,16 @@ tanzania_dhs_separated
 # ℹ 15 more rows
 # ℹ 4 more variables: total_rural <chr>, male_total <chr>, female_total <chr>,
 #   total_total <chr>
-```*  *我们现在需要清理行和列。一种有助于确定需要移除内容的“负空间”方法是，看看如果我们暂时移除所有已知想要保留的内容后剩下什么。剩下的任何内容都将成为移除的候选对象。在这种情况下，我们知道我们希望列中包含数字，因此我们从所有列中移除数字，以查看这可能会阻碍我们从字符串转换为数字的障碍。
+```
+我们现在需要清理行和列。一种有助于确定需要移除内容的“负空间”方法是，看看如果我们暂时移除所有已知想要保留的内容后剩下什么。剩下的任何内容都将成为移除的候选对象。在这种情况下，我们知道我们希望列中包含数字，因此我们从所有列中移除数字，以查看这可能会阻碍我们从字符串转换为数字的障碍。
 
-```py
+```r
 tanzania_dhs_separated |>
  mutate(across(everything(), ~ str_remove_all(., "[:digit:]"))) |>
  distinct()
 ```
 
-*```py
+```r
 # A tibble: 15 × 10
    age_group   male_urban female_urban total_urban male_rural female_rural
    <chr>       <chr>      <chr>        <chr>       <chr>      <chr>       
@@ -1522,9 +1565,10 @@ tanzania_dhs_separated |>
 15 "Number"    ,          ,            ,           .          ,           
 # ℹ 4 more variables: total_rural <chr>, male_total <chr>, female_total <chr>,
 #   total_total <chr>
-```*  *在这种情况下，我们可以看到一些逗号和分号被错误地认为是小数点。此外，一些波浪线和空白行需要被移除。之后，我们就可以应用正确的类别了。
+```
+在这种情况下，我们可以看到一些逗号和分号被错误地认为是小数点。此外，一些波浪线和空白行需要被移除。之后，我们就可以应用正确的类别了。
 
-```py
+```r
 tanzania_dhs_cleaned <-
  tanzania_dhs_separated |>
  slice(6:22, 24, 25) |>
@@ -1542,7 +1586,7 @@ tanzania_dhs_cleaned <-
 tanzania_dhs_cleaned
 ```
 
-*```py
+```r
 # A tibble: 19 × 10
    age_group male_urban female_urban total_urban male_rural female_rural
    <chr>          <dbl>        <dbl>       <dbl>      <dbl>        <dbl>
@@ -1567,20 +1611,24 @@ tanzania_dhs_cleaned
 19 Number          3.69         3.88        7.57    14775           15.9
 # ℹ 4 more variables: total_rural <dbl>, male_total <dbl>, female_total <dbl>,
 #   total_total <dbl>
-```*  *最后，我们可能希望检查构成部分的总和是否等于总数。
+```
+最后，我们可能希望检查构成部分的总和是否等于总数。
 
-```py
+```r
 tanzania_dhs_cleaned |>
  filter(!age_group %in% c("Total", "Number")) |>
  summarise(sum = sum(total_total))
 ```
 
-*```py
+```r
 # A tibble: 1 × 1
     sum
   <dbl>
 1  99.7
-```*  *在这种情况下，我们可以看到它偏离了几个百分点。*********  ***## 9.7 2019 肯尼亚人口普查
+```
+在这种情况下，我们可以看到它偏离了几个百分点。
+  
+## 9.7 2019 肯尼亚人口普查
 
 作为最后的例子，让我们考虑一个更广泛的情况，并从 2019 年肯尼亚人口普查中收集、清理和准备一些数据。我们将专注于创建一个按性别划分的单年计数数据集，针对内罗毕。
 
@@ -1590,7 +1638,7 @@ tanzania_dhs_cleaned |>
 
 我们首先需要下载并阅读 2019 年肯尼亚人口普查的 PDF 文件。⁴
 
-```py
+```r
 census_url <-
  paste0(
  "https://www.knbs.or.ke/download/2019-kenya-population-and-",
@@ -1606,16 +1654,16 @@ download.file(
 )
 ```
 
-*我们可以再次在这里使用来自 `pdftools` 的 `pdf_text()` 函数。
+我们可以再次在这里使用来自 `pdftools` 的 `pdf_text()` 函数。
 
-```py
+```r
 kenya_census <-
  pdf_text(
  pdf = "2019_Kenya_census.pdf"
  )
 ```
 
-*在这个例子中，我们将关注关于内罗毕的 PDF 页面(图 9.8)。
+在这个例子中，我们将关注关于内罗毕的 PDF 页面(图 9.8)。
 
 ![图片](img/77252391ad58947295e8f5fd9704ab90.png)
 
@@ -1625,7 +1673,7 @@ kenya_census <-
 
 首个挑战是将数据集转换成我们更容易操作的形式。我们将提取页面中的相关部分。在这种情况下，关于内罗毕的数据位于第 410 页。
 
-```py
+```r
 # Focus on the page of interest
 just_nairobi <- stri_split_lines(kenya_census[[410]])[[1]]
 
@@ -1642,9 +1690,9 @@ just_nairobi <- just_nairobi[1:62]
 demography_data <- tibble(all = just_nairobi)
 ```
 
-*在这一步，数据已经处于 tibble 格式。这使得我们可以使用我们熟悉的`dplyr`动词。特别是，我们想要分离列。*
+在这一步，数据已经处于 tibble 格式。这使得我们可以使用我们熟悉的`dplyr`动词。特别是，我们想要分离列。*
 
-```py
+```r
 demography_data <-
  demography_data |>
  mutate(all = str_squish(all)) |>
@@ -1664,9 +1712,9 @@ demography_data <-
  )
 ```
 
-*他们此刻并排在一起。我们需要改为添加到底部。
+他们此刻并排在一起。我们需要改为添加到底部。
 
-```py
+```r
 demography_data_long <-
  rbind(
  demography_data |> select(age, male, female, total),
@@ -1681,7 +1729,7 @@ demography_data_long <-
  )
 ```
 
-*```py
+```r
 # There is one row of NAs, so remove it
 demography_data_long <-
  demography_data_long |>
@@ -1690,7 +1738,7 @@ demography_data_long <-
 demography_data_long
 ```
 
-*```py
+```r
 # A tibble: 123 × 4
    age   male      female    total    
    <chr> <chr>     <chr>     <chr>    
@@ -1705,18 +1753,21 @@ demography_data_long
  9 6     43,635    44,226    87,861   
 10 7     43,507    43,655    87,162   
 # ℹ 113 more rows
-```*  *将其整理成矩形格式后，我们现在需要清理数据集以使其变得有用。****  ***#### 9.7.1.2 有效性
+```
+将其整理成矩形格式后，我们现在需要清理数据集以使其变得有用。
+  
+#### 9.7.1.2 有效性
 
 要获得有效性需要多个步骤。第一步是将数字转换为实际的数字，而不是字符。在我们转换类型之前，我们需要移除任何非数字的内容，否则该单元格将被转换为 NA。我们首先识别任何非数字的值，以便我们可以移除它们，而`distinct()`函数特别有用。
 
-```py
+```r
 demography_data_long |>
  select(male, female, total) |>
  mutate(across(everything(), ~ str_remove_all(., "[:digit:]"))) |>
  distinct()
 ```
 
-*```py
+```r
 # A tibble: 5 × 3
   male  female total
   <chr> <chr>  <chr>
@@ -1725,9 +1776,10 @@ demography_data_long |>
 3 ""    ","    ","  
 4 ""    ""     ","  
 5 ""    ""     "" 
-```*  *我们需要删除逗号。虽然在这里我们可以使用`janitor`，但至少首先看看发生了什么是有价值的，因为有时会有一些奇怪的东西，`janitor`（以及其他包）不会以我们想要的方式处理。尽管如此，一旦确定了所有需要删除的内容，我们就可以进行实际的删除操作，并将我们的数字字符列转换为整数。
+```
+我们需要删除逗号。虽然在这里我们可以使用`janitor`，但至少首先看看发生了什么是有价值的，因为有时会有一些奇怪的东西，`janitor`（以及其他包）不会以我们想要的方式处理。尽管如此，一旦确定了所有需要删除的内容，我们就可以进行实际的删除操作，并将我们的数字字符列转换为整数。
 
-```py
+```r
 demography_data_long <-
  demography_data_long |>
  mutate(across(c(male, female, total), ~ str_remove_all(., ","))) |>
@@ -1736,7 +1788,7 @@ demography_data_long <-
 demography_data_long
 ```
 
-*```py
+```r
 # A tibble: 123 × 4
    age      male  female   total
    <chr>   <int>   <int>   <int>
@@ -1751,11 +1803,12 @@ demography_data_long
  9 6       43635   44226   87861
 10 7       43507   43655   87162
 # ℹ 113 more rows
-```**  **#### 9.7.1.3 内部一致性
+```
+#### 9.7.1.3 内部一致性
 
 人口普查已经为我们做了一些将年龄组组合起来的工作，但我们希望让它变得容易，只需关注按单一年龄的计数。因此，我们将添加一个标志来表示年龄的类型：一个年龄组，例如“0 至 5 岁”，或者一个单一年龄，例如“1 岁”。
 
-```py
+```r
 demography_data_long <-
  demography_data_long |>
  mutate(
@@ -1768,19 +1821,21 @@ demography_data_long <-
  )
 ```
 
-*目前，年龄是一个字符变量。我们在这里有一个决定要做。我们不想让它成为一个字符变量（因为它无法正确绘图），但我们也不希望它是数字的，因为其中包含了`total`和`100+`。目前，我们将其转换为因子，至少这样它能够被很好地绘制。*
+目前，年龄是一个字符变量。我们在这里有一个决定要做。我们不想让它成为一个字符变量（因为它无法正确绘图），但我们也不希望它是数字的，因为其中包含了`total`和`100+`。目前，我们将其转换为因子，至少这样它能够被很好地绘制。*
 
-```py
+```r
 demography_data_long <-
  demography_data_long |>
  mutate(
  age = as_factor(age)
  )
-```********  ***### 9.7.2 检查和测试
+```
+  
+### 9.7.2 检查和测试
 
 收集并清理完数据后，我们希望运行一些检查。鉴于数据的格式，我们可以检查“总数”是否是“男性”和“女性”的总和，这两个是唯一可用的性别类别。
 
-```py
+```r
 demography_data_long |>
  mutate(
  check_sum = male + female,
@@ -1789,13 +1844,14 @@ demography_data_long |>
  filter(totals_match == 0)
 ```
 
-*```py
+```r
 # A tibble: 0 × 7
 # ℹ 7 variables: age <fct>, male <int>, female <int>, total <int>,
 #   age_type <chr>, check_sum <int>, totals_match <dbl>
-```*  *最后，我们想要检查单年龄段的计数总和是否等于年龄段的总和。
+```
+最后，我们想要检查单年龄段的计数总和是否等于年龄段的总和。
 
-```py
+```r
 demography_data_long |>
  mutate(age_groups = if_else(age_type == "age-group", 
  age, 
@@ -1811,7 +1867,7 @@ demography_data_long |>
  head()
 ```
 
-*```py
+```r
 # A tibble: 6 × 8
   age     male female  total age_type  age_groups group_sum difference
   <fct>  <int>  <int>  <int> <chr>     <chr>          <dbl>      <dbl>
@@ -1821,11 +1877,12 @@ demography_data_long |>
 4 15-19 159098 192755 351853 age-group 15-19         351853          0
 5 20-24 249534 313485 563019 age-group 20-24         563019          0
 6 25-29 282703 300845 583548 age-group 25-29         583548          0
-```**  **### 9.7.3 整理
+```
+### 9.7.3 整理
 
 现在我们有理由相信一切看起来都很顺利，我们可以将其转换为整洁的格式。这将使工作变得更加容易。
 
-```py
+```r
 demography_data_tidy <-
  demography_data_long |>
  rename_with(~paste0(., "_total"), male:total) |>
@@ -1840,9 +1897,9 @@ demography_data_tidy <-
  select(age, age_type, gender, number)
 ```
 
-*清洗这个数据集的原始目的是制作一个由亚历山大和阿尔克玛(2022)使用的表格。我们将回到这个数据集，但为了把这些内容都整合在一起，我们可能想要制作一个按性别划分的单年计数图，以展示内罗毕的情况(图 9.9))。
+清洗这个数据集的原始目的是制作一个由亚历山大和阿尔克玛(2022)使用的表格。我们将回到这个数据集，但为了把这些内容都整合在一起，我们可能想要制作一个按性别划分的单年计数图，以展示内罗毕的情况(图 9.9))。
 
-```py
+```r
 demography_data_tidy |>
  filter(age_type == "single-year") |>
  select(age, gender, number) |>
@@ -1864,13 +1921,13 @@ demography_data_tidy |>
  coord_flip()
 ```
 
-*![图片](img/e7b328c14ad08fbc5f8d85b215c51993.png)*
+![图片](img/e7b328c14ad08fbc5f8d85b215c51993.png)*
 
 图 9.9：2019 年内罗毕年龄和性别的分布，基于肯尼亚人口普查*  *从图 9.9 中可以清晰地看到多种特征，包括年龄集中、男女性出生比例的微小差异以及 15 至 25 岁之间的显著差异。
 
 最后，我们可能希望使用更具信息量的名称。例如，在之前提到的肯尼亚数据示例中，我们有以下列名：“area”（面积）、“age”（年龄）、“gender”（性别）和“number”（数量）。如果我们把列名当作合约，那么它们可以是：“chr_area”（染色体面积）、“fctr_group_age”（因素分组年龄）、“chr_group_gender”（染色体分组性别）和“int_group_count”（整数分组计数）。
 
-```py
+```r
 column_names_as_contracts <-
  demography_data_tidy |>
  filter(age_type == "single-year") |>
@@ -1882,9 +1939,9 @@ column_names_as_contracts <-
  )
 ```
 
-*我们可以使用 `pointblank` 来为我们设置测试。
+我们可以使用 `pointblank` 来为我们设置测试。
 
-```py
+```r
 agent <-
  create_agent(tbl = column_names_as_contracts) |>
  col_is_character(columns = vars(chr_group_gender)) |>
@@ -1899,7 +1956,7 @@ agent <-
 agent
 ```
 
-*| 点对点验证 |
+| 点对点验证 |
 
 | --- |
 | --- |
@@ -1936,7 +1993,9 @@ agent
 |  | ✓ | `306` | `306` `1` | `0` `0` | — | — | — | — |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
-| 2024-11-21 09:51:24 EST < 1 s 2024-11-21 09:51:24 EST |*********  ***## 9.8 练习
+| 2024-11-21 09:51:24 EST < 1 s 2024-11-21 09:51:24 EST |
+  
+## 9.8 练习
 
 ### 练习
 
@@ -1966,14 +2025,14 @@ agent
 
 1.  以下是否是整洁数据的示例？
 
-```py
+```r
 tibble(
  name = c("Ian", "Patricia", "Ville", "Karen"),
  age_group = c("18-29", "30-44", "45-60", "60+"),
 )
 ```
 
-*```py
+```r
 a.  Yes
 b. No
 ```
@@ -2020,7 +2079,9 @@ b. No
 
     1.  字母“I”与数字“1”或字母“l”的互换
 
-1.  关于普雷斯的著作(1981)，请讨论两种最终数字可以提供信息的方式。针对每种方式，至少写一段话并包含例子。*  *### 课堂活动
+1.  关于普雷斯的著作(1981)，请讨论两种最终数字可以提供信息的方式。针对每种方式，至少写一段话并包含例子。
+
+### 课堂活动
 
 +   选择一个你非常熟悉的主题，然后：
 
@@ -2048,19 +2109,19 @@ b. No
 
     +   讨论你的名字与`palmerpenguins::penguins`的比较
 
-```py
+```r
 raw_penguin_data <-
  read_csv(file = "https://portal.edirepository.org/nis/dataviewer?packageid=knb-lter-pal.219.5&entityid=002f3893385f710df69eeebe893144ff",
  show_col_types = FALSE)
 ```
 
-**   生成一个整洁版本的 Anscombe 四重奏，可以使用 `anscombe` 命令获取。
+生成一个整洁版本的 Anscombe 四重奏，可以使用 `anscombe` 命令获取。
 
 +   美国综合社会调查（US General Social Survey）中的“不知道”代码是如何编码的？
 
 +   讨论编码缺失数据每个选项的优缺点：
 
-```py
+```r
 tibble(
  income_1 = c(88515, 103608, -99, 87644, 118279, 107342, 97300, 97226, 73367, 101528),
  income_2 = c(88515, 103608, 102582, 87644, 118279, 107342, "missing", 97226, 73367, 101528),
@@ -2084,7 +2145,7 @@ tibble(
 
 +   想象一下你对理解代际财富感兴趣，其中一个方面是将今天人们的教育成果与一百年前的人们以及不同国家的人们联系起来。请确保数据集的一致性，并记录你做出这些选择的原因。
 
-```py
+```r
 tibble(
  period = c(1901, 1901, 1901, 2023, 2023, 2023),
  country = c(
@@ -2106,7 +2167,7 @@ tibble(
 )
 ```
 
-**   从 `datasets::UCBAdmissions` 中整理数据**
+从 `datasets::UCBAdmissions` 中整理数据**
 
 +   使用 `datasets::LifeCycleSavings`:
 
@@ -2120,7 +2181,7 @@ tibble(
 
 +   修复以下问题：
 
-```py
+```r
 tibble(
  date = c("20-02-2023",
  "20 February 2023",
@@ -2130,9 +2191,9 @@ tibble(
  )
 ```
 
-**   修复以下问题：
+修复以下问题：
 
-```py
+```r
 tibble(
  date = c("01-02-2023",
  "02-01-2023",
@@ -2140,9 +2201,11 @@ tibble(
  )
 ```
 
-**   假设你住在加拿大多伦多。以下日期有什么问题？⁸ `2023-03-12 02:01:00`。
+假设你住在加拿大多伦多。以下日期有什么问题？⁸ `2023-03-12 02:01:00`。
 
-+   按照第十六章中的示例，从[美国综合社会调查](https://gss.norc.org/Get-The-Data)读取一个“.dta”文件，添加标签，并绘制某个变量的图表。缺失数据会发生什么？*****  ***
++   按照第十六章中的示例，从[美国综合社会调查](https://gss.norc.org/Get-The-Data)读取一个“.dta”文件，添加标签，并绘制某个变量的图表。缺失数据会发生什么？
+  
+
 
 关于乔丹(2019)、D’Ignazio 和 Klein(2020, 第六章)、Au(2020)以及其他相关研究，你认为我们应该让数据自己说话到什么程度？请至少写两页。
 
@@ -2162,4 +2225,5 @@ tibble(
 
 1.  这个练习的想法来自 Taylor John Wright。↩︎
 
-1.  这个练习的想法来自德里克·比顿。↩︎***********************
+1.  这个练习的想法来自德里克·比顿。↩︎
+

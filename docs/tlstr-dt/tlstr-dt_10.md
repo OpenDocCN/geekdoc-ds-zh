@@ -6,7 +6,8 @@
 
 1.  4  撰写研究
 
-《查普曼和霍尔/CRC》于 2023 年 7 月出版了这本书。您可以在[这里](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。这个在线版本对印刷版有所更新。***先决条件**
+《查普曼和霍尔/CRC》于 2023 年 7 月出版了这本书。您可以在[这里](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。这个在线版本对印刷版有所更新。
+先决条件**
 
 +   阅读《设计：高等教育研究规划》(Light, Singer, and Willett 1990)
 
@@ -112,7 +113,7 @@
 
     +   *韦伯太空望远镜将重写宇宙历史。如果它成功的话*，娜塔莉·沃尔科弗，量子杂志
 
-**关键概念和技能**
+关键概念和技能**
 
 +   写作是分析数据所需的所有技能中最重要的技能之一。提高写作的唯一方法就是写作，理想情况下每天都要写。
 
@@ -122,7 +123,7 @@
 
 +   我们通常从一个感兴趣的领域开始，然后以迭代的方式发展研究问题、数据集和分析。通过这个过程，我们更好地理解我们在做什么。
 
-**软件和包**
+软件和包**
 
 +   `knitr` (谢 2023)
 
@@ -130,13 +131,13 @@
 
 +   `tinytable` (Arel-Bundock 2024)
 
-```py
+```r
 library(knitr)
 library(tidyverse)
 library(tinytable)
 ```
 
-*## 4.1 引言
+## 4.1 引言
 
 > 如果你想要成为一名作家，你必须首先做两件事：多读书和多写作。据我所知，没有其他方法可以绕过这两件事，没有捷径。
 > 
@@ -204,11 +205,13 @@ library(tinytable)
 
 有一个说法，有时归功于肖力萌，即所有统计学都是缺失数据问题。因此，矛盾的是，另一种提出以数据为先的问题的方式是考虑我们没有的数据。例如，回到之前讨论过的新生儿和孕产妇死亡率例子，一个问题是我们没有完整的死亡原因数据。如果我们有，那么我们可以计算相关死亡的数量。（卡斯特罗等人（2023）提醒我们，这种简单假设在现实中可能会变得复杂，因为有时死亡原因并不是独立于其他原因的。）在确定了某些缺失数据问题后，我们可以采取数据驱动的方法。我们查看我们拥有的数据，然后提出研究问题，这些问题涉及到我们可以使用这些数据来近似我们的假设数据集的程度。
 
-*巨人的肩膀* 小李·孟是哈佛大学的惠普尔·V·N·琼斯统计学教授。1990 年，他在哈佛大学获得统计学博士学位后，被任命为芝加哥大学的助理教授，2000 年晋升为教授。2001 年，他搬到哈佛大学，2004 年至 2012 年间担任统计学系主任。他发表了关于广泛主题的文章，包括缺失数据——孟（1994）和孟（2012）——以及数据质量——孟（2018）。2001 年，他获得了 COPSS 总统奖。*  *一些研究人员之所以数据优先，是因为他们在某些地理或历史环境的数据方面具有特定的专业知识。例如，他们可能特别了解，比如说，现在的英国，或者 19 世纪末的日本。然后他们观察其他研究人员在其他情况下提出的问题，并将他们的数据带到这个问题上。例如，常见的情况是，最初为美国提出一个问题，然后许多研究人员为英国、加拿大、澳大利亚和其他许多国家回答相同的问题。
+巨人的肩膀* 小李·孟是哈佛大学的惠普尔·V·N·琼斯统计学教授。1990 年，他在哈佛大学获得统计学博士学位后，被任命为芝加哥大学的助理教授，2000 年晋升为教授。2001 年，他搬到哈佛大学，2004 年至 2012 年间担任统计学系主任。他发表了关于广泛主题的文章，包括缺失数据——孟（1994）和孟（2012）——以及数据质量——孟（2018）。2001 年，他获得了 COPSS 总统奖。*  *一些研究人员之所以数据优先，是因为他们在某些地理或历史环境的数据方面具有特定的专业知识。例如，他们可能特别了解，比如说，现在的英国，或者 19 世纪末的日本。然后他们观察其他研究人员在其他情况下提出的问题，并将他们的数据带到这个问题上。例如，常见的情况是，最初为美国提出一个问题，然后许多研究人员为英国、加拿大、澳大利亚和其他许多国家回答相同的问题。
 
 数据优先研究有许多缺点，包括它可能特别不确定。它也可能在外部效度上挣扎，因为总会有关于选择效应的担忧。
 
-数据驱动研究的一种变体是模型驱动研究。在这里，研究人员成为某些特定统计方法的专家，然后将该方法应用于适当的情境。*  *### 4.3.2 问题优先
+数据驱动研究的一种变体是模型驱动研究。在这里，研究人员成为某些特定统计方法的专家，然后将该方法应用于适当的情境。
+
+### 4.3.2 问题优先
 
 当试图问题优先时，存在一个相反的问题，即关注数据可用性。在医学中，“FINER 框架”被用来帮助指导研究问题的开发。它建议提出以下问题：可行、有趣、新颖、道德和相关性（Hulley 等人 2007）。Farrugia 等人（2010）在 FINER 的基础上构建了 PICOT，它建议额外的考虑因素：人群、干预措施、比较组、感兴趣的结果和时间。
 
@@ -254,7 +257,7 @@ $$ \mbox{估计值 = 估计值 + 偏差 + 噪声} $$
 
 偏差指的是估计量系统地提供与估计值不同的估计的问题，而噪声指的是非系统性的差异。例如，考虑一个标准正态分布。我们可能对理解平均值感兴趣，这将是我们所估计的值。我们知道（以一种我们永远无法用真实数据做到的方式），估计值是零。让我们从这个分布中抽取十次。我们可以用来产生估计的一个估计量是：将抽取值相加然后除以抽取次数。另一个是排序抽取值并找到中间观察值。更具体地说，我们将模拟这种情况（表 4.1）。
 
-```py
+```r
 set.seed(853)
 
 tibble(
@@ -280,7 +283,7 @@ tibble(
  setNames(c("Number of draws", "Estimator one", "Estimator two"))
 ```
 
-*表 4.1：比较随着抽取次数增加的两个估计量对随机抽取平均值的估计结果
+表 4.1：比较随着抽取次数增加的两个估计量对随机抽取平均值的估计结果
 
 | 抽取次数 | 估计量一 | 估计量二 |
 | --- | --- | --- |
@@ -288,13 +291,15 @@ tibble(
 | 100 | -0.06 | -0.07 |
 | 1,000 | 0.06 | 0.04 |
 
-| 10,000 | -0.01 | -0.01 |*  *随着抽取次数的增加，噪声的影响被消除，我们的估计展示了估计量的偏差。在这个例子中，我们知道真相是什么，但在考虑真实数据时，可能更难知道该怎么做。因此，在转向生成估计之前，明确估计值是什么的重要性。*  *### 4.4.3 有向无环图
+| 10,000 | -0.01 | -0.01 |*  *随着抽取次数的增加，噪声的影响被消除，我们的估计展示了估计量的偏差。在这个例子中，我们知道真相是什么，但在考虑真实数据时，可能更难知道该怎么做。因此，在转向生成估计之前，明确估计值是什么的重要性。
+
+### 4.4.3 有向无环图
 
 当我们在思考我们将用于回答问题的变量时，明确我们所说的内容会有所帮助。很容易陷入观察数据的陷阱并欺骗自己。我们应该深思熟虑，并使用我们所能使用的所有工具。一个可以帮助我们深入思考数据的框架是使用有向无环图（DAG）。DAG 是一个花哨的名字，指的是流程图，涉及在变量之间绘制箭头和线条以指示它们之间的关系。
 
 构建它们时，我们使用 Graphviz，这是一个用于图形可视化的开源包，并内置在 Quarto 中。代码需要用“dot”块包裹而不是“R”，并且块选项用“//|”而不是“#|”设置。不需要这些的替代方案包括使用`DiagrammeR` (Iannone 2022) 和 `ggdag` (Barrett 2021)。我们提供了第一个 DAG 的整个块，但之后，只提供其他 DAG 的代码。
 
-```py
+```r
 ```{dot}
 
 //| label: fig-dot-firstdag-quarto
@@ -313,16 +318,16 @@ x -> y;
 
 }
 
-```py
+```r
 ```
 
-*<svg width="384" height="480" viewBox="0.00 0.00 134.00 44.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)"><title>D</title> <g id="node1" class="node"><title>x</title> <text text-anchor="middle" x="27" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">x</text></g> <g id="node2" class="node"><title>y</title> <text text-anchor="middle" x="99" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">y</text></g> <g id="edge1" class="edge"><title>x->y</title></g></g></svg>
+<svg width="384" height="480" viewBox="0.00 0.00 134.00 44.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 40)"><title>D</title> <g id="node1" class="node"><title>x</title> <text text-anchor="middle" x="27" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">x</text></g> <g id="node2" class="node"><title>y</title> <text text-anchor="middle" x="99" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">y</text></g> <g id="edge1" class="edge"><title>x->y</title></g></g></svg>
 
 图 4.1：我们期望 x 和 y 之间存在因果关系，其中 x 影响 y*  *在图 4.1 中，我们表示我们认为*x*导致*y*。
 
 我们可以构建另一个 DAG，其中情况不太明确。为了使例子更容易理解，我们将转向考虑收入与幸福之间假设性的关系，并考虑可能影响这种关系的变量。在这个例子中，我们考虑收入与幸福之间的关系，包括教育(图 4.2)。
 
-```py
+```r
 digraph D {
 
  node  [shape=plaintext, fontname  =  "helvetica"];
@@ -338,7 +343,7 @@ digraph D {
 }
 ```
 
-*<svg width="384" height="480" viewBox="0.00 0.00 170.03 116.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)"><title>D</title> <g id="node1" class="node"><title>a</title> <text text-anchor="middle" x="30.96" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">Income</text></g> <g id="node2" class="node"><title>b</title> <text text-anchor="middle" x="120.96" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">Happiness</text></g> <g id="edge1" class="edge"><title>a->b</title></g> <g id="node3" class="node"><title>c</title> <text text-anchor="middle" x="75.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">Education</text></g> <g id="edge2" class="edge"><title>c->a</title></g> <g id="edge3" class="edge"><title>c->b</title></g></g></svg>
+<svg width="384" height="480" viewBox="0.00 0.00 170.03 116.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)"><title>D</title> <g id="node1" class="node"><title>a</title> <text text-anchor="middle" x="30.96" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">Income</text></g> <g id="node2" class="node"><title>b</title> <text text-anchor="middle" x="120.96" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">Happiness</text></g> <g id="edge1" class="edge"><title>a->b</title></g> <g id="node3" class="node"><title>c</title> <text text-anchor="middle" x="75.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">Education</text></g> <g id="edge2" class="edge"><title>c->a</title></g> <g id="edge3" class="edge"><title>c->b</title></g></g></svg>
 
 图 4.2：教育是一个混杂因素，它影响收入与幸福之间的关系*  *在图 4.2 中，我们认为收入导致幸福。但我们还认为教育导致幸福，教育也导致收入。这种关系是一种“后门路径”，如果在回归分析中未能调整教育因素，可能会高估收入与幸福之间关系的程度，甚至可能在我们分析中创造出虚假的关系。也就是说，我们可能会认为收入的变化导致幸福的变化，但实际上可能是教育同时影响了两者。在这种情况下，这个变量，即教育，被称为“混杂因素”。
 
@@ -348,7 +353,7 @@ Hernán 和 Robins（2023，83）讨论了一个有趣的案例，其中一位�
 
 在图 4.3 中，我们再次考虑收入导致幸福的情况。但是，如果收入也导致孩子，而孩子也导致幸福，那么我们就会遇到一个难以理解收入对幸福影响的情况。
 
-```py
+```r
 digraph D {
 
  node  [shape=plaintext, fontname  =  "helvetica"];
@@ -364,13 +369,13 @@ digraph D {
 }
 ```
 
-*<svg width="384" height="480" viewBox="0.00 0.00 170.03 116.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)"><title>D</title> <g id="node1" class="node"><title>a</title> <text text-anchor="middle" x="30.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">Income</text></g> <g id="node2" class="node"><title>b</title> <text text-anchor="middle" x="120.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">Happiness</text></g> <g id="edge1" class="edge"><title>a->b</title></g> <g id="node3" class="node"><title>c</title> <text text-anchor="middle" x="75.96" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">Children</text></g> <g id="edge2" class="edge"><title>a->c</title></g> <g id="edge3" class="edge"><title>c->b</title></g></g></svg>
+<svg width="384" height="480" viewBox="0.00 0.00 170.03 116.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)"><title>D</title> <g id="node1" class="node"><title>a</title> <text text-anchor="middle" x="30.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">Income</text></g> <g id="node2" class="node"><title>b</title> <text text-anchor="middle" x="120.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">Happiness</text></g> <g id="edge1" class="edge"><title>a->b</title></g> <g id="node3" class="node"><title>c</title> <text text-anchor="middle" x="75.96" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">Children</text></g> <g id="edge2" class="edge"><title>a->c</title></g> <g id="edge3" class="edge"><title>c->b</title></g></g></svg>
 
 图 4.3：收入与幸福之间的中介因素*  *在图 4.3 中，孩子被称为“中介因素”，如果我们对收入对幸福的影响感兴趣，我们不会对其进行调整。如果我们对其进行调整，那么我们归因于收入的一些因素，将归因于孩子。
 
 最后，在图 4.4 中，我们又遇到了另一种类似的情况，我们认为收入导致幸福。但这次，收入和幸福也会导致锻炼。例如，如果你有更多的钱，那么可能更容易锻炼，但如果你更快乐，也可能更容易锻炼。
 
-```py
+```r
 digraph D {
 
  node  [shape=plaintext, fontname  =  "helvetica"];
@@ -386,13 +391,15 @@ digraph D {
 }
 ```
 
-*<svg width="384" height="480" viewBox="0.00 0.00 170.03 116.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)"><title>D</title> <g id="node1" class="node"><title>a</title> <text text-anchor="middle" x="30.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">收入</text></g> <g id="node2" class="node"><title>b</title> <text text-anchor="middle" x="120.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">幸福</text></g> <g id="edge1" class="edge"><title>a->b</title></g> <g id="node3" class="node"><title>c</title> <text text-anchor="middle" x="75.96" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">锻炼</text></g> <g id="edge2" class="edge"><title>a->c</title></g> <g id="edge3" class="edge"><title>b->c</title></g></g></svg>
+<svg width="384" height="480" viewBox="0.00 0.00 170.03 116.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)"><title>D</title> <g id="node1" class="node"><title>a</title> <text text-anchor="middle" x="30.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">收入</text></g> <g id="node2" class="node"><title>b</title> <text text-anchor="middle" x="120.96" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">幸福</text></g> <g id="edge1" class="edge"><title>a->b</title></g> <g id="node3" class="node"><title>c</title> <text text-anchor="middle" x="75.96" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">锻炼</text></g> <g id="edge2" class="edge"><title>a->c</title></g> <g id="edge3" class="edge"><title>b->c</title></g></g></svg>
 
 图 4.4：锻炼作为碰撞因子影响收入与幸福之间的关系*  *在这种情况下，锻炼被称为“碰撞因子”，如果我们对其条件化，那么就会产生误导性的关系。收入影响锻炼，但一个人的幸福也会影响这一点。锻炼是碰撞因子，因为感兴趣的预测变量和结果变量都会影响它。
 
 我们将明确这一点：我们必须自己创建有向无环图（DAG），就像我们必须自己构建模型一样。没有任何东西会为我们创建它。这意味着我们需要仔细思考情况。因为在一开始看到有向无环图中的某物并采取行动是一回事，但不知道它在那里则是另一回事。McElreath（[[2015] 2020, 180](99-references.html#ref-citemcelreath)）将这些描述为“幽灵有向无环图”。有向无环图是有帮助的，但它们只是帮助我们深入思考情况的工具。
 
-当我们在构建模型时，可能会倾向于包含尽可能多的预测变量。有向无环图（DAGs）清楚地表明我们需要更加谨慎。例如，如果一个变量是混杂因素，那么我们就会想要对其进行调整，而如果一个变量是碰撞因子，那么我们就不需要。我们永远无法知道真相，我们通过诸如理论、我们的兴趣、研究设计、数据的局限性或我们作为研究者的自身局限性等方面的信息来获得信息，仅举几例。了解局限性与报告模型一样重要。如果承认这些缺陷，数据有缺陷的模型仍然是有用的。思考一个情况的工作永远不会完成，并且依赖于他人，这就是为什么我们需要尽可能使我们的工作可重复。*****  ***
+当我们在构建模型时，可能会倾向于包含尽可能多的预测变量。有向无环图（DAGs）清楚地表明我们需要更加谨慎。例如，如果一个变量是混杂因素，那么我们就会想要对其进行调整，而如果一个变量是碰撞因子，那么我们就不需要。我们永远无法知道真相，我们通过诸如理论、我们的兴趣、研究设计、数据的局限性或我们作为研究者的自身局限性等方面的信息来获得信息，仅举几例。了解局限性与报告模型一样重要。如果承认这些缺陷，数据有缺陷的模型仍然是有用的。思考一个情况的工作永远不会完成，并且依赖于他人，这就是为什么我们需要尽可能使我们的工作可重复。
+  
+
 
 > 我在开始写《教授》之前确实没有发表过任何东西，但在许多粗略的努力中，几乎一写成就被破坏，我克服了可能曾经有过的一切对装饰和冗余写作的喜好，转而更喜欢简单和朴素的东西。
 > 
@@ -1104,6 +1111,7 @@ Caro (2019, xii)几乎每天都会写至少 1000 个单词。这个任务的目�
 
 Alexander, Monica. 2019\. “The Concentration and Uniqueness of Baby Names in Australia and the US,” January. [`www.monicaalexander.com/posts/2019-20-01-babynames/`](https://www.monicaalexander.com/posts/2019-20-01-babynames/).Alexander, Monica, Mathew Kiang, and Magali Barbieri. 2018\. “Trends in Black and White Opioid Mortality in the United States, 1979–2015.” *Epidemiology* 29 (5): 707–15\. [`doi.org/10.1097/EDE.0000000000000858`](https://doi.org/10.1097/EDE.0000000000000858).Alexander, Rohan, and Monica Alexander. 2021\. “The Increased Effect of Elections and Changing Prime Ministers on Topics Discussed in the Australian Federal Parliament Between 1901 and 2018.” [`doi.org/10.48550/arXiv.2111.09299`](https://doi.org/10.48550/arXiv.2111.09299).Angrist, Joshua, and Jörn-Steffen Pischke. 2010\. “The Credibility Revolution in Empirical Economics: How Better Research Design Is Taking the Con Out of Econometrics.” *Journal of Economic Perspectives* 24 (2): 3–30\. [`doi.org/10.1257/jep.24.2.3`](https://doi.org/10.1257/jep.24.2.3).Arel-Bundock, Vincent. 2024\. *tinytable: Simple and Configurable Tables in “HTML,” “LaTeX,” “Markdown,” “Word,” “PNG,” “PDF,” and “Typst” Formats*. [`vincentarelbundock.github.io/tinytable/`](https://vincentarelbundock.github.io/tinytable/).Barrett, Malcolm. 2021\. *ggdag: Analyze and Create Elegant Directed Acyclic Graphs*. [`CRAN.R-project.org/package=ggdag`](https://CRAN.R-project.org/package=ggdag).Barron, Alexander, Jenny Huang, Rebecca Spang, and Simon DeDeo. 2018\. “Individuals, Institutions, and Innovation in the Debates of the French Revolution.” *Proceedings of the National Academy of Sciences* 115 (18): 4607–12\. [`doi.org/10.1073/pnas.1717729115`](https://doi.org/10.1073/pnas.1717729115).Beauregard, Katrine, and Jill Sheppard. 2021\. “Antiwomen but Proquota: Disaggregating Sexism and Support for Gender Quota Policies.” *Political Psychology* 42 (2): 219–37\. [`doi.org/10.1111/pops.12696`](https://doi.org/10.1111/pops.12696).Bickel, Peter, Eugene Hammel, and William O’Connell. 1975\. “Sex Bias in Graduate Admissions: Data from Berkeley: Measuring Bias Is Harder Than Is Usually Assumed, and the Evidence Is Sometimes Contrary to Expectation.” *Science* 187 (4175): 398–404\. [`doi.org/10.1126/science.187.4175.398`](https://doi.org/10.1126/science.187.4175.398).Birkmeyer, John, Jonathan Finks, Amanda O’Reilly, Mary Oerline, Arthur Carlin, Andre Nunn, Justin Dimick, Mousumi Banerjee, and Nancy Birkmeyer. 2013\. “Surgical Skill and Complication Rates After Bariatric Surgery.” *New England Journal of Medicine* 369 (15): 1434–42\. [`doi.org/10.1056/nejmsa1300625`](https://doi.org/10.1056/nejmsa1300625).Bland, Martin, and Douglas Altman. 1986\. “Statistical Methods for Assessing Agreement Between Two Methods of Clinical Measurement.” *The Lancet* 327 (8476): 307–10\. [`doi.org/10.1016/S0140-6736(86)90837-8`](https://doi.org/10.1016/S0140-6736(86)90837-8).Borkin, Michelle, Zoya Bylinskii, Nam Wook Kim, Constance May Bainbridge, Chelsea Yeh, Daniel Borkin, Hanspeter Pfister, and Aude Oliva. 2015\. “Beyond Memorability: Visualization Recognition and Recall.” *IEEE Transactions on Visualization and Computer Graphics* 22 (1): 519–28\. [`doi.org/10.1109/TVCG.2015.2467732`](https://doi.org/10.1109/TVCG.2015.2467732).Bowley, Arthur Lyon. 1901\. *Elements of Statistics*. London: P. S. King.Briggs, Ryan. 2021\. “Why Does Aid Not Target the Poorest?” *International Studies Quarterly* 65 (3): 739–52\. [`doi.org/10.1093/isq/sqab035`](https://doi.org/10.1093/isq/sqab035).Bronner, Laura. 2021\. “Quantitative Editing.” *YouTube*, June. [`youtu.be/LI5m9RzJgWc`](https://youtu.be/LI5m9RzJgWc).Brontë, Charlotte. 1857\. *The Professor*. [`www.gutenberg.org/files/1028/1028-h/1028-h.htm`](https://www.gutenberg.org/files/1028/1028-h/1028-h.htm).Bueno de Mesquita, Ethan, and Anthony Fowler. 2021\. *Thinking Clearly with Data: A Guide to Quantitative Reasoning and Analysis*. New Jersey: Princeton University Press.Cahill, Niamh, Michelle Weinberger, and Leontine Alkema. 2020\. “What Increase in Modern Contraceptive Use Is Needed in FP2020 Countries to Reach 75% Demand Satisfied by 2030? An Assessment Using the Accelerated Transition Method and Family Planning Estimation Model.” *Gates Open Research* 4\. [`doi.org/10.12688/gatesopenres.13125.1`](https://doi.org/10.12688/gatesopenres.13125.1).Caro, Robert. 2019\. *Working*. 1st ed. New York: Knopf.Carroll, Lewis. 1871\. *Through the Looking-Glass*. Macmillan. [`www.gutenberg.org/files/12/12-h/12-h.htm`](https://www.gutenberg.org/files/12/12-h/12-h.htm).Castro, Marcia, Susie Gurzenda, Cassio Turra, Sun Kim, Theresa Andrasfay, and Noreen Goldman. 2023\. “Research Note: COVID-19 Is Not an Independent Cause of Death.” *Demography*, February. `doi.org/10.1215/00703370
 
-* * *
+* *
 
-1.  有时可能需要单独的文献综述部分，另一种方法是根据需要，在整篇论文中讨论相关文献。例如，当存在与数据相关的文献时，应在本节中讨论，而与模型、结果或讨论相关的文献则应适当地在那些部分中提及。[↩︎`******
+1.  有时可能需要单独的文献综述部分，另一种方法是根据需要，在整篇论文中讨论相关文献。例如，当存在与数据相关的文献时，应在本节中讨论，而与模型、结果或讨论相关的文献则应适当地在那些部分中提及。[↩︎`
+

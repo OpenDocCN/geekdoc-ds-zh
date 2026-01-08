@@ -6,7 +6,7 @@
 
 1.  2  喝消防水
 
-*Chapman and Hall/CRC 于 2023 年 7 月出版了这本书。您可以在[这里](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。这个在线版本对印刷版有所更新。*  **先决条件**
+Chapman and Hall/CRC 于 2023 年 7 月出版了这本书。您可以在[这里](https://www.routledge.com/Telling-Stories-with-Data-With-Applications-in-R/Alexander/p/book/9781032134772)购买。这个在线版本对印刷版有所更新。*  **先决条件**
 
 +   阅读 *卓越的平凡：关于分层和奥运游泳者的民族志报告* (Chambliss 1989)
 
@@ -20,7 +20,7 @@
 
     +   本文强调了模型如何持续存在偏见的一些方式。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   统计编程语言 R 使我们能够使用数据讲述有趣的故事。它就像任何其他语言一样，精通它的路径可能很慢。
 
@@ -28,7 +28,7 @@
 
 +   学习 R 的方法是从一个小项目开始，将实现它所需的内容分解成微小的步骤，查看他人的代码，并从中吸取经验以实现每一步。完成该项目后，再进行下一个项目。随着每个项目的完成，你将变得越来越好。
 
-**软件和包**
+软件和包**
 
 +   基础 R (R Core Team 2024)
 
@@ -52,7 +52,7 @@
 
 +   `tinytable` (Arel-Bundock 2024)
 
-```py
+```r
 library(janitor)
 library(lubridate)
 library(opendatatoronto)
@@ -60,7 +60,7 @@ library(tidyverse)
 library(tinytable)
 ```
 
-*## 2.1 Hello, World!
+## 2.1 Hello, World!
 
 开始的方法就是开始。在本章中，我们探讨了本书所倡导的数据科学工作流程的三个完整示例。这意味着我们：
 
@@ -158,7 +158,7 @@ $$ \mbox{计划} \rightarrow \mbox{模拟} \rightarrow \mbox{获取} \rightarrow
 
 +   文件所依赖的先决条件。
 
-```py
+```r
 #### Preamble ####
 # Purpose: Read in data from the 2022 Australian Election and make
 # a graph of the number of seats each party won.
@@ -168,21 +168,21 @@ $$ \mbox{计划} \rightarrow \mbox{模拟} \rightarrow \mbox{获取} \rightarrow
 # Prerequisites: Know where to get Australian elections data.
 ```
 
-*在 R 中，以“#”开头的行是注释。这意味着它们不会被 R 作为代码执行，而是设计为供人类阅读。这个前言的每一行都应该以一个“#”开头。同时，通过用“####”包围它来清楚地表明这是前言部分。结果应该看起来像图 2.3 (c)。
+在 R 中，以“#”开头的行是注释。这意味着它们不会被 R 作为代码执行，而是设计为供人类阅读。这个前言的每一行都应该以一个“#”开头。同时，通过用“####”包围它来清楚地表明这是前言部分。结果应该看起来像图 2.3 (c)。
 
 在此之后，我们需要设置工作区。这涉及到安装和加载任何需要的包。一个包只需要在每个计算机上安装一次，但每次使用时都需要加载。在这种情况下，我们将使用`tidyverse`和`janitor`包。由于这是第一次使用，它们需要被安装，然后每个包都需要被加载。
 
-*“巨人的肩膀”* *Hadley Wickham 是 RStudio 的首席科学家。2008 年从爱荷华州立大学获得统计学博士学位后，他被任命为莱斯大学的助理教授，并于 2013 年成为 RStudio（现在是 Posit）的首席科学家。他开发了`tidyverse`包集合，并出版了许多书籍，包括*《R 数据科学》（Wickham, Çetinkaya-Rundel, and Grolemund [2016] 2023）*和*《高级 R》（Wickham 2019）*。他在 2019 年获得了 COPSS 总统奖。* 以下是一个安装包的示例。通过点击与 R 代码块相关的小绿色箭头来运行此代码（图 2.3 (d)）。
+“巨人的肩膀”* *Hadley Wickham 是 RStudio 的首席科学家。2008 年从爱荷华州立大学获得统计学博士学位后，他被任命为莱斯大学的助理教授，并于 2013 年成为 RStudio（现在是 Posit）的首席科学家。他开发了`tidyverse`包集合，并出版了许多书籍，包括*《R 数据科学》（Wickham, Çetinkaya-Rundel, and Grolemund [2016] 2023）*和*《高级 R》（Wickham 2019）*。他在 2019 年获得了 COPSS 总统奖。* 以下是一个安装包的示例。通过点击与 R 代码块相关的小绿色箭头来运行此代码（图 2.3 (d)）。
 
-```py
+```r
 #### Workspace setup ####
 install.packages("tidyverse")
 install.packages("janitor")
 ```
 
-*现在包已经安装，它们需要被加载。由于包安装步骤只需要在每个计算机上执行一次，因此应该将此代码注释掉，以避免意外运行，或者甚至可以直接删除。此外，我们还可以删除安装包时打印的消息（图 2.3 (e)）。
+现在包已经安装，它们需要被加载。由于包安装步骤只需要在每个计算机上执行一次，因此应该将此代码注释掉，以避免意外运行，或者甚至可以直接删除。此外，我们还可以删除安装包时打印的消息（图 2.3 (e)）。
 
-```py
+```r
 #### Workspace setup ####
 # install.packages("tidyverse")
 # install.packages("janitor")
@@ -191,13 +191,13 @@ library(tidyverse)
 library(janitor)
 ```
 
-*我们可以通过点击“渲染”（图 2.3 (f)）来渲染整个文档。当你这样做时，可能会要求你安装一些包。如果发生这种情况，那么你应该同意。这将生成一个 HTML 文档。
+我们可以通过点击“渲染”（图 2.3 (f)）来渲染整个文档。当你这样做时，可能会要求你安装一些包。如果发生这种情况，那么你应该同意。这将生成一个 HTML 文档。
 
 对于刚刚安装的包的介绍，每个包都包含一个帮助文件，提供有关它们及其功能的信息。可以通过在包名前加一个问号来访问它，然后在控制台中运行该代码。例如 `?tidyverse`。
 
 为了模拟我们的数据，我们需要创建一个包含两个变量：“Division”和“Party”，以及每个变量的某些值。在“Division”的情况下，合理的值可以是 151 个澳大利亚分区中的一个名称。在“Party”的情况下，合理的值可以是以下五个之一：“Liberal”，“Labor”，“National”，“Green”，或“Other”。同样，这段代码可以通过点击与 R 代码块相关联的小绿色箭头来运行。
 
-```py
+```r
 simulated_data <-
  tibble(
  # Use 1 through to 151 to represent each division
@@ -213,7 +213,7 @@ simulated_data <-
 simulated_data
 ```
 
-*```py
+```r
 # A tibble: 151 × 2
    Division Party   
       <int> <chr>   
@@ -228,7 +228,8 @@ simulated_data
  9        9 Liberal 
 10       10 Other   
 # ℹ 141 more rows
-```*  *在某个时刻，你的代码将无法运行，你将需要向他人寻求帮助。不要只截取一小段代码的截图，并期望有人能根据这些截图帮助你。他们几乎肯定不能。相反，你需要以他们可以运行的方式提供你的整个脚本。我们将在第三章中更完整地解释 GitHub，但就目前而言，如果你需要帮助，那么你应该天真地创建一个 GitHub Gist，这样你就可以以比截图更有帮助的方式分享你的代码。第一步是在[GitHub](https://github.com)上创建一个免费账户(图 2.4(a))。考虑一个合适的用户名很重要，因为这将成为你专业档案的一部分。拥有一个专业、独立于任何课程，并且理想情况下与你的真实姓名相关的用户名是有意义的。然后寻找右上角的“+”，选择“New gist”(图 2.4(b))。
+```
+在某个时刻，你的代码将无法运行，你将需要向他人寻求帮助。不要只截取一小段代码的截图，并期望有人能根据这些截图帮助你。他们几乎肯定不能。相反，你需要以他们可以运行的方式提供你的整个脚本。我们将在第三章中更完整地解释 GitHub，但就目前而言，如果你需要帮助，那么你应该天真地创建一个 GitHub Gist，这样你就可以以比截图更有帮助的方式分享你的代码。第一步是在[GitHub](https://github.com)上创建一个免费账户(图 2.4(a))。考虑一个合适的用户名很重要，因为这将成为你专业档案的一部分。拥有一个专业、独立于任何课程，并且理想情况下与你的真实姓名相关的用户名是有意义的。然后寻找右上角的“+”，选择“New gist”(图 2.4(b))。
 
 ![](img/25133178af693cb1a28bf2fb9ea4e2ae.png)
 
@@ -246,11 +247,13 @@ simulated_data
 
 从这里你应该将所有代码添加到那个 Gist 中，而不仅仅是导致错误的最后一段代码。并且给文件起一个有意义的名字，文件名末尾包含“.R”，例如，“australian_elections.R”。在图 2.4(c)中，我们会发现我们使用了错误的字母大小写，`library(Tidyverse)`而不是`library(tidyverse)`。
 
-点击“Create public gist”。然后我们可以将此 Gist 的 URL 分享给任何我们需要帮助的人，解释问题是什么，我们试图实现什么。这将更容易得到他们的帮助，因为所有代码都是可用的。*****  ****### 2.2.3 获取
+点击“Create public gist”。然后我们可以将此 Gist 的 URL 分享给任何我们需要帮助的人，解释问题是什么，我们试图实现什么。这将更容易得到他们的帮助，因为所有代码都是可用的。
+  
+### 2.2.3 获取
 
 现在我们想要获取实际数据。我们需要的数据来自澳大利亚选举委员会(AEC)，这是一个非党派机构，负责组织澳大利亚联邦选举。我们可以将他们的网站页面传递给`read_csv()`函数，该函数来自`readr`包。我们不需要显式加载`readr`包，因为它已经是`tidyverse`的一部分。`<-`或“赋值运算符”将`read_csv()`的输出分配给一个名为“raw_elections_data”的对象。
 
-```py
+```r
 #### Read in the data ####
 raw_elections_data <-
  read_csv(
@@ -268,13 +271,13 @@ write_csv(
 )
 ```
 
-*我们可以使用`head()`快速查看数据集，它会显示前六行，而`tail()`会显示最后六行。
+我们可以使用`head()`快速查看数据集，它会显示前六行，而`tail()`会显示最后六行。
 
-```py
+```r
 head(raw_elections_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 8
   DivisionID DivisionNm StateAb CandidateID GivenNm   Surname   PartyNm  PartyAb
        <dbl> <chr>      <chr>         <dbl> <chr>     <chr>     <chr>    <chr>  
@@ -286,11 +289,11 @@ head(raw_elections_data)
 6        104 Barton     NSW           36820 Linda     BURNEY    Austral… ALP 
 ```
 
-```py
+```r
 tail(raw_elections_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 8
   DivisionID DivisionNm StateAb CandidateID GivenNm    Surname  PartyNm  PartyAb
        <dbl> <chr>      <chr>         <dbl> <chr>      <chr>    <chr>    <chr>  
@@ -300,9 +303,10 @@ tail(raw_elections_data)
 4        178 Wide Bay   QLD           37506 Llew       O'BRIEN  Liberal… LNP    
 5        234 Wills      VIC           36452 Peter      KHALIL   Austral… ALP    
 6        316 Wright     QLD           37500 Scott      BUCHHOLZ Liberal… LNP 
-```**  **我们需要清理数据以便使用。我们试图使其与我们规划阶段认为想要的数据集相似。虽然偏离计划是可以的，但这需要是一个深思熟虑、有理有据的决定。在读取我们保存的数据集后，我们将做的第一件事是调整变量的名称。我们将使用 `janitor` 中的 `clean_names()` 来完成这项工作。
+```
+我们需要清理数据以便使用。我们试图使其与我们规划阶段认为想要的数据集相似。虽然偏离计划是可以的，但这需要是一个深思熟虑、有理有据的决定。在读取我们保存的数据集后，我们将做的第一件事是调整变量的名称。我们将使用 `janitor` 中的 `clean_names()` 来完成这项工作。
 
-```py
+```r
 #### Basic cleaning ####
 raw_elections_data <-
  read_csv(
@@ -311,7 +315,7 @@ raw_elections_data <-
  )
 ```
 
-*```py
+```r
 # Make the names easier to type
 cleaned_elections_data <-
  clean_names(raw_elections_data)
@@ -320,7 +324,7 @@ cleaned_elections_data <-
 head(cleaned_elections_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 8
   division_id division_nm state_ab candidate_id given_nm  surname   party_nm    
         <dbl> <chr>       <chr>           <dbl> <chr>     <chr>     <chr>       
@@ -331,11 +335,12 @@ head(cleaned_elections_data)
 5         180 Barker      SA              37083 Tony      PASIN     Liberal     
 6         104 Barton      NSW             36820 Linda     BURNEY    Australian …
 # ℹ 1 more variable: party_ab <chr>
-```*  *名称输入更快，因为 RStudio 会自动完成它们。为此，我们开始输入变量的名称，然后使用“tab”键来完成。
+```
+名称输入更快，因为 RStudio 会自动完成它们。为此，我们开始输入变量的名称，然后使用“tab”键来完成。
 
 数据集中有许多变量，我们主要对两个变量感兴趣：“division_nm”和“party_nm”。我们可以使用 `dplyr` 中的 `select()` 选择感兴趣的变量，它是我们作为 `tidyverse` 部分加载的。 “管道运算符”，`|>`，将一行输出推送到下一行函数的第一个输入。
 
-```py
+```r
 cleaned_elections_data <-
  cleaned_elections_data |>
  select(
@@ -346,7 +351,7 @@ cleaned_elections_data <-
 head(cleaned_elections_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 2
   division_nm party_nm              
   <chr>       <chr>                 
@@ -356,15 +361,18 @@ head(cleaned_elections_data)
 4 Banks       Liberal               
 5 Barker      Liberal               
 6 Barton      Australian Labor Party
-```*  *一些变量名称仍然不明显，因为它们是缩写的。我们可以使用 `names()` 查看这个数据集中的列名。我们可以使用 `dplyr` 中的 `rename()` 来更改名称。
+```
+一些变量名称仍然不明显，因为它们是缩写的。我们可以使用 `names()` 查看这个数据集中的列名。我们可以使用 `dplyr` 中的 `rename()` 来更改名称。
 
-```py
+```r
 names(cleaned_elections_data)
 ```
 
-*```py
+```r
 [1] "division_nm" "party_nm" 
-```*  *```py
+
+
+```r
 cleaned_elections_data <-
  cleaned_elections_data |>
  rename(
@@ -375,7 +383,7 @@ cleaned_elections_data <-
 head(cleaned_elections_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 2
   division elected_party         
   <chr>    <chr>                 
@@ -385,14 +393,15 @@ head(cleaned_elections_data)
 4 Banks    Liberal               
 5 Barker   Liberal               
 6 Barton   Australian Labor Party
-```*  *我们可以现在查看“elected_party”列中的唯一值，使用 `unique()`。
+```
+我们可以现在查看“elected_party”列中的唯一值，使用 `unique()`。
 
-```py
+```r
 cleaned_elections_data$elected_party |>
  unique()
 ```
 
-*```py
+```r
 [1] "Australian Labor Party"              
 [2] "Liberal"                             
 [3] "Liberal National Party of Queensland"
@@ -401,9 +410,10 @@ cleaned_elections_data$elected_party |>
 [6] "Independent"                         
 [7] "Katter's Australian Party (KAP)"     
 [8] "Centre Alliance" 
-```*  *由于这里比我们想要的更详细，我们可能想要使用 `dplyr` 中的 `case_match()` 简化政党名称，以匹配我们模拟的。
+```
+由于这里比我们想要的更详细，我们可能想要使用 `dplyr` 中的 `case_match()` 简化政党名称，以匹配我们模拟的。
 
-```py
+```r
 cleaned_elections_data <-
  cleaned_elections_data |>
  mutate(
@@ -424,7 +434,7 @@ cleaned_elections_data <-
 head(cleaned_elections_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 2
   division elected_party
   <chr>    <chr>        
@@ -434,22 +444,25 @@ head(cleaned_elections_data)
 4 Banks    Liberal      
 5 Barker   Liberal      
 6 Barton   Labor 
-```*  *我们的数据现在与我们的计划匹配 (图 2.2 (a)). 对于每个选区，我们都有获胜者的政党。
+```
+我们的数据现在与我们的计划匹配 (图 2.2 (a)). 对于每个选区，我们都有获胜者的政党。
 
 现在我们已经很好地清理了数据集，我们应该保存它，以便我们可以在下一阶段使用这个清理后的数据集。我们应该确保使用新的文件名保存，这样我们就不会替换原始数据，并且以后可以轻松识别清理后的数据集。
 
-```py
+```r
 write_csv(
  x = cleaned_elections_data,
  file = "cleaned_elections_data.csv"
 )
-```**********  ***### 2.2.4 探索
+```
+  
+### 2.2.4 探索
 
 我们可能想探索我们创建的数据集。更好地理解数据集的一种方法是通过制作图表。特别是，我们想要构建我们在 图 2.2 (b) 中规划的图表。
 
 首先，我们读取我们刚刚创建的数据集。
 
-```py
+```r
 #### Read in the data ####
 cleaned_elections_data <-
  read_csv(
@@ -458,14 +471,14 @@ cleaned_elections_data <-
  )
 ```
 
-*我们可以使用 `dplyr` 中的 `count()` 快速统计每个政党赢得的席位数量。
+我们可以使用 `dplyr` 中的 `count()` 快速统计每个政党赢得的席位数量。
 
-```py
+```r
 cleaned_elections_data |>
  count(elected_party)
 ```
 
-*```py
+```r
 # A tibble: 5 × 2
   elected_party     n
   <chr>         <int>
@@ -474,9 +487,10 @@ cleaned_elections_data |>
 3 Liberal          48
 4 Nationals        10
 5 Other            12
-```*  *为了构建我们感兴趣的图表，我们使用 `ggplot2`，它是 `tidyverse` 的一部分。这个包的关键方面是我们通过添加层来构建图表，使用“+”作为“添加运算符”。特别是，我们将使用 `ggplot2` 中的 `geom_bar()` 创建条形图 (图 2.5 (a))。
+```
+为了构建我们感兴趣的图表，我们使用 `ggplot2`，它是 `tidyverse` 的一部分。这个包的关键方面是我们通过添加层来构建图表，使用“+”作为“添加运算符”。特别是，我们将使用 `ggplot2` 中的 `geom_bar()` 创建条形图 (图 2.5 (a))。
 
-```py
+```r
 cleaned_elections_data |>
  ggplot(aes(x = elected_party)) + # aes abbreviates "aesthetics" 
  geom_bar()
@@ -488,7 +502,7 @@ cleaned_elections_data |>
  labs(x = "Party", y = "Number of seats") # Make labels more meaningful
 ```
 
-*![](img/172ea281541c61d25006642b73465c9e.png)
+![](img/172ea281541c61d25006642b73465c9e.png)
 
 (a) 默认选项
 
@@ -498,7 +512,9 @@ cleaned_elections_data |>
 
 图 2.5：2022 年澳大利亚联邦选举中各政党赢得的席位数量
 
-图 2.5 (a) 实现了我们设定的目标。但我们可以通过修改默认选项和改进标签(图 2.5 (b))使其看起来更美观。***  ***### 2.2.5 分享
+图 2.5 (a) 实现了我们设定的目标。但我们可以通过修改默认选项和改进标签(图 2.5 (b))使其看起来更美观。
+  
+### 2.2.5 分享
 
 到目前为止，我们已经下载了一些数据，对其进行了清理，并制作了一个图表。我们通常需要详细地传达我们所做的工作。在这种情况下，我们可以写几段关于我们所做的工作、为什么这样做以及我们发现了什么，以总结我们的工作流程。以下是一个例子。
 
@@ -534,7 +550,7 @@ cleaned_elections_data |>
 
 在 Posit Cloud 中创建一个新的 Quarto 文档，保存它，并创建一个新的 R 代码块并添加前言文档。然后安装和/或加载所需的包。我们再次使用`tidyverse`和`janitor`。由于这些包之前已经安装，因此不需要再次安装。我们还将使用`lubridate`。这是`tidyverse`的一部分，因此不需要独立安装，但需要加载。我们还将使用`opendatatoronto`和`knitr`，这些需要安装和加载。
 
-```py
+```r
 #### Preamble ####
 # Purpose: Get data on 2021 shelter usage and make table
 # Author: Rohan Alexander
@@ -553,15 +569,15 @@ library(opendatatoronto)
 library(tidyverse)
 ```
 
-*为了使前面的例子更加详细，包包含其他人编写的代码。在这本书中，你将经常看到一些常见的包，特别是`tidyverse`。要使用一个包，我们必须首先安装它，然后我们需要加载它。一个包只需要在每个计算机上安装一次，但每次都需要加载。这意味着我们之前安装的包不需要在这里重新安装。
+为了使前面的例子更加详细，包包含其他人编写的代码。在这本书中，你将经常看到一些常见的包，特别是`tidyverse`。要使用一个包，我们必须首先安装它，然后我们需要加载它。一个包只需要在每个计算机上安装一次，但每次都需要加载。这意味着我们之前安装的包不需要在这里重新安装。
 
-*巨人的肩膀* *Dr Robert Gentleman 是 R 的联合创造者。在 1988 年从华盛顿大学获得统计学博士学位后，他搬到了奥克兰大学。然后他担任了包括在 23andMe 在内的各种角色，现在他是哈佛医学院计算生物医学中心的执行主任。* *巨人的肩膀* *Dr Ross Ihaka 是 R 的联合创造者。他在 1985 年从加州大学伯克利分校获得统计学博士学位。他撰写了一篇题为“Ruaumoko”的论文，这是毛利人的地震之神。然后他搬到了奥克兰大学，在那里他完成了整个职业生涯。他在 2008 年获得了新西兰皇家学会 Te Apārangi 的 Pickering 奖。*  *鉴于人们捐赠他们的时间来制作 R 和我们所使用的包，引用它们是很重要的。为了获取所需的信息，我们使用`citation()`。在没有参数运行时，它提供 R 本身的引用信息，当运行带有参数时，它提供该包的引用信息。
+巨人的肩膀* *Dr Robert Gentleman 是 R 的联合创造者。在 1988 年从华盛顿大学获得统计学博士学位后，他搬到了奥克兰大学。然后他担任了包括在 23andMe 在内的各种角色，现在他是哈佛医学院计算生物医学中心的执行主任。* *巨人的肩膀* *Dr Ross Ihaka 是 R 的联合创造者。他在 1985 年从加州大学伯克利分校获得统计学博士学位。他撰写了一篇题为“Ruaumoko”的论文，这是毛利人的地震之神。然后他搬到了奥克兰大学，在那里他完成了整个职业生涯。他在 2008 年获得了新西兰皇家学会 Te Apārangi 的 Pickering 奖。*  *鉴于人们捐赠他们的时间来制作 R 和我们所使用的包，引用它们是很重要的。为了获取所需的信息，我们使用`citation()`。在没有参数运行时，它提供 R 本身的引用信息，当运行带有参数时，它提供该包的引用信息。
 
-```py
+```r
 citation() # Get the citation information for R
 ```
 
-*```py
+```r
 To cite R in publications use:
 
   R Core Team (2024). _R: A Language and Environment for Statistical
@@ -584,11 +600,11 @@ when using it for data analysis. See also 'citation("pkgname")' for
 citing R packages.
 ```
 
-```py
+```r
 citation("ggplot2") # Get citation information for a package
 ```
 
-*```py
+```r
 To cite ggplot2 in publications, please use
 
   H. Wickham. ggplot2: Elegant Graphics for Data Analysis.
@@ -604,9 +620,10 @@ A BibTeX entry for LaTeX users is
     isbn = {978-3-319-24277-4},
     url = {https://ggplot2.tidyverse.org},
   }
-```**  **转向模拟，我们需要三个变量：“日期”、“庇护所”和“占用率”。这个例子将在先前的例子基础上增加一个种子，使用`set.seed()`。种子使我们能够在每次运行相同代码时始终生成相同的随机数据。任何整数都可以用作种子。在这种情况下，种子将是 853。如果您使用该种子，那么您应该得到与这个例子中相同的随机数。如果您使用不同的种子，那么您应该期望得到不同的随机数。最后，我们使用`rep()`重复某些内容一定次数。例如，我们重复“庇护所 1”365 次，这大约相当于一年。
+```
+转向模拟，我们需要三个变量：“日期”、“庇护所”和“占用率”。这个例子将在先前的例子基础上增加一个种子，使用`set.seed()`。种子使我们能够在每次运行相同代码时始终生成相同的随机数据。任何整数都可以用作种子。在这种情况下，种子将是 853。如果您使用该种子，那么您应该得到与这个例子中相同的随机数。如果您使用不同的种子，那么您应该期望得到不同的随机数。最后，我们使用`rep()`重复某些内容一定次数。例如，我们重复“庇护所 1”365 次，这大约相当于一年。
 
-```py
+```r
 #### Simulate ####
 set.seed(853)
 
@@ -629,7 +646,7 @@ simulated_occupancy_data <-
 head(simulated_occupancy_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 3
   date       shelter   number_occupied
   <date>     <chr>               <int>
@@ -639,11 +656,14 @@ head(simulated_occupancy_data)
 4 2021-01-04 Shelter 1              25
 5 2021-01-05 Shelter 1              21
 6 2021-01-06 Shelter 1              30
-```*  *在这个模拟中，我们首先创建 2021 年所有日期的列表。我们重复该列表三次。我们假设每年每一天都有三个庇护所的数据。为了模拟每晚占用的床位数，我们从泊松分布中抽取，假设每个庇护所平均占用 30 张床，尽管这只是任意的选择。作为背景，泊松分布通常用于我们拥有计数数据时，我们将在第十三章中回到它。******  ****### 2.3.3 获取
+```
+在这个模拟中，我们首先创建 2021 年所有日期的列表。我们重复该列表三次。我们假设每年每一天都有三个庇护所的数据。为了模拟每晚占用的床位数，我们从泊松分布中抽取，假设每个庇护所平均占用 30 张床，尽管这只是任意的选择。作为背景，泊松分布通常用于我们拥有计数数据时，我们将在第十三章中回到它。
+  
+### 2.3.3 获取
 
 我们使用多伦多市政府提供的多伦多庇护所使用数据。庇护所使用情况通过每晚凌晨 4 点对占用床位的数量进行计数来衡量。为了访问这些数据，我们使用`opendatatoronto`并保存我们自己的副本。
 
-```py
+```r
 #### Acquire ####
 toronto_shelters <-
  # Each package is associated with a unique id  found in the "For 
@@ -664,11 +684,11 @@ write_csv(
 head(toronto_shelters)
 ```
 
-*```py
+```r
 head(toronto_shelters)
 ```
 
-*```py
+```r
 # A tibble: 6 × 32
    X_id OCCUPANCY_DATE ORGANIZATION_ID ORGANIZATION_NAME        SHELTER_ID
   <dbl> <chr>                    <dbl> <chr>                         <dbl>
@@ -685,9 +705,10 @@ head(toronto_shelters)
 #   OVERNIGHT_SERVICE_TYPE <chr>, PROGRAM_AREA <chr>, SERVICE_USER_COUNT <dbl>,
 #   CAPACITY_TYPE <chr>, CAPACITY_ACTUAL_BED <dbl>, CAPACITY_FUNDING_BED <dbl>,
 #   OCCUPIED_BEDS <dbl>, UNOCCUPIED_BEDS <dbl>, UNAVAILABLE_BEDS <dbl>, …
-```*  *对此进行修改以使其类似于我们感兴趣的数据库（图 2.6 (a)）不需要做太多。我们需要使用`clean_names()`更改名称以使其更容易输入，并使用`select()`仅保留相关列。
+```
+对此进行修改以使其类似于我们感兴趣的数据库（图 2.6 (a)）不需要做太多。我们需要使用`clean_names()`更改名称以使其更容易输入，并使用`select()`仅保留相关列。
 
-```py
+```r
 toronto_shelters_clean <-
  clean_names(toronto_shelters) |>
  mutate(occupancy_date = ymd(occupancy_date)) |> 
@@ -696,7 +717,7 @@ toronto_shelters_clean <-
 head(toronto_shelters_clean)
 ```
 
-*```py
+```r
 # A tibble: 6 × 2
   occupancy_date occupied_beds
   <date>                 <dbl>
@@ -706,18 +727,21 @@ head(toronto_shelters_clean)
 4 2021-01-01                NA
 5 2021-01-01                NA
 6 2021-01-01                 6
-```*  *剩下的只是保存清洗后的数据集。
+```
+剩下的只是保存清洗后的数据集。
 
-```py
+```r
 write_csv(
  x = toronto_shelters_clean,
  file = "cleaned_toronto_shelters.csv"
 )
-```***  ***### 2.3.4 探索
+```
+  
+### 2.3.4 探索
 
 首先，我们加载我们刚刚创建的数据集。
 
-```py
+```r
 #### Explore ####
 toronto_shelters_clean <-
  read_csv(
@@ -726,9 +750,9 @@ toronto_shelters_clean <-
  )
 ```
 
-*该数据集包含每个避难所的每日记录。我们感兴趣的是了解每个月的平均使用情况。为此，我们需要使用 `lubridate` 中的 `month()` 函数添加一个月份列。默认情况下，`month()` 提供月份的数字，因此我们包含两个参数——“label”和“abbr”——以获取月份的完整名称。我们使用 `tidyr` 中的 `drop_na()` 函数删除没有床位数量数据的行，`tidyr` 是 `tidyverse` 的一部分。我们在这里不加思考地这样做，因为我们的重点是入门，但这是一个重要的决定，我们将在第六章 Chapter 6 和第十一章 Chapter 11 中更多地讨论缺失数据。然后，我们基于月度分组创建汇总统计，使用 `dplyr` 中的 `summarise()` 函数。我们使用 `tinytable` 中的 `tt()` 函数创建 表 2.1。
+该数据集包含每个避难所的每日记录。我们感兴趣的是了解每个月的平均使用情况。为此，我们需要使用 `lubridate` 中的 `month()` 函数添加一个月份列。默认情况下，`month()` 提供月份的数字，因此我们包含两个参数——“label”和“abbr”——以获取月份的完整名称。我们使用 `tidyr` 中的 `drop_na()` 函数删除没有床位数量数据的行，`tidyr` 是 `tidyverse` 的一部分。我们在这里不加思考地这样做，因为我们的重点是入门，但这是一个重要的决定，我们将在第六章 Chapter 6 和第十一章 Chapter 11 中更多地讨论缺失数据。然后，我们基于月度分组创建汇总统计，使用 `dplyr` 中的 `summarise()` 函数。我们使用 `tinytable` 中的 `tt()` 函数创建 表 2.1。
 
-```py
+```r
 toronto_shelters_clean |>
  mutate(occupancy_month = month(
  occupancy_date,
@@ -742,7 +766,7 @@ toronto_shelters_clean |>
  tt()
 ```
 
-*表 2.1：2021 年多伦多避难所的使用情况
+表 2.1：2021 年多伦多避难所的使用情况
 
 | occupancy_month | number_occupied |
 | --- | --- |
@@ -760,7 +784,7 @@ toronto_shelters_clean |>
 
 | 十二月 | 33.52426 |*  *与之前一样，这看起来不错，达到了我们设定的目标。但我们可以对默认设置进行一些调整，使其看起来更好 (表 2.2)。特别是我们使列名更容易阅读，只显示适当的小数位数，并更改对齐方式（`j` 用于指定感兴趣的列号，`r` 是对齐类型，即右对齐）。
 
-```py
+```r
 toronto_shelters_clean |>
  mutate(occupancy_month = month(
  occupancy_date,
@@ -778,7 +802,7 @@ toronto_shelters_clean |>
  setNames(c("Month", "Average daily number of occupied beds"))
 ```
 
-*表 2.2：2021 年多伦多避难所的使用情况
+表 2.2：2021 年多伦多避难所的使用情况
 
 | 月份 | 平均每日占用床位数量 |
 | --- | --- |
@@ -794,7 +818,9 @@ toronto_shelters_clean |>
 | 十月 | 32 |
 | 十一月 | 33 |
 
-| 十二月 | 34 |***  ***### 2.3.5 分享
+| 十二月 | 34 |
+  
+### 2.3.5 分享
 
 我们需要写几段简短的段落来总结我们所做的工作、我们为什么这样做以及我们发现了什么。以下是一个例子。
 
@@ -806,7 +832,9 @@ toronto_shelters_clean |>
 > 
 > 数据集基于庇护所，因此我们的结果可能受到特别大或特别小庇护所特定变化的影响。可能是在较冷的月份，特定的庇护所特别有吸引力。此外，我们关注占用床位的数量，但如果床位的供应在季节中发生变化，那么一个额外的感兴趣统计量将是占用比例。
 
-尽管这个例子只有几段，但它可以被缩减成一个摘要，或者通过扩展每个段落成为一个完整的报告，例如，将每个段落扩展为一个章节。第一段是一个概述，第二段关注数据，第三段关注结果，第四段是讨论。遵循郝(2019)的例子，第四段是考虑可能存在偏差的领域的良好位置。**********  ****## 2.4 新生儿死亡率
+尽管这个例子只有几段，但它可以被缩减成一个摘要，或者通过扩展每个段落成为一个完整的报告，例如，将每个段落扩展为一个章节。第一段是一个概述，第二段关注数据，第三段关注结果，第四段是讨论。遵循郝(2019)的例子，第四段是考虑可能存在偏差的领域的良好位置。
+  
+## 2.4 新生儿死亡率
 
 新生儿死亡率是指出生后第一个月内发生的死亡。新生儿死亡率（NMR）是指每 1000 名活产新生儿中的新生儿死亡数 (UN IGME 2021)。第三个可持续发展目标（SDG）呼吁将 NMR 降低到 12。在这个例子中，我们将创建过去 50 年阿根廷、澳大利亚、加拿大和肯尼亚估计 NMR 的图表。
 
@@ -834,7 +862,7 @@ toronto_shelters_clean |>
 
 在 Posit Cloud 中创建一个新的 Quarto 文档并保存。添加前言文档并设置工作区。我们将使用`tidyverse`、`janitor`和`lubridate`。
 
-```py
+```r
 #### Preamble ####
 # Purpose: Obtain and prepare data about neonatal mortality for
 # four countries for the past fifty years and create a graph.
@@ -849,27 +877,28 @@ library(lubridate)
 library(tidyverse)
 ```
 
-*包含在包中的代码可能会随着作者的更新和新版本的发布而随时改变。我们可以使用`packageVersion()`来查看我们正在使用哪个版本的包。例如，我们正在使用`tidyverse`的 2.0.0 版本和`janitor`的 2.2.0 版本。
+包含在包中的代码可能会随着作者的更新和新版本的发布而随时改变。我们可以使用`packageVersion()`来查看我们正在使用哪个版本的包。例如，我们正在使用`tidyverse`的 2.0.0 版本和`janitor`的 2.2.0 版本。
 
-```py
+```r
 packageVersion("tidyverse")
 ```
 
-*```py
+```r
 [1] '2.0.0'
 ```
 
-```py
+```r
 packageVersion("janitor")
 ```
 
-*```py
+```r
 [1] '2.2.0'
-```**  **为了更新我们已安装的所有包的版本，我们使用`update.packages()`。我们可以使用`tidyverse_update()`仅安装`tidyverse`包。这不需要每天运行，但时不时地更新包是值得的。虽然许多包会注意确保向后兼容性，但在某个点上这变得不可能。更新包可能会导致旧代码需要重写。当你刚开始时，这并不是什么大问题，而且无论如何，都有针对加载特定版本的工具，我们将在第三章中介绍。
+```
+为了更新我们已安装的所有包的版本，我们使用`update.packages()`。我们可以使用`tidyverse_update()`仅安装`tidyverse`包。这不需要每天运行，但时不时地更新包是值得的。虽然许多包会注意确保向后兼容性，但在某个点上这变得不可能。更新包可能会导致旧代码需要重写。当你刚开始时，这并不是什么大问题，而且无论如何，都有针对加载特定版本的工具，我们将在第三章中介绍。
 
 返回到模拟，我们使用`rep()`重复每个国家的名称 50 次，并启用 50 年的传递。最后，我们使用`runif()`从均匀分布中抽取，为该国家的该年模拟一个估计的 NMR 值。
 
-```py
+```r
 #### Simulate data ####
 set.seed(853)
 
@@ -887,7 +916,7 @@ simulated_nmr_data <-
 head(simulated_nmr_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 3
   country    year   nmr
   <chr>     <int> <dbl>
@@ -897,9 +926,10 @@ head(simulated_nmr_data)
 4 Argentina  1974 31.6 
 5 Argentina  1975  3.74
 6 Argentina  1976 40.4 
-```*  *虽然这个模拟是可行的，但如果我们决定模拟的不是 50 年，而是比如说 60 年，那么这个过程将会耗时且容易出错。改进这个代码的一种方法是将所有 50 的实例替换为一个变量。
+```
+虽然这个模拟是可行的，但如果我们决定模拟的不是 50 年，而是比如说 60 年，那么这个过程将会耗时且容易出错。改进这个代码的一种方法是将所有 50 的实例替换为一个变量。
 
-```py
+```r
 #### Simulate data ####
 set.seed(853)
 
@@ -919,7 +949,7 @@ simulated_nmr_data <-
 head(simulated_nmr_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 3
   country    year   nmr
   <chr>     <dbl> <dbl>
@@ -929,7 +959,8 @@ head(simulated_nmr_data)
 4 Argentina  1974 31.6 
 5 Argentina  1975  3.74
 6 Argentina  1976 40.4 
-```*  *结果将会相同，但现在如果我们想从 50 年改为 60 年，我们只需要在一个地方进行更改。
+```
+结果将会相同，但现在如果我们想从 50 年改为 60 年，我们只需要在一个地方进行更改。
 
 我们可以对这个模拟数据集有信心，因为它相对简单，我们为其编写了代码。但是当我们转向真实数据集时，更难确保它就是它所声称的那样。即使我们信任数据，我们也需要能够与他人分享这种信心。一种前进的方法是建立一些测试，以确定我们的数据是否如我们所期望的那样。例如，我们期望：
 
@@ -943,7 +974,7 @@ head(simulated_nmr_data)
 
 我们可以基于这些特征编写一系列测试，我们期望数据集能够通过这些测试。
 
-```py
+```r
 simulated_nmr_data$country |>
  unique() == c("Argentina", "Australia", "Canada", "Kenya")
 
@@ -958,11 +989,13 @@ simulated_nmr_data$nmr |> max() <= 1000
 simulated_nmr_data$nmr |> class() == "numeric"
 ```
 
-*通过这些测试，我们可以对模拟数据集有信心。更重要的是，我们可以将这些测试应用于实际数据集。这使得我们对该数据集有更大的信心，并且可以与他人分享这种信心。******  ***### 2.4.3 获取
+通过这些测试，我们可以对模拟数据集有信心。更重要的是，我们可以将这些测试应用于实际数据集。这使得我们对该数据集有更大的信心，并且可以与他人分享这种信心。
+  
+### 2.4.3 获取
 
 联合国儿童死亡率估算机构组（IGME）[提供](https://childmortality.org/)我们可以下载和保存的 NMR 估算。
 
-```py
+```r
 #### Acquire data ####
 raw_igme_data <-
  read_csv(
@@ -974,13 +1007,13 @@ raw_igme_data <-
 write_csv(x = raw_igme_data, file = "igme.csv")
 ```
 
-*有了这样的数据，阅读有关数据的支持材料可能会有所帮助。在这种情况下，一个代码簿可在[这里](https://childmortality.org/wp-content/uploads/2021/03/CME-Info_codebook_for_downloads.xlsx)找到。之后我们可以快速查看数据集，以更好地了解它。我们可能对使用`head()`和`tail()`查看数据集的外观以及使用`names()`查看列名感兴趣。
+有了这样的数据，阅读有关数据的支持材料可能会有所帮助。在这种情况下，一个代码簿可在[这里](https://childmortality.org/wp-content/uploads/2021/03/CME-Info_codebook_for_downloads.xlsx)找到。之后我们可以快速查看数据集，以更好地了解它。我们可能对使用`head()`和`tail()`查看数据集的外观以及使用`names()`查看列名感兴趣。
 
-```py
+```r
 head(raw_igme_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 29
   `Geographic area` Indicator              Sex   `Wealth Quintile` `Series Name`
   <chr>             <chr>                  <chr> <chr>             <chr>        
@@ -997,11 +1030,13 @@ head(raw_igme_data)
 #   STD_ERR <dbl>, REF_DATE <dbl>, `Age Group of Women` <chr>,
 #   `Time Since First Birth` <chr>, DEFINITION <chr>, INTERVAL <dbl>,
 #   `Series Method` <chr>, LOWER_BOUND <dbl>, UPPER_BOUND <dbl>, …
-```*  *```py
+
+
+```r
 names(raw_igme_data)
 ```
 
-*```py
+```r
  [1] "Geographic area"        "Indicator"              "Sex"                   
  [4] "Wealth Quintile"        "Series Name"            "Series Year"           
  [7] "Regional group"         "TIME_PERIOD"            "OBS_VALUE"             
@@ -1012,9 +1047,10 @@ names(raw_igme_data)
 [22] "DEFINITION"             "INTERVAL"               "Series Method"         
 [25] "LOWER_BOUND"            "UPPER_BOUND"            "STATUS"                
 [28] "YEAR_TO_ACHIEVE"        "Model Used" 
-```*  *我们希望清理名称，只保留我们感兴趣的行和列。根据我们的计划，我们感兴趣的行是“Sex”为“Total”，“Series Name”为“UN IGME estimate”，“Geographic area”为“阿根廷”、“澳大利亚”、“加拿大”和“肯尼亚”之一，“Indicator”为“新生儿死亡率”。之后我们只对以下几列感兴趣：“geographic_area”，“time_period”和“obs_value”。
+```
+我们希望清理名称，只保留我们感兴趣的行和列。根据我们的计划，我们感兴趣的行是“Sex”为“Total”，“Series Name”为“UN IGME estimate”，“Geographic area”为“阿根廷”、“澳大利亚”、“加拿大”和“肯尼亚”之一，“Indicator”为“新生儿死亡率”。之后我们只对以下几列感兴趣：“geographic_area”，“time_period”和“obs_value”。
 
-```py
+```r
 cleaned_igme_data <-
  clean_names(raw_igme_data) |>
  filter(
@@ -1028,7 +1064,7 @@ cleaned_igme_data <-
 head(cleaned_igme_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 3
   geographic_area time_period obs_value
   <chr>           <chr>           <dbl>
@@ -1038,9 +1074,10 @@ head(cleaned_igme_data)
 4 Argentina       1973-06          24.6
 5 Argentina       1974-06          24.5
 6 Argentina       1975-06          24.1
-```*  *我们需要修复两个其他方面：当我们需要它为年份时，“time_period”的类别是字符，而“obs_value”的名称应该是“nmr”以提供更多信息。
+```
+我们需要修复两个其他方面：当我们需要它为年份时，“time_period”的类别是字符，而“obs_value”的名称应该是“nmr”以提供更多信息。
 
-```py
+```r
 cleaned_igme_data <-
  cleaned_igme_data |>
  mutate(
@@ -1053,7 +1090,7 @@ cleaned_igme_data <-
 head(cleaned_igme_data)
 ```
 
-*```py
+```r
 # A tibble: 6 × 3
   country    year   nmr
   <chr>     <int> <dbl>
@@ -1063,74 +1100,79 @@ head(cleaned_igme_data)
 4 Argentina  1974  24.5
 5 Argentina  1975  24.1
 6 Argentina  1976  23.3
-```*  *最后，我们可以检查我们的数据集是否通过了基于模拟数据集开发的测试。
+```
+最后，我们可以检查我们的数据集是否通过了基于模拟数据集开发的测试。
 
-```py
+```r
 cleaned_igme_data$country |>
  unique() == c("Argentina", "Australia", "Canada", "Kenya")
 ```
 
-*```py
+```r
 [1] TRUE TRUE TRUE TRUE
 ```
 
-```py
+```r
 cleaned_igme_data$country |>
  unique() |>
  length() == 4
 ```
 
-*```py
+```r
 [1] TRUE
 ```
 
-```py
+```r
 cleaned_igme_data$year |> min() == 1971
 ```
 
-*```py
+```r
 [1] TRUE
 ```
 
-```py
+```r
 cleaned_igme_data$year |> max() == 2020
 ```
 
-*```py
+```r
 [1] TRUE
 ```
 
-```py
+```r
 cleaned_igme_data$nmr |> min() >= 0
 ```
 
-*```py
+```r
 [1] TRUE
 ```
 
-```py
+```r
 cleaned_igme_data$nmr |> max() <= 1000
 ```
 
-*```py
+```r
 [1] TRUE
 ```
 
-```py
+```r
 cleaned_igme_data$nmr |> class() == "numeric"
 ```
 
-*```py
+```r
 [1] TRUE
-```*******  ***所有剩下的就是保存这个整洁的清洗后的数据集。
+```
+  
+所有剩下的就是保存这个整洁的清洗后的数据集。
 
-```py
+```r
 write_csv(x = cleaned_igme_data, file = "cleaned_igme_data.csv")
-```********  ***### 2.4.4 探索
+```
+  
+### 2.4.4 探索
 
 我们希望使用清洗后的数据集制作一个估计的 NMR 图表。首先，我们读取数据集。
 
-```py
+```r
 #### Explore ####
 cleaned_igme_data <-
  read_csv(
@@ -1139,9 +1181,9 @@ cleaned_igme_data <-
  )
 ```
 
-*现在我们可以制作一个图表，展示 NMR 随时间的变化以及各国之间的差异（图 2.8）。
+现在我们可以制作一个图表，展示 NMR 随时间的变化以及各国之间的差异（图 2.8）。
 
-```py
+```r
 cleaned_igme_data |>
  ggplot(aes(x = year, y = nmr, color = country)) +
  geom_point() +
@@ -1151,9 +1193,11 @@ cleaned_igme_data |>
  theme(legend.position = "bottom")
 ```
 
-*![](img/effa13e15a2b2df95583b1fc0119765e.png)
+![](img/effa13e15a2b2df95583b1fc0119765e.png)
 
-图 2.8：阿根廷、澳大利亚、加拿大和肯尼亚的新生儿死亡率（NMR）（1971-2020)**  **### 2.4.5 分享
+图 2.8：阿根廷、澳大利亚、加拿大和肯尼亚的新生儿死亡率（NMR）（1971-2020)
+
+### 2.4.5 分享
 
 到目前为止，我们下载了一些数据，对其进行了清洗，编写了一些测试，并制作了一个图表。我们通常需要详细地沟通我们所做的工作。在这种情况下，我们将写几段关于我们所做的工作、为什么这样做以及我们发现了什么。
 
@@ -1163,7 +1207,9 @@ cleaned_igme_data |>
 > 
 > 我们发现，在时间上和四个感兴趣的国家之间，估算的 NMR 发生了相当大的变化（图 2.8）。我们发现，20 世纪 70 年代通常与估算的 NMR 的减少有关。当时澳大利亚和加拿大的 NMR 估计较低，并且一直保持到 2020 年，略有下降。阿根廷和肯尼亚的估算数据在 2020 年之前持续大幅下降。
 > 
-> 我们的结果表明，估算的 NMR 随着时间的推移有了相当大的改善。NMR 估算基于统计模型和基础数据。数据的双重负担是，对于结果较差的群体，例如国家，高质量的数据往往更难获得。我们的结论受支撑估算的模型和基础数据质量的影响，我们没有独立验证这两者。********  ***## 2.5 结论
+> 我们的结果表明，估算的 NMR 随着时间的推移有了相当大的改善。NMR 估算基于统计模型和基础数据。数据的双重负担是，对于结果较差的群体，例如国家，高质量的数据往往更难获得。我们的结论受支撑估算的模型和基础数据质量的影响，我们没有独立验证这两者。
+  
+## 2.5 结论
 
 在本章中，我们覆盖了大量的内容，没有完全跟上是很正常的。最好的做法是自行花时间逐个研究三个案例研究。亲自编写所有代码，而不是复制粘贴，逐步运行，即使你并不完全理解它在做什么。然后尝试为它添加自己的注释。
 
@@ -1451,7 +1497,7 @@ cleaned_igme_data |>
 
 1.  请在以下代码中添加一个小错误。然后将它添加到 GitHub Gist 并提交 URL。
 
-```py
+```r
 midwest |>
  ggplot(aes(x = poptotal, y = popdensity, color = state)) +
  geom_point() +
@@ -1459,7 +1505,7 @@ midwest |>
  scale_y_log10()
 ```
 
-*27.  为什么我们要模拟数据集（至少写三个要点）？
+27.  为什么我们要模拟数据集（至少写三个要点）？
 
 1.  这段代码 `library(datasauRus)` 运行后出现错误“Error in library(datasauRus) : there is no package called ‘datasauRus’”。最可能的问题是什么（选择一个）？
 
@@ -1475,7 +1521,9 @@ midwest |>
 
     1.  “geo_area”
 
-    1.  “country”*  *### 课堂活动
+    1.  “country”
+
+### 课堂活动
 
 +   在 `simulation.R` 脚本中，选择 `dplyr` 的一个动词 – `mutate()`, `select()`, `filter()`, `arrange()`, `summarize()` – 并在模拟的例子中解释它所做的工作。
 
@@ -1487,16 +1535,16 @@ midwest |>
 
 +   以下代码产生了一个错误。请将其添加到 GitHub Gist 中，然后在适当的场所寻求帮助。
 
-```py
+```r
 tibble(year = 1875:1972,
  level = as.numeric(datasets::LakeHuron)) |>
  ggplot(aes(x = year, y = level)) |>
  geom_point()
 ```
 
-**   以下代码创建了一个在日期方面的奇形怪状的图表。请识别问题并修复它，通过在`ggplot()`之前添加函数。
+以下代码创建了一个在日期方面的奇形怪状的图表。请识别问题并修复它，通过在`ggplot()`之前添加函数。
 
-```py
+```r
 set.seed(853)
 
 data <-
@@ -1514,14 +1562,15 @@ data |>
  geom_col()
 ```
 
-**   考虑以下代码来制作图表。你希望将图例移动到底部，但忘记了`ggplot2`函数如何做到这一点。请使用 LLM 来识别所需的变化。分享你的提示。
+考虑以下代码来制作图表。你希望将图例移动到底部，但忘记了`ggplot2`函数如何做到这一点。请使用 LLM 来识别所需的变化。分享你的提示。
 
-```py
+```r
 penguins |> 
  drop_na() |> 
  ggplot(aes(x = bill_length_mm, y = bill_depth_mm, color = species)) +
  geom_point()
-``` ***### 任务
+``` 
+### 任务
 
 这个任务的目的是要重新做澳大利亚选举的例子，但针对加拿大。这是一个在现实环境中工作的机会，因为加拿大的情况有一些不同，但澳大利亚的例子提供了指导。
 
@@ -1551,7 +1600,7 @@ penguins |>
 
     +   最后，将政党名称从法语重编码为英语，以匹配我们模拟的内容。
 
-```py
+```r
 cleaned_elections_data <-
  cleaned_elections_data |>
  separate(
@@ -1562,7 +1611,7 @@ cleaned_elections_data <-
  select(-Other)
 ```
 
-*4.  探索：
+4.  探索：
 
     +   制作一张关于 2021 年加拿大联邦选举中每个政党赢得的选区数量的精美图表。
 
@@ -1572,4 +1621,5 @@ cleaned_elections_data <-
 
 美国医学协会和纽约医学院。1848 年。*医学伦理准则*。医学院。[`hdl.handle.net/2027/chi.57108026`](https://hdl.handle.net/2027/chi.57108026)。Arel-Bundock, Vincent. 2024 年。*tinytable: 在“HTML”、“LaTeX”、“Markdown”、“Word”、“PNG”、“PDF”和“Typst”格式中的简单且可配置的表格*。[`vincentarelbundock.github.io/tinytable/`](https://vincentarelbundock.github.io/tinytable/).Barrett, Malcolm. 2021 年。*数据科学作为一种原子习惯*。[`malco.io/articles/2021-01-04-data-science-as-an-atomic-habit`](https://malco.io/articles/2021-01-04-data-science-as-an-atomic-habit).Brokowski, Carolyn，和 Mazhar Adli. 2019 年。“CRISPR 伦理：应用强大工具的道德考量。”*分子生物学杂志* 431 (1): 88–101。[`doi.org/10.1016/j.jmb.2018.05.044`](https://doi.org/10.1016/j.jmb.2018.05.044).Bronner, Laura. 2020 年。“为什么统计数据无法捕捉警务系统系统性偏见的全貌。”*五三八大旗*，六月。[`fivethirtyeight.com/features/why-statistics-dont-capture-the-full-extent-of-the-systemic-bias-in-policing/`](https://fivethirtyeight.com/features/why-statistics-dont-capture-the-full-extent-of-the-systemic-bias-in-policing/).Cardoso, Tom. 2020 年。“监狱背后的偏见：环球调查发现监狱系统对黑人原住民囚犯不利。”*环球邮报*，十月。[`www.theglobeandmail.com/canada/article-investigation-racial-bias-in-canadian-prison-risk-assessments/`](https://www.theglobeandmail.com/canada/article-investigation-racial-bias-in-canadian-prison-risk-assessments/).Chambliss, Daniel. 1989 年。“卓越的平凡：关于分层和奥运游泳者的民族志报告。”*社会学理论* 7 (1): 70–86。[`doi.org/10.2307/202063`](https://doi.org/10.2307/202063).多伦多市政府。2021 年。*2021 年街道需求评估*。[`www.toronto.ca/city-government/data-research-maps/research-reports/housing-and-homelessness-research-and-reports/`](https://www.toronto.ca/city-government/data-research-maps/research-reports/housing-and-homelessness-research-and-reports/).Firke, Sam. 2023 年。*janitor: 简单工具用于检查和清理脏数据*。[`CRAN.R-project.org/package=janitor`](https://CRAN.R-project.org/package=janitor).Gelfand, Sharla. 2022 年。*opendatatoronto: 访问多伦多市政府开放数据门户*。[`CRAN.R-project.org/package=opendatatoronto`](https://CRAN.R-project.org/package=opendatatoronto).Grolemund, Garrett，和 Hadley Wickham. 2011 年。“使用 lubridate 使日期和时间变得简单。”*统计软件杂志* 40 (3): 1–25。[`doi.org/10.18637/jss.v040.i03`](https://doi.org/10.18637/jss.v040.i03).Hao, Karen. 2019 年。“这是 AI 偏见真正发生的方式——以及为什么它如此难以修复。”*麻省理工学院技术评论*，二月。[`www.technologyreview.com/2019/02/04/137602/this-is-how-ai-bias-really-happensand-why-its-so-hard-to-fix/`](https://www.technologyreview.com/2019/02/04/137602/this-is-how-ai-bias-really-happensand-why-its-so-hard-to-fix/).Keyes, Os. 2019 年。“计数无数。”*真实生活*。[`reallifemag.com/counting-the-countless/`](https://reallifemag.com/counting-the-countless/).Marchese, David. 2022 年。“她的发现改变了世界。她认为我们应该如何使用它？”*纽约时报*，八月。[`www.nytimes.com/interactive/2022/08/15/magazine/jennifer-doudna-crispr-interview.html`](https://www.nytimes.com/interactive/2022/08/15/magazine/jennifer-doudna-crispr-interview.html).Neufeld, Michael. 2002 年。“沃纳·冯·布劳恩、SS 和集中营劳工：道德、政治和刑事责任问题。”*德国研究评论* 25 (1): 57–78。[`doi.org/10.2307/1433245`](https://doi.org/10.2307/1433245).R 核心团队。2024 年。*R：统计计算的语言和环境*。奥地利维也纳：R 统计计算基金会。[`www.R-project.org/`](https://www.R-project.org/).联合国 IGME。2021 年。“2021 年儿童死亡率水平和趋势。”[`childmortality.org/wp-content/uploads/2021/12/UNICEF-2021-Child-Mortality-Report.pdf`](https://childmortality.org/wp-content/uploads/2021/12/UNICEF-2021-Child-Mortality-Report.pdf).Wickham, Hadley. 2016 年。*ggplot2：数据分析的优雅图形*。施普林格纽约。[`ggplot2.tidyverse.org`](https://ggplot2.tidyverse.org)。——。2017 年。*tidyverse：轻松安装和加载“tidyverse”*。[`CRAN.R-project.org/package=tidyverse`](https://CRAN.R-project.org/package=tidyverse)。——。2019 年。*高级 R*。第 2 版。查普曼；霍尔/CRC。[`adv-r.hadley.nz`](https://adv-r.hadley.nz)。——。2022 年。*stringr：常见字符串操作的简单、一致包装器*。[`CRAN.R-project.org/package=stringr`](https://CRAN.R-project.org/package=stringr)。Wickham, Hadley，Mara Averick，Jenny Bryan，Winston Chang，Lucy D’Agostino McGowan，Romain François，Garrett Grolemund 等。2019 年。“欢迎来到 tidyverse。”*开源软件杂志* 4 (43): 1686。[`doi.org/10.21105/joss.01686`](https://doi.org/10.21105/joss.01686)。Wickham, Hadley，Mine Çetinkaya-Rundel，和 Garrett Grolemund。2016 年。2023 年。*R 数据科学*。第 2 版。奥莱利媒体。[`r4ds.hadley.nz`](https://r4ds.hadley.nz)。Wickham, Hadley，Romain François，Lionel Henry，和 Kirill Müller。2022 年。*dplyr：数据操作的语法*。[`CRAN.R-project.org/package=dplyr`](https://CRAN.R-project.org/package=dplyr)。Wickham, Hadley，Jim Hester，和 Jenny Bryan。2022 年。*readr：读取矩形文本数据*。[`CRAN.R-project.org/package=readr`](https://CRAN.R-project.org/package=readr)。Wickham, Hadley，Davis Vaughan，和 Maximilian Girlich。2023 年。*tidyr：整理混乱的数据*。[`CRAN.R-project.org/package=tidyr`](https://CRAN.R-project.org/package=tidyr)。Wilford, John Noble. 1977 年。“火箭先驱沃纳·冯·布劳恩去世。”*纽约时报*，六月。[`www.nytimes.com/1977/06/18/archives/wernher-von-braun-rocket-pioneer-dies-wernher-von-braun-pioneer-in.html`](https://www.nytimes.com/1977/06/18/archives/wernher-von-braun-rocket-pioneer-dies-wernher-von-braun-pioneer-in.html)。Xie, Yihui. 2023 年。*knitr：R 中动态报告生成的通用包*。[`yihui.org/knitr/`](https://yihui.org/knitr/).
 
-1.  考虑使用 `separate()` 然后是 `lubridate::ymd()` 对日期进行处理。↩︎****************
+1.  考虑使用 `separate()` 然后是 `lubridate::ymd()` 对日期进行处理。↩︎
+

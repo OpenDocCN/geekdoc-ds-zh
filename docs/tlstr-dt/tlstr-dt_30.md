@@ -6,7 +6,7 @@
 
 1.  16 多层次回归与后分层
 
-**先决条件**
+先决条件**
 
 +   阅读文章*使用非代表性民意调查预测选举*（Wang et al. 2015）
 
@@ -28,7 +28,7 @@
 
     +   重点关注前半部分，讨论了在政治中使用数据，以及具有广泛适用性的经验教训。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   多层次回归与后分层（MRP）从一个样本开始，通常是大型民意调查，并使用它来训练模型。然后，将训练好的模型应用于后分层数据集，通常是人口普查或其他更大的样本。
 
@@ -40,7 +40,7 @@
 
 +   像往常一样，透明度至关重要，并且几乎没有理由不能将数据准备和建模代码与模型结果一起公开，即使调查数据不能公开也是如此。这使独立专家能够进行审查，并增强了 MRP 估计的可信度。
 
-**软件和包**
+软件和包**
 
 +   Base R (R Core Team 2024)
 
@@ -64,7 +64,7 @@
 
 +   `tinytable` (Arel-Bundock 2024)
 
-```py
+```r
 library(arrow)
 library(broom.mixed)
 library(gutenbergr)
@@ -77,7 +77,7 @@ library(tidyverse)
 library(tinytable)
 ```
 
-*## 16.1 简介
+## 16.1 简介
 
 > [2016 年总统选举](https://example.org) 是美国政治历史上最大的分析失败。
 > 
@@ -107,7 +107,7 @@ MRP 在处理调查数据时是一个方便的方法。汉雷蒂（2020）描述
 
 一个著名的 MRP 例子是 Wang 等人（2015）。他们使用了 Xbox 游戏平台的数据来预测 2012 年美国总统选举。Wang 等人（2015）能够在 2012 年美国总统选举（奥巴马与罗姆尼之间）的 45 天前通过 Xbox 游戏平台实施一项自愿投票调查。每天有三到五个问题，包括投票意向：“如果选举今天举行，你会为谁投票？”。受访者每天最多只能回答一次。首次受访者被要求提供关于自己的信息，包括性别、种族、年龄、教育、州、政党 ID、政治意识形态以及他们在 2008 年总统选举中的投票对象。
 
-*巨人的肩膀* *安德鲁·杰尔曼博士是哥伦比亚大学的统计学和政治科学希金斯教授。1990 年从哈佛大学获得统计学博士学位后，他被任命为加州大学伯克利分校的助理教授，并于 1996 年搬到哥伦比亚大学，在那里他在 2000 年晋升为全职教授。他的研究集中在统计学、社会科学及其交叉领域。例如，王等人（2015）表明，有偏见的调查仍然有价值。他是用于贝叶斯建模的广泛使用的概率编程语言 Stan 的主要研究员。他还撰写了许多书籍，其中*使用回归和多级/层次模型进行数据分析* (Gelman and Hill 2007)和*贝叶斯数据分析* ([Gelman et al. [1995] 2014](99-references.html#ref-bda))对一代研究者产生了特别深远的影响。他在 1998 年被任命为美国统计协会的会员，并在 2003 年获得了 COPSS 总统奖。* 总共进行了 750,148 次访谈，其中 345,858 位受访者是独一无二的，超过 30,000 位受访者完成了五次或更多的调查。正如预期的那样，年轻男性主导了 Xbox 用户群体：18 至 29 岁的年轻人占 Xbox 数据集的 65%，而在出口民调中占 19%；男性占 Xbox 样本的 93%，但在选民中只占 47%。
+巨人的肩膀* *安德鲁·杰尔曼博士是哥伦比亚大学的统计学和政治科学希金斯教授。1990 年从哈佛大学获得统计学博士学位后，他被任命为加州大学伯克利分校的助理教授，并于 1996 年搬到哥伦比亚大学，在那里他在 2000 年晋升为全职教授。他的研究集中在统计学、社会科学及其交叉领域。例如，王等人（2015）表明，有偏见的调查仍然有价值。他是用于贝叶斯建模的广泛使用的概率编程语言 Stan 的主要研究员。他还撰写了许多书籍，其中*使用回归和多级/层次模型进行数据分析* (Gelman and Hill 2007)和*贝叶斯数据分析* ([Gelman et al. [1995] 2014](99-references.html#ref-bda))对一代研究者产生了特别深远的影响。他在 1998 年被任命为美国统计协会的会员，并在 2003 年获得了 COPSS 总统奖。* 总共进行了 750,148 次访谈，其中 345,858 位受访者是独一无二的，超过 30,000 位受访者完成了五次或更多的调查。正如预期的那样，年轻男性主导了 Xbox 用户群体：18 至 29 岁的年轻人占 Xbox 数据集的 65%，而在出口民调中占 19%；男性占 Xbox 样本的 93%，但在选民中只占 47%。
 
 细节并不重要，但本质上它们模拟了在诸如州、教育、性别等信息的情况下，受访者投票给奥巴马的可能性。拥有一个经过训练的模型，该模型考虑了这些各种预测因素对候选人支持的影响，他们现在进行后分层，其中每个“单元格级估计”都根据每个单元格中选民的比例进行加权，并汇总到适当的水平（即州或全国）。
 
@@ -117,13 +117,15 @@ MRP 在处理调查数据时是一个方便的方法。汉雷蒂（2020）描述
 
 通常来说，多阶段回归抽样（MRP）是实现特定目标的好方法，但它并非没有权衡。如果我们有一个高质量的调查，那么这可能是一种与其分解方面进行交流的方式。或者如果我们关注不确定性，那么这是一种思考该问题的好方法。如果我们有一个有偏见的调查，那么这是一个很好的起点，但它并非万能药。从各种方法中都有很多令人兴奋的工作要做。例如，从更统计的角度来看，我们需要思考调查设计和建模方法如何相互作用，以及我们低估不确定性的程度。思考小样本和分层后数据集中的不确定性也有趣。在思考适当的模型使用方面，以及如何评估“适当”的含义方面，有很多工作要做，例如，基于 Si (2020)。更普遍地说，我们对在哪些条件下我们将拥有 MRP 准确所需的稳定偏好和关系知之甚少。需要大量的工作来理解这与调查设计中的不确定性如何相关，例如，基于 Lauderdale 等人 (2020) 或 Ghitza 和 Gelman (2020)。
 
-在本章中，我们首先模拟一个假设我们知道人口特征的情况。然后我们考虑 2020 年美国总统选举。*  *## 16.2 模拟示例：咖啡还是茶？
+在本章中，我们首先模拟一个假设我们知道人口特征的情况。然后我们考虑 2020 年美国总统选举。
+
+## 16.2 模拟示例：咖啡还是茶？
 
 ### 16.2.1 构建人口和有偏样本
 
 为了开始，我们将回顾第八章中的茶品鉴实验，并模拟一个关于某人是否喜欢咖啡或茶的人口。然后我们将采取有利于茶的偏样本，并使用 MRP 来恢复这些人口层面的偏好。我们将有两个解释变量。年龄组将是“年轻”或“年老”，国籍将是“美国”或“英国”。模拟将增加个体偏好茶的几率，如果他们是英国人或/或年老。我们的人口中的所有事物都将大致平衡（即每个变量之间各占一半）。但我们的调查将偏向于年老和英国人。为了清楚起见，在这个例子中我们将“知道”人口的“真实”特征，但这并不是我们在使用真实数据时发生的事情——这只是帮助你理解 MRP 中发生的事情。
 
-```py
+```r
 set.seed(853)
 
 pop_size <- 1000000
@@ -139,7 +141,7 @@ sim_population <-
 sim_population
 ```
 
-*```py
+```r
 # A tibble: 1,000,000 × 4
      age nationality probability prefers_tea
    <int>       <int>       <dbl>       <int>
@@ -154,9 +156,10 @@ sim_population
  9     0           1      0.5              1
 10     0           0      0.0455           0
 # ℹ 999,990 more rows
-```*  *我们可以看到，按组别划分的计数相当相似 (表 16.1)。
+```
+我们可以看到，按组别划分的计数相当相似 (表 16.1)。
 
-```py
+```r
 sim_population |>
  count(age, nationality, prefers_tea) |> 
  tt() |> 
@@ -165,7 +168,7 @@ sim_population |>
  setNames( c("Age", "Nationality", "Prefers tea", "Number"))
 ```
 
-*表 16.1：按年龄和国籍划分的茶偏好
+表 16.1：按年龄和国籍划分的茶偏好
 
 | 年龄 | 国籍 | 喜欢茶 | 数量 |
 | --- | --- | --- | --- |
@@ -181,7 +184,7 @@ sim_population |>
 
 现在我们假设我们有一些有偏样本的调查。我们将允许它对年龄较大的受访者和对英语受访者进行过采样。我们感兴趣的是查看我们偏样本中有多少比例的人更喜欢茶而不是咖啡，并且预期，通过构造，它将倾向于茶。
 
-```py
+```r
 set.seed(853)
 
 tea_sample <- 
@@ -189,7 +192,7 @@ tea_sample <-
  slice_sample(n = 1000, weight_by = probability)
 ```
 
-*```py
+```r
 tea_sample |>
  count(age, nationality, prefers_tea) |> 
  tt() |> 
@@ -198,7 +201,7 @@ tea_sample |>
  setNames(c("Age", "Nationality", "Prefers tea", "Number"))
 ```
 
-*表 16.2：按年龄和国籍划分的茶偏好有偏样本，对喜欢茶的人进行过采样
+表 16.2：按年龄和国籍划分的茶偏好有偏样本，对喜欢茶的人进行过采样
 
 | 年龄 | 国籍 | 喜欢茶 | 数量 |
 | --- | --- | --- | --- |
@@ -210,7 +213,9 @@ tea_sample |>
 | 1 | 0 | 1 | 126 |
 | 1 | 1 | 0 | 25 |
 
-| 1 | 1 | 1 | 448 |*  *很明显，我们的样本的平均茶偏好与总体人口不同(表 16.2).****  ***### 16.2.2 建模样本
+| 1 | 1 | 1 | 448 |*  *很明显，我们的样本的平均茶偏好与总体人口不同(表 16.2).
+  
+### 16.2.2 建模样本
 
 我们现在基于有偏样本训练一个模型。我们根据年龄和国籍解释茶偏好。没有规定你必须使用多层次模型，但许多情况下，这样做不太可能做得更差。为了清楚起见，这意味着尽管我们有个人层面的数据，但我们仍将利用个人的某些分组。
 
@@ -218,7 +223,7 @@ $$ \begin{aligned} y_i|\pi_i & \sim \mbox{Bern}(\pi_i) \\ \mbox{logit}(\pi_i) & 
 
 其中 $y_i$ 是受访者的茶偏好，$\pi_i = \mbox{Pr}(y_i=1)$，而 $\alpha^{\mbox{age}}$ 和 $\alpha^{\mbox{nat}}$ 分别是年龄和国籍的影响。$a[i]$ 和 $n[i]$ 分别指受访者所属的年龄组和国籍。$A$ 和 $N$ 分别是年龄组和国籍的总数。我们将使用 `stan_glm()` 来估计模型。
 
-```py
+```r
 tea_preference_model <-
  stan_glmer(
  prefers_tea ~ (1 | age) + (1 | nationality),
@@ -235,12 +240,12 @@ saveRDS(
 )
 ```
 
-*```py
+```r
 tea_preference_model <-
  readRDS(file = "tea_preference_model.rds")
 ```
 
-*```py
+```r
 modelsummary(
  list(
  "Tea preferences" = tea_preference_model
@@ -248,7 +253,7 @@ modelsummary(
 )
 ```
 
-*表 16.3：基于过采样茶偏好的样本训练的模型
+表 16.3：基于过采样茶偏好的样本训练的模型
 
 |  | 茶偏好 |
 | --- | --- |
@@ -268,7 +273,7 @@ modelsummary(
 
 | RMSE | 0.39 |*  *图 16.1 显示了不同组别抽样的分布。
 
-```py
+```r
 tea_preference_model |>
  spread_draws(`(Intercept)`, b[, group]) |>
  mutate(condition_mean = `(Intercept)` + b) |>
@@ -277,15 +282,17 @@ tea_preference_model |>
  theme_minimal()
 ```
 
-*![](img/3f7b929017af2a22dbb1ddd46351d7e0.png)
+![](img/3f7b929017af2a22dbb1ddd46351d7e0.png)
 
-图 16.1：检查每个组的抽取分布****  ***### 16.2.3 后分层数据集
+图 16.1：检查每个组的抽取分布
+  
+### 16.2.3 后分层数据集
 
 现在，我们将使用后分层数据集来获取每个单元格中人数的估计值。我们通常使用更大的数据集，这可能更接近人口。在美国，一个流行的选择是美国社区调查（ACS），我们在第六章（06-farm.html）中介绍了它，而在其他国家，我们通常使用人口普查。
 
 在这个模拟例子中，我们可以使用人口作为我们的后分层数据集。问题是，在有一百万个观察值时，它是不便操作的，所以我们从中抽取了 1 万个样本。我们还删除了茶偏好变量，因为我们假装我们不知道这一点。
 
-```py
+```r
 set.seed(853)
 
 tea_poststrat_dataset <- 
@@ -296,7 +303,7 @@ tea_poststrat_dataset <-
 tea_poststrat_dataset
 ```
 
-*```py
+```r
 # A tibble: 10,000 × 3
      age nationality probability
    <int>       <int>       <dbl>
@@ -311,9 +318,10 @@ tea_poststrat_dataset
  9     1           0      0.5   
 10     1           0      0.5   
 # ℹ 9,990 more rows
-```*  *这是一个理想化的例子，我们假设后分层数据集中的个体级数据。在那个世界里，我们可以将我们的模型应用于每个个体。
+```
+这是一个理想化的例子，我们假设后分层数据集中的个体级数据。在那个世界里，我们可以将我们的模型应用于每个个体。
 
-```py
+```r
 predicted_tea_preference <-
  tea_preference_model |>
  add_epred_draws(newdata = tea_poststrat_dataset,
@@ -330,7 +338,7 @@ predicted_tea_preference |>
  count(age, nationality, average_preference)
 ```
 
-*```py
+```r
 # A tibble: 4 × 4
     age nationality average_preference     n
   <int>       <int>              <dbl> <int>
@@ -338,9 +346,10 @@ predicted_tea_preference |>
 2     0           1             0.528   2505
 3     1           0             0.496   2544
 4     1           1             0.941   2535
-```*  *表 16.4 比较了 MRP 估计值和有偏样本的原始估计值。在这种情况下，因为我们知道真实值，我们也可以将其与已知真实值进行比较，但这不是我们通常能做的事情。
+```
+表 16.4 比较了 MRP 估计值和有偏样本的原始估计值。在这种情况下，因为我们知道真实值，我们也可以将其与已知真实值进行比较，但这不是我们通常能做的事情。
 
-```py
+```r
 comparison <- tibble(
  Type = c("Truth", "Biased sample", "MRP estimate"),
  Estimate = c(
@@ -356,14 +365,16 @@ comparison |>
  format_tt(digits = 2, num_mark_big = ",", num_fmt = "decimal")
 ```
 
-*表 16.4：MRP 估计值与真实值和有偏样本的比较
+表 16.4：MRP 估计值与真实值和有偏样本的比较
 
 | 类型 | 估计值 |
 | --- | --- |
 | 真实值 | 0.5 |
 | 有偏样本 | 0.7 |
 
-| MRP 估计值 | 0.51 |*  *在这种情况下，MRP 方法很好地处理了有偏样本，并得出了一种反映真实情况的茶偏好估计值。*********  ***## 16.3 预测 2020 年美国选举
+| MRP 估计值 | 0.51 |*  *在这种情况下，MRP 方法很好地处理了有偏样本，并得出了一种反映真实情况的茶偏好估计值。
+  
+## 16.3 预测 2020 年美国选举
 
 美国的总统选举有许多独特的特点，但我们在这里将要构建的模型将可以推广到各种环境。我们将使用第八章中介绍的民主基金选民研究小组的调查数据。他们在美国大选前进行了民意调查，并在注册后公开了这些数据。我们将使用第六章中介绍的 IPUMS 来访问 2019 年美国社区调查（ACS）作为后分层数据集。我们将使用州、年龄组、性别和教育作为解释变量。
 
@@ -371,16 +382,16 @@ comparison |>
 
 我们将使用民主基金选民研究小组的 Nationscape 调查数据集。MRP 的一个棘手方面是确保调查数据集和后分层数据集之间的一致性。在这种情况下，在读取我们在第八章（08-hunt.html）中清理的数据集后，我们需要做一些工作来使变量保持一致。
 
-```py
+```r
 nationscape_data <- 
  read_csv(file = "nationscape_data.csv")
 ```
 
-*```py
+```r
 nationscape_data
 ```
 
-*```py
+```r
 # A tibble: 5,200 × 5
    gender state vote_biden age_group education_level    
  * <chr>  <chr>      <dbl> <chr>     <chr>              
@@ -395,7 +406,9 @@ nationscape_data
  9 female MD             0 60+       Post sec +         
 10 female FL             1 45-59     Some post sec      
 # ℹ 5,190 more rows
-```*  *```py
+
+
+```r
 # Format state names to match IPUMS
 states_names_and_abbrevs <-
  tibble(stateicp = state.name, state = state.abb)
@@ -422,22 +435,24 @@ nationscape_data <-
  as_factor))
 ```
 
-*最后，我们将准备好的数据集保存为 parquet 文件。
+最后，我们将准备好的数据集保存为 parquet 文件。
 
-```py
+```r
 write_parquet(x = nationscape_data,
  sink = "nationscape_data_cleaned.parquet")
-```***  ***### 16.3.2 后分层数据
+```
+  
+### 16.3.2 后分层数据
 
 我们有很多选项可以用来进行后分层的数据集，并且有许多考虑因素。我们追求的是高质量（无论如何定义）且可能更大的数据集。从严格的数据角度来看，最佳选择可能类似于第十二章中使用的合作选举研究（CES），但它在选举后才会公开发布，这限制了用它来预测选举的合理性。Wang 等人 (2015) 使用了出口民调数据，但同样，这些数据也只有在选举后才能获得。
 
 我们将使用我们在第六章中收集的 2019 年美国社区调查（ACS）数据集。
 
-```py
+```r
 poststrat_data
 ```
 
-*```py
+```r
 # A tibble: 407,354 × 4
    gender age_group education_level     stateicp
  * <fct>  <fct>     <fct>               <fct>   
@@ -452,17 +467,18 @@ poststrat_data
  9 male   60+       High school or less alabama 
 10 male   45-59     High school or less alabama 
 # ℹ 407,344 more rows
-```*  *该数据集处于个人层面。我们将为每个子单元创建计数，然后按州计算比例。
+```
+该数据集处于个人层面。我们将为每个子单元创建计数，然后按州计算比例。
 
-```py
+```r
 poststrat_data_cells <-
  poststrat_data |>
  count(stateicp, gender, age_group, education_level)
 ```
 
-*最后，我们为这些单元格添加比例。
+最后，我们为这些单元格添加比例。
 
-```py
+```r
 poststrat_data_cells <-
  poststrat_data_cells |>
  mutate(prop = n / sum(n),
@@ -471,7 +487,7 @@ poststrat_data_cells <-
 poststrat_data_cells
 ```
 
-*```py
+```r
 # A tibble: 1,627 × 6
    stateicp    gender age_group education_level         n    prop
    <fct>       <fct>  <fct>     <fct>               <int>   <dbl>
@@ -486,7 +502,9 @@ poststrat_data_cells
  9 connecticut male   45-59     High school or less   187 0.0404 
 10 connecticut male   45-59     Some post sec          88 0.0190 
 # ℹ 1,617 more rows
-```***  ***### 16.3.3 模型化样本
+```
+  
+### 16.3.3 模型化样本
 
 我们将使用逻辑回归来估计一个模型，其中拜登和特朗普的支持率的二元变量由性别、年龄组、教育和州来解释。
 
@@ -496,12 +514,12 @@ $$ \begin{aligned} y_i|\pi_i & \sim \mbox{Bern}(\pi_i) \\ \mbox{logit}(\pi_i) & 
 
 在读取我们之前清理的数据后，根据 Kennedy 和 Gabry (2020) 的方法，我们使用 `rstanarm` 中的 `stan_glmer()` 来估计模型。
 
-```py
+```r
 nationscape_data <- 
  read_parquet(file = "nationscape_data_cleaned.parquet")
 ```
 
-*```py
+```r
 us_election_model <-
  stan_glmer(
  vote_biden ~ gender + (1|age_group) + (1|stateicp) + (1|education_level),
@@ -515,29 +533,29 @@ us_election_model <-
  )
 ```
 
-*```py
+```r
 saveRDS(
  us_election_model,
  file = "us_election_model_mrp.rds"
 )
 ```
 
-*该模型运行大约需要 15 分钟，因此您应该在运行后使用 `saveRDS()` 保存它。您可以使用 `readRDS()` 加载它。
+该模型运行大约需要 15 分钟，因此您应该在运行后使用 `saveRDS()` 保存它。您可以使用 `readRDS()` 加载它。
 
-```py
+```r
 us_election_model <-
  readRDS(file = "us_election_model_mrp.rds")
 ```
 
-*我们可能对查看系数估计值（表 16.5）感兴趣。
+我们可能对查看系数估计值（表 16.5）感兴趣。
 
-```py
+```r
 modelsummary(
  us_election_model
 )
 ```
 
-*表 16.5：估计 2020 年美国总统选举中拜登与特朗普之间的选择模型
+表 16.5：估计 2020 年美国总统选举中拜登与特朗普之间的选择模型
 
 |  | (1) |
 | --- | --- |
@@ -559,7 +577,7 @@ modelsummary(
 
 | RMSE | 0.48 |*图 16.2 展示了不同年龄段和教育程度的抽样分布。为了节省空间，我们分别绘制了一些选定的州的数据(图 16.3)。
 
-```py
+```r
 us_election_model |>
  spread_draws(`(Intercept)`, b[, group]) |>
  mutate(condition_mean = `(Intercept)` + b) |>
@@ -572,9 +590,9 @@ us_election_model |>
  theme_minimal()
 ```
 
-*![](img/df304b4628461be810431bf60867cf88.png)
+![](img/df304b4628461be810431bf60867cf88.png)
 
-图 16.2：检查每个组别的抽样分布*  *```py
+图 16.2：检查每个组别的抽样分布*  ```r
 us_election_model |>
  spread_draws(`(Intercept)`, b[, group]) |>
  mutate(condition_mean = `(Intercept)` + b) |>
@@ -589,13 +607,15 @@ us_election_model |>
  theme_minimal()
 ```
 
-*![](img/cb1834e25957422fa69b459a54f71655.png)
+![](img/cb1834e25957422fa69b459a54f71655.png)
 
-图 16.3：检查选定州的抽样分布***********  ***### 16.3.4 后分层
+图 16.3：检查选定州的抽样分布
+  
+### 16.3.4 后分层
 
 我们现在根据之前计算的人口比例进行后分层，并为每个州计算可信区间。
 
-```py
+```r
 biden_support_by_state <-
  us_election_model |>
  add_epred_draws(newdata = poststrat_data_cells) |>
@@ -614,7 +634,7 @@ biden_support_by_state <-
 head(biden_support_by_state)
 ```
 
-*```py
+```r
 # A tibble: 6 × 4
   stateicp       mean lower upper
   <fct>         <dbl> <dbl> <dbl>
@@ -624,9 +644,10 @@ head(biden_support_by_state)
 4 new hampshire 0.531 0.201 0.834
 5 rhode island  0.540 0.206 0.841
 6 vermont       0.582 0.256 0.872
-```*  *我们可以通过图形查看我们的估计值(图 16.4)。
+```
+我们可以通过图形查看我们的估计值(图 16.4)。
 
-```py
+```r
 biden_support_by_state |>
  ggplot(aes(y = mean, x = fct_reorder(stateicp, mean), 
  color = "MRP estimate")) +
@@ -653,9 +674,11 @@ biden_support_by_state |>
  theme(legend.position = "bottom")
 ```
 
-*![](img/d117876fa9a8a56e7191995e8e842013.png)
+![](img/d117876fa9a8a56e7191995e8e842013.png)
 
-图 16.4：比较 MRP 估计值与 Nationscape 原始数据*  *Nationscape 数据集是一个高质量的调查数据集。但它被加权到主要人口普查区域——西部、中西部、东北部和南部——而不是州，这可能是我们观察到 MRP 估计值与原始数据之间差异的一个原因。***********  ***## 16.4 练习
+图 16.4：比较 MRP 估计值与 Nationscape 原始数据*  *Nationscape 数据集是一个高质量的调查数据集。但它被加权到主要人口普查区域——西部、中西部、东北部和南部——而不是州，这可能是我们观察到 MRP 估计值与原始数据之间差异的一个原因。
+  
+## 16.4 练习
 
 ### 练习
 

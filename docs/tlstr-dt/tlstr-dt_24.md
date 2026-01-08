@@ -6,7 +6,7 @@
 
 1.  12  线性模型
 
-**先决条件**
+先决条件**
 
 +   阅读 *回归及其他故事* (Gelman, Hill, and Vehtari 2020)
 
@@ -20,7 +20,7 @@
 
     +   详细说明可能削弱从统计模型中得出的结论的方面。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   线性模型是统计推断的关键组成部分，使我们能够快速探索广泛的数据。
 
@@ -28,7 +28,7 @@
 
 +   线性模型往往侧重于推断或预测。
 
-**软件和包**
+软件和包**
 
 +   基础 R (R Core Team 2024)
 
@@ -52,7 +52,7 @@
 
 +   `tinytable` (Arel-Bundock 2024)
 
-```py
+```r
 library(beepr)
 library(broom)
 library(broom.mixed)
@@ -65,7 +65,7 @@ library(tidyverse)
 library(tinytable)
 ```
 
-*## 12.1 简介
+## 12.1 简介
 
 线性模型已经以各种形式被使用了很长时间。Stigler (1986, 16) 描述了最小二乘法，这是一种拟合简单线性回归的方法，它与 18 世纪天文学的基础性问题有关，例如确定月亮的运动和调和木星和土星的非周期性运动。当时最小二乘法的基本问题是那些来自统计学背景的人对于结合不同观察结果的犹豫。天文学家很早就开始适应这样做，可能是因为他们通常自己收集观察数据，并且知道数据收集的条件是相似的，尽管观察的值是不同的。例如，Stigler (1986, 28) 将 18 世纪的数学家 Leonhard Euler 描述为认为误差随着它们的聚合而增加，相比之下，18 世纪的天文学家 Tobias Mayer 则认为误差会相互抵消。社会科学家适应线性模型需要更长的时间，可能是因为他们犹豫将他们担心不相似的数据分组在一起。在某种意义上，天文学家有优势，因为他们可以将他们的预测与实际发生的情况进行比较，而这对社会科学家来说更困难(Stigler 1986, 163)。
 
@@ -93,7 +93,7 @@ $$y = \frac{1}{\sqrt{2\pi\sigma}}e^{-\frac{1}{2}z²},$$ 其中 $z = (x - \mu)/\s
 
 如附录 A（20-r_essentials.html）中所述，我们使用`rnorm()`来模拟正态分布的数据。
 
-```py
+```r
 set.seed(853)
 
 normal_example <-
@@ -102,12 +102,13 @@ normal_example <-
 normal_example |> pull(draws)
 ```
 
-*```py
+```r
  [1] -0.35980342 -0.04064753 -1.78216227 -1.12242282 -1.00278400  1.77670433
  [7] -1.38825825 -0.49749494 -0.55798959 -0.82438245  1.66877818 -0.68196486
 [13]  0.06519751 -0.25985911  0.32900796 -0.43696568 -0.32288891  0.11455483
 [19]  0.84239206  0.34248268
-```*  *在这里，我们指定从具有真实均值$\mu$为零和真实标准差$\sigma$为一的正态分布中抽取 20 个样本。当我们处理真实数据时，我们将不知道这些真实值，我们希望使用我们的数据来估计它们。我们可以使用以下估计量创建均值的估计值$\hat{\mu}$和标准差的估计值$\hat{\sigma}$：
+```
+在这里，我们指定从具有真实均值$\mu$为零和真实标准差$\sigma$为一的正态分布中抽取 20 个样本。当我们处理真实数据时，我们将不知道这些真实值，我们希望使用我们的数据来估计它们。我们可以使用以下估计量创建均值的估计值$\hat{\mu}$和标准差的估计值$\hat{\sigma}$：
 
 $$ \begin{aligned} \hat{\mu} &= \frac{1}{n} \times \sum_{i = 1}^{n}x_i\\ \hat{\sigma} &= \sqrt{\frac{1}{n-1} \times \sum_{i = 1}^{n}\left(x_i - \hat{\mu}\right)²} \end{aligned} $$
 
@@ -119,7 +120,7 @@ $$\mbox{SE}(\hat{\mu}) = \frac{\hat{\sigma}}{\sqrt{n}}.$$
 
 我们可以使用我们的模拟数据来实现这些，以查看我们的估计有多接近。
 
-```py
+```r
 estimated_mean <-
  sum(normal_example$draws) / nrow(normal_example)
 
@@ -146,14 +147,14 @@ tibble(mean = estimated_mean,
  ))
 ```
 
-*表 12.1：基于模拟数据的均值和标准差估计
+表 12.1：基于模拟数据的均值和标准差估计
 
 | 估计的均值 | 估计的标准差 | 估计的标准误 |
 | --- | --- | --- |
 
 | -0.21 | 0.91 | 0.2 |*  *我们不应该过于担心我们的估计值与“真实”的均值为 0 和标准差为 1 相比略有偏差(表 12.1)。我们只考虑了 20 个观测值。通常需要更多的抽样次数才能得到预期的形状，我们的估计参数才会接近实际参数，但这几乎肯定会发生(图 12.1)。Wasserman (2005, 76)认为我们对此的确定性，这是由于大数定律，是概率学的伟大成就，尽管 Wood (2015, 15)可能更平实地描述它为“几乎”是“显而易见”的陈述！
 
-```py
+```r
 set.seed(853)
 
 normal_takes_shapes <-
@@ -174,7 +175,7 @@ normal_takes_shapes |>
  y = "Density")
 ```
 
-*![](img/c18a8cc75e9b98bb0b2e1fa69631e12a.png)
+![](img/c18a8cc75e9b98bb0b2e1fa69631e12a.png)
 
 图 12.1：随着抽样次数的增加，正态分布呈现出其熟悉的形状*  *当我们使用简单线性回归时，我们假设我们的关系由变量和参数来表征。如果我们有两个变量，$Y$和$X$，那么我们可以将这些变量之间的线性关系表征为：
 
@@ -186,7 +187,7 @@ $$ Y = \beta_0 + \beta_1 X + \epsilon. \tag{12.1}$$
 
 为了使这个例子具体化，我们回顾了第九章中的一个例子，关于某人跑五公里所需的时间与跑马拉松所需的时间的比较(图 12.2 (a))。我们指定了 8.4 的关系，因为这大约是五公里跑和马拉松 42.2 公里距离的比率。为了帮助读者，我们再次在此处包含模拟代码。注意，是噪声服从正态分布，而不是变量。我们不需要变量本身服从正态分布，才能使用线性回归。
 
-```py
+```r
 set.seed(853)
 
 num_observations <- 200
@@ -208,7 +209,7 @@ sim_run_data <-
  select(-noise)
 ```
 
-*```py
+```r
 base_plot <- 
  sim_run_data |>
  ggplot(aes(x = five_km_time, y = marathon_time)) +
@@ -243,7 +244,7 @@ base_plot +
  )
 ```
 
-*![图片](img/d6d52b2bbdf1ac5cf55cfe7f068f485d.png)*
+![图片](img/d6d52b2bbdf1ac5cf55cfe7f068f485d.png)*
 
 (a) 模拟数据的分布
 
@@ -281,7 +282,7 @@ $\epsilon$ 是我们误差的度量——在数据集的小型、封闭世界中
 
 在我们运行回归之前，我们可能想要快速检查变量的类别和观测数，以确保它符合我们的预期，尽管我们可能在工作流程的早期已经做过这样的事情。运行之后，我们可能检查我们的估计是否合理。例如，（假设我们自己在模拟中没有强加这个条件）根据我们对五公里跑和马拉松距离的了解，我们预计 $\beta_1$ 应该在六到十之间。
 
-```py
+```r
 # Check the class and number of observations are as expected
 stopifnot(
  class(sim_run_data$marathon_time) == "numeric",
@@ -302,13 +303,13 @@ stopifnot(between(
 ))
 ```
 
-*为了快速查看回归结果，我们可以使用 `summary()`。
+为了快速查看回归结果，我们可以使用 `summary()`。
 
-```py
+```r
 summary(sim_run_data_first_model)
 ```
 
-*```py
+```r
  Call:
 lm(formula = marathon_time ~ five_km_time, data = sim_run_data)
 
@@ -319,16 +320,19 @@ Residuals:
 Coefficients:
              Estimate Std. Error t value Pr(>|t|)    
 (Intercept)    4.4692     6.7517   0.662    0.509    
-five_km_time   8.2049     0.3005  27.305   <2e-16 ***
+five_km_time   8.2049     0.3005  27.305   <2e-16 
+
 ---
-Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+Signif. codes:  0 '
+' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 Residual standard error: 17.42 on 198 degrees of freedom
 Multiple R-squared:  0.7902,    Adjusted R-squared:  0.7891 
 F-statistic: 745.5 on 1 and 198 DF,  p-value: < 2.2e-16
-```*  *但我们也可以使用来自 `modelsummary` 的 `modelsummary()` 函数(表 12.2)。这种方法的优点是我们可以得到一个格式良好的表格。我们最初关注“仅五公里”这一列的结果。
+```
+但我们也可以使用来自 `modelsummary` 的 `modelsummary()` 函数(表 12.2)。这种方法的优点是我们可以得到一个格式良好的表格。我们最初关注“仅五公里”这一列的结果。
 
-```py
+```r
 modelsummary(
  list(
  "Five km only" = sim_run_data_first_model,
@@ -338,7 +342,7 @@ modelsummary(
 )
 ```
 
-*表 12.2：根据五公里跑时间解释马拉松时间
+表 12.2：根据五公里跑时间解释马拉松时间
 
 |  | 仅五公里 | 五公里，中心化 |
 | --- | --- | --- |
@@ -360,7 +364,7 @@ modelsummary(
 
 当我们使用中心化的五公里时间进行回归分析时，截距变得更加可解释，这是我们在表 12.2 的“仅五公里，中心化”列中进行的。也就是说，对于每个五公里时间，我们减去平均五公里时间。在这种情况下，截距被解释为跑五公里平均时间的跑步者的预期马拉松时间。请注意，斜率估计没有改变，只是截距发生了变化。
 
-```py
+```r
 sim_run_data <-
  sim_run_data |>
  mutate(centered_time = five_km_time - mean(sim_run_data$five_km_time))
@@ -372,11 +376,11 @@ sim_run_data_centered_model <-
  )
 ```
 
-*根据 Gelman、Hill 和 Vehtari（2020，第 84 页）的建议，我们建议将系数视为比较，而不是效应。并且使用明确表明这些是比较的语言，平均而言，基于一个数据集。例如，我们可能会考虑五公里跑步时间系数显示了不同个体之间的差异。当比较我们数据集中五公里跑步时间相差一分钟的个体的马拉松时间时，我们发现他们的马拉松时间平均相差大约八分钟。考虑到马拉松大约是五公里跑步长度的那么多倍，这是有道理的。
+根据 Gelman、Hill 和 Vehtari（2020，第 84 页）的建议，我们建议将系数视为比较，而不是效应。并且使用明确表明这些是比较的语言，平均而言，基于一个数据集。例如，我们可能会考虑五公里跑步时间系数显示了不同个体之间的差异。当比较我们数据集中五公里跑步时间相差一分钟的个体的马拉松时间时，我们发现他们的马拉松时间平均相差大约八分钟。考虑到马拉松大约是五公里跑步长度的那么多倍，这是有道理的。
 
 我们可以使用`broom`包中的`augment()`函数将拟合值和残差添加到我们的原始数据集中。这允许我们绘制残差图（图 12.3）。
 
-```py
+```r
 sim_run_data <-
  augment(
  sim_run_data_first_model,
@@ -384,7 +388,7 @@ sim_run_data <-
  )
 ```
 
-*```py
+```r
 # Plot a)
 ggplot(sim_run_data, aes(x = .resid)) +
  geom_histogram(binwidth = 1) +
@@ -411,21 +415,23 @@ ggplot(sim_run_data, aes(x = marathon_time, y = .fitted)) +
  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
  theme_classic() +
  labs(y = "Estimated marathon time", x = "Actual marathon time")
-```*
 
-*![图片](img/c56a1fca3a39029728c9ed8c04389dea.png)*
+
+
+
+![图片](img/c56a1fca3a39029728c9ed8c04389dea.png)*
 
 (a) 残差的分布
 
-*![图片](img/91075e1aa5c4f427bea226709870c0af.png)*
+![图片](img/91075e1aa5c4f427bea226709870c0af.png)*
 
 (b) 按五公里时间计算的残差
 
-*![图片](img/487f0eab1ad67aeb47771dabb3241656.png)*
+![图片](img/487f0eab1ad67aeb47771dabb3241656.png)*
 
 (c) 按马拉松时间计算的残差
 
-*![图片](img/df3ac721bd9b3972ba7169b3f1fe8daf.png)*
+![图片](img/df3ac721bd9b3972ba7169b3f1fe8daf.png)*
 
 (d) 比较估计时间与实际时间
 
@@ -455,7 +461,9 @@ p 值可能会因为零假设是错误的而拒绝零假设，但也可能是某
 
 在一个容易看到对 p 值不适当关注的例子中是功效分析。在统计意义上，功效指的是拒绝一个错误假设的概率。由于功效与假设检验相关，它也与样本量相关。人们常常担心研究“功效不足”，意味着样本量不够大，但很少担心，比如说，数据被不适当地清理了，尽管我们仅凭 p 值无法区分这些情况。正如 Meng (2018) 和 Bradley 等人 (2021) 所证明的，对功效的关注可能会使我们忽视确保我们的数据高质量的职责。
 
-*巨人的肩膀* *Nancy Reid 博士是多伦多大学统计科学系的大学教授。1979 年，她在斯坦福大学获得统计学博士学位后，在伦敦帝国理工学院担任博士后研究员。1980 年，她在不列颠哥伦比亚大学被任命为助理教授，然后于 1986 年搬到多伦多大学，在那里她于 1988 年被提升为全职教授，并在 1997 年至 2002 年期间担任系主任 (Staicu 2017)。她的研究专注于在小样本情况下获得准确的推断，并开发具有难以处理的似然函数的复杂模型的推断程序。Cox 和 Reid (1987) 研究了重新参数化模型如何简化推断，Varin、Reid 和 Firth (2011) 概述了近似难以处理的似然函数的方法，Reid (2003) 概述了小样本情况下的推断程序。Reid 博士获得了 1992 年的 COPSS 总统奖、2016 年的皇家统计学会银质 Guy 奖章和 2022 年的金质 Guy 奖章，以及 2022 年的 COPSS 杰出成就奖和讲座奖。************  ****## 12.3 多元线性回归
+巨人的肩膀* *Nancy Reid 博士是多伦多大学统计科学系的大学教授。1979 年，她在斯坦福大学获得统计学博士学位后，在伦敦帝国理工学院担任博士后研究员。1980 年，她在不列颠哥伦比亚大学被任命为助理教授，然后于 1986 年搬到多伦多大学，在那里她于 1988 年被提升为全职教授，并在 1997 年至 2002 年期间担任系主任 (Staicu 2017)。她的研究专注于在小样本情况下获得准确的推断，并开发具有难以处理的似然函数的复杂模型的推断程序。Cox 和 Reid (1987) 研究了重新参数化模型如何简化推断，Varin、Reid 和 Firth (2011) 概述了近似难以处理的似然函数的方法，Reid (2003) 概述了小样本情况下的推断程序。Reid 博士获得了 1992 年的 COPSS 总统奖、2016 年的皇家统计学会银质 Guy 奖章和 2022 年的金质 Guy 奖章，以及 2022 年的 COPSS 杰出成就奖和讲座奖。
+  
+## 12.3 多元线性回归
 
 到目前为止，我们只考虑了一个解释变量。但通常我们会考虑不止一个。一种方法是为每个解释变量运行单独的回归分析。但与为每个变量单独进行线性回归相比，增加更多的解释变量允许在调整其他解释变量的同时评估结果变量与感兴趣预测变量之间的关联。结果可能会有很大不同，尤其是当解释变量之间相互关联时。
 
@@ -465,7 +473,7 @@ p 值可能会因为零假设是错误的而拒绝零假设，但也可能是某
 
 作为例子，我们将是否下雨添加到我们模拟的马拉松和五公里跑步时间之间的关系中。然后我们指定，如果下雨，个体会比没有下雨时慢十分钟。
 
-```py
+```r
 slow_in_rain <- 10
 
 sim_run_data <-
@@ -486,9 +494,9 @@ sim_run_data <-
  select(five_km_time, marathon_time, was_raining)
 ```
 
-*我们可以使用`+`向`lm()`函数添加额外的解释变量。同样，我们将包括一系列针对类别和观测数目的快速测试，并添加一个关于缺失值的测试。我们可能不知道雨的系数应该是多少，但如果我们预期它不会使它们更快，那么我们也可以添加一个测试，使用广泛的非负值区间。
+我们可以使用`+`向`lm()`函数添加额外的解释变量。同样，我们将包括一系列针对类别和观测数目的快速测试，并添加一个关于缺失值的测试。我们可能不知道雨的系数应该是多少，但如果我们预期它不会使它们更快，那么我们也可以添加一个测试，使用广泛的非负值区间。
 
-```py
+```r
 stopifnot(
  class(sim_run_data$marathon_time) == "numeric",
  class(sim_run_data$five_km_time) == "numeric",
@@ -510,7 +518,7 @@ stopifnot(
 summary(sim_run_data_rain_model)
 ```
 
-*```py
+```r
  Call:
 lm(formula = marathon_time ~ five_km_time + was_raining, data = sim_run_data)
 
@@ -521,21 +529,26 @@ Residuals:
 Coefficients:
                Estimate Std. Error t value Pr(>|t|)    
 (Intercept)      3.8791     6.8385   0.567 0.571189    
-five_km_time     8.2164     0.3016  27.239  < 2e-16 ***
-was_rainingYes  11.8753     3.2189   3.689 0.000291 ***
+five_km_time     8.2164     0.3016  27.239  < 2e-16 
+
+was_rainingYes  11.8753     3.2189   3.689 0.000291 
+
 ---
-Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+Signif. codes:  0 '
+' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 Residual standard error: 17.45 on 197 degrees of freedom
 Multiple R-squared:  0.791, Adjusted R-squared:  0.7889 
 F-statistic: 372.8 on 2 and 197 DF,  p-value: < 2.2e-16
-```* *结果，在表 12.3 的第二列显示，当我们比较数据集中下雨跑步和没有下雨的人时，下雨的人往往跑得慢。这与我们查看数据图（图 12.4 (a)）时预期的相符。
+
+
+结果，在表 12.3 的第二列显示，当我们比较数据集中下雨跑步和没有下雨的人时，下雨的人往往跑得慢。这与我们查看数据图（图 12.4 (a)）时预期的相符。
 
 我们在这里包括了两种类型的测试。在`lm()`之前运行的检查输入，以及在`lm()`之后运行的检查输出。我们可能会注意到一些输入检查与之前相同。避免多次重写测试的一种方法是将`testthat`安装并加载到名为“class_tests.R”的 R 文件中，创建一系列针对类别的测试，然后使用`test_file()`调用。
 
 例如，我们可以将以下内容保存为“test_class.R”，在一个专门的测试文件夹中。
 
-```py
+```r
 test_that("Check class", {
  expect_type(sim_run_data$marathon_time, "double")
  expect_type(sim_run_data$five_km_time, "double")
@@ -543,9 +556,9 @@ test_that("Check class", {
 })
 ```
 
-*我们可以将以下内容保存为“test_observations.R”。
+我们可以将以下内容保存为“test_observations.R”。
 
-```py
+```r
 test_that("Check number of observations is correct", {
  expect_equal(nrow(sim_run_data), 200)
 })
@@ -555,18 +568,18 @@ test_that("Check complete", {
 })
 ```
 
-*最后，我们可以将以下内容保存为“test_coefficient_estimates.R”。
+最后，我们可以将以下内容保存为“test_coefficient_estimates.R”。
 
-```py
+```r
 test_that("Check coefficients", {
  expect_gt(sim_run_data_rain_model$coefficients[3], 0)
  expect_lt(sim_run_data_rain_model$coefficients[3], 20)
 })
 ```
 
-*然后我们可以更改回归代码，使其调用这些测试文件，而不是全部写出来。
+然后我们可以更改回归代码，使其调用这些测试文件，而不是全部写出来。
 
-```py
+```r
 test_file("tests/test_observations.R")
 test_file("tests/test_class.R")
 
@@ -579,11 +592,11 @@ sim_run_data_rain_model <-
 test_file("tests/test_coefficient_estimates.R")
 ```
 
-*在检查系数时，我们必须清楚我们想要寻找什么。当我们模拟数据时，我们为数据可能看起来像什么放置合理的猜测，并且我们测试的也是类似的合理猜测。失败的测试不一定是返回并更改事物的理由，而是一个提醒，要查看两者中发生的事情，并在必要时可能更新测试。
+在检查系数时，我们必须清楚我们想要寻找什么。当我们模拟数据时，我们为数据可能看起来像什么放置合理的猜测，并且我们测试的也是类似的合理猜测。失败的测试不一定是返回并更改事物的理由，而是一个提醒，要查看两者中发生的事情，并在必要时可能更新测试。
 
 除了想要包含额外的解释变量外，我们还可能认为它们彼此相关。例如，如果那天也是潮湿的，那么下雨可能真的很重要。我们对湿度和温度感兴趣，但还想知道这两个变量如何相互作用(图 12.4 (b))。我们可以通过在指定模型时使用`*`而不是`+`来实现这一点。当我们以这种方式交互变量时，我们几乎总是需要包括单个变量，而`lm()`会默认这样做。结果包含在表 12.3 的第三列中。
 
-```py
+```r
 slow_in_humidity <- 15
 
 sim_run_data <- sim_run_data |>
@@ -601,7 +614,7 @@ sim_run_data <- sim_run_data |>
  )
 ```
 
-*```py
+```r
 base <-
  sim_run_data |>
  ggplot(aes(x = five_km_time, y = marathon_time)) +
@@ -636,7 +649,7 @@ base +
  labs(color = "Conditions")
 ```
 
-*![](img/88da1c1e219bd39c10a011e38685a4e7.png)
+![](img/88da1c1e219bd39c10a011e38685a4e7.png)
 
 (a) 只有是否下雨
 
@@ -644,7 +657,7 @@ base +
 
 (b) 是否下雨和湿度水平
 
-图 12.4：基于天气的模拟数据对某人跑五公里和马拉松所需时间的简单线性回归*  *```py
+图 12.4：基于天气的模拟数据对某人跑五公里和马拉松所需时间的简单线性回归*  ```r
 sim_run_data_rain_and_humidity_model <-
  lm(
  marathon_time ~ five_km_time + was_raining * humidity,
@@ -661,7 +674,7 @@ modelsummary(
 )
 ```
 
-*表 12.3：根据五公里跑时间和天气特征解释马拉松成绩
+表 12.3：根据五公里跑时间和天气特征解释马拉松成绩
 
 |  | 五公里跑 | 添加降雨 | 添加湿度 |
 | --- | --- | --- | --- |
@@ -695,7 +708,9 @@ modelsummary(
 
 这些方面是统计问题，与模型是否有效相关。对有效性构成的最重要威胁，因此必须详细解决的问题，是模型是否直接与感兴趣的研究问题相关。
 
-*巨人的肩膀* *丹妮拉·维滕博士是华盛顿大学数学统计学的多萝西·吉尔福德捐赠教授和统计学与生物统计学教授。2010 年从斯坦福大学获得统计学博士学位后，她作为助理教授加入了华盛顿大学。2018 年晋升为正教授。她研究的一个活跃领域是双重抽样，专注于样本分割的影响(高、比恩和维滕 2022)。她是影响深远的*统计学习导论*([詹姆斯等人 [2013] 2021](99-references.html#ref-islr))的作者。维滕于 2020 年被任命为美国统计协会会员，并在 2022 年获得了 COPSS 总统奖。**********  ****## 12.4 构建模型
+巨人的肩膀* *丹妮拉·维滕博士是华盛顿大学数学统计学的多萝西·吉尔福德捐赠教授和统计学与生物统计学教授。2010 年从斯坦福大学获得统计学博士学位后，她作为助理教授加入了华盛顿大学。2018 年晋升为正教授。她研究的一个活跃领域是双重抽样，专注于样本分割的影响(高、比恩和维滕 2022)。她是影响深远的*统计学习导论*([詹姆斯等人 [2013] 2021](99-references.html#ref-islr))的作者。维滕于 2020 年被任命为美国统计协会会员，并在 2022 年获得了 COPSS 总统奖。
+  
+## 12.4 构建模型
 
 Breiman (2001) 描述了统计建模的两种文化：一种侧重于推断，另一种侧重于预测。一般来说，在 Breiman (2001) 发表的大约同一时期，各个学科倾向于关注推断或预测。例如，Jordan (2004) 描述了统计学和计算机科学曾经是分开的，但每个领域的目标正变得越来越接近。数据科学的兴起，尤其是机器学习的出现，意味着现在需要适应两者(Neufeld and Witten 2021)。这两种文化正在被拉近，预测和推断之间有重叠和互动。但它们各自的发展意味着仍然存在相当大的文化差异。作为这一点的微小例子，术语“机器学习”在计算机科学中较为常见，而术语“统计学习”在统计学中较为常见，尽管它们通常指的是相同的机制。
 
@@ -711,7 +726,7 @@ $$ \begin{aligned} y_i|\mu_i, \sigma &\sim \mbox{Normal}(\mu_i, \sigma) \\ \mu_i
 
 与我们迄今为止所采用的方法相比，贝叶斯方法的一个不同之处在于，贝叶斯模型通常需要更长的时间来运行。正因为如此，将模型在单独的 R 脚本中运行并使用`saveRDS()`保存它可能是有用的。通过合理的 Quarto 块选项“eval”和“echo”（见第三章），模型可以通过`readRDS()`而不是每次编译论文时都运行来被读入 Quarto 文档。这样，对于给定的模型，模型延迟只会被施加一次。在模型的末尾添加`beepr`中的`beep()`，当模型完成后可以得到音频通知。
 
-```py
+```r
 sim_run_data_first_model_rstanarm <-
  stan_glm(
  formula = marathon_time ~ five_km_time + was_raining,
@@ -731,12 +746,12 @@ saveRDS(
 )
 ```
 
-*```py
+```r
 sim_run_data_first_model_rstanarm <-
  readRDS(file = "sim_run_data_first_model_rstanarm.rds")
 ```
 
-*我们使用`stan_glm()`的“gaussian()”族来指定多元线性回归，模型公式与基础 R 和`rstanarm`的写法相同。我们明确添加了默认先验，尽管严格来说这不是必需的，但我们认为这是一种良好的实践。
+我们使用`stan_glm()`的“gaussian()”族来指定多元线性回归，模型公式与基础 R 和`rstanarm`的写法相同。我们明确添加了默认先验，尽管严格来说这不是必需的，但我们认为这是一种良好的实践。
 
 表 12.4 的第一列中的估计结果并不完全符合我们的预期。例如，马拉松时间的增加速度估计为每分钟增加五公里时间大约三分钟，考虑到五公里跑与马拉松距离的比例，这似乎有点低。
 
@@ -746,11 +761,11 @@ sim_run_data_first_model_rstanarm <-
 
 发现难以确定先验是很正常的。通过修改他人的`rstanarm`代码开始是完全可以接受的。如果他们没有指定先验，那么我们可以使用辅助函数`prior_summary()`来找出使用了哪些先验。
 
-```py
+```r
 prior_summary(sim_run_data_first_model_rstanarm)
 ```
 
-*```py
+```r
 Priors for model 'sim_run_data_first_model_rstanarm' 
 ------
 Intercept (after predictors centered)
@@ -763,9 +778,10 @@ Auxiliary (sigma)
  ~ exponential(rate = 1)
 ------
 See help('prior_summary.stanreg') for more details
-```*  *我们在涉及任何数据之前，对先验信息所暗示的内容感兴趣。我们通过实施先验预测检查来完成这项工作。这意味着从先验分布中进行模拟，以查看模型对解释变量和结果变量之间可能的大小和方向关系的暗示。这个过程与我们迄今为止所做的一切模拟没有区别。
+```
+我们在涉及任何数据之前，对先验信息所暗示的内容感兴趣。我们通过实施先验预测检查来完成这项工作。这意味着从先验分布中进行模拟，以查看模型对解释变量和结果变量之间可能的大小和方向关系的暗示。这个过程与我们迄今为止所做的一切模拟没有区别。
 
-```py
+```r
 draws <- 1000
 
 priors <-
@@ -782,7 +798,7 @@ priors <-
  )
 ```
 
-*```py
+```r
 priors |>
  ggplot(aes(x = marathon_time)) +
  geom_histogram(binwidth = 10) +
@@ -794,7 +810,7 @@ priors |>
  theme_classic()
 ```
 
-*![](img/bd6a1ea3734c7957362e98ecf675fb20.png)
+![](img/bd6a1ea3734c7957362e98ecf675fb20.png)
 
 (a) 推断出的马拉松时间分布
 
@@ -808,7 +824,7 @@ priors |>
 
 $$ \begin{aligned} y_i|\mu_i, \sigma &\sim \mbox{Normal}(\mu_i, \sigma) \\ \mu_i &= \beta_0 +\beta_1x_i\\ \beta_0 &\sim \mbox{Normal}(0, 2.5) \\ \beta_1 &\sim \mbox{Normal}(8, 2.5) \\ \sigma &\sim \mbox{Exponential}(1) \\ \end{aligned} $$ 我们可以从先验预测检查中看到，这似乎更加合理（图 12.6）。
 
-```py
+```r
 draws <- 1000
 
 updated_priors <-
@@ -825,7 +841,7 @@ updated_priors <-
  )
 ```
 
-*```py
+```r
 updated_priors |>
  ggplot(aes(x = marathon_time)) +
  geom_histogram(binwidth = 10) +
@@ -837,7 +853,7 @@ updated_priors |>
  theme_classic()
 ```
 
-*![](img/55a25acb2cdcc39290e4bf0d446a0d35.png)
+![](img/55a25acb2cdcc39290e4bf0d446a0d35.png)
 
 (a) 推断出的马拉松时间分布
 
@@ -849,7 +865,7 @@ updated_priors |>
 
 如果我们不确定该怎么做，那么`rstanarm`可以帮助我们通过根据数据缩放来改进指定的先验。指定你认为合理的先验，即使这只是默认值，也要将其包含在函数中，但也要包含“autoscale = TRUE”，然后`rstanarm`将调整缩放。当我们用这些更新的先验和允许自动缩放重新运行我们的模型时，我们得到了更好的结果，这些结果在表 12.4 的第二列中。然后你可以将它们添加到写出的模型中。
 
-```py
+```r
 sim_run_data_second_model_rstanarm <-
  stan_glm(
  formula = marathon_time ~ five_km_time + was_raining,
@@ -867,7 +883,7 @@ saveRDS(
 )
 ```
 
-*```py
+```r
 modelsummary(
  list(
  "Non-scaled priors" = sim_run_data_first_model_rstanarm,
@@ -877,7 +893,7 @@ modelsummary(
 )
 ```
 
-*表 12.4：基于五公里跑时间的马拉松时间预测和解释模型
+表 12.4：基于五公里跑时间的马拉松时间预测和解释模型
 
 |  | 未缩放先验 | 自动缩放先验 |
 | --- | --- | --- |
@@ -896,11 +912,11 @@ modelsummary(
 
 | RMSE | 175.52 | 16.85 |*  *由于我们使用了“autoscale = TRUE”选项，查看如何使用`rstanarm`的`prior_summary()`更新先验可能是有帮助的。
 
-```py
+```r
 prior_summary(sim_run_data_second_model_rstanarm)
 ```
 
-*```py
+```r
 Priors for model 'sim_run_data_second_model_rstanarm' 
 ------
 Intercept (after predictors centered)
@@ -922,13 +938,15 @@ Auxiliary (sigma)
     ~ exponential(rate = 0.026)
 ------
 See help('prior_summary.stanreg') for more details
-```********  ***### 12.4.2 后验分布
+```
+  
+### 12.4.2 后验分布
 
 建立了贝叶斯模型后，我们可能想看看它意味着什么（图 12.7）。一种方法是考虑后验分布。
 
 使用后验分布的一种方法是考虑模型是否很好地拟合了数据。想法是，如果模型很好地拟合了数据，那么后验分布应该能够用来模拟与实际数据类似的数据（Gelman 等人 2020）。我们可以使用`rstanarm`的`pp_check()`实现后验预测检验（图 12.7 (a)）。这比较了实际结果变量与后验分布的模拟。我们可以使用`posterior_vs_prior()`比较后验分布与先验分布，以查看在考虑数据后估计值的变化程度（图 12.7 (b)）。方便的是，`pp_check()`和`posterior_vs_prior()`返回`ggplot2`对象，因此我们可以像处理图形一样修改它们的样式。这些检查和讨论通常只会在论文的主要内容中简要提及，详细内容和图形则添加到专门的附录中。
 
-```py
+```r
 pp_check(sim_run_data_second_model_rstanarm) +
  theme_classic() +
  theme(legend.position = "bottom")
@@ -940,7 +958,7 @@ posterior_vs_prior(sim_run_data_second_model_rstanarm) +
  coord_flip()
 ```
 
-*![](img/d0b85f255cd2076b7f5dc2ba020c4110.png)
+![](img/d0b85f255cd2076b7f5dc2ba020c4110.png)
 
 (a) 后验预测检验
 
@@ -954,26 +972,28 @@ posterior_vs_prior(sim_run_data_second_model_rstanarm) +
 
 我们已经讨论了置信区间，而贝叶斯等价于置信区间的称为“可信区间”，它反映了两个点之间有一定概率质量，在这种情况下为 95%。贝叶斯估计为每个系数提供一个分布。这意味着我们可以使用无限多个点来生成这个区间。整个分布应通过图形展示出来（图 12.8）。这可能是通过交叉引用的附录来实现的。
 
-```py
+```r
 plot(
  sim_run_data_second_model_rstanarm,
  "areas"
 )
 ```
 
-*![](img/7f66308f2fd91ce20a856dd4fec103b4.png)
+![](img/7f66308f2fd91ce20a856dd4fec103b4.png)
 
-图 12.8：可信区间**  **### 12.4.3 诊断
+图 12.8：可信区间
+
+### 12.4.3 诊断
 
 我们想要检查的最后一个方面是一个实际问题。`rstanarm`使用一种称为马尔可夫链蒙特卡洛（MCMC）的采样算法来从感兴趣的后续分布中获取样本。我们需要快速检查是否存在算法遇到问题的迹象。我们考虑跟踪图，例如图 12.9 (a)，以及 Rhat 图，例如图 12.9 (b)。这些通常会在交叉引用的附录中。
 
-```py
+```r
 plot(sim_run_data_second_model_rstanarm, "trace")
 
 plot(sim_run_data_second_model_rstanarm, "rhat")
 ```
 
-*![](img/de32f7a40b49cdbac9092f0602e8dc12.png)
+![](img/de32f7a40b49cdbac9092f0602e8dc12.png)
 
 (a) 跟踪图
 
@@ -983,52 +1003,56 @@ plot(sim_run_data_second_model_rstanarm, "rhat")
 
 图 12.9：检查 MCMC 算法的收敛性
 
-在跟踪图中，我们寻找看起来在水平方向上弹跳但重叠良好的线条。图 12.9 (a)中的跟踪图没有显示出任何异常。同样，在 Rhat 图中，我们寻找所有值都接近 1，理想情况下不超过 1.1。再次，图 12.9 (b)是一个没有显示出任何问题的例子。如果这些诊断结果不是这样，那么通过删除或修改预测变量简化模型，改变先验，然后重新运行。*  *### 12.4.4 并行处理
+在跟踪图中，我们寻找看起来在水平方向上弹跳但重叠良好的线条。图 12.9 (a)中的跟踪图没有显示出任何异常。同样，在 Rhat 图中，我们寻找所有值都接近 1，理想情况下不超过 1.1。再次，图 12.9 (b)是一个没有显示出任何问题的例子。如果这些诊断结果不是这样，那么通过删除或修改预测变量简化模型，改变先验，然后重新运行。
+
+### 12.4.4 并行处理
 
 有时代码运行缓慢是因为计算机需要多次执行相同的事情。我们可能可以利用这一点，并使这些工作能够同时通过并行处理来完成。这在估计贝叶斯模型时尤其如此。
 
 在安装和加载`tictoc`之后，我们可以使用`tic()`和`toc()`来计时代码的各个方面。这对于并行处理很有用，但更普遍地，这有助于我们找出最大的延迟在哪里。
 
-```py
+```r
 tic("First bit of code")
 print("Fast code")
 ```
 
-*```py
+```r
 [1] "Fast code"
 ```
 
-```py
+```r
 toc()
 ```
 
-*```py
+```r
 First bit of code: 0 sec elapsed
 ```
 
-```py
+```r
 tic("Second bit of code")
 Sys.sleep(3)
 print("Slow code")
 ```
 
-*```py
+```r
 [1] "Slow code"
 ```
 
-```py
+```r
 toc()
 ```
 
-*```py
+```r
 Second bit of code: 3.008 sec elapsed
-```****  ***因此我们知道代码中存在某种减慢速度的因素。（在这个人工案例中，是`Sys.sleep()`导致延迟了三秒钟。）
+```
+  
+因此我们知道代码中存在某种减慢速度的因素。（在这个人工案例中，是`Sys.sleep()`导致延迟了三秒钟。）
 
 我们可以使用`parallel`，它是基础 R 的一部分，以并行运行函数。我们还可以使用`future`，它带来了额外的功能。在安装和加载`future`之后，我们使用`plan()`来指定我们想要顺序运行（“顺序”）还是并行运行（“多会话”）。然后我们将要应用的内容包裹在`future()`中。
 
 为了看到这个动作的实际效果，我们将创建一个数据集，然后在行级别上实现一个函数。
 
-```py
+```r
 simulated_data <-
  tibble(
  random_draws = runif(n = 1000000, min = 0, max = 1000) |> round(),
@@ -1060,9 +1084,11 @@ simulated_data <-
 toc()
 ```
 
-*顺序方法大约需要 5 秒钟，而多会话方法大约需要 0.3 秒钟。
+顺序方法大约需要 5 秒钟，而多会话方法大约需要 0.3 秒钟。
 
-在估计贝叶斯模型的情况下，许多包如`rstanarm`通过`cores`内置了并行处理的支持。************  ***## 12.5 结论
+在估计贝叶斯模型的情况下，许多包如`rstanarm`通过`cores`内置了并行处理的支持。
+  
+## 12.5 结论
 
 在本章中，我们考虑了线性模型。我们为分析奠定了基础，并描述了一些基本方法。我们还简要地浏览了一些内容。本章和下一章应一起考虑。这些为你提供了足够的起点，但要做得更多，请参阅第十八章中推荐建模书籍。 
 
@@ -1138,14 +1164,14 @@ toc()
 
     +   将该模型读入结果部分，并使用`modelsummary`创建一个摘要表。
 
-```py
+```r
 palmerpenguins::penguins |> 
  filter(species == "Adelie") |> 
  ggplot(aes(x = bill_length_mm, y = bill_depth_mm)) +
  geom_point()
 ```
 
-*![](img/9063bc40248e09c2478bfad9ac407929.png)*  **   （这个问题基于 Gelman 和 Vehtari(2024, 32)。）请按照[这里](https://youtu.be/_Dof_Ks-f9U)的说明制作一张纸飞机。测量：
+![](img/9063bc40248e09c2478bfad9ac407929.png)*  **   （这个问题基于 Gelman 和 Vehtari(2024, 32)。）请按照[这里](https://youtu.be/_Dof_Ks-f9U)的说明制作一张纸飞机。测量：
 
     1.  翼的宽度；
 
@@ -1173,7 +1199,9 @@ palmerpenguins::penguins |>
 > 
 > 但在于我们自己，我们是下属。
 
-请讨论 p 值，回归表中显著性星号（*significance stars*）的常见但可能具有误导性的使用，以及 Ioannidis (2005) 的观点，并参考以下引言。 - 想象一下，方差估计结果为负数。请讨论。*  *### 任务
+请讨论 p 值，回归表中显著性星号（*significance stars*）的常见但可能具有误导性的使用，以及 Ioannidis (2005) 的观点，并参考以下引言。 - 想象一下，方差估计结果为负数。请讨论。
+
+### 任务
 
 假设真实数据生成过程是一个均值为 1，标准差为 1 的正态分布。我们使用某种工具获得了一个包含 1,000 个观测值的样本。模拟以下情况：
 
@@ -1189,4 +1217,5 @@ palmerpenguins::penguins |>
 
 使用 Quarto，并包含适当的标题、作者、日期、GitHub 仓库链接以及引用来制作草稿。在此之后，请与另一位学生配对并交换你的书面作品。根据他们的反馈进行更新，并在你的论文中提及他们的名字。提交 PDF。
 
-1.  在 20 个样本大小的例子中，我们严格来说应该使用有限样本调整，但由于这不是本书的重点，我们将继续使用通用方法。↩︎*************
+1.  在 20 个样本大小的例子中，我们严格来说应该使用有限样本调整，但由于这不是本书的重点，我们将继续使用通用方法。↩︎
+

@@ -1608,7 +1608,7 @@
 
 Arel-Bundock, Vincent. 2024\. *tinytable: 简单且可配置的表格，支持“HTML”、“LaTeX”、“Markdown”、“Word”、“PNG”、“PDF”和“Typst”格式*. [`vincentarelbundock.github.io/tinytable/`](https://vincentarelbundock.github.io/tinytable/).Barba, Lorena. 2018\. “可重复研究术语。” [`arxiv.org/abs/1802.03311`](https://arxiv.org/abs/1802.03311).Blumenthal, Mark. 2014\. “民意调查、预测和聚合器。” *PS: 政治学 & 政治* 47 (02): 297–300\. [`doi.org/10.1017/s1049096514000055`](https://doi.org/10.1017/s1049096514000055).Gebru, Timnit, Jamie Morgenstern, Briana Vecchione, Jennifer Wortman Vaughan, Hanna Wallach, Hal Daumé III, and Kate Crawford. 2021\. “数据集的数据表。” *ACM 通讯* 64 (12): 86–92\. [`doi.org/10.1145/3458723`](https://doi.org/10.1145/3458723).Gelfand, Sharla. 2022\. *opendatatoronto: 访问多伦多市开放数据门户*. [`CRAN.R-project.org/package=opendatatoronto`](https://CRAN.R-project.org/package=opendatatoronto).Huntington-Klein, Nick. 2022\. “统计技术库。” [`lost-stats.github.io`](https://lost-stats.github.io).Pasek, Josh. 2015\. “预测选举：考虑汇总民调的工具。” *公众舆论季刊* 79 (2): 594–619\. [`doi.org/10.1093/poq/nfu060`](https://doi.org/10.1093/poq/nfu060).Penrose, Carly. 2024\. “致命火灾：死亡和受伤风险在多伦多低收入社区最高。” *CBC 新闻*，四月。[`www.cbc.ca/news/canada/toronto/fatal-fires-lower-income-1.7177356`](https://www.cbc.ca/news/canada/toronto/fatal-fires-lower-income-1.7177356).Wickham, Hadley. 2016\. *ggplot2: 数据分析的优雅图形*. Springer-Verlag New York. [`ggplot2.tidyverse.org`](https://ggplot2.tidyverse.org).
 
-* * *
+* *
 
 1.  Gilad 明确表示同意并鼓励将其列入此名单。↩︎
 

@@ -6,7 +6,7 @@
 
 1.  15  从观察数据中推断因果关系
 
-**先决条件**
+先决条件**
 
 +   阅读关于数据分析师的因果设计模式的 *Causal design patterns for data analysts*，(Riederer 2021)
 
@@ -24,7 +24,7 @@
 
     +   讨论了使用回归不连续性的一些担忧。
 
-**关键概念和技能**
+关键概念和技能**
 
 +   进行实验并不总是可能的，但我们可以使用各种方法，从而在一定程度上探讨因果关系。
 
@@ -34,7 +34,7 @@
 
 +   通常，这些方法需要我们谦逊地使用，并关注弱点及假设，包括我们可以测试的和那些我们不能测试的。
 
-**软件和包**
+软件和包**
 
 +   Base R (R Core Team 2024)
 
@@ -62,7 +62,7 @@
 
 +   `tinytable` (Arel-Bundock 2024)
 
-```py
+```r
 library(broom)
 library(broom.mixed)
 library(estimatr)
@@ -77,7 +77,7 @@ library(tidyverse)
 library(tinytable)
 ```
 
-*## 15.1 简介
+## 15.1 简介
 
 当我们能够进行实验来探讨因果关系时，生活是伟大的。但有些情况下，我们无法进行实验，然而我们仍然希望能够做出因果推断。外部实验的数据具有实验所不具备的价值。在本章中，我们讨论了允许我们使用观察数据来探讨因果关系的情境和方法。我们使用相对简单的方法，以复杂的方式，从统计学中汲取，同时也借鉴了包括经济学、政治学以及流行病学在内的多种社会科学。
 
@@ -97,7 +97,7 @@ library(tinytable)
 
 当我们估计数据子集的一些关系时，但当我们考虑整个数据集时却出现不同的关系时，就发生了 Simpson 悖论(Simpson 1951)。它是生态谬误的一个特例，即当我们试图根据他们的群体对个体做出断言时。例如，当单独考虑每个部门时，两个部门之间本科成绩和研究生表现之间可能存在正相关关系。但如果本科成绩在一个部门中普遍高于另一个部门，而研究生表现则相反，我们可能会发现本科成绩和研究生表现之间存在负相关关系。我们可以通过模拟一些数据来更清楚地展示这一点(图 15.1))。
 
-```py
+```r
 set.seed(853)
 
 number_in_each <- 1000
@@ -123,7 +123,7 @@ both_departments <- rbind(department_one, department_two)
 both_departments
 ```
 
-*```py
+```r
 # A tibble: 2,000 × 4
    undergrad   noise  grad type        
        <dbl>   <dbl> <dbl> <chr>       
@@ -138,7 +138,9 @@ both_departments
  9     0.732 -0.0471 0.684 Department 1
 10     0.738  0.0552 0.793 Department 1
 # ℹ 1,990 more rows
-```*  *```py
+
+
+```r
 both_departments |>
  ggplot(aes(x = undergrad, y = grad)) +
  geom_point(aes(color = type), alpha = 0.1) +
@@ -154,13 +156,13 @@ both_departments |>
  theme(legend.position = "bottom")
 ```
 
-*![图片](img/d54a1978d5b766d99381a0fcd385d3a4.png)
+![图片](img/d54a1978d5b766d99381a0fcd385d3a4.png)
 
 图 15.1：展示模拟数据的 Simpson 悖论*  *Simpson 悖论通常使用加州大学伯克利分校的真实世界数据来展示，这些数据是关于研究生录取的(Bickel, Hammel, and O’Connell 1975)。这篇论文在第四章中被提及，拥有史上最伟大的副标题之一。Hernán, Clayton, 和 Keiding (2011) 创建了 DAGs，进一步阐明了悖论的关系和原因。
 
 最近，正如其文档中提到的，“penguins”数据集来自`palmerpenguins`，它提供了一个 Simpson 悖论的例子，使用真实世界数据展示了不同企鹅物种之间身体质量和喙深度的关系(图 15.2)。整体呈现的负趋势是因为 Gentoo 企鹅通常比 Adelie 和 Chinstrap 企鹅重，但喙较短。
 
-```py
+```r
 penguins |>
  ggplot(aes(x = body_mass_g, y = bill_depth_mm)) +
  geom_point(aes(color = species), alpha = 0.1) +
@@ -180,13 +182,15 @@ penguins |>
  theme(legend.position = "bottom")
 ```
 
-*![图片](img/6f4f2f58ba1b5bf62ed1877339955eb4.png)
+![图片](img/6f4f2f58ba1b5bf62ed1877339955eb4.png)
 
-图 15.2：展示企鹅喙深度数据集与身体质量关系的 Simpson 悖论***  ***### 15.2.2 Berkson 悖论
+图 15.2：展示企鹅喙深度数据集与身体质量关系的 Simpson 悖论
+  
+### 15.2.2 Berkson 悖论
 
 当我们基于我们所拥有的数据集估计某种关系时，伯克森悖论就会发生，因为数据集的选取方式使得这种关系在更一般的数据集中有所不同 (Berkson 1946). 例如，如果我们有一个职业自行车手的数据库，我们可能会发现他们的最大摄氧量（VO2 max）和赢得自行车比赛的机会之间没有关系 (Coyle et al. 1988; Podlogar, Leo, and Spragg 2022). 但如果我们有一个普通人群的数据库，我们可能会发现这两个变量之间存在关系。专业数据库的选取方式使得这种关系消失了；一个人如果不能有足够的最大摄氧量，就不能成为职业自行车手，但在职业自行车手中，每个人都有足够的最大摄氧量。再次，我们可以模拟一些数据来更清楚地展示这一点 (图 15.3)。
 
-```py
+```r
 set.seed(853)
 
 num_pros <- 100
@@ -207,7 +211,7 @@ general_public <- tibble(
 professionals_and_public <- bind_rows(professionals, general_public)
 ```
 
-*```py
+```r
 professionals_and_public |>
  ggplot(aes(x = VO2, y = chance_of_winning)) +
  geom_point(aes(color = type), alpha = 0.1) +
@@ -221,11 +225,15 @@ professionals_and_public |>
  theme_minimal() +
  scale_color_brewer(palette = "Set1") +
  theme(legend.position = "bottom")
-```*
 
-*![图片](img/94dfef3b9700904fd16ea3577bf25aef.png)*
 
-图 15.3：模拟数据的示意图，展示了伯克森悖论*****  ***## 15.3 差分-差分法
+
+
+![图片](img/94dfef3b9700904fd16ea3577bf25aef.png)*
+
+图 15.3：模拟数据的示意图，展示了伯克森悖论
+  
+## 15.3 差分-差分法
 
 能够进行实验的理想情况很少可能实现。我们能否合理地期望 Netflix 会允许我们改变价格？即使他们曾经这样做过，他们是否还会让我们再次这样做，一次又一次？此外，我们很少能够明确地创建处理组和对照组。最后，实验可能既昂贵又不道德。因此，我们需要尽力而为。而不是通过随机化，我们的反事实通过随机化来到我们面前，因此我们知道这两者除了处理之外是相同的，我们试图识别那些除了处理之外相似但不同的群体，因此任何差异都可以归因于处理。
 
@@ -247,7 +255,7 @@ professionals_and_public |>
 
 为了更具体地说明情况，我们模拟数据。我们将模拟一个初始时不同人的发球速度之间有一个差异的情况，然后在使用新网球拍后，差异变为六个。我们可以用图表来展示这种情况（图 15.4）。
 
-```py
+```r
 set.seed(853)
 
 simulated_diff_in_diff <-
@@ -276,7 +284,7 @@ simulated_diff_in_diff <-
 simulated_diff_in_diff
 ```
 
-*```py
+```r
 # A tibble: 2,000 × 4
 # Rowwise: 
    person time  treat_group serve_speed
@@ -292,7 +300,9 @@ simulated_diff_in_diff
  9      9 0     1                  6.13
 10     10 0     1                  7.32
 # ℹ 1,990 more rows
-```*  *```py
+
+
+```r
 simulated_diff_in_diff |>
  ggplot(aes(x = time, y = serve_speed, color = treat_group)) +
  geom_point(alpha = 0.2) +
@@ -303,11 +313,11 @@ simulated_diff_in_diff |>
  theme(legend.position = "bottom")
 ```
 
-*![](img/bceeafd58e5f964ed4c299d02daa29cb.png)
+![](img/bceeafd58e5f964ed4c299d02daa29cb.png)
 
 图 15.4：展示在使用新网球拍前后差异的模拟数据图* *我们可以通过查看差异的平均差异来手动获得我们的估计。当我们这样做时，我们发现我们估计新网球拍的效果为 5.06，这与我们模拟的相似。
 
-```py
+```r
 ave_diff <-
  simulated_diff_in_diff |>
  pivot_wider(
@@ -324,15 +334,17 @@ ave_diff <-
 ave_diff$average_difference[2] - ave_diff$average_difference[1]
 ```
 
-*```py
+```r
 [1] 5.058414
-```* *我们可以使用线性回归得到相同的结果。我们感兴趣的模型是：
+
+
+我们可以使用线性回归得到相同的结果。我们感兴趣的模型是：
 
 $$Y_{i,t} = \beta_0 + \beta_1\times\mbox{Treatment}_i + \beta_2\times\mbox{Time}_t + \beta_3\times(\mbox{Treatment} \times\mbox{Time})_{i,t} + \epsilon_{i,t}$$
 
 虽然我们应该包括单独的方面，但我们感兴趣的是交互作用的估计。在这种情况下，它是 $\beta_3$。我们发现我们的估计效应是 5.06 (表 15.1)。
 
-```py
+```r
 diff_in_diff_example_regression <-
  stan_glm(
  formula = serve_speed ~ treat_group * time,
@@ -350,18 +362,18 @@ saveRDS(
 )
 ```
 
-*```py
+```r
 diff_in_diff_example_regression <-
  readRDS(file = "diff_in_diff_example_regression.rds")
 ```
 
-*```py
+```r
 modelsummary(
  diff_in_diff_example_regression
 )
 ```
 
-*表 15.1：获得新网球拍前后模拟数据的差异说明
+表 15.1：获得新网球拍前后模拟数据的差异说明
 
 |  | (1) |
 | --- | --- |
@@ -379,7 +391,9 @@ modelsummary(
 | LOOIC s.e. | 64.2 |
 | WAIC | 5612.5 |
 
-| RMSE | 0.98 |******  ***### 15.3.2 假设
+| RMSE | 0.98 |
+  
+### 15.3.2 假设
 
 如果我们想使用双重差分法，那么我们需要满足假设。之前提到了三个假设，但在这里我们将重点放在“平行趋势”假设上。平行趋势假设困扰着与双重差分分析相关的所有事情，因为我们永远无法证明它；我们只能被说服，并试图说服他人。
 
@@ -403,15 +417,15 @@ modelsummary(
 
 我们可以通过注册后免费获取支撑 Angelucci 和 Cagé (2019) 的数据集。数据集为 Stata 数据格式，“.dta”，我们可以使用`haven`中的`read_dta()`读取。我们感兴趣的是“Angelucci_Cage_AEJMicro_dataset.dta”文件，它位于“dta”文件夹中。
 
-```py
+```r
 newspapers <- read_dta("Angelucci_Cage_AEJMicro_dataset.dta")
 ```
 
-*数据集中有 1,196 个观测值和 52 个变量。Angelucci 和 Cagé (2019) 关注 1960-1974 这一时期，大约有 100 家报纸。该时期初期有 14 家全国性报纸，末期有 12 家。关键时期是 1967 年，当时法国政府宣布将允许在电视上做广告。Angelucci 和 Cagé (2019) 认为，全国性报纸受到了这一变化的影响，而地方报纸则没有。全国性报纸是处理组，地方报纸是对照组。
+数据集中有 1,196 个观测值和 52 个变量。Angelucci 和 Cagé (2019) 关注 1960-1974 这一时期，大约有 100 家报纸。该时期初期有 14 家全国性报纸，末期有 12 家。关键时期是 1967 年，当时法国政府宣布将允许在电视上做广告。Angelucci 和 Cagé (2019) 认为，全国性报纸受到了这一变化的影响，而地方报纸则没有。全国性报纸是处理组，地方报纸是对照组。
 
 我们只关注标题差异差异的结果，并构建汇总统计量。
 
-```py
+```r
 newspapers <-
  newspapers |>
  select(
@@ -424,7 +438,7 @@ newspapers <-
 newspapers
 ```
 
-*```py
+```r
 # A tibble: 1,196 × 9
     year id_news after_national local national    ra_cst ps_cst  qtotal
    <int> <fct>   <fct>          <fct> <fct>        <dbl>  <dbl>   <dbl>
@@ -440,9 +454,10 @@ newspapers
 10  1969 1       0              1     0        102596384   3.28 132417.
 # ℹ 1,186 more rows
 # ℹ 1 more variable: ra_cst_div_qtotal <dbl>
-```*  *我们关注从 1967 年开始发生的情况，特别是广告收入，以及这与全国性报纸相比是否有所不同（图 15.5）。我们使用`scales`调整 y 轴。
+```
+我们关注从 1967 年开始发生的情况，特别是广告收入，以及这与全国性报纸相比是否有所不同（图 15.5）。我们使用`scales`调整 y 轴。
 
-```py
+```r
 newspapers |>
  mutate(type = if_else(local == 1, "Local", "National")) |>
  ggplot(aes(x = year, y = ra_cst)) +
@@ -458,7 +473,7 @@ newspapers |>
  geom_vline(xintercept = 1966.5, linetype = "dashed")
 ```
 
-*![](img/ee991dc1577bca0f0803bc3b4e2c24f9.png)
+![](img/ee991dc1577bca0f0803bc3b4e2c24f9.png)
 
 图 15.5：法国报纸收入（1960-1974），按地方或全国性分类*  *我们感兴趣要估计的模型是：
 
@@ -466,7 +481,7 @@ $$\mbox{ln}(y_{n,t}) = \beta_0 + \beta_1\times(\mbox{National binary}\times\mbox
 
 我们特别关注的是$\beta_1$系数。我们使用`stan_glm()`估计模型。
 
-```py
+```r
 ad_revenue <-
  stan_glm(
  formula = log(ra_cst) ~ after_national + id_news + year,
@@ -517,7 +532,7 @@ saveRDS(
 )
 ```
 
-*```py
+```r
 ad_revenue <-
  readRDS(file = "ad_revenue.rds")
 
@@ -528,9 +543,9 @@ subscription_price <-
  readRDS(file = "subscription_price.rds")
 ```
 
-*在表 15.2 中查看广告方面的变量，如收入和价格，我们发现系数始终为负。
+在表 15.2 中查看广告方面的变量，如收入和价格，我们发现系数始终为负。
 
-```py
+```r
 selected_variables <- c("year" = "Year", "after_national1" = "After change")
 
 modelsummary(
@@ -544,7 +559,7 @@ modelsummary(
 )
 ```
 
-*表 15.2：电视广告法变更对法国报纸收入（1960-1974）的影响
+表 15.2：电视广告法变更对法国报纸收入（1960-1974）的影响
 
 |  | 广告收入 | 广告收入占发行量比例 | 订阅价格 |
 | --- | --- | --- | --- |
@@ -560,7 +575,9 @@ modelsummary(
 | LOOIC s.e. | 68.9 | 91.2 | 48.6 |
 | WAIC | -515.9 | -725.5 | -1588.9 |
 
-| RMSE | 0.17 | 0.16 | 0.10 |*  *我们可以复制 Angelucci 和 Cagé（2019）的主要结果，并发现许多情况下，从 1967 年开始似乎存在差异。Angelucci 和 Cagé（2019, 353–58）还包含了一个关于差异法模型所需的解释、外部效度和稳健性的讨论的优秀示例。*********  ***## 15.4 倾向得分匹配
+| RMSE | 0.17 | 0.16 | 0.10 |*  *我们可以复制 Angelucci 和 Cagé（2019）的主要结果，并发现许多情况下，从 1967 年开始似乎存在差异。Angelucci 和 Cagé（2019, 353–58）还包含了一个关于差异法模型所需的解释、外部效度和稳健性的讨论的优秀示例。
+  
+## 15.4 倾向得分匹配
 
 差分法是一种强大的分析框架。但确定适当的处理组和对照组可能很困难。亚历山大和沃德（2018）比较了移民兄弟，其中一位兄弟的大部分教育在一个不同的国家完成，而另一位兄弟的大部分教育在美国完成。考虑到可用的数据，这种匹配提供了一个合理的处理组和对照组。但其他匹配可能会产生不同的结果，例如朋友或堂兄弟姐妹。
 
@@ -574,7 +591,7 @@ modelsummary(
 
 倾向得分匹配的一个优点是它允许我们一次性考虑许多预测变量，并且可以使用逻辑回归来构建。更具体地说，我们可以模拟一些数据。我们将假装我们为一家大型在线零售商工作。我们将对一些个人提供免费送货，看看这会对他们的平均购买产生什么影响。
 
-```py
+```r
 set.seed(853)
 
 sample_size <- 10000
@@ -595,7 +612,7 @@ purchase_data <-
 purchase_data
 ```
 
-*```py
+```r
 # A tibble: 10,000 × 4
    unique_person_id   age gender income
               <int> <int> <chr>   <dbl>
@@ -610,9 +627,10 @@ purchase_data
  9                9    72 Male    54621
 10               10    52 Female  40722
 # ℹ 9,990 more rows
-```*  *然后我们需要添加一些获得免费送货的概率。我们将说这取决于我们的预测变量，并且年轻、高收入、男性个体使这种处理更有可能。我们之所以知道这一点，是因为我们模拟了这种情况。如果我们使用实际数据，我们就不会知道这一点。
+```
+然后我们需要添加一些获得免费送货的概率。我们将说这取决于我们的预测变量，并且年轻、高收入、男性个体使这种处理更有可能。我们之所以知道这一点，是因为我们模拟了这种情况。如果我们使用实际数据，我们就不会知道这一点。
 
-```py
+```r
 purchase_data <- 
  purchase_data |>
  mutate(
@@ -633,9 +651,9 @@ purchase_data <-
  select(-(age_num:softmax_prob))
 ```
 
-*最后，我们需要有一个衡量一个人平均花费的指标。我们将假设这会随着收入的增加而增加。我们希望有免费送货的人的平均花费略高于没有免费送货的人。
+最后，我们需要有一个衡量一个人平均花费的指标。我们将假设这会随着收入的增加而增加。我们希望有免费送货的人的平均花费略高于没有免费送货的人。
 
-```py
+```r
 purchase_data <-
  purchase_data |>
  mutate(
@@ -650,7 +668,7 @@ purchase_data <-
 purchase_data
 ```
 
-*```py
+```r
 # A tibble: 10,000 × 6
    unique_person_id   age gender income free_shipping spend
               <int> <int> <fct>   <dbl> <fct>         <int>
@@ -665,9 +683,10 @@ purchase_data
  9                9    72 Male    54621 0                55
 10               10    52 Female  40722 0                47
 # ℹ 9,990 more rows
-```*  *直观地我们可以看到，免费送货和没有免费送货的人之间的平均花费存在差异（表 15.3）。但基本问题是，如果这些人没有免费送货，他们的花费会是多少。 表 15.3 显示了平均比较，但并不是每个人都有相同的机会获得免费送货。因此，我们质疑使用平均比较的有效性。相反，我们使用倾向得分匹配来“链接”每个实际获得免费送货的观测值与基于可观察变量的、未获得免费送货的最相似观测值。
+```
+直观地我们可以看到，免费送货和没有免费送货的人之间的平均花费存在差异（表 15.3）。但基本问题是，如果这些人没有免费送货，他们的花费会是多少。 表 15.3 显示了平均比较，但并不是每个人都有相同的机会获得免费送货。因此，我们质疑使用平均比较的有效性。相反，我们使用倾向得分匹配来“链接”每个实际获得免费送货的观测值与基于可观察变量的、未获得免费送货的最相似观测值。
 
-```py
+```r
 purchase_data |>
  summarise(average_spend = round(mean(spend), 2), .by = free_shipping) |>
  mutate(free_shipping = if_else(free_shipping == 0, "No", "Yes")) |>
@@ -676,7 +695,7 @@ purchase_data |>
  setNames(c("Received free shipping?", "Average spend"))
 ```
 
-*表 15.3：是否免费送货的平均花费差异
+表 15.3：是否免费送货的平均花费差异
 
 | 是否收到免费送货？ | 平均花费 |
 | --- | --- |
@@ -684,7 +703,7 @@ purchase_data |>
 
 | 是 | 86.71 |*  *我们使用`matchit()`函数从`MatchIt`包中实现逻辑回归并创建匹配组。然后我们使用`match.data()`函数来获取包含所有 254 个实际使用免费送货处理的人以及根据倾向得分被认为与他们相似（尽可能相似）的未处理人的数据。结果是包含 508 个观测值的数据库。
 
-```py
+```r
 matched_groups <- 
  matchit(
  free_shipping ~ age + gender + income,
@@ -696,7 +715,7 @@ matched_groups <-
 matched_groups
 ```
 
-*```py
+```r
 A `matchit` object
  - method: 1:1 nearest neighbor matching without replacement
  - distance: Propensity score             - estimated with logistic regression
@@ -705,13 +724,13 @@ A `matchit` object
  - covariates: age, gender, income
 ```
 
-```py
+```r
 matched_dataset <- match.data(matched_groups)
 
 matched_dataset
 ```
 
-*```py
+```r
 # A tibble: 508 × 9
    unique_person_id   age gender     income free_shipping spend distance weights
               <int> <int> <fct>       <dbl> <fct>         <int>    <dbl>   <dbl>
@@ -727,9 +746,10 @@ matched_dataset
 10              125    51 Female      81164 1                96  0.0303        1
 # ℹ 498 more rows
 # ℹ 1 more variable: subclass <fct>
-```*  **最后，我们可以使用线性回归（表 15.4）来估计处理对平均花费的影响。我们特别关注与处理变量相关的系数，在这种情况下是免费送货。
+```
+最后，我们可以使用线性回归（表 15.4）来估计处理对平均花费的影响。我们特别关注与处理变量相关的系数，在这种情况下是免费送货。
 
-```py
+```r
 propensity_score_regression <- lm(
  spend ~ age + gender + income + free_shipping,
  data = matched_dataset
@@ -738,7 +758,7 @@ propensity_score_regression <- lm(
 modelsummary(propensity_score_regression)
 ```
 
-*表 15.4：使用模拟数据处理的平均花费效果
+表 15.4：使用模拟数据处理的平均花费效果
 
 |  | (1) |
 | --- | --- |
@@ -770,7 +790,9 @@ modelsummary(propensity_score_regression)
 
 1.  模型。倾向得分匹配的结果往往特定于所使用的模型。由于在模型选择上具有相当大的灵活性，这使得研究人员能够挑选出适合的匹配。此外，由于两个回归步骤（匹配和分析）是分别进行的，因此不存在不确定性的传播。
 
-不可观测变量的基本问题永远无法证明其无关紧要，因为这需要不可观测的数据。那些想要使用倾向得分匹配和其他匹配方法的人需要能够有说服力地论证这是合适的。McKenzie (2021)提出了一些可能的情况，例如，当存在容量限制时。正如本书的常见主题，这些情况将需要关注数据及其产生的情境的深入理解。*******  ***
+不可观测变量的基本问题永远无法证明其无关紧要，因为这需要不可观测的数据。那些想要使用倾向得分匹配和其他匹配方法的人需要能够有说服力地论证这是合适的。McKenzie (2021)提出了一些可能的情况，例如，当存在容量限制时。正如本书的常见主题，这些情况将需要关注数据及其产生的情境的深入理解。
+  
+
 
 回归断点设计（RDD）由 Thistlethwaite 和 Campbell 于 1960 年提出，是一种在存在连续变量且有截止点决定治疗时获取因果关系的流行方法。一个学生得了 79 分和一个学生得了 80 分之间有区别吗？可能不大，但一个可能会得到 A-，而另一个可能会得到 B+。在成绩单上看到这一点可能会影响谁得到工作，进而影响收入。在这种情况下，百分比是一个“强制变量”或“强制函数”，A-的截止点是一个“阈值”。由于治疗是由强制变量决定的，我们需要控制这个变量。这些看似随机的截止点随处可见。因此，已经有很多研究使用了 RDD。
 
@@ -780,7 +802,7 @@ modelsummary(propensity_score_regression)
 
 为了更具体地说明情况，我们模拟数据。我们将考虑收入和成绩之间的关系，并模拟如果学生至少获得 80 分，则会有所变化（图 15.6）。
 
-```py
+```r
 set.seed(853)
 
 num_observations <- 1000
@@ -802,7 +824,7 @@ rdd_example_data <-
 rdd_example_data
 ```
 
-*```py
+```r
 # A tibble: 1,000 × 4
    person  mark income noise
     <int> <dbl>  <dbl> <dbl>
@@ -817,7 +839,9 @@ rdd_example_data
  9      9  78.6   9.53 0.671
 10     10  78.8  10.6  2.46 
 # ℹ 990 more rows
-```*  *```py
+
+
+```r
 rdd_example_data |>
  ggplot(aes(
  x = mark,
@@ -843,11 +867,11 @@ rdd_example_data |>
  )
 ```
 
-*![](img/438ba3919b3a5c5de6e035537f8fd353.png)
+![](img/438ba3919b3a5c5de6e035537f8fd353.png)
 
 图 15.6：模拟数据示意图，显示获得 80 分而非 79 分对收入的影响。*我们可以使用二元变量和线性回归来估计获得超过 80 分的成绩对收入的影响。我们预计系数约为 2，这正是我们模拟的，也是我们发现的（表 15.5）。
 
-```py
+```r
 rdd_example_data <-
  rdd_example_data |>
  mutate(mark_80_and_over = if_else(mark < 80, 0, 1))
@@ -869,19 +893,19 @@ saveRDS(
 )
 ```
 
-*```py
+```r
 rdd_example <-
  readRDS(file = "rdd_example.rds")
 ```
 
-*```py
+```r
 modelsummary(
  models = rdd_example,
  fmt = 2
 )
 ```
 
-*表 15.5：使用模拟数据的回归不连续性示例
+表 15.5：使用模拟数据的回归不连续性示例
 
 |  | （1） |
 | --- | --- |
@@ -902,7 +926,7 @@ modelsummary(
 
 我们也可以使用`rdrobust`实现 RDD。这种方法的优点是许多常见扩展都很容易获得。
 
-```py
+```r
 rdrobust(
  y = rdd_example_data$income,
  x = rdd_example_data$mark,
@@ -913,7 +937,7 @@ rdrobust(
  summary()
 ```
 
-*```py
+```r
 Sharp RD estimates using local polynomial regression.
 
 Number of Obs.                 1000
@@ -937,7 +961,9 @@ Unique Obs.                     497          503
 Bias-Corrected     1.966     0.161    12.207     0.000     [1.650 , 2.282]     
         Robust     1.966     0.232     8.461     0.000     [1.511 , 2.422]     
 =============================================================================
-```******  ***### 15.5.2 假设
+```
+  
+### 15.5.2 假设
 
 RDD 的关键假设是（Cunningham 2021, 163）：
 
@@ -997,7 +1023,7 @@ RDD 有许多弱点，包括：
 
 RDD 的另一个关键因素是选择模型时决策可能产生的影响。例如，图 15.7 展示了线性 (图 15.7 (a)) 和多项式 (图 15.7 (b)) 之间的差异。
 
-```py
+```r
 some_data <-
  tibble(
  outcome = rnorm(n = 100, mean = 1, sd = 1),
@@ -1042,20 +1068,22 @@ both |>
 
 结果是，我们对结果差异的估计取决于模型的选择。我们在 RDD (Gelman 2019) 中经常看到这个问题发生，并且特别建议不要使用高阶多项式，而应选择线性、二次或其他平滑函数 (Gelman and Imbens 2019)。
 
-RDD 是一种流行的方法，但元分析表明，标准误差通常被不适当地低估，这可能导致虚假的结果 (Stommes, Aronow, and Sävje 2023)。如果你使用 RDD，那么讨论比软件包报告的更广泛的标准误差的可能性，以及这将对你的结论产生什么影响是至关重要的。*  *### 15.5.3 加利福尼亚的酒精和犯罪
+RDD 是一种流行的方法，但元分析表明，标准误差通常被不适当地低估，这可能导致虚假的结果 (Stommes, Aronow, and Sävje 2023)。如果你使用 RDD，那么讨论比软件包报告的更广泛的标准误差的可能性，以及这将对你的结论产生什么影响是至关重要的。
+
+### 15.5.3 加利福尼亚的酒精和犯罪
 
 在回归断点设计中有很多应用机会。例如，我们经常在选举中看到它的应用，其中一位候选人仅以微弱优势获胜。Caughey 和 Sekhon(2011)研究了 1942 年至 2008 年间的美国众议院选举，并表明裸胜者和裸败者之间存在相当大的差异。他们强调，回归断点的一个优点是假设可以被检验。另一种常见应用是在存在某种任意截止点的情况下。例如，在美国的大部分地区，法定饮酒年龄是 21 岁。Carpenter 和 Dobkin(2015)通过比较加利福尼亚州 21 岁左右的被捕者和其他记录来考虑酒精对犯罪的可能影响。他们发现，略大于 21 岁的人被捕的可能性略高于略小于 21 岁的人。我们将在加利福尼亚州的犯罪背景下重新审视 Carpenter 和 Dobkin(2015)的研究。
 
 我们可以从[这里](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/27070)获取他们的复制数据(Carpenter and Dobkin 2014)。Carpenter 和 Dobkin(2015)考虑了许多变量，并构建了一个比率，然后在一个半月内平均这个比率，但为了简化，我们只考虑几个变量的数值：攻击、严重攻击、酒驾和交通违规(图 15.8)。
 
-```py
+```r
 carpenter_dobkin <-
  read_dta(
  "P01 Age Profile of Arrest Rates 1979-2006.dta"
  )
 ```
 
-*```py
+```r
 carpenter_dobkin_prepared <-
  carpenter_dobkin |>
  mutate(age = 21 + days_to_21 / 365) |>
@@ -1082,9 +1110,9 @@ carpenter_dobkin_prepared |>
  theme_minimal()
 ```
 
-*![](img/f68581fa2ab5a7224494fffb740ea1c9.png)
+![](img/f68581fa2ab5a7224494fffb740ea1c9.png)
 
-图 15.8：比较因特定原因在 21 岁前后被捕的人数*  *```py
+图 15.8：比较因特定原因在 21 岁前后被捕的人数*  ```r
 carpenter_dobkin_aggravated_assault_only <-
  carpenter_dobkin_prepared |>
  filter(
@@ -1094,7 +1122,7 @@ carpenter_dobkin_aggravated_assault_only <-
  mutate(is_21_or_more = if_else(age < 21, 0, 1))
 ```
 
-*```py
+```r
 rdd_carpenter_dobkin <-
  stan_glm(
  formula = number ~ age + is_21_or_more,
@@ -1112,19 +1140,19 @@ saveRDS(
 )
 ```
 
-*```py
+```r
 rdd_carpenter_dobkin <-
  readRDS(file = "rdd_carpenter_dobkin.rds")
 ```
 
-*```py
+```r
 modelsummary(
  models = rdd_carpenter_dobkin,
  fmt = 2
 )
 ```
 
-*表 15.6：检验加利福尼亚州酒精对犯罪的影响
+表 15.6：检验加利福尼亚州酒精对犯罪的影响
 
 |  | (1) |
 | --- | --- |
@@ -1143,7 +1171,7 @@ modelsummary(
 
 | RMSE | 16.42 |*  *如果使用`rdrobust`，结果也相似。
 
-```py
+```r
 rdrobust(
  y = carpenter_dobkin_aggravated_assault_only$number,
  x = carpenter_dobkin_aggravated_assault_only$age,
@@ -1154,7 +1182,7 @@ rdrobust(
  summary()
 ```
 
-*```py
+```r
 Sharp RD estimates using local polynomial regression.
 
 Number of Obs.                 1459
@@ -1178,7 +1206,9 @@ Unique Obs.                     729          730
 Bias-Corrected    16.708     1.918     8.709     0.000    [12.948 , 20.468]    
         Robust    16.708     2.879     5.804     0.000    [11.066 , 22.350]    
 =============================================================================
-```***********  ***## 15.6 工具变量
+```
+  
+## 15.6 工具变量
 
 工具变量(IV)是一种在存在某种类型的治疗和控制时很有用的方法，但我们与其他变量有大量相关性，并且我们可能没有测量我们感兴趣的实际变量的变量。仅调整可观察变量不足以创建一个好的估计。相反，我们找到一个变量——同名的工具变量——它是：
 
@@ -1212,7 +1242,7 @@ Bias-Corrected    16.708     1.918     8.709     0.000    [12.948 , 20.468]
 
 我们正在模拟数据以供说明，因此我们需要施加我们想要的答案。当你实际使用工具变量时，你将反转这个过程。
 
-```py
+```r
 set.seed(853)
 
 num_observations <- 10000
@@ -1224,9 +1254,9 @@ iv_example_data <- tibble(
  )
 ```
 
-*现在我们需要将某人吸烟的数量与他们的健康状况联系起来。我们将健康状况建模为从正态分布中抽取的值，其平均值的高低取决于该人是否吸烟。
+现在我们需要将某人吸烟的数量与他们的健康状况联系起来。我们将健康状况建模为从正态分布中抽取的值，其平均值的高低取决于该人是否吸烟。
 
-```py
+```r
 iv_example_data <-
  iv_example_data |>
  mutate(health = if_else(
@@ -1236,9 +1266,9 @@ iv_example_data <-
  ))
 ```
 
-*现在我们需要建立香烟和省份之间的关系（因为在这个示例中，省份有不同的税率）。
+现在我们需要建立香烟和省份之间的关系（因为在这个示例中，省份有不同的税率）。
 
-```py
+```r
 iv_example_data <- iv_example_data |>
  mutate(
  province = case_when(
@@ -1264,7 +1294,7 @@ iv_example_data <- iv_example_data |>
 iv_example_data
 ```
 
-*```py
+```r
 # A tibble: 10,000 × 5
    person smoker  health province      tax
     <int>  <int>   <dbl> <chr>       <dbl>
@@ -1279,9 +1309,10 @@ iv_example_data
  9      9      1  0.113  Alberta       0.3
 10     10      1 -0.0105 Alberta       0.3
 # ℹ 9,990 more rows
-```*  *现在我们可以查看我们的数据了。
+```
+现在我们可以查看我们的数据了。
 
-```py
+```r
 iv_example_data |>
  mutate(smoker = as_factor(smoker)) |>
  ggplot(aes(x = health, fill = smoker)) +
@@ -1296,9 +1327,9 @@ iv_example_data |>
  facet_wrap(vars(province))
 ```
 
-*![](img/758e99299e46cf90b450e424f8f2113c.png)*  *最后，我们可以使用税率作为工具变量来估计吸烟对健康的影响。
+![](img/758e99299e46cf90b450e424f8f2113c.png)*  *最后，我们可以使用税率作为工具变量来估计吸烟对健康的影响。
 
-```py
+```r
 health_on_tax <- lm(health ~ tax, data = iv_example_data)
 smoker_on_tax <- lm(smoker ~ tax, data = iv_example_data)
 
@@ -1312,23 +1343,24 @@ tibble(
 )
 ```
 
-*```py
+```r
 # A tibble: 3 × 2
   coefficient   value
   <chr>         <dbl>
 1 health ~ tax  1.24 
 2 smoker ~ tax -1.27 
 3 ratio        -0.980
-```*  *通过理解税率对吸烟和健康的影响，我们发现如果你吸烟，那么你的健康状况可能比不吸烟时要差。
+```
+通过理解税率对吸烟和健康的影响，我们发现如果你吸烟，那么你的健康状况可能比不吸烟时要差。
 
 我们可以使用 `estimatr` 中的 `iv_robust()` 来估计工具变量 (表 15.7)。这样做的一个好理由是，它可以帮助保持一切井然有序，并调整标准误差。
 
-```py
+```r
 iv_robust(health ~ smoker | tax, data = iv_example_data) |>
  modelsummary()
 ```
 
-*表 15.7：使用模拟数据进行的工具变量示例
+表 15.7：使用模拟数据进行的工具变量示例
 
 |  | (1) |
 | --- | --- |
@@ -1342,11 +1374,13 @@ iv_robust(health ~ smoker | tax, data = iv_example_data) |>
 | AIC | 28342.1 |
 | BIC | 28363.7 |
 
-| RMSE | 1.00 |******  ***### 15.6.2 假设
+| RMSE | 1.00 |
+  
+### 15.6.2 假设
 
 工具变量的设置在 图 15.9 中描述，该图显示了教育作为收入和幸福感之间的混杂因素。税收返还可能只会影响收入，而不会影响教育，因此可以用作工具变量。
 
-```py
+```r
 digraph D {
 
  node  [shape=plaintext, fontname  =  "helvetica"];
@@ -1363,7 +1397,7 @@ digraph D {
 }
 ```
 
-*<svg width="384" height="480" viewBox="0.00 0.00 189.54 116.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)"><title>D</title> <g id="node1" class="node"><title>a</title> <text text-anchor="middle" x="50.46" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">收入</text></g> <g id="node2" class="node"><title>b</title> <text text-anchor="middle" x="140.46" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">幸福感</text></g> <g id="edge1" class="edge"><title>a->b</title></g> <g id="node3" class="node"><title>c</title> <text text-anchor="middle" x="140.46" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">教育</text></g> <g id="edge2" class="edge"><title>c->a</title></g> <g id="edge3" class="edge"><title>c->b</title></g> <g id="node4" class="node"><title>d</title> <text text-anchor="middle" x="41.46" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">税收返还</text></g> <g id="edge4" class="edge"><title>d->a</title></g></g></svg>
+<svg width="384" height="480" viewBox="0.00 0.00 189.54 116.00" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none"><g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)"><title>D</title> <g id="node1" class="node"><title>a</title> <text text-anchor="middle" x="50.46" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">收入</text></g> <g id="node2" class="node"><title>b</title> <text text-anchor="middle" x="140.46" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">幸福感</text></g> <g id="edge1" class="edge"><title>a->b</title></g> <g id="node3" class="node"><title>c</title> <text text-anchor="middle" x="140.46" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">教育</text></g> <g id="edge2" class="edge"><title>c->a</title></g> <g id="edge3" class="edge"><title>c->b</title></g> <g id="node4" class="node"><title>d</title> <text text-anchor="middle" x="41.46" y="-85.8" font-family="Helvetica,sans-Serif" font-size="14.00">税收返还</text></g> <g id="edge4" class="edge"><title>d->a</title></g></g></svg>
 
 图 15.9：教育作为收入与幸福感之间关系的混杂因素，税收返还作为工具变量*  *如前所述，在使用工具变量时，会做出各种假设。其中最重要的两个是：
 
