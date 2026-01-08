@@ -28,5 +28,6 @@
 +   [SeaseIO 博客中文翻译](docs/seaseio-blog/README.md)
 +   [SciPy 秘籍](docs/sp-cb-fix1/README.md)
 +   [数学与机器思维的小编年史](docs/tlc3m/README.md)
++   [用数据讲故事](docs/tlstr-dt/README.md)
 +   [理解模型-视图-控制器](docs/udstd-mvc/README.md)
 +   [统计推断与回归用户指南](docs/usrgd-stat-infr-rgrs/README.md)
